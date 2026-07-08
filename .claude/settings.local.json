@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xcodebuild -workspace TheCliqueApp.xcworkspace -scheme TheCliqueApp -configuration Release -destination 'generic/platform=iOS' -sdk iphoneos build)",
+      "Bash(tee /private/tmp/claude-501/-Users-adrian-Desktop-Repository/9064ec0b-212d-4b2e-810f-b1994df6ffdc/scratchpad/release_build.log)",
+      "Bash(npm install *)",
+      "Bash(xcrun simctl *)",
+      "Bash(open -a Simulator)",
+      "Bash(rm -rf /Users/adrian/Library/Developer/Xcode/DerivedData/TheCliqueApp-*)",
+      "Bash(xcodebuild -workspace TheCliqueApp.xcworkspace -scheme TheCliqueApp -configuration Debug -destination 'id=ACAB04A3-9FBA-4B02-8252-0FD4E45E3380' -sdk iphonesimulator build)",
+      "Bash(xcodebuild -workspace TheCliqueApp.xcworkspace -scheme TheCliqueApp -configuration Release -destination 'id=ACAB04A3-9FBA-4B02-8252-0FD4E45E3380' -sdk iphonesimulator build)",
+      "Bash(pod install *)",
+      "Bash(export LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8)",
+      "Bash(npx expo *)",
+      "Bash(which cliclick *)",
+      "Bash(brew install *)",
+      "Bash(osascript -e 'tell application \"System Events\" to tell process \"Simulator\" to get {position, size} of front window')",
+      "Read(//Users/adrian/Library/Developer/Xcode/DerivedData/TheCliqueApp-cpobnunanccszzdgririsogkpzjt/Build/Products/Release-iphonesimulator/TheCliqueApp.app/**)",
+      "Bash(echo \"Started background stream with PID $!\")",
+      "Bash(pkill -f \"log stream --level debug --predicate process == \\\\\"TheCliqueApp\\\\\"\")",
+      "Bash(disown)",
+      "Bash(pkill -f \"log stream --level debug\")",
+      "Read(//Users/adrian/Library/Logs/DiagnosticReports/**)",
+      "Read(//Users/adrian/Library/Developer/CoreSimulator/Devices/ACAB04A3-9FBA-4B02-8252-0FD4E45E3380/**)",
+      "Bash(python3 -c ' *)",
+      "Bash(time curl -sv --max-time 10 \"https://ltimoecvvwgtvgbudyhs.supabase.co/auth/v1/health\")",
+      "Bash(pkill -INT -f \"recordVideo\")"
+    ]
+  }
+}

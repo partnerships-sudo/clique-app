@@ -1,0 +1,124 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+import { useSession } from '@/hooks/use-session';
+import { supabase } from '@/lib/supabase';
+
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  username: string | null;
+  location: string | null;
+  bio: string | null;
+  avatar_url: string | null;
+  rating_icon: string | null;
+}
+
+function profileQueryKey(userId: string | undefined) {
+  return ['profile', userId] as const;
+}
+
+export function useProfile() {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: profileQueryKey(user?.id),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user!.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Profile | null;
+    },
+    enabled: !!user,
+  });
+}
+
+export function useProfileById(userId: string | undefined) {
+  return useQuery({
+    queryKey: profileQueryKey(userId),
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId!)
+        .maybeSingle();
+      if (error) throw error;
+      return data as Profile | null;
+    },
+    enabled: !!userId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
+}
+
+export type UpdateProfileInput = {
+  full_name: string;
+  username: string;
+  location: string;
+  bio: string;
+  rating_icon: string;
+};
+
+export function useUpdateProfile() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: UpdateProfileInput) => {
+      const cleanUsername = input.username.replace('@', '');
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: input.full_name,
+          username: cleanUsername,
+          location: input.location,
+          bio: input.bio,
+          rating_icon: input.rating_icon,
+        })
+        .eq('id', user!.id);
+      if (error) throw error;
+      await supabase.auth.updateUser({
+        data: {
+          full_name: input.full_name,
+          username: cleanUsername,
+          location: input.location,
+          bio: input.bio,
+          rating_icon: input.rating_icon,
+        },
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}
+
+export function useUploadAvatar() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (localUri: string) => {
+      const response = await fetch(localUri);
+      const arrayBuffer = await response.arrayBuffer();
+      const path = `${user!.id}/avatar.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      const avatarUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user!.id);
+      if (updateError) throw updateError;
+      await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
+      return avatarUrl;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}

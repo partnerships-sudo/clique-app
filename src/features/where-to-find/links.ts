@@ -1,0 +1,108 @@
+import type { EntryType } from '@/constants/theme';
+
+export interface StoreLink {
+  name: string;
+  logo: string;
+  price: string;
+  cta: string;
+  color: string;
+  url: string;
+}
+
+export interface WhereToFindConfig {
+  emoji: string;
+  label: string;
+  gradient: [string, string];
+  stores: StoreLink[];
+}
+
+export function getWhereToFindConfig(type: EntryType | 'cinema', title: string): WhereToFindConfig {
+  const q = encodeURIComponent(title);
+
+  switch (type) {
+    case 'watch':
+      return {
+        emoji: '📺',
+        label: 'Where to watch',
+        gradient: ['#0E0E10', '#1a1a2e'],
+        stores: [
+          { name: 'JustWatch', logo: '🎬', price: 'Shows every platform this is available on', cta: 'Find on JustWatch', color: '#0E0E10', url: `https://www.justwatch.com/us/search?q=${q}` },
+          { name: 'Max', logo: '🟣', price: 'HBO & Max Originals', cta: 'Search on Max', color: '#7C3AED', url: `https://www.max.com/search?q=${q}` },
+          { name: 'Netflix', logo: '🔴', price: 'Netflix Originals & more', cta: 'Search on Netflix', color: '#E50914', url: `https://www.netflix.com/search?q=${q}` },
+          { name: 'Apple TV+', logo: '🍎', price: 'Apple Originals', cta: 'Search on Apple TV', color: '#000000', url: `https://tv.apple.com/search?term=${q}` },
+          { name: 'Amazon Prime Video', logo: '📦', price: 'Stream or rent/buy', cta: 'Search on Amazon', color: '#FF9900', url: `https://www.amazon.com/s?k=${q}&i=instant-video` },
+        ],
+      };
+    case 'read':
+      return {
+        emoji: '📖',
+        label: 'Where to buy',
+        gradient: ['#1a1a2e', '#4F9CE8'],
+        stores: [
+          { name: 'Amazon', logo: '📦', price: 'Hardcover & Kindle', cta: 'Buy on Amazon', color: '#FF9900', url: `https://www.amazon.com/s?k=${q}+book` },
+          { name: 'Kindle', logo: '📱', price: 'eBook', cta: 'Buy on Kindle', color: '#232F3E', url: `https://www.amazon.com/s?k=${q}&i=digital-text` },
+          { name: 'Audible', logo: '🎧', price: 'Audiobook', cta: 'Listen on Audible', color: '#F7991C', url: `https://www.audible.com/search?keywords=${q}` },
+          { name: 'Apple Books', logo: '🍎', price: 'eBook', cta: 'Buy on Apple Books', color: '#007AFF', url: `https://books.apple.com/search?term=${q}` },
+          { name: 'Bookshop.org', logo: '🏠', price: 'Supports local bookshops', cta: 'Buy on Bookshop', color: '#E8A84F', url: `https://bookshop.org/search?keywords=${q}` },
+        ],
+      };
+    case 'play':
+      return {
+        emoji: '🎮',
+        label: 'Where to buy',
+        gradient: ['#0a0a1a', '#4F1BE8'],
+        stores: [
+          { name: 'Steam', logo: '🖥', price: 'PC / Mac', cta: 'Find on Steam', color: '#1B2838', url: `https://store.steampowered.com/search/?term=${q}` },
+          { name: 'PlayStation Store', logo: '🔵', price: 'PS4 / PS5', cta: 'Find on PS Store', color: '#003791', url: `https://store.playstation.com/search/${q}` },
+          { name: 'Xbox Store', logo: '🟢', price: 'Xbox / Game Pass', cta: 'Find on Xbox', color: '#107C10', url: `https://www.xbox.com/search?q=${q}` },
+          { name: 'Nintendo eShop', logo: '🔴', price: 'Switch', cta: 'Find on eShop', color: '#E4000F', url: `https://www.nintendo.com/search/#q=${q}` },
+          { name: 'App Store', logo: '📱', price: 'iOS / Android', cta: 'Find on App Store', color: '#007AFF', url: `https://apps.apple.com/search?term=${q}` },
+        ],
+      };
+    case 'listen':
+      return {
+        emoji: '🎧',
+        label: 'Stream & buy',
+        gradient: ['#1a0a2e', '#1DB954'],
+        stores: [
+          { name: 'Spotify', logo: '🟢', price: 'Stream free or premium', cta: 'Listen on Spotify', color: '#1DB954', url: `https://open.spotify.com/search/${q}` },
+          { name: 'Apple Music', logo: '🍎', price: 'Stream', cta: 'Listen on Apple Music', color: '#FC3C44', url: `https://music.apple.com/search?term=${q}` },
+          { name: 'Amazon Music', logo: '📦', price: 'Stream or buy', cta: 'Find on Amazon', color: '#FF9900', url: `https://music.amazon.com/search/${q}` },
+          { name: 'Tidal', logo: '🌊', price: 'Hi-fi streaming', cta: 'Listen on Tidal', color: '#000000', url: `https://listen.tidal.com/search?q=${q}` },
+        ],
+      };
+    case 'podcast':
+      return {
+        emoji: '🎙',
+        label: 'Where to listen',
+        gradient: ['#0a1a2e', '#A855F7'],
+        stores: [
+          { name: 'Spotify', logo: '🟢', price: 'Free', cta: 'Listen on Spotify', color: '#1DB954', url: `https://open.spotify.com/search/${q}/podcasts` },
+          { name: 'Apple Podcasts', logo: '🎙', price: 'Free', cta: 'Listen on Apple', color: '#9B59B6', url: `https://podcasts.apple.com/search?term=${q}` },
+          { name: 'YouTube', logo: '▶', price: 'Free with video', cta: 'Watch on YouTube', color: '#FF0000', url: `https://www.youtube.com/results?search_query=${q}+podcast` },
+          { name: 'Amazon Music', logo: '📦', price: 'Free', cta: 'Listen on Amazon', color: '#FF9900', url: `https://music.amazon.com/search/${q}` },
+        ],
+      };
+    case 'cinema':
+      return {
+        emoji: '🎟',
+        label: 'Showtimes & tickets',
+        gradient: ['#120508', '#6B1010'],
+        stores: [
+          { name: 'Google Showtimes', logo: '📍', price: 'Local listings near you', cta: 'Find showtimes', color: '#4285F4', url: `https://www.google.com/search?q=${q}+showtimes` },
+          { name: 'Fandango', logo: '🎟', price: 'US theaters', cta: 'Buy on Fandango', color: '#FF6B00', url: `https://www.fandango.com/search?q=${q}` },
+          { name: 'Atom Tickets', logo: '🔵', price: 'US theaters — skip the line', cta: 'Buy on Atom', color: '#00ADEF', url: `https://www.atomtickets.com/movies/search?q=${q}` },
+          { name: 'Odeon', logo: '🎬', price: 'UK cinemas', cta: 'Find on Odeon', color: '#1A1A1A', url: `https://www.odeon.co.uk/films/?search_term=${q}` },
+          { name: 'Vue', logo: '🎦', price: 'UK & European cinemas', cta: 'Find on Vue', color: '#1A1A1A', url: `https://www.myvue.com/movies?search=${q}` },
+        ],
+      };
+  }
+}
+
+export const WHERE_TO_FIND_CTA: Record<EntryType, string> = {
+  watch: '▶ Where to watch',
+  read: '📖 Buy this book',
+  play: '🎮 Get this game',
+  listen: '🎧 Stream & buy',
+  podcast: '🎙 Listen now',
+};
