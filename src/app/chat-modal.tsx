@@ -19,7 +19,15 @@ import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/consta
 import { useSendMessage, useThreadMessages } from '@/features/chats/api';
 import { useChatReadState, useDmReadState, useGroupReadState } from '@/features/chats/read-state';
 import { isAhead, useEpisodeCheckpoint, type EpisodeCheckpoint } from '@/features/chats/spoiler-guard';
-import { useDmMessages, useSendDm } from '@/features/dms/api';
+import { useContentDetails } from '@/features/content/api';
+import {
+  useAcceptDmRequest,
+  useDeclineDmRequest,
+  useDmMessages,
+  useDmThreadState,
+  useSendDm,
+} from '@/features/dms/api';
+import { useExtendedNetworkProfiles } from '@/features/follows/api';
 import { useGroupMessages, useSendGroupMessage } from '@/features/groups/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -34,6 +42,8 @@ type RawMessage = {
   ep_season: number | null;
   ep_episode: number | null;
   created_at: string;
+  avatar_url?: string | null;
+  user_handle?: string;
 };
 
 type ListItem =
@@ -62,18 +72,66 @@ export default function ChatModal() {
   const dmMessages = useDmMessages(isDm ? params.friendId! : null);
   const groupMessages = useGroupMessages(isGroup ? params.groupId! : null);
   const isLoading = isGroup ? groupMessages.isLoading : isDm ? dmMessages.isLoading : threadMessages.isLoading;
+  const { data: dmThreadState } = useDmThreadState(isDm ? params.friendId : undefined);
+  const isDmLocked = isDm && dmThreadState?.locked === true;
+  const acceptDmRequest = useAcceptDmRequest();
+  const declineDmRequest = useDeclineDmRequest();
+  const { data: friends } = useExtendedNetworkProfiles();
+  const friendAvatarById = useMemo(
+    () => new Map((friends ?? []).map((f) => [f.id, f.avatar_url])),
+    [friends],
+  );
+  // Chats show the person's @handle rather than their real name — the
+  // full name is still stored on older rows/denormalized fields, so this
+  // looks it up fresh from their profile instead of trusting that data.
+  const friendHandleById = useMemo(
+    () =>
+      new Map(
+        (friends ?? []).map((f) => [f.id, f.username ? `@${f.username}` : f.full_name || 'Someone']),
+      ),
+    [friends],
+  );
 
   const sendMessage = useSendMessage();
   const sendDm = useSendDm();
   const sendGroupMessage = useSendGroupMessage(isGroup ? params.groupId! : null);
   const [input, setInput] = useState('');
   const listRef = useRef<FlatList>(null);
-  const needsSpoilerGuard = !isDm && !isGroup && params.type === 'watch';
+  const isContentChat = !isDm && !isGroup;
+  const isBookChat = isContentChat && params.type === 'read';
+  // Movies don't have a spoiler-relevant "progress" the way TV shows do, so
+  // only gate watch-type chats once we know it's specifically a series —
+  // resolved via the same TMDB lookup content-detail-modal uses (and often
+  // already cached from a user having viewed that screen first).
+  const { data: watchDetails } = useContentDetails(
+    isContentChat && params.type === 'watch' ? params.title : undefined,
+    isContentChat && params.type === 'watch' ? 'watch' : undefined,
+  );
+  const isTVChat = isContentChat && params.type === 'watch' && watchDetails?.mediaType === 'tv';
+  const needsSpoilerGuard = isTVChat || isBookChat;
   const { loaded: checkpointLoaded, checkpoint, setCheckpoint } = useEpisodeCheckpoint(
-    !isDm && !isGroup ? params.title ?? null : null,
+    isContentChat ? params.title ?? null : null,
   );
   const [season, setSeason] = useState(1);
   const [episode, setEpisode] = useState(1);
+  // Real per-season episode counts straight from TMDB — stays correct as new
+  // seasons air with zero upkeep on our side, since we never store this
+  // ourselves, just read it live each time.
+  const seasons = watchDetails?.seasons ?? [];
+  const maxSeason = seasons.length > 0 ? seasons[seasons.length - 1].seasonNumber : undefined;
+  const maxEpisode = seasons.find((s) => s.seasonNumber === season)?.episodeCount;
+
+  function stepSeason(delta: number) {
+    const next = Math.max(1, maxSeason ? Math.min(maxSeason, season + delta) : season + delta);
+    setSeason(next);
+    const cap = seasons.find((s) => s.seasonNumber === next)?.episodeCount;
+    if (cap && episode > cap) setEpisode(cap);
+  }
+
+  function stepEpisode(delta: number) {
+    const next = Math.max(1, maxEpisode ? Math.min(maxEpisode, episode + delta) : episode + delta);
+    setEpisode(next);
+  }
   // forceShowGate: user tapped the checkpoint badge to update their progress
   const [forceShowGate, setForceShowGate] = useState(false);
   // cautionExpanded: user chose to reveal the messages below the spoiler line
@@ -99,6 +157,8 @@ export default function ChatModal() {
         ep_season: null,
         ep_episode: null,
         created_at: m.created_at,
+        avatar_url: m.sender_avatar,
+        user_handle: friendHandleById.get(m.user_id) ?? m.sender_name,
       }))
     : isDm
     ? (dmMessages.data ?? []).map((m) => ({
@@ -111,8 +171,14 @@ export default function ChatModal() {
         ep_season: null,
         ep_episode: null,
         created_at: m.created_at,
+        avatar_url: params.friendAvatar ?? null,
+        user_handle: friendHandleById.get(params.friendId!) ?? params.friendName ?? 'Friend',
       }))
-    : (threadMessages.data ?? []) as RawMessage[];
+    : ((threadMessages.data ?? []) as RawMessage[]).map((m) => ({
+        ...m,
+        avatar_url: friendAvatarById.get(m.user_id) ?? null,
+        user_handle: friendHandleById.get(m.user_id) ?? m.user_name,
+      }));
 
   useEffect(() => {
     if (isGroup && params.groupId) markGroupRead(params.groupId);
@@ -206,7 +272,9 @@ export default function ChatModal() {
                 : needsSpoilerGuard && checkpoint
                 ? checkpoint.finished
                   ? 'Fully caught up · tap to update ›'
-                  : `S${checkpoint.season}E${checkpoint.episode} · tap to update ›`
+                  : isBookChat
+                    ? `Chapter ${checkpoint.episode} · tap to update ›`
+                    : `S${checkpoint.season}E${checkpoint.episode} · tap to update ›`
                 : `Chatting about this ${type.label.toLowerCase()}`}
             </Text>
           </Pressable>
@@ -215,7 +283,13 @@ export default function ChatModal() {
               <Text style={styles.headerIcon}>👥</Text>
             </View>
           ) : isDm ? (
-            <Avatar name={params.friendName ?? 'Friend'} size={38} avatarUrl={params.friendAvatar} />
+            <Pressable
+              onPress={() =>
+                router.push({ pathname: '/friend-profile-modal', params: { userId: params.friendId! } })
+              }
+              hitSlop={8}>
+              <Avatar name={params.friendName ?? 'Friend'} size={38} avatarUrl={params.friendAvatar} />
+            </Pressable>
           ) : params.poster ? (
             <Image source={{ uri: params.poster }} style={styles.headerIconBox} />
           ) : (
@@ -225,7 +299,31 @@ export default function ChatModal() {
           )}
         </View>
 
-        {isGateVisible ? (
+        {isDmLocked ? (
+          <View style={styles.gate}>
+            <Avatar name={params.friendName ?? 'Someone'} size={64} avatarUrl={params.friendAvatar} />
+            <Text style={[styles.gateTitle, { marginTop: 14 }]}>Message Request</Text>
+            <Text style={styles.gateBody}>
+              {(params.friendName ?? 'This person')} wants to send you a message. Accept to see it and reply, or
+              decline to keep it hidden.
+            </Text>
+            <Pressable
+              style={styles.gateBtn}
+              disabled={acceptDmRequest.isPending}
+              onPress={() => acceptDmRequest.mutate(params.friendId!)}>
+              <Text style={styles.gateBtnText}>Accept</Text>
+            </Pressable>
+            <Pressable
+              style={styles.gateCaughtUp}
+              disabled={declineDmRequest.isPending}
+              onPress={() => {
+                declineDmRequest.mutate(params.friendId!);
+                router.back();
+              }}>
+              <Text style={styles.gateCaughtUpText}>Decline</Text>
+            </Pressable>
+          </View>
+        ) : isGateVisible ? (
           <View style={styles.gate}>
             <Text style={styles.gateEmoji}>🙈</Text>
             <Text style={styles.gateTitle}>Where are you up to?</Text>
@@ -233,41 +331,59 @@ export default function ChatModal() {
               Messages sent after you set this will be behind a spoiler line — one tap to reveal the whole zone, nothing buried message-by-message.
             </Text>
             <View style={styles.gateRow}>
-              <View style={styles.gateField}>
-                <Text style={styles.gateLabel}>Season</Text>
-                <View style={styles.stepper}>
-                  <Pressable
-                    style={styles.stepBtn}
-                    onPress={() => setSeason((s) => Math.max(1, s - 1))}
-                    hitSlop={8}>
-                    <Text style={styles.stepBtnText}>−</Text>
-                  </Pressable>
-                  <Text style={styles.stepValue}>{season}</Text>
-                  <Pressable style={styles.stepBtn} onPress={() => setSeason((s) => s + 1)} hitSlop={8}>
-                    <Text style={styles.stepBtnText}>+</Text>
-                  </Pressable>
+              {isBookChat ? (
+                <View style={styles.gateField}>
+                  <Text style={styles.gateLabel}>Chapter</Text>
+                  <View style={styles.stepper}>
+                    <Pressable
+                      style={styles.stepBtn}
+                      onPress={() => setEpisode((e) => Math.max(1, e - 1))}
+                      hitSlop={8}>
+                      <Text style={styles.stepBtnText}>−</Text>
+                    </Pressable>
+                    <Text style={styles.stepValue}>{episode}</Text>
+                    <Pressable style={styles.stepBtn} onPress={() => setEpisode((e) => e + 1)} hitSlop={8}>
+                      <Text style={styles.stepBtnText}>+</Text>
+                    </Pressable>
+                  </View>
                 </View>
-              </View>
-              <View style={styles.gateField}>
-                <Text style={styles.gateLabel}>Episode</Text>
-                <View style={styles.stepper}>
-                  <Pressable
-                    style={styles.stepBtn}
-                    onPress={() => setEpisode((e) => Math.max(1, e - 1))}
-                    hitSlop={8}>
-                    <Text style={styles.stepBtnText}>−</Text>
-                  </Pressable>
-                  <Text style={styles.stepValue}>{episode}</Text>
-                  <Pressable style={styles.stepBtn} onPress={() => setEpisode((e) => e + 1)} hitSlop={8}>
-                    <Text style={styles.stepBtnText}>+</Text>
-                  </Pressable>
-                </View>
-              </View>
+              ) : (
+                <>
+                  <View style={styles.gateField}>
+                    <Text style={styles.gateLabel}>Season{maxSeason ? ` (of ${maxSeason})` : ''}</Text>
+                    <View style={styles.stepper}>
+                      <Pressable style={styles.stepBtn} onPress={() => stepSeason(-1)} hitSlop={8}>
+                        <Text style={styles.stepBtnText}>−</Text>
+                      </Pressable>
+                      <Text style={styles.stepValue}>{season}</Text>
+                      <Pressable style={styles.stepBtn} onPress={() => stepSeason(1)} hitSlop={8}>
+                        <Text style={styles.stepBtnText}>+</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                  <View style={styles.gateField}>
+                    <Text style={styles.gateLabel}>Episode{maxEpisode ? ` (of ${maxEpisode})` : ''}</Text>
+                    <View style={styles.stepper}>
+                      <Pressable style={styles.stepBtn} onPress={() => stepEpisode(-1)} hitSlop={8}>
+                        <Text style={styles.stepBtnText}>−</Text>
+                      </Pressable>
+                      <Text style={styles.stepValue}>{episode}</Text>
+                      <Pressable style={styles.stepBtn} onPress={() => stepEpisode(1)} hitSlop={8}>
+                        <Text style={styles.stepBtnText}>+</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </>
+              )}
             </View>
             <Pressable
               style={styles.gateBtn}
               onPress={() =>
-                saveCheckpoint({ season, episode, updatedAt: new Date().toISOString() })
+                saveCheckpoint({
+                  season: isBookChat ? 1 : season,
+                  episode,
+                  updatedAt: new Date().toISOString(),
+                })
               }>
               <Text style={styles.gateBtnText}>Set progress</Text>
             </Pressable>
@@ -291,6 +407,7 @@ export default function ChatModal() {
                 return (
                   <SpoilerDivider
                     checkpoint={checkpoint!}
+                    isBookChat={isBookChat}
                     count={item.count}
                     onExpand={() => {
                       setCautionExpanded(true);
@@ -304,6 +421,8 @@ export default function ChatModal() {
                 <MessageBubble
                   message={item.data}
                   isMine={item.data.user_id === user?.id}
+                  avatarUrl={item.data.avatar_url}
+                  userHandle={item.data.user_handle}
                   isSpoiler={
                     needsSpoilerGuard &&
                     item.data.user_id !== user?.id &&
@@ -322,20 +441,22 @@ export default function ChatModal() {
           />
         )}
 
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Say something…"
-            placeholderTextColor={Brand.muted}
-            value={input}
-            onChangeText={setInput}
-            onSubmitEditing={handleSend}
-            returnKeyType="send"
-          />
-          <Pressable style={styles.sendBtn} onPress={handleSend} hitSlop={8}>
-            <Text style={styles.sendText}>➤</Text>
-          </Pressable>
-        </View>
+        {!isDmLocked ? (
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Say something…"
+              placeholderTextColor={Brand.muted}
+              value={input}
+              onChangeText={setInput}
+              onSubmitEditing={handleSend}
+              returnKeyType="send"
+            />
+            <Pressable style={styles.sendBtn} onPress={handleSend} hitSlop={8}>
+              <Text style={styles.sendText}>➤</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -343,10 +464,12 @@ export default function ChatModal() {
 
 function SpoilerDivider({
   checkpoint,
+  isBookChat,
   count,
   onExpand,
 }: {
   checkpoint: EpisodeCheckpoint;
+  isBookChat: boolean;
   count: number;
   onExpand: () => void;
 }) {
@@ -366,7 +489,9 @@ function SpoilerDivider({
           ⚠️{' '}
           {checkpoint.finished
             ? 'Fully caught up'
-            : `You're on S${checkpoint.season}E${checkpoint.episode}`}
+            : isBookChat
+              ? `You're on Chapter ${checkpoint.episode}`
+              : `You're on S${checkpoint.season}E${checkpoint.episode}`}
         </Text>
         <Text
           style={{

@@ -1,5 +1,4 @@
-import { LinearGradient } from 'expo-linear-gradient';
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -10,7 +9,6 @@ import { useContentDetails, type ContentDetails } from '@/features/content/api';
 import { getWhereToFindConfig } from '@/features/where-to-find/links';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
-const HERO_H = 200;
 const ACTOR_SIZE = 52;
 
 function CastRow({ cast }: { cast: ContentDetails['cast'] }) {
@@ -76,15 +74,24 @@ export default function ContentDetailModal() {
     type: EntryType;
     poster?: string;
     sub?: string;
+    externalId?: string;
   }>();
 
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
+  const [synopsisTruncated, setSynopsisTruncated] = useState(false);
   const { data: details, isLoading } = useContentDetails(params.title, params.type);
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const typeConfig = TypeColors[params.type ?? 'watch'];
-  const whereConfig = getWhereToFindConfig(params.type ?? 'watch', params.title ?? '');
+  const whereConfig = getWhereToFindConfig(params.type ?? 'watch', params.title ?? '', params.externalId);
+  const usingRealProviders =
+    (params.type === 'watch' || params.type === 'play') && (details?.watchProviders?.length ?? 0) > 0;
+  const stores = usingRealProviders ? details!.watchProviders : whereConfig.stores;
+  // TMDB/Google Books/IGDB posters are all ~2:3, Spotify music/podcast art
+  // is exactly 1:1 — forcing music/podcasts into a 2:3 box would crop the
+  // square art, so they get their own matching box instead.
+  const isSquareCover = params.type === 'listen' || params.type === 'podcast';
 
   return (
     <>
@@ -96,39 +103,27 @@ export default function ContentDetailModal() {
           headerShown: false,
         }}
       />
-      <View style={styles.sheet}>
-        {/* ── Hero banner ── */}
-        <View style={styles.hero}>
-          {params.poster ? (
-            <Image
-              source={{ uri: params.poster }}
-              style={StyleSheet.absoluteFillObject}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[StyleSheet.absoluteFillObject, styles.heroBg, { backgroundColor: typeConfig.bg }]}>
-              <Text style={styles.heroBgEmoji}>{typeConfig.icon}</Text>
+      <ScrollView style={[styles.sheet, styles.body]} showsVerticalScrollIndicator={false}>
+        <View style={styles.bodyContent}>
+          {/* Poster on the left (kept in its natural aspect ratio, never
+              stretched), title + meta on the right. */}
+          <View style={styles.headerRow}>
+            <View
+              style={[styles.posterBox, isSquareCover && styles.posterBoxSquare]}>
+              {params.poster ? (
+                <Image source={{ uri: params.poster }} style={styles.posterImg} resizeMode="cover" />
+              ) : (
+                <View style={[styles.posterImg, styles.posterFallback, { backgroundColor: typeConfig.bg }]}>
+                  <Text style={styles.posterFallbackEmoji}>{typeConfig.icon}</Text>
+                </View>
+              )}
             </View>
-          )}
-          {/* gradient bleed */}
-          <LinearGradient
-            colors={['transparent', Brand.paper]}
-            style={styles.heroGradient}
-          />
-        </View>
-
-        {/* ── Body ── */}
-        <ScrollView style={styles.body} contentContainerStyle={styles.bodyContent} showsVerticalScrollIndicator={false}>
-          {/* Title + sub always at top */}
-          <Text style={styles.titleText} numberOfLines={3}>{params.title}</Text>
-          {params.sub ? <Text style={styles.subText} numberOfLines={2}>{params.sub}</Text> : null}
-
-          {isLoading ? (
-            <ActivityIndicator color={Brand.trust} style={{ marginTop: 12, marginBottom: 16 }} />
-          ) : (
-            <>
-              {/* Rating + meta row */}
-              {details?.rating || details?.year || details?.genre || details?.runtime ? (
+            <View style={styles.headerInfo}>
+              <Text style={styles.titleText} numberOfLines={4}>{params.title}</Text>
+              {params.sub ? <Text style={styles.subText} numberOfLines={2}>{params.sub}</Text> : null}
+              {isLoading ? (
+                <ActivityIndicator color={Brand.trust} style={styles.headerLoading} />
+              ) : details?.rating || details?.year || details?.genre || details?.runtime ? (
                 <View style={styles.metaRow}>
                   {details?.rating ? (
                     <View style={styles.ratingPill}>
@@ -140,45 +135,62 @@ export default function ContentDetailModal() {
                   {details?.runtime ? <Text style={styles.metaText}>{details.runtime}</Text> : null}
                 </View>
               ) : null}
+            </View>
+          </View>
 
-              {/* Synopsis */}
-              {details?.overview ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Synopsis</Text>
-                  <Text
-                    style={styles.synopsisText}
-                    numberOfLines={synopsisExpanded ? undefined : 3}>
-                    {details.overview}
+          {/* Synopsis */}
+          {!isLoading && details?.overview ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Synopsis</Text>
+              {/* Invisible full-height measurer: tells us whether the text
+                  actually overflows 3 lines, so we only show the toggle
+                  when there's really more to reveal. */}
+              <Text
+                style={[styles.synopsisText, styles.synopsisMeasure]}
+                onTextLayout={(e) => setSynopsisTruncated(e.nativeEvent.lines.length > 3)}>
+                {details.overview}
+              </Text>
+              <Text
+                style={styles.synopsisText}
+                numberOfLines={synopsisExpanded ? undefined : 3}>
+                {details.overview}
+              </Text>
+              {synopsisTruncated ? (
+                <Pressable
+                  onPress={() => setSynopsisExpanded((v) => !v)}
+                  hitSlop={8}>
+                  <Text style={styles.synopsisToggle}>
+                    {synopsisExpanded ? 'See less' : 'See more...'}
                   </Text>
-                  <Pressable
-                    onPress={() => setSynopsisExpanded((v) => !v)}
-                    hitSlop={8}>
-                    <Text style={styles.synopsisToggle}>
-                      {synopsisExpanded ? 'See less' : 'See more...'}
-                    </Text>
-                  </Pressable>
-                </View>
+                </Pressable>
               ) : null}
+            </View>
+          ) : null}
 
-              {/* Cast */}
-              {details?.cast && details.cast.length > 0 ? (
-                <View style={styles.section}>
-                  <Text style={styles.sectionLabel}>Top cast</Text>
-                  <CastRow cast={details.cast} />
-                </View>
-              ) : null}
-            </>
-          )}
+          {/* Cast */}
+          {!isLoading && details?.cast && details.cast.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Top cast</Text>
+              <CastRow cast={details.cast} />
+            </View>
+          ) : null}
 
           {/* Where to find — always shown */}
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>{whereConfig.label}</Text>
-            {whereConfig.stores.map((store, i) => (
+            {usingRealProviders && params.type === 'watch' ? (
+              <Text style={styles.providerAttribution}>Availability powered by JustWatch</Text>
+            ) : null}
+            {stores.map((store, i) => (
               <Pressable
                 key={store.name}
                 style={[styles.storeRow, i > 0 && styles.storeRowSpacing]}
                 onPress={() => Linking.openURL(store.url).catch(() => {})}>
-                <Text style={styles.storeLogo}>{store.logo}</Text>
+                {store.logoUrl ? (
+                  <Image source={{ uri: store.logoUrl }} style={styles.storeLogoImg} />
+                ) : (
+                  <Text style={styles.storeLogo}>{store.logo}</Text>
+                )}
                 <View style={styles.storeInfo}>
                   <Text style={styles.storeName}>{store.name}</Text>
                   <Text style={styles.storePrice}>{store.price}</Text>
@@ -189,12 +201,8 @@ export default function ContentDetailModal() {
               </Pressable>
             ))}
           </View>
-        </ScrollView>
-
-        <Pressable style={styles.doneBtn} onPress={() => router.back()} hitSlop={8}>
-          <Text style={styles.doneBtnText}>Done</Text>
-        </Pressable>
-      </View>
+        </View>
+      </ScrollView>
     </>
   );
 }
@@ -203,33 +211,37 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
   sheet: { flex: 1, backgroundColor: Brand.paper },
 
-  // Hero
-  hero: { height: HERO_H, overflow: 'hidden' },
-  heroBg: { alignItems: 'center', justifyContent: 'center' },
-  heroBgEmoji: { fontSize: 72 },
-  heroGradient: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: HERO_H * 0.35,
-  },
-
   // Body
   body: { flex: 1 },
-  bodyContent: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+  bodyContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
+
+  // Header: poster (kept in its natural aspect ratio) + title/meta side by side
+  headerRow: { flexDirection: 'row', gap: 14, marginBottom: 22 },
+  posterBox: {
+    width: 100,
+    height: 150,
+    borderRadius: 14,
+    overflow: 'hidden',
+    backgroundColor: Brand.border,
+  },
+  posterBoxSquare: { width: 130, height: 130 },
+  posterImg: { width: '100%', height: '100%' },
+  posterFallback: { alignItems: 'center', justifyContent: 'center' },
+  posterFallbackEmoji: { fontSize: 40 },
+  headerInfo: { flex: 1, minWidth: 0, justifyContent: 'flex-start', paddingTop: 2 },
+  headerLoading: { marginTop: 8, alignSelf: 'flex-start' },
   titleText: {
     fontFamily: BrandFonts.syneExtraBold,
-    fontSize: 22,
+    fontSize: 20,
     color: Brand.ink,
-    lineHeight: 28,
+    lineHeight: 25,
     marginBottom: 3,
   },
   subText: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 13,
     color: Brand.muted,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   section: { marginBottom: 20 },
 
@@ -237,10 +249,9 @@ function createStyles(Brand: BrandPalette) {
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
     flexWrap: 'wrap',
-    marginTop: 4,
-    marginBottom: 16,
+    marginTop: 2,
   },
   ratingPill: {
     backgroundColor: 'rgba(255,215,0,0.15)',
@@ -273,6 +284,12 @@ function createStyles(Brand: BrandPalette) {
     fontSize: 13.5,
     color: Brand.ink,
     lineHeight: 20,
+  },
+  synopsisMeasure: {
+    position: 'absolute',
+    opacity: 0,
+    left: 0,
+    right: 0,
   },
   synopsisToggle: {
     fontFamily: BrandFonts.syneBold,
@@ -322,22 +339,18 @@ function createStyles(Brand: BrandPalette) {
   },
   storeRowSpacing: { marginTop: 7 },
   storeLogo: { fontSize: 18, width: 24, textAlign: 'center' },
+  storeLogoImg: { width: 24, height: 24, borderRadius: 6 },
   storeInfo: { flex: 1, minWidth: 0 },
   storeName: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
   storePrice: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted, marginTop: 1 },
   storeCta: { borderRadius: 8, paddingVertical: 6, paddingHorizontal: 10 },
   storeCtaText: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: '#fff' },
-
-  // Done
-  doneBtn: {
-    backgroundColor: Brand.trust,
-    borderRadius: 14,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginHorizontal: 20,
-    marginBottom: 24,
-    marginTop: 'auto',
+  providerAttribution: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 10,
+    color: Brand.muted,
+    marginTop: -4,
+    marginBottom: 8,
   },
-  doneBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#fff' },
   });
 }

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
-import { useFriends } from '@/features/friends/api';
+import { useFollowing } from '@/features/follows/api';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
@@ -21,24 +21,25 @@ export interface Post {
   external_id: string | null;
   media_type: string | null;
   created_at: string;
+  visibility: 'everyone' | 'close_friends';
 }
 
 export type FeedFilterValue = EntryType | 'all';
 
-function postsQueryKey(userId: string | undefined, friendIds: string[]) {
-  return ['posts', userId, ...friendIds.sort()] as const;
+function postsQueryKey(userId: string | undefined, followingIds: string[]) {
+  return ['posts', userId, ...followingIds.sort()] as const;
 }
 
-/** All posts for the signed-in user plus their accepted friends. */
+/** All posts for the signed-in user plus everyone they follow. */
 function useAllPosts() {
   const { user } = useSession();
-  const { data: friends } = useFriends();
-  const friendIds = (friends ?? []).map((f) => f.id);
+  const { data: following } = useFollowing();
+  const followingIds = (following ?? []).map((f) => f.id);
 
   return useQuery({
-    queryKey: postsQueryKey(user?.id, friendIds),
+    queryKey: postsQueryKey(user?.id, followingIds),
     queryFn: async () => {
-      const ids = [user!.id, ...friendIds];
+      const ids = [user!.id, ...followingIds];
 
       const [postsResult, profilesResult] = await Promise.all([
         supabase
@@ -99,6 +100,7 @@ type CreatePostInput = {
   extRating?: string;
   externalId?: string;
   mediaType?: string;
+  visibility?: 'everyone' | 'close_friends';
 };
 
 export function useCreatePost() {
@@ -121,6 +123,7 @@ export function useCreatePost() {
           ext_rating: input.extRating ?? null,
           external_id: input.externalId ?? null,
           media_type: input.mediaType ?? null,
+          visibility: input.visibility ?? 'everyone',
         })
         .select()
         .single();

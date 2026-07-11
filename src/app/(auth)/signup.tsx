@@ -62,7 +62,7 @@ export default function SignupScreen() {
       setMessage({ text: error, isError: true });
       return;
     }
-    setMessage({ text: 'Welcome to The Clique!', isError: false });
+    setMessage({ text: 'Welcome to Clique!', isError: false });
   }
 
   return (
@@ -72,7 +72,7 @@ export default function SignupScreen() {
       <View style={styles.container}>
         <View style={styles.logoBlock}>
           <Text style={styles.logo}>
-            The <Text style={{ color: Brand.trust }}>Clique</Text>
+            <Text style={{ color: Brand.trust }}>Clique</Text>
           </Text>
           <Text style={styles.tagline}>Skip the algorithm. Trust your people.</Text>
         </View>
@@ -92,7 +92,7 @@ export default function SignupScreen() {
           <TextInput
             style={styles.input}
             placeholder="Your name"
-            placeholderTextColor="#9E9E9E"
+            placeholderTextColor={Brand.muted}
             value={name}
             onChangeText={setName}
             autoComplete="name"
@@ -100,7 +100,7 @@ export default function SignupScreen() {
           <TextInput
             style={styles.input}
             placeholder="Username e.g. @alexj"
-            placeholderTextColor="#9E9E9E"
+            placeholderTextColor={Brand.muted}
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -108,7 +108,7 @@ export default function SignupScreen() {
           <TextInput
             style={styles.input}
             placeholder="Email address"
-            placeholderTextColor="#9E9E9E"
+            placeholderTextColor={Brand.muted}
             value={email}
             onChangeText={setEmail}
             autoCapitalize="none"
@@ -118,7 +118,7 @@ export default function SignupScreen() {
           <TextInput
             style={styles.input}
             placeholder="Password"
-            placeholderTextColor="#9E9E9E"
+            placeholderTextColor={Brand.muted}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -151,7 +151,7 @@ function createStyles(Brand: BrandPalette) {
   flex: { flex: 1 },
   container: {
     flex: 1,
-    backgroundColor: Brand.ink,
+    backgroundColor: Brand.paper,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: Spacing.four,
@@ -163,25 +163,27 @@ function createStyles(Brand: BrandPalette) {
   logo: {
     fontFamily: BrandFonts.syneExtraBold,
     fontSize: 32,
-    color: '#fff',
+    color: Brand.ink,
     letterSpacing: -1,
   },
   tagline: {
     fontFamily: BrandFonts.interRegular,
-    color: '#9E9E9E',
+    color: Brand.muted,
     fontSize: 14,
     marginTop: 6,
   },
   card: {
     width: '100%',
     maxWidth: 380,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
     borderRadius: 20,
     padding: Spacing.four,
   },
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: '#111',
+    backgroundColor: Brand.tlight,
     borderRadius: 12,
     padding: 4,
     marginBottom: Spacing.three,
@@ -198,7 +200,7 @@ function createStyles(Brand: BrandPalette) {
   tabText: {
     fontFamily: BrandFonts.syneBold,
     fontSize: 13.6,
-    color: '#9E9E9E',
+    color: Brand.muted,
   },
   tabTextActive: {
     fontFamily: BrandFonts.syneBold,
@@ -206,14 +208,14 @@ function createStyles(Brand: BrandPalette) {
     color: '#fff',
   },
   input: {
-    backgroundColor: '#111',
+    backgroundColor: Brand.card,
     borderWidth: 1.5,
-    borderColor: '#333',
+    borderColor: Brand.border,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14.4,
-    color: '#fff',
+    color: Brand.ink,
     fontFamily: BrandFonts.interRegular,
     marginBottom: 10,
   },

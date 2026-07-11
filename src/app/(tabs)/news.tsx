@@ -19,7 +19,7 @@ export default function NewsScreen() {
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [mode, setMode] = useState<NewsMode>('headlines');
   const [filter, setFilter] = useState<FeedFilterValue>('all');
-  const { data, isLoading, isFetching, refetch } = useNewsArticles(filter);
+  const { data, isLoading, isFetching, isError, refetch } = useNewsArticles(filter);
   const { data: nowPlaying, isLoading: loadingNow } = useNowPlayingMovies();
   const { data: upcoming, isLoading: loadingUpcoming } = useUpcomingMovies();
   const isMovies = mode === 'movies';
@@ -120,7 +120,11 @@ export default function NewsScreen() {
           renderItem={({ item }) => <NewsCard article={item} onPress={() => openArticle(item)} />}
           ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
           ListEmptyComponent={
-            !isLoading ? <Text style={styles.empty}>No stories found right now.</Text> : null
+            !isLoading ? (
+              <Text style={styles.empty}>
+                {isError ? "Couldn't load stories — pull down to try again." : 'No stories found right now.'}
+              </Text>
+            ) : null
           }
         />
       )}

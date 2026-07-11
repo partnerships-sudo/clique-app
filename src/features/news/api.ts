@@ -14,10 +14,7 @@ export interface NewsArticle {
   url: string;
 }
 
-// The Guardian Open Platform's shared "test" key — works with no signup, but is
-// rate-limited and meant for development. Get a free personal key at
-// https://open-platform.theguardian.com/access/ before shipping this for real.
-const GUARDIAN_API_KEY = 'test';
+const GUARDIAN_API_KEY = process.env.EXPO_PUBLIC_GUARDIAN_API_KEY!;
 
 const SECTIONS_BY_TYPE: Record<Exclude<EntryType, 'podcast'>, string> = {
   watch: 'film|tv-and-radio',

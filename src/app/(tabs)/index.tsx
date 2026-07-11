@@ -1,14 +1,17 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
+import { BecauseYouRow } from '@/components/feed/because-you-row';
 import { FeedViewSwitcher, type FeedView } from '@/components/feed/feed-view-switcher';
 import { FilterChips } from '@/components/feed/filter-chips';
 import { NowBanner } from '@/components/feed/now-banner';
 import { PostCard } from '@/components/feed/post-card';
+import { SectionHeader } from '@/components/feed/section-header';
 import { SectionLabel } from '@/components/feed/section-label';
+import { TopPicksRow } from '@/components/feed/top-picks-row';
 import { TrendingList } from '@/components/feed/trending-list';
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import {
@@ -18,11 +21,14 @@ import {
   type FeedFilterValue,
   type Post,
 } from '@/features/feed/api';
-import { useForYouRecs, type ForYouSeed } from '@/features/feed/for-you';
+import { useHiddenCategories } from '@/features/feed/category-prefs';
+import { useBecauseYouRecs, useForYouRecs, type ForYouSeed } from '@/features/feed/for-you';
 import { computeTrendingInCircle } from '@/features/feed/trending';
 import { computeCompatibility } from '@/features/friends/compatibility';
+import { applyGameCovers, useGameCoverOverrides } from '@/features/games/igdb';
 import { useReactions, useToggleReaction } from '@/features/feed/reactions';
 import { useLibraryItems } from '@/features/library/api';
+import { useCollectionItems, useFollowingCollections } from '@/features/collection/api';
 import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -42,6 +48,14 @@ const VERBS: Record<Post['type'], string> = {
   podcast: 'Listening to',
 };
 
+const PAST_VERBS: Record<Post['type'], string> = {
+  watch: 'watched',
+  read: 'read',
+  play: 'played',
+  listen: 'listened to',
+  podcast: 'listened to',
+};
+
 export default function FeedScreen() {
   const { user } = useSession();
   const Brand = useBrand();
@@ -51,18 +65,30 @@ export default function FeedScreen() {
   const [feedView, setFeedView] = useState<FeedView>('feed');
   const [filter, setFilter] = useState<FeedFilterValue>('all');
   const [showMenu, setShowMenu] = useState(false);
-  const { posts, allPosts, isLoading, isFetching, refetch } = useFeedPosts(filter);
+  const { hidden: hiddenCategories, hideCategory, showCategory } = useHiddenCategories();
+  const { posts: rawPosts, allPosts, isLoading, isFetching, refetch } = useFeedPosts(filter);
+  // Long-press-removed categories (see filter-chips.tsx) drop out of the feed
+  // entirely, not just the chip row — same treatment as the active filter.
+  const posts = rawPosts.filter((p) => !hiddenCategories.has(p.type));
   const { data: globalPosts } = useGlobalPosts();
   const deletePost = useDeletePost();
   const { logged } = useLibraryItems();
+  const { items: collectionItems } = useCollectionItems();
+  const { data: followingCollections = [] } = useFollowingCollections();
   const { byPost: reactionsByPost } = useReactions(posts.map((p) => p.id));
   const toggleReaction = useToggleReaction();
 
-  const loggedTitles = new Set(logged.map((item) => item.title.toLowerCase()));
-  const matchesFilter = (type: Post['type']) => filter === 'all' || type === filter;
+  // Keyed by type + title, not title alone — a logged book and a recommended
+  // game can share an exact title (e.g. "Dune"), and a title-only check would
+  // wrongly treat the game as "already logged" and filter it out.
+  const loggedTitles = new Set([
+    ...logged.map((item) => `${item.type}:${item.title.toLowerCase()}`),
+    ...collectionItems.map((item) => `${item.type}:${item.title.toLowerCase()}`),
+  ]);
+  const matchesFilter = (type: Post['type']) => (filter === 'all' || type === filter) && !hiddenCategories.has(type);
 
-  const circleTrending = computeTrendingInCircle(allPosts, 20).filter((e) => matchesFilter(e.type));
-  const globalTrending = computeTrendingInCircle(globalPosts ?? [], 20).filter((e) => matchesFilter(e.type));
+  const circleTrendingRaw = computeTrendingInCircle(allPosts, 20).filter((e) => matchesFilter(e.type));
+  const globalTrendingRaw = computeTrendingInCircle(globalPosts ?? [], 20).filter((e) => matchesFilter(e.type));
 
   const compatScores = useMemo(() => {
     const map = new Map<string, number>();
@@ -81,44 +107,131 @@ export default function FeedScreen() {
     return map;
   }, [allPosts, user?.id]);
 
-  // One best-rated seed per content type so API recs cover every type the user has logged.
-  // Taking top-5 overall skewed to all-games when games were the user's highest-rated items.
-  const bestByType = new Map<EntryType, (typeof logged)[0]>();
-  for (const item of logged) {
-    const cur = bestByType.get(item.type);
-    if (!cur || (item.rating ?? 0) > (cur.rating ?? 0)) bestByType.set(item.type, item);
+  // Seeds come from both collection (rated, strongest signal) and logged
+  // (unrated/in-progress). Collection items are weighted higher since they
+  // carry a real rating. Up to 3 seeds per type so no single content type
+  // dominates the recs.
+  const MAX_SEEDS_PER_TYPE = 3;
+
+  type SeedCandidate = { title: string; type: EntryType; external_id: string | null; media_type: string | null; rating: number };
+  const candidatesByType = new Map<EntryType, SeedCandidate[]>();
+
+  for (const item of collectionItems) {
+    const type = item.type as EntryType;
+    const bucket = candidatesByType.get(type) ?? [];
+    bucket.push({ title: item.title, type, external_id: item.external_id, media_type: item.media_type, rating: (item.user_rating ?? 0) + 10 });
+    candidatesByType.set(type, bucket);
   }
-  const forYouSeeds: ForYouSeed[] = [...bestByType.values()].map((item) => ({
-    title: item.title,
-    type: item.type,
-    externalId: item.external_id,
-    mediaType: item.media_type,
-  }));
+  for (const item of logged) {
+    const bucket = candidatesByType.get(item.type) ?? [];
+    bucket.push({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, rating: item.rating ?? 0 });
+    candidatesByType.set(item.type, bucket);
+  }
+
+  const forYouSeeds: ForYouSeed[] = [...candidatesByType.values()].flatMap((items) =>
+    [...items]
+      .sort((a, b) => b.rating - a.rating)
+      .slice(0, MAX_SEEDS_PER_TYPE)
+      .map((item) => ({
+        title: item.title,
+        type: item.type,
+        externalId: item.external_id,
+        mediaType: item.media_type,
+      })),
+  );
 
   const { data: rawApiRecs = [] } = useForYouRecs(forYouSeeds);
+
+  // Friend collection items the user hasn't logged or collected yet,
+  // weighted by compat score and rating — these surface as direct top picks.
+  const friendCollectionPicks: TrendingEntry[] = followingCollections
+    .filter((item) => {
+      const key = `${item.type}:${item.title.toLowerCase()}`;
+      return (
+        !loggedTitles.has(key) &&
+        (item.user_rating ?? 0) >= 4 &&
+        matchesFilter(item.type as Post['type'])
+      );
+    })
+    .map((item) => {
+      const compat = compatScores.get(item.user_id) ?? 0;
+      return {
+        title: item.title,
+        sub: item.sub ?? undefined,
+        type: item.type as EntryType,
+        poster: item.poster ?? null,
+        count: 1,
+        score: Math.round((item.user_rating ?? 4) / 5 * 50 + compat * 0.5),
+        users: [],
+        loggers: [item.user_id],
+      };
+    })
+    .sort((a, b) => b.score - a.score);
 
   // For types the API returned results for, show those discoveries.
   // For types it didn't cover (or where the user has no logged items of that type),
   // fall back to circle-based trending so the section always has variety.
-  const circleTitles = new Set(circleTrending.map((e) => e.title.toLowerCase()));
+  // Type + title keyed for the same reason as loggedTitles above.
+  const circleTitles = new Set(circleTrendingRaw.map((e) => `${e.type}:${e.title.toLowerCase()}`));
   const apiTypes = new Set(rawApiRecs.map((e) => e.type));
 
-  const apiEntries = rawApiRecs.filter(
-    (e) =>
-      matchesFilter(e.type) &&
-      !loggedTitles.has(e.title.toLowerCase()) &&
-      !circleTitles.has(e.title.toLowerCase()),
-  );
+  // Build a map of type:title → friend posts so we can surface recs that
+  // overlap with what high-compat friends have logged.
+  const friendPostsByKey = new Map<string, Post[]>();
+  for (const p of allPosts) {
+    if (p.user_id === user?.id) continue;
+    const key = `${p.type}:${p.title.toLowerCase()}`;
+    const bucket = friendPostsByKey.get(key) ?? [];
+    bucket.push(p);
+    friendPostsByKey.set(key, bucket);
+  }
 
-  const circleFallbackEntries = computeTrendingInCircle(allPosts, 30).filter(
+  const apiEntries = rawApiRecs
+    .filter(
+      (e) =>
+        matchesFilter(e.type) &&
+        !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`) &&
+        !circleTitles.has(`${e.type}:${e.title.toLowerCase()}`),
+    )
+    .map((e) => {
+      const friendPosts = friendPostsByKey.get(`${e.type}:${e.title.toLowerCase()}`) ?? [];
+      if (friendPosts.length === 0) return e;
+      // Boost score based on compat of friends who logged it
+      const compatBoost = friendPosts.reduce((sum, p) => sum + (compatScores.get(p.user_id) ?? 50), 0) / friendPosts.length;
+      return {
+        ...e,
+        loggers: friendPosts.map((p) => p.user_name),
+        score: Math.min(100, (e.score ?? 50) * 0.5 + compatBoost * 0.5),
+      };
+    });
+
+  const circleFallbackEntriesRaw = computeTrendingInCircle(allPosts, 30).filter(
     (e) =>
       !apiTypes.has(e.type) &&
       matchesFilter(e.type) &&
-      !loggedTitles.has(e.title.toLowerCase()),
+      !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`),
   );
 
-  const forYouTrending = [...apiEntries, ...circleFallbackEntries]
-    .sort((a, b) => b.count - a.count)
+  // Trending entries carry whatever poster was saved on the post at log
+  // time — for games logged before IGDB was wired in, that's RAWG's
+  // landscape screenshot, permanently. Resolve fresh covers for every game
+  // title in play here and override the stale stored one.
+  const gameCovers = useGameCoverOverrides(
+    [...circleTrendingRaw, ...globalTrendingRaw, ...circleFallbackEntriesRaw]
+      .filter((e) => e.type === 'play')
+      .map((e) => e.title),
+  );
+  const circleTrending = applyGameCovers(circleTrendingRaw, gameCovers);
+  const globalTrending = applyGameCovers(globalTrendingRaw, gameCovers);
+  const circleFallbackEntries = applyGameCovers(circleFallbackEntriesRaw, gameCovers);
+
+  // apiEntries carry a real normalized 0-100 `score` (see for-you.ts). Circle
+  // entries only have a raw log count, which isn't on the same scale — approximate
+  // one so a couple of friends logging something can still compete fairly
+  // against algorithmic picks, without a single log always losing outright.
+  const forYouTrending = [...friendCollectionPicks, ...apiEntries, ...circleFallbackEntries]
+    .filter((e, i, arr) => arr.findIndex((x) => x.type === e.type && x.title.toLowerCase() === e.title.toLowerCase()) === i)
+    .sort((a, b) => (b.score ?? Math.min(100, b.count * 20)) - (a.score ?? Math.min(100, a.count * 20)))
     .slice(0, 60);
 
   const latest = logged[0] ?? allPosts[0];
@@ -140,17 +253,24 @@ export default function FeedScreen() {
     <View>
       <View style={styles.headerTop}>
         <View style={styles.logoWrap}>
-          <View style={styles.logoCircles}>
-            <View style={styles.logoCirclePurple} />
-            <View style={styles.logoCircleOrange} />
+          <Image
+            source={require('@/assets/images/logo-icon.png')}
+            style={styles.logoIcon}
+            resizeMode="contain"
+          />
+          <View style={styles.logoWordRow}>
+            <Text style={styles.logoClique}>cl</Text>
+            <View style={styles.logoIWrap}>
+              <View style={styles.logoIDot} />
+              <Text style={styles.logoClique}>{'ı'}</Text>
+            </View>
+            <Text style={styles.logoClique}>que</Text>
           </View>
-          <Text style={styles.logoThe}>the</Text>
-          <Text style={styles.logoClique}>clique</Text>
         </View>
         <Pressable onPress={() => setShowMenu((v) => !v)} style={styles.avatarBtn} hitSlop={8}>
           <Avatar
             name={profile?.full_name ?? user?.email ?? 'You'}
-            size={42}
+            size={36}
             avatarUrl={profile?.avatar_url}
             ring={Brand.trust}
           />
@@ -165,23 +285,66 @@ export default function FeedScreen() {
           onPressLog={() => router.push('/log-modal')}
         />
       )}
-      <FilterChips value={filter} onChange={setFilter} />
-      <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>
+      <FilterChips
+        value={filter}
+        onChange={setFilter}
+        hiddenTypes={hiddenCategories}
+        onHide={hideCategory}
+        onShow={showCategory}
+      />
+      {feedView !== 'foryou' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
     </View>
   );
 
-  const entries = feedView === 'circle' ? circleTrending : feedView === 'global' ? globalTrending : forYouTrending;
+  const entries = feedView === 'circle' ? circleTrending : globalTrending;
+
+  const withFriends = forYouTrending.filter((e) => e.loggers.length > 0);
+  const withoutFriends = forYouTrending.filter((e) => e.loggers.length === 0);
+  const topPicks = [...withFriends, ...withoutFriends].slice(0, 10);
+  const becauseSeed = logged[0];
+  const { data: becauseRecs = [] } = useBecauseYouRecs(
+    becauseSeed
+      ? {
+          title: becauseSeed.title,
+          type: becauseSeed.type,
+          externalId: becauseSeed.external_id,
+          mediaType: becauseSeed.media_type,
+        }
+      : null,
+  );
+  const becauseEntries = becauseRecs
+    .filter(
+      (e) =>
+        e.title.toLowerCase() !== becauseSeed?.title.toLowerCase() &&
+        !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`),
+    )
+    .slice(0, 10);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {feedView !== 'feed' ? (
+      {feedView === 'foryou' ? (
         <ScrollView contentContainerStyle={styles.content}>
           {header}
-          <TrendingList
-            entries={entries}
-            showTop10Banner
-            bannerTitle={feedView === 'foryou' ? 'Top recos for you' : 'Top 10 right now'}
-          />
+          {topPicks.length > 0 && (
+            <View style={styles.forYouSection}>
+              <SectionHeader title="Top picks for you" />
+              <TopPicksRow entries={topPicks} />
+            </View>
+          )}
+          {becauseSeed && becauseEntries.length > 0 && (
+            <View style={styles.forYouSection}>
+              <BecauseYouRow
+                seedTitle={becauseSeed.title}
+                verb={PAST_VERBS[becauseSeed.type]}
+                entries={becauseEntries}
+              />
+            </View>
+          )}
+        </ScrollView>
+      ) : feedView !== 'feed' ? (
+        <ScrollView contentContainerStyle={styles.content}>
+          {header}
+          <TrendingList entries={entries} showTop10Banner bannerTitle="Top 10 right now" />
         </ScrollView>
       ) : (
         <FlatList
@@ -245,42 +408,32 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
     content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six },
+    forYouSection: { marginBottom: Spacing.five },
     headerTop: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: Spacing.four,
     },
-    logoWrap: { alignItems: 'flex-start' },
+    logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     avatarBtn: { position: 'absolute', right: 0, top: 0 },
-    logoCircles: { width: 56, height: 42, marginBottom: 6 },
-    logoCirclePurple: {
-      position: 'absolute',
-      left: 0,
-      top: 0,
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      backgroundColor: Brand.trust,
-      opacity: 0.85,
-    },
-    logoCircleOrange: {
-      position: 'absolute',
-      left: 20,
-      top: 0,
-      width: 42,
-      height: 42,
-      borderRadius: 21,
-      backgroundColor: Brand.warm,
-      opacity: 0.85,
-    },
-    logoThe: { fontFamily: BrandFonts.poppinsMedium, fontSize: 14, color: Brand.muted },
+    logoIcon: { width: 34, height: 30 },
+    logoWordRow: { flexDirection: 'row', alignItems: 'flex-end' },
     logoClique: {
-      fontFamily: BrandFonts.poppinsExtraBold,
-      fontSize: 32,
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 26,
       color: Brand.ink,
       letterSpacing: -0.5,
-      lineHeight: 34,
+      lineHeight: 32,
+    },
+    logoIWrap: { position: 'relative', alignItems: 'center' },
+    logoIDot: {
+      position: 'absolute',
+      top: 3,
+      width: 5,
+      height: 5,
+      borderRadius: 2.5,
+      backgroundColor: Brand.trust,
     },
     empty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
     emptyEmoji: { fontSize: 40, marginBottom: 12 },

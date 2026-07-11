@@ -3,12 +3,16 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
 import type { TrendingEntry } from '@/features/feed/trending';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const CARD_W = 112;
 const CARD_H = Math.round(CARD_W * 1.5);
+const AVATAR_SIZE = 24;
+const AVATAR_OVERLAP = 9;
+const MAX_AVATARS = 3;
 
 function openTrending(entry: TrendingEntry) {
   router.push({
@@ -33,12 +37,18 @@ function Top10Card({
   Brand: BrandPalette;
   TypeColors: TypeColorPalette;
 }) {
+  const needsContainFit = entry.type === 'listen' || entry.type === 'podcast';
+
   return (
     <Pressable
       onPress={() => openTrending(entry)}
       style={{ width: CARD_W, height: CARD_H, borderRadius: 14, overflow: 'hidden', backgroundColor: Brand.card }}>
       {entry.poster ? (
-        <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        <Image
+          source={{ uri: entry.poster }}
+          style={StyleSheet.absoluteFill}
+          resizeMode={needsContainFit ? 'contain' : 'cover'}
+        />
       ) : (
         <View
           style={[
@@ -137,21 +147,47 @@ export function TrendingList({
             const type = TypeColors[entry.type];
             const rank = i + rankOffset + 1;
             const isHot = rank === 1 && entry.count > 1;
-            const countLabel = entry.count > 1 ? `${entry.count} logs` : entry.users[0] ?? '1 log';
+            const shownLoggers = entry.loggers.slice(0, MAX_AVATARS);
+            const overflow = entry.loggers.length - shownLoggers.length;
             return (
               <Pressable
                 key={entry.title}
                 style={styles.item}
                 onPress={() => openTrending(entry)}>
                 <Text style={[styles.rank, isHot && styles.rankHot]}>{rank}</Text>
-                <View style={[styles.typeIcon, { backgroundColor: type.bg }]}>
-                  <Text style={styles.typeIconText}>{type.icon}</Text>
-                </View>
+                {entry.poster ? (
+                  <Image
+                    source={{ uri: entry.poster }}
+                    style={styles.typeIcon}
+                    resizeMode="cover"
+                  />
+                ) : (
+                  <View style={[styles.typeIcon, { backgroundColor: type.bg }]}>
+                    <Text style={styles.typeIconText}>{type.icon}</Text>
+                  </View>
+                )}
                 <View style={styles.info}>
                   <Text style={styles.title}>{entry.title}</Text>
                   {entry.sub ? <Text style={styles.sub}>{entry.sub}</Text> : null}
                 </View>
-                <Text style={styles.count}>{countLabel}</Text>
+                {shownLoggers.length > 0 ? (
+                  <View style={styles.avatarRow}>
+                    {shownLoggers.map((logger, li) => (
+                      <View
+                        key={logger.name + li}
+                        style={[styles.avatarWrap, li > 0 && { marginLeft: -AVATAR_OVERLAP }]}>
+                        <Avatar name={logger.name} avatarUrl={logger.avatarUrl} size={AVATAR_SIZE} ring={Brand.card} />
+                      </View>
+                    ))}
+                    {overflow > 0 && (
+                      <View style={[styles.overflowBubble, { marginLeft: -AVATAR_OVERLAP }]}>
+                        <Text style={styles.overflowText}>+{overflow}</Text>
+                      </View>
+                    )}
+                  </View>
+                ) : (
+                  <Text style={styles.count}>{entry.count > 1 ? `${entry.count} logs` : '1 log'}</Text>
+                )}
               </Pressable>
             );
           })}
@@ -205,11 +241,12 @@ function createStyles(Brand: BrandPalette) {
     },
     rankHot: { color: Brand.warm },
     typeIcon: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
+      width: 36,
+      height: 36,
+      borderRadius: 9,
       alignItems: 'center',
       justifyContent: 'center',
+      overflow: 'hidden',
     },
     typeIconText: { fontSize: 14 },
     info: { flex: 1, minWidth: 0 },
@@ -227,6 +264,23 @@ function createStyles(Brand: BrandPalette) {
     count: {
       fontFamily: BrandFonts.interMedium,
       fontSize: 12.5,
+      color: Brand.trust,
+    },
+    avatarRow: { flexDirection: 'row', alignItems: 'center' },
+    avatarWrap: { borderRadius: AVATAR_SIZE / 2 },
+    overflowBubble: {
+      width: AVATAR_SIZE,
+      height: AVATAR_SIZE,
+      borderRadius: AVATAR_SIZE / 2,
+      backgroundColor: Brand.tlight,
+      borderWidth: 1.5,
+      borderColor: Brand.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    overflowText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 9.5,
       color: Brand.trust,
     },
   });

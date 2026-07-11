@@ -1,6 +1,6 @@
 // Receives Supabase Database Webhook payloads (type/table/record/old_record)
 // from triggers on direct_messages, group_chat_messages, messages, reactions,
-// and friendships, then pushes an Expo notification to the right recipient(s)
+// and follows, then pushes an Expo notification to the right recipient(s)
 // using the service role key — bypassing RLS, since this runs server-side.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2';
@@ -11,7 +11,17 @@ const WEBHOOK_SECRET = Deno.env.get('NOTIFY_WEBHOOK_SECRET')!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-type Category = 'messages' | 'friend_requests' | 'reactions' | 'recommendations';
+type Category = 'messages' | 'friend_requests' | 'reactions' | 'recommendations' | 'daily_nudge' | 'rating_reminders';
+
+// Rotated randomly so it doesn't feel like the same canned message every
+// night — same title throughout since it's always from the app itself.
+const NUDGE_BODIES = [
+  'Hey, what you up to?',
+  'Hey, what you doing?',
+  'What you getting into tonight?',
+  'Anything good to log tonight?',
+  'What are you watching, reading, or playing?',
+];
 
 async function getName(userId: string): Promise<string> {
   const { data } = await supabase
@@ -144,20 +154,57 @@ Deno.serve(async (req) => {
         break;
       }
 
-      case 'friendships': {
+      case 'daily_nudge': {
+        const body = NUDGE_BODIES[Math.floor(Math.random() * NUDGE_BODIES.length)];
+        await pushTo(record.user_id, 'daily_nudge', 'Clique', body, { type: 'daily_nudge' });
+        break;
+      }
+
+      case 'rating_reminder': {
+        const titles: Record<string, string[]> = {
+          movie: [
+            `How was ${record.post_title}? Drop a quick rating!`,
+            `Finished ${record.post_title}? Rate it before it slips your mind!`,
+          ],
+          tv: [
+            `How's ${record.post_title} going? Give it a rating!`,
+            `Still watching ${record.post_title}? Let everyone know what you think!`,
+            `${record.post_title} — rate it so your friends know if it's worth watching!`,
+          ],
+          play: [
+            `How far are you into ${record.post_title}? Drop a rating!`,
+            `Made some progress in ${record.post_title}? Log your thoughts!`,
+            `${record.post_title} — worth it? Rate it for your friends!`,
+          ],
+        };
+        const pool = titles[record.post_type as string] ?? titles.movie;
+        const body = pool[Math.floor(Math.random() * pool.length)];
+        await pushTo(record.user_id, 'rating_reminders', 'Rate it ⭐', body, {
+          type: 'rating_reminder',
+          postId: record.post_id,
+        });
+        break;
+      }
+
+      case 'follows': {
         if (type === 'INSERT' && record.status === 'pending') {
-          const name = await getName(record.user_id);
-          await pushTo(record.friend_id, 'friend_requests', 'New friend request', `${name} wants to be your friend`, {
-            type: 'friend_request',
+          const name = await getName(record.follower_id);
+          await pushTo(record.followed_id, 'friend_requests', 'New follow request', `${name} wants to follow you`, {
+            type: 'follow_request',
+          });
+        } else if (type === 'INSERT' && record.status === 'accepted') {
+          const name = await getName(record.follower_id);
+          await pushTo(record.followed_id, 'friend_requests', 'New follower', `${name} started following you`, {
+            type: 'follow',
           });
         } else if (type === 'UPDATE' && record.status === 'accepted' && old_record?.status !== 'accepted') {
-          const name = await getName(record.friend_id);
+          const name = await getName(record.followed_id);
           await pushTo(
-            record.user_id,
+            record.follower_id,
             'friend_requests',
-            'Friend request accepted',
-            `${name} accepted your friend request`,
-            { type: 'friend_accepted' },
+            'Follow request accepted',
+            `${name} accepted your follow request`,
+            { type: 'follow_accepted' },
           );
         }
         break;

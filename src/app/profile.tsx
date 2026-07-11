@@ -6,8 +6,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { type Chip } from '@/components/profile/chip-row';
 import { DEFAULT_INTERESTS, EditProfile } from '@/components/profile/edit-profile';
 import { ProfileCard } from '@/components/profile/profile-card';
+import { ShareProfileModal } from '@/components/profile/share-profile-modal';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useFriends } from '@/features/friends/api';
+import { useBadges, useFeaturedBadges } from '@/features/badges/api';
+import { useFollowersCount, useFollowingCount } from '@/features/follows/api';
 import { useLibraryItems } from '@/features/library/api';
 import { useProfile, useUpdateProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
@@ -16,13 +18,21 @@ type ProfileView = 'card' | 'edit';
 
 export default function ProfileScreen() {
   const [view, setView] = useState<ProfileView>('card');
+  const [shareVisible, setShareVisible] = useState(false);
   const [interests, setInterests] = useState<Chip[]>(DEFAULT_INTERESTS);
   const { data: profile } = useProfile();
   const { logged } = useLibraryItems();
-  const { data: friends } = useFriends();
+  const { data: followersCount } = useFollowersCount(profile?.id);
+  const { data: followingCount } = useFollowingCount(profile?.id);
   const updateProfile = useUpdateProfile();
+  const { badges } = useBadges();
+  const featuredBadgeKeys = useFeaturedBadges();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+
+  const featuredBadges = featuredBadgeKeys
+    .map((key) => badges.find((b) => b.key === key))
+    .filter((b): b is (typeof badges)[number] => !!b);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -35,17 +45,29 @@ export default function ProfileScreen() {
         </Pressable>
 
         {view === 'card' ? (
-          <>
-            <ProfileCard
-              profile={profile}
-              library={logged}
-              friendsCount={friends?.length ?? 0}
-              interests={interests.filter((i) => i.on).map((i) => i.label)}
-            />
-            <Pressable style={styles.editBtn} onPress={() => setView('edit')}>
-              <Text style={styles.editBtnText}>✏️ Edit Profile</Text>
-            </Pressable>
-          </>
+          <ProfileCard
+            profile={profile}
+            library={logged}
+            followersCount={followersCount ?? 0}
+            followingCount={followingCount ?? 0}
+            onLoggedPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'logged', name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
+            onFollowersPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'followers', name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
+            onFollowingPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'following', name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
+            onEditPress={() => setView('edit')}
+            onCollectionPress={() =>
+              router.push({ pathname: '/(tabs)/library', params: { tab: 'collection' } })
+            }
+            featuredBadges={featuredBadges}
+            earnedBadgeCount={badges.filter((b) => b.earned).length}
+            onOpenAchievements={() => router.push('/achievements-modal')}
+            onShare={() => setShareVisible(true)}
+          />
         ) : (
           <EditProfile
             profile={profile}
@@ -58,6 +80,7 @@ export default function ProfileScreen() {
           />
         )}
       </ScrollView>
+      <ShareProfileModal visible={shareVisible} onClose={() => setShareVisible(false)} profile={profile} />
     </SafeAreaView>
   );
 }
@@ -69,15 +92,5 @@ function createStyles(Brand: BrandPalette) {
   content: { padding: Spacing.three, paddingBottom: Spacing.six },
   backRow: { marginBottom: Spacing.three },
   backBtn: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
-  editBtn: {
-    marginTop: Spacing.three,
-    backgroundColor: Brand.card,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    borderRadius: 14,
-    paddingVertical: 13,
-    alignItems: 'center',
-  },
-  editBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
   });
 }

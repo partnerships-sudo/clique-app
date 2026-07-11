@@ -112,35 +112,38 @@ export default function RecommendModal() {
   return (
     <View style={styles.root}>
       {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerBody}>
-          <Text style={styles.heading} numberOfLines={1}>
-            {emoji} Send a rec
-          </Text>
-          <Text style={styles.sub} numberOfLines={1}>
-            {params.title}
-          </Text>
+      <View style={styles.header} collapsable={false}>
+        <View style={styles.headerTopRow}>
+          <View style={styles.headerBody}>
+            <Text style={styles.heading} numberOfLines={1}>
+              {emoji} Send a rec
+            </Text>
+            <Text style={styles.sub} numberOfLines={1}>
+              {params.title}
+            </Text>
+          </View>
+          <Pressable onPress={() => router.back()} hitSlop={10}>
+            <Text style={styles.done}>Done</Text>
+          </Pressable>
         </View>
-        <Pressable onPress={() => router.back()} hitSlop={10}>
-          <Text style={styles.done}>Done</Text>
-        </Pressable>
-      </View>
 
-      {/* Note */}
-      <View style={styles.noteWrap}>
-        <TextInput
-          style={styles.noteInput}
-          placeholder="Add a note… (optional)"
-          placeholderTextColor={Brand.muted}
-          value={note}
-          onChangeText={setNote}
-          multiline
-          maxLength={200}
-        />
+        {/* Note */}
+        <View style={styles.noteWrap}>
+          <TextInput
+            style={styles.noteInput}
+            placeholder="Add a note… (optional)"
+            placeholderTextColor={Brand.muted}
+            value={note}
+            onChangeText={setNote}
+            multiline
+            maxLength={200}
+          />
+        </View>
+
+        <Text style={styles.sectionLabel}>Send to</Text>
       </View>
 
       {/* Friend list */}
-      <Text style={styles.sectionLabel}>Send to</Text>
       <ScrollView
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
@@ -190,15 +193,17 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     root: { flex: 1, backgroundColor: Brand.paper },
     header: {
+      paddingTop: 20,
+      backgroundColor: Brand.card,
+    },
+    headerTopRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: Spacing.three,
-      paddingTop: 20,
       paddingBottom: 14,
       borderBottomWidth: 1,
       borderBottomColor: Brand.border,
-      backgroundColor: Brand.card,
     },
     headerBody: { flex: 1, minWidth: 0, marginRight: 12 },
     heading: {

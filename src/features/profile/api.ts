@@ -10,7 +10,15 @@ export interface Profile {
   location: string | null;
   bio: string | null;
   avatar_url: string | null;
+  banner_url: string | null;
   rating_icon: string | null;
+  collection_share_books: boolean;
+  collection_share_movies: boolean;
+  collection_share_music: boolean;
+  collection_share_games: boolean;
+  collection_share_podcasts: boolean;
+  featured_badges: string[];
+  is_private: boolean;
 }
 
 function profileQueryKey(userId: string | undefined) {
@@ -93,6 +101,46 @@ export function useUpdateProfile() {
   });
 }
 
+export function useUpdateCollectionSharing() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: {
+      shareBooks?: boolean;
+      shareMovies?: boolean;
+      shareMusic?: boolean;
+      shareGames?: boolean;
+      sharePodcasts?: boolean;
+    }) => {
+      const patch: Record<string, boolean> = {};
+      if (input.shareBooks !== undefined) patch.collection_share_books = input.shareBooks;
+      if (input.shareMovies !== undefined) patch.collection_share_movies = input.shareMovies;
+      if (input.shareMusic !== undefined) patch.collection_share_music = input.shareMusic;
+      if (input.shareGames !== undefined) patch.collection_share_games = input.shareGames;
+      if (input.sharePodcasts !== undefined) patch.collection_share_podcasts = input.sharePodcasts;
+      const { error } = await supabase.from('profiles').update(patch).eq('id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}
+
+export function useUpdatePrivacy() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (isPrivate: boolean) => {
+      const { error } = await supabase.from('profiles').update({ is_private: isPrivate }).eq('id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}
+
 export function useUploadAvatar() {
   const { user } = useSession();
   const queryClient = useQueryClient();
@@ -116,6 +164,35 @@ export function useUploadAvatar() {
       if (updateError) throw updateError;
       await supabase.auth.updateUser({ data: { avatar_url: avatarUrl } });
       return avatarUrl;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}
+
+export function useUploadBanner() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (localUri: string) => {
+      const response = await fetch(localUri);
+      const arrayBuffer = await response.arrayBuffer();
+      const path = `${user!.id}/banner.jpg`;
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+      const bannerUrl = `${data.publicUrl}?t=${Date.now()}`;
+
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ banner_url: bannerUrl })
+        .eq('id', user!.id);
+      if (updateError) throw updateError;
+      return bannerUrl;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });

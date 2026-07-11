@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { EntryType } from '@/constants/theme';
 import { useChatReadState } from '@/features/chats/read-state';
 import { useDmThreads } from '@/features/dms/api';
-import { useFriends } from '@/features/friends/api';
+import { useExtendedNetwork } from '@/features/follows/api';
 import { useGroupThreads } from '@/features/groups/api';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
@@ -33,20 +33,21 @@ export interface ChatThread {
 
 /**
  * Open content-chat channels — one channel per title (movie/book/game/etc).
- * Shows all channels active within the user's social graph (user + friends).
- * Any friend can see and post in any channel; it's not scoped to what's in
- * the user's own feed. Like Slack channels for your friend group.
+ * Shows all channels active within the user's extended network: mutual
+ * follows plus one degree of separation beyond them (a friend-of-a-friend
+ * watching the same thing surfaces the room too). Anyone in that reach can
+ * see and post in any channel; it's not scoped to what's in the user's own
+ * feed. Like Slack channels for your extended friend group.
  */
 export function useChatThreads() {
   const { user } = useSession();
-  const { data: friends } = useFriends();
+  const { data: extendedNetwork } = useExtendedNetwork();
   const { loaded: readStateLoaded, isUnread, markRead } = useChatReadState();
 
-  const friendIds = (friends ?? []).map((f) => f.id);
-  const allIds = user ? [user.id, ...friendIds] : [];
+  const allIds = extendedNetwork ?? (user ? [user.id] : []);
 
   const query = useQuery({
-    queryKey: ['chat-threads', user?.id, friendIds.length],
+    queryKey: ['chat-threads', user?.id, allIds.length],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('messages')
@@ -72,8 +73,8 @@ export function useChatThreads() {
 
       return { messages: msgs, posterByTitle };
     },
-    // Wait for friends to load so the social-graph query is complete
-    enabled: !!user && friends !== undefined,
+    // Wait for the extended network to load so the social-graph query is complete
+    enabled: !!user && extendedNetwork !== undefined,
     staleTime: 0,
     refetchOnMount: 'always' as const,
     refetchInterval: 15_000,

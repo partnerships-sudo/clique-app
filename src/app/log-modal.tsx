@@ -28,11 +28,13 @@ export default function LogModal() {
     extRating?: string;
     externalId?: string;
     mediaType?: string;
+    visibility?: 'everyone' | 'close_friends';
   }) {
     if (!type) return;
-    await addLibraryItem.mutateAsync({ type, intent, ...input });
+    const { visibility, ...libraryInput } = input;
+    await addLibraryItem.mutateAsync({ type, intent, ...libraryInput });
     if (intent === 'log') {
-      await createPost.mutateAsync({ type, ...input });
+      await createPost.mutateAsync({ type, ...libraryInput, visibility });
     }
     router.back();
   }

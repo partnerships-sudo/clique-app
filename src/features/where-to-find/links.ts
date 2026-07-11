@@ -3,6 +3,7 @@ import type { EntryType } from '@/constants/theme';
 export interface StoreLink {
   name: string;
   logo: string;
+  logoUrl?: string;
   price: string;
   cta: string;
   color: string;
@@ -16,7 +17,7 @@ export interface WhereToFindConfig {
   stores: StoreLink[];
 }
 
-export function getWhereToFindConfig(type: EntryType | 'cinema', title: string): WhereToFindConfig {
+export function getWhereToFindConfig(type: EntryType | 'cinema', title: string, externalId?: string): WhereToFindConfig {
   const q = encodeURIComponent(title);
 
   switch (type) {
@@ -65,7 +66,7 @@ export function getWhereToFindConfig(type: EntryType | 'cinema', title: string):
         label: 'Stream & buy',
         gradient: ['#1a0a2e', '#1DB954'],
         stores: [
-          { name: 'Spotify', logo: '🟢', price: 'Stream free or premium', cta: 'Listen on Spotify', color: '#1DB954', url: `https://open.spotify.com/search/${q}` },
+          { name: 'Spotify', logo: '🟢', price: 'Stream free or premium', cta: 'Listen on Spotify', color: '#1DB954', url: externalId ? `https://open.spotify.com/album/${externalId}` : `https://open.spotify.com/search/${q}` },
           { name: 'Apple Music', logo: '🍎', price: 'Stream', cta: 'Listen on Apple Music', color: '#FC3C44', url: `https://music.apple.com/search?term=${q}` },
           { name: 'Amazon Music', logo: '📦', price: 'Stream or buy', cta: 'Find on Amazon', color: '#FF9900', url: `https://music.amazon.com/search/${q}` },
           { name: 'Tidal', logo: '🌊', price: 'Hi-fi streaming', cta: 'Listen on Tidal', color: '#000000', url: `https://listen.tidal.com/search?q=${q}` },
@@ -77,7 +78,7 @@ export function getWhereToFindConfig(type: EntryType | 'cinema', title: string):
         label: 'Where to listen',
         gradient: ['#0a1a2e', '#A855F7'],
         stores: [
-          { name: 'Spotify', logo: '🟢', price: 'Free', cta: 'Listen on Spotify', color: '#1DB954', url: `https://open.spotify.com/search/${q}/podcasts` },
+          { name: 'Spotify', logo: '🟢', price: 'Free', cta: 'Listen on Spotify', color: '#1DB954', url: externalId ? `https://open.spotify.com/show/${externalId}` : `https://open.spotify.com/search/${q}/podcasts` },
           { name: 'Apple Podcasts', logo: '🎙', price: 'Free', cta: 'Listen on Apple', color: '#9B59B6', url: `https://podcasts.apple.com/search?term=${q}` },
           { name: 'YouTube', logo: '▶', price: 'Free with video', cta: 'Watch on YouTube', color: '#FF0000', url: `https://www.youtube.com/results?search_query=${q}+podcast` },
           { name: 'Amazon Music', logo: '📦', price: 'Free', cta: 'Listen on Amazon', color: '#FF9900', url: `https://music.amazon.com/search/${q}` },

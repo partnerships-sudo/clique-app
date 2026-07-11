@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "The Clique App",
+    "name": "Clique",
     "slug": "clique",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,7 +12,8 @@
       "bundleIdentifier": "com.lanapolitano.thecliqueapp",
       "buildNumber": "10",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": ["instagram-stories", "instagram"]
       }
     },
     "android": {
@@ -47,12 +48,19 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Allow The Clique to access your photos so you can set a profile picture."
+          "photosPermission": "Allow Clique to access your photos so you can set a profile picture."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Allow Clique to access your camera so you can scan barcodes to add books and movies to My Collection."
         }
       ],
       "expo-audio",
       "expo-asset",
-      "expo-notifications"
+      "expo-notifications",
+      "expo-localization"
     ],
     "experiments": {
       "typedRoutes": true

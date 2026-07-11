@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
+import { useCloseFriendIds } from '@/features/close-friends/api';
 import { useTitleSearch, type SearchResult } from '@/features/search/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
@@ -28,6 +29,7 @@ export type SelectedTitle = {
   extRating: string | null;
   externalId: string | null;
   mediaType: string | null;
+  square: boolean;
 };
 
 export function SearchStep({
@@ -47,6 +49,7 @@ export function SearchStep({
     extRating?: string;
     externalId?: string;
     mediaType?: string;
+    visibility?: 'everyone' | 'close_friends';
   }) => void;
   isSubmitting: boolean;
 }) {
@@ -59,6 +62,10 @@ export function SearchStep({
   const [manualMode, setManualMode] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
   const [note, setNote] = useState('');
+  const [closeFriendsOnly, setCloseFriendsOnly] = useState(false);
+  const { data: closeFriendIds } = useCloseFriendIds();
+  const hasCloseFriends = (closeFriendIds?.size ?? 0) > 0;
+
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 400);
@@ -75,6 +82,7 @@ export function SearchStep({
       extRating: result.rating,
       externalId: result.externalId,
       mediaType: result.mediaType,
+      square: result.square,
     });
   }
 
@@ -95,6 +103,7 @@ export function SearchStep({
       extRating: selected?.extRating ?? undefined,
       externalId: selected?.externalId ?? undefined,
       mediaType: selected?.mediaType ?? undefined,
+      visibility: intent === 'log' && closeFriendsOnly ? 'close_friends' : 'everyone',
     });
   }
 
@@ -103,9 +112,12 @@ export function SearchStep({
       {selected ? (
         <View style={styles.selectedCard}>
           {selected.poster ? (
-            <Image source={{ uri: selected.poster }} style={styles.selectedImg} />
+            <Image
+              source={{ uri: selected.poster }}
+              style={[styles.selectedImg, selected.square && styles.selectedImgSquare]}
+            />
           ) : (
-            <View style={[styles.selectedImg, styles.selectedImgFallback]}>
+            <View style={[styles.selectedImg, selected.square && styles.selectedImgSquare, styles.selectedImgFallback]}>
               <Text style={styles.selectedImgIcon}>{TypeColors[type].icon}</Text>
             </View>
           )}
@@ -198,6 +210,21 @@ export function SearchStep({
             multiline
           />
 
+          {intent === 'log' && hasCloseFriends ? (
+            <Pressable
+              style={styles.closeFriendsRow}
+              onPress={() => setCloseFriendsOnly((prev) => !prev)}
+              hitSlop={4}>
+              <View style={styles.closeFriendsInfo}>
+                <Text style={styles.closeFriendsLabel}>💚 Close Friends only</Text>
+                <Text style={styles.closeFriendsSub}>Only people on your close friends list will see this</Text>
+              </View>
+              <View style={[styles.circle, closeFriendsOnly && styles.circleActive]}>
+                {closeFriendsOnly ? <Text style={styles.checkmark}>✓</Text> : null}
+              </View>
+            </Pressable>
+          ) : null}
+
           <Pressable
             style={[styles.submit, !canSubmit && styles.submitDisabled]}
             disabled={!canSubmit}
@@ -206,7 +233,11 @@ export function SearchStep({
               <ActivityIndicator color="#fff" />
             ) : (
               <Text style={styles.submitText}>
-                {intent === 'log' ? 'Share with friends →' : 'Add to watchlist →'}
+                {intent === 'log'
+                  ? closeFriendsOnly
+                    ? 'Share with close friends →'
+                    : 'Share with friends →'
+                  : 'Add to watchlist →'}
               </Text>
             )}
           </Pressable>
@@ -279,6 +310,7 @@ function createStyles(Brand: BrandPalette) {
     marginBottom: 14,
   },
   selectedImg: { width: 48, height: 66, borderRadius: 8, backgroundColor: Brand.border },
+  selectedImgSquare: { width: 56, height: 56 },
   selectedImgFallback: { alignItems: 'center', justifyContent: 'center' },
   selectedImgIcon: { fontSize: 20 },
   selectedInfo: { flex: 1, minWidth: 0 },
@@ -286,6 +318,31 @@ function createStyles(Brand: BrandPalette) {
   selectedSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginTop: 2 },
   changeText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.trust },
   afterSelect: { marginTop: 6 },
+  closeFriendsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+  },
+  closeFriendsInfo: { flex: 1, minWidth: 0 },
+  closeFriendsLabel: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: Brand.ink },
+  closeFriendsSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2 },
+  circle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 2,
+    borderColor: Brand.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  circleActive: { backgroundColor: '#34C759', borderColor: '#34C759' },
+  checkmark: { color: '#fff', fontSize: 13, fontFamily: BrandFonts.syneBold },
   submit: {
     backgroundColor: Brand.trust,
     borderRadius: 14,

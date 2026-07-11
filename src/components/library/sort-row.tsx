@@ -4,12 +4,10 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 
-export type LibrarySort = 'unrated' | 'recent' | 'rating' | 'alpha';
+export type LibrarySort = 'recent' | 'alpha';
 
 const OPTIONS: { value: LibrarySort; label: string }[] = [
-  { value: 'unrated', label: 'Unrated' },
   { value: 'recent', label: 'Recent' },
-  { value: 'rating', label: 'Rating' },
   { value: 'alpha', label: 'A–Z' },
 ];
 

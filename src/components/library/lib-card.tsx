@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
+import { InstagramIcon } from '@/components/share/instagram-icon';
 import { BrandFonts, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
 import type { LibraryItem, LibraryStatus } from '@/features/library/api';
 import { useProfile } from '@/features/profile/api';
@@ -33,6 +34,10 @@ export function LibCard({ item }: { item: LibraryItem }) {
         poster: item.poster ?? undefined,
         type: item.type,
         currentRating: item.rating ? String(item.rating) : undefined,
+        sub: item.sub ?? undefined,
+        externalId: item.external_id ?? undefined,
+        mediaType: item.media_type ?? undefined,
+        extRating: item.ext_rating ?? undefined,
       },
     });
   }
@@ -71,6 +76,25 @@ export function LibCard({ item }: { item: LibraryItem }) {
             }
             hitSlop={8}>
             <Text style={styles.shareBtnText}>↗</Text>
+          </Pressable>
+          <Pressable
+            style={styles.storyBtn}
+            onPress={() =>
+              router.push({
+                pathname: '/share-card-modal',
+                params: {
+                  title: item.title,
+                  type: item.type,
+                  sub: item.sub ?? undefined,
+                  poster: item.poster ?? undefined,
+                  rating: item.rating ? String(item.rating) : undefined,
+                  note: item.note ?? undefined,
+                  date: item.date ?? undefined,
+                },
+              })
+            }
+            hitSlop={8}>
+            <InstagramIcon size={16} />
           </Pressable>
         </View>
         {item.note ? <Text style={styles.note}>&ldquo;{item.note}&rdquo;</Text> : null}
@@ -132,6 +156,7 @@ function createStyles(Brand: BrandPalette, TypeColors: TypeColorPalette) {
     stars: { color: Brand.warm, fontSize: 13.6 },
     date: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
     shareBtn: { marginLeft: 'auto', padding: 2 },
+    storyBtn: { padding: 2 },
     shareBtnText: { fontSize: 14, color: Brand.muted },
     note: {
       fontFamily: BrandFonts.interRegular,

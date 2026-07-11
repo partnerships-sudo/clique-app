@@ -14,10 +14,14 @@ export function MessageBubble({
   message,
   isMine,
   isSpoiler,
+  avatarUrl,
+  userHandle,
 }: {
   message: Message;
   isMine: boolean;
   isSpoiler: boolean;
+  avatarUrl?: string | null;
+  userHandle?: string;
 }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
@@ -29,16 +33,28 @@ export function MessageBubble({
 
   return (
     <View style={[styles.group, isMine && styles.groupMine]}>
-      {!isMine ? <Avatar name={message.user_name} size={30} /> : null}
+      {!isMine ? (
+        <Pressable
+          onPress={() =>
+            router.push({ pathname: '/friend-profile-modal', params: { userId: message.user_id } })
+          }
+          hitSlop={8}>
+          <Avatar name={message.user_name} size={30} avatarUrl={avatarUrl} />
+        </Pressable>
+      ) : null}
       <View style={[styles.col, isMine && styles.colMine]}>
-        {!isMine ? <Text style={styles.sender}>{message.user_name}</Text> : null}
+        {!isMine ? <Text style={styles.sender}>{userHandle ?? message.user_name}</Text> : null}
 
         {blurred ? (
           <Pressable style={styles.spoilerBubble} onPress={() => setRevealed(true)}>
             <Text style={styles.spoilerText}>
               🙈 Spoiler
-              {message.ep_season != null ? ` for S${message.ep_season}E${message.ep_episode}` : ''} — tap to
-              reveal
+              {message.ep_season != null
+                ? message.post_type === 'read'
+                  ? ` for Chapter ${message.ep_episode}`
+                  : ` for S${message.ep_season}E${message.ep_episode}`
+                : ''}{' '}
+              — tap to reveal
             </Text>
           </Pressable>
         ) : rec ? (
@@ -132,7 +148,9 @@ export function MessageBubble({
           <View style={[styles.bubble, isMine && styles.bubbleMine]}>
             {isSpoiler && message.ep_season != null ? (
               <Text style={[styles.epTag, isMine && styles.epTagMine]}>
-                S{message.ep_season}E{message.ep_episode}
+                {message.post_type === 'read'
+                  ? `Chapter ${message.ep_episode}`
+                  : `S${message.ep_season}E${message.ep_episode}`}
               </Text>
             ) : null}
             <Text style={[styles.text, isMine && styles.textMine]}>{message.content}</Text>

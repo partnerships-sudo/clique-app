@@ -13,7 +13,7 @@ export function DmListItem({ thread, onPress }: { thread: DmThread; onPress: () 
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
   return (
-    <Pressable style={styles.card} onPress={onPress}>
+    <Pressable style={[styles.card, thread.isRequest && styles.cardRequest]} onPress={onPress}>
       <Avatar name={thread.name} size={48} avatarUrl={thread.avatarUrl} />
       <View style={styles.body}>
         <View style={styles.titleRow}>
@@ -22,13 +22,19 @@ export function DmListItem({ thread, onPress }: { thread: DmThread; onPress: () 
           </Text>
           <Text style={styles.time}>{timeAgo(thread.lastTime)}</Text>
         </View>
-        <Text style={styles.preview} numberOfLines={1}>
-          {thread.lastIsMine ? <Text style={styles.previewUser}>You: </Text> : null}
-          {(() => {
-            const rec = parseRec(thread.lastText);
-            return rec ? recPreviewText(rec) : thread.lastText;
-          })()}
-        </Text>
+        {thread.isRequest ? (
+          <Text style={styles.previewRequest} numberOfLines={1}>
+            🔒 Wants to send you a message
+          </Text>
+        ) : (
+          <Text style={styles.preview} numberOfLines={1}>
+            {thread.lastIsMine ? <Text style={styles.previewUser}>You: </Text> : null}
+            {(() => {
+              const rec = parseRec(thread.lastText);
+              return rec ? recPreviewText(rec) : thread.lastText;
+            })()}
+          </Text>
+        )}
       </View>
       {thread.unreadCount > 0 ? (
         <View style={styles.badge}>
@@ -54,12 +60,14 @@ function createStyles(Brand: BrandPalette) {
       gap: 12,
       marginBottom: 10,
     },
+    cardRequest: { borderColor: Brand.trust, borderStyle: 'dashed' },
     body: { flex: 1, minWidth: 0 },
     titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
     title: { flex: 1, fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
     time: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginLeft: 8 },
     preview: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted },
     previewUser: { color: Brand.ink, fontFamily: BrandFonts.interMedium },
+    previewRequest: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.trust },
     badge: {
       minWidth: 22,
       height: 22,

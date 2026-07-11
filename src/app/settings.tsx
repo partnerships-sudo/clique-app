@@ -1,23 +1,27 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useNotificationSettings, type NotificationSettings } from '@/features/notifications/settings';
+import { useProfile, useUpdatePrivacy } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
-
-const NOTIFICATION_ROWS: { key: keyof NotificationSettings; label: string; sub: string }[] = [
-  { key: 'messages', label: 'Messages', sub: 'Direct messages, group chats, and content chats' },
-  { key: 'friend_requests', label: 'Friend requests', sub: 'New requests and accepted requests' },
-  { key: 'reactions', label: 'Reactions', sub: 'When someone reacts to your posts' },
-  { key: 'recommendations', label: 'Recommendations', sub: 'When a friend sends you a rec' },
-];
+import { useSession } from '@/hooks/use-session';
 
 export default function SettingsScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { settings, setCategory } = useNotificationSettings();
+  const { signOut } = useSession();
+  const { data: profile } = useProfile();
+  const updatePrivacy = useUpdatePrivacy();
+
+  function handleSignOut() {
+    Alert.alert('Sign Out', 'You can switch to a different account, or sign out completely.', [
+      { text: 'Sign in with another account', onPress: () => signOut() },
+      { text: 'Full sign out', style: 'destructive', onPress: () => signOut({ forgetDevice: true }) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -27,22 +31,65 @@ export default function SettingsScreen() {
       <View style={styles.content}>
         <Text style={styles.title}>Settings</Text>
 
-        <Text style={styles.sectionLabel}>Notifications</Text>
         <View style={styles.card}>
-          {NOTIFICATION_ROWS.map((row, i) => (
-            <View key={row.key} style={[styles.row, i > 0 && styles.rowDivider]}>
-              <View style={styles.rowBody}>
-                <Text style={styles.rowLabel}>{row.label}</Text>
-                <Text style={styles.rowSub}>{row.sub}</Text>
-              </View>
-              <Switch
-                value={settings[row.key]}
-                onValueChange={(value) => setCategory(row.key, value)}
-                trackColor={{ false: Brand.border, true: Brand.trust }}
-                thumbColor="#fff"
-              />
+          <Pressable
+            style={styles.navRow}
+            onPress={() => router.push('/push-notifications-settings')}>
+            <View style={styles.navRowBody}>
+              <Text style={styles.navRowLabel}>Push Notifications</Text>
+              <Text style={styles.navRowSub}>Messages, friend requests, reactions, and more</Text>
             </View>
-          ))}
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.navRow, styles.navRowDivider]}
+            onPress={() => router.push('/collection-sharing-settings')}>
+            <View style={styles.navRowBody}>
+              <Text style={styles.navRowLabel}>📦 My Collection</Text>
+              <Text style={styles.navRowSub}>Choose what friends can see on your profile</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.navRow, styles.navRowDivider]}
+            onPress={() => router.push('/close-friends-settings')}>
+            <View style={styles.navRowBody}>
+              <Text style={styles.navRowLabel}>💚 Close Friends</Text>
+              <Text style={styles.navRowSub}>Tag your closest friends — private, just for you</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.navRow, styles.navRowDivider]}
+            onPress={() => router.push('/blocked-muted-accounts')}>
+            <View style={styles.navRowBody}>
+              <Text style={styles.navRowLabel}>Blocked & Muted Accounts</Text>
+              <Text style={styles.navRowSub}>Manage who can&rsquo;t reach you or show up in your feed</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <View style={[styles.navRow, styles.navRowDivider]}>
+            <View style={styles.navRowBody}>
+              <Text style={styles.navRowLabel}>Private Account</Text>
+              <Text style={styles.navRowSub}>
+                {profile?.is_private
+                  ? 'Only approved followers can see your posts'
+                  : 'Anyone can see your posts and follow you instantly'}
+              </Text>
+            </View>
+            <Switch
+              value={profile?.is_private ?? false}
+              onValueChange={(value) => updatePrivacy.mutate(value)}
+              disabled={updatePrivacy.isPending}
+              trackColor={{ false: Brand.tlight, true: Brand.trust }}
+            />
+          </View>
+        </View>
+
+        <View style={styles.signOutSection}>
+          <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
+            <Text style={styles.signOutText}>Sign Out</Text>
+          </Pressable>
         </View>
       </View>
     </SafeAreaView>
@@ -56,21 +103,13 @@ function createStyles(Brand: BrandPalette) {
     backBtn: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
     content: { flex: 1, paddingHorizontal: Spacing.three },
     title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 24, color: Brand.ink, marginBottom: Spacing.four },
-    sectionLabel: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 12,
-      color: Brand.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.8,
-      marginBottom: 10,
-    },
     card: {
       backgroundColor: Brand.card,
       borderRadius: 16,
       borderWidth: 1,
       borderColor: Brand.border,
     },
-    row: {
+    navRow: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
@@ -78,9 +117,20 @@ function createStyles(Brand: BrandPalette) {
       paddingHorizontal: Spacing.three,
       gap: 12,
     },
-    rowDivider: { borderTopWidth: 1, borderTopColor: Brand.border },
-    rowBody: { flex: 1, minWidth: 0 },
-    rowLabel: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.ink, marginBottom: 2 },
-    rowSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted },
+    navRowDivider: { borderTopWidth: 1, borderTopColor: Brand.border },
+    navRowBody: { flex: 1, minWidth: 0 },
+    navRowLabel: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.ink, marginBottom: 2 },
+    navRowSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted },
+    chevron: { fontSize: 22, color: Brand.muted },
+    signOutSection: { marginTop: 'auto', marginBottom: Spacing.four },
+    signOutBtn: {
+      backgroundColor: Brand.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      paddingVertical: 15,
+      alignItems: 'center',
+    },
+    signOutText: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: '#E84F4F' },
   });
 }

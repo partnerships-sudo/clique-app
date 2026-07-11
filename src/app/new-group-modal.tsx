@@ -5,14 +5,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useFriends } from '@/features/friends/api';
+import { useExtendedNetworkProfiles } from '@/features/follows/api';
 import { useCreateGroup } from '@/features/groups/api';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function NewGroupModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data: friends } = useFriends();
+  const { data: friends } = useExtendedNetworkProfiles();
   const createGroup = useCreateGroup();
   const [groupName, setGroupName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());

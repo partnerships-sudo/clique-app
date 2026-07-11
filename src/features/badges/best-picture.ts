@@ -1,0 +1,30 @@
+// Academy Award for Best Picture winners — used only for the "Award Season"
+// badge's title match. Not exhaustive-guaranteed for the most recent 1-2
+// ceremonies, but that's fine for a gamification feature.
+export const BEST_PICTURE_WINNERS = [
+  'wings', 'the broadway melody', 'all quiet on the western front', 'cimarron',
+  'grand hotel', 'cavalcade', 'it happened one night', 'mutiny on the bounty',
+  'the great ziegfeld', 'the life of emile zola', 'you can\'t take it with you',
+  'gone with the wind', 'rebecca', 'how green was my valley', 'mrs. miniver',
+  'casablanca', 'going my way', 'the lost weekend', 'the best years of our lives',
+  'gentleman\'s agreement', 'hamlet', 'all the king\'s men', 'all about eve',
+  'an american in paris', 'the greatest show on earth', 'from here to eternity',
+  'on the waterfront', 'marty', 'around the world in 80 days',
+  'the bridge on the river kwai', 'gigi', 'ben-hur', 'the apartment',
+  'west side story', 'lawrence of arabia', 'tom jones', 'my fair lady',
+  'the sound of music', 'a man for all seasons', 'in the heat of the night',
+  'oliver!', 'midnight cowboy', 'patton', 'the french connection', 'the godfather',
+  'the sting', 'the godfather part ii', 'one flew over the cuckoo\'s nest',
+  'rocky', 'annie hall', 'the deer hunter', 'kramer vs. kramer',
+  'ordinary people', 'chariots of fire', 'gandhi', 'terms of endearment',
+  'amadeus', 'out of africa', 'platoon', 'the last emperor', 'rain man',
+  'driving miss daisy', 'dances with wolves', 'the silence of the lambs',
+  'unforgiven', 'schindler\'s list', 'forrest gump', 'braveheart', 'the english patient',
+  'titanic', 'shakespeare in love', 'american beauty', 'gladiator',
+  'a beautiful mind', 'chicago', 'the lord of the rings: the return of the king',
+  'million dollar baby', 'crash', 'the departed', 'no country for old men',
+  'slumdog millionaire', 'the hurt locker', 'the king\'s speech', 'the artist',
+  'argo', '12 years a slave', 'birdman', 'spotlight', 'moonlight',
+  'the shape of water', 'green book', 'parasite', 'nomadland', 'coda',
+  'everything everywhere all at once', 'oppenheimer', 'anora',
+];

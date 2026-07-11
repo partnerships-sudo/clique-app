@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
-import { useFriends } from '@/features/friends/api';
+import { useFollowing } from '@/features/follows/api';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
@@ -165,40 +165,62 @@ export interface FriendWatchlistItem extends LibraryItem {
 
 export function useFriendWatchlist() {
   const { user } = useSession();
-  const { data: friends } = useFriends();
-  const friendIds = (friends ?? []).map((f) => f.id);
+  const { data: following } = useFollowing();
+  const followingIds = (following ?? []).map((f) => f.id);
 
   const query = useQuery({
-    queryKey: ['friend-watchlist', user?.id, [...friendIds].sort().join('|')],
+    queryKey: ['friend-watchlist', user?.id, [...followingIds].sort().join('|')],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('library')
         .select('*')
-        .in('user_id', friendIds)
+        .in('user_id', followingIds)
         .eq('status', 'watchlist')
         .order('created_at', { ascending: false });
       if (error) throw error;
       return data as LibraryItem[];
     },
-    enabled: !!user && friendIds.length > 0,
+    enabled: !!user && followingIds.length > 0,
   });
 
-  const nameById = new Map((friends ?? []).map((f) => [f.id, f.full_name ?? f.username ?? 'A friend']));
+  const nameById = new Map((following ?? []).map((f) => [f.id, f.full_name ?? f.username ?? 'A friend']));
   const items: FriendWatchlistItem[] = (query.data ?? []).map((item) => ({
     ...item,
     recommendedBy: nameById.get(item.user_id) ?? 'A friend',
   }));
 
-  return { ...query, items, isLoading: query.isLoading && friendIds.length > 0 };
+  return { ...query, items, isLoading: query.isLoading && followingIds.length > 0 };
 }
 
 export function useRateLibraryItem() {
   const { user } = useSession();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; rating: number; title: string; type: EntryType }) => {
-      const [libraryResult, postsResult] = await Promise.all([
-        supabase.from('library').update({ rating: input.rating }).eq('id', input.id),
+    mutationFn: async (input: {
+      id: string;
+      rating: number;
+      title: string;
+      type: EntryType;
+      sub?: string | null;
+      poster?: string | null;
+      externalId?: string | null;
+      mediaType?: string | null;
+      extRating?: string | null;
+    }) => {
+      const [collectionResult, deleteResult, postsResult] = await Promise.all([
+        supabase.from('collection_items').insert({
+          user_id: user!.id,
+          type: input.type,
+          format: null,
+          title: input.title,
+          sub: input.sub ?? null,
+          poster: input.poster ?? null,
+          external_id: input.externalId ?? null,
+          media_type: input.mediaType ?? null,
+          ext_rating: input.extRating ?? null,
+          user_rating: input.rating,
+        }),
+        supabase.from('library').delete().eq('id', input.id),
         supabase
           .from('posts')
           .update({ rating: input.rating })
@@ -206,11 +228,13 @@ export function useRateLibraryItem() {
           .eq('title', input.title)
           .eq('type', input.type),
       ]);
-      if (libraryResult.error) throw libraryResult.error;
+      if (collectionResult.error) throw collectionResult.error;
+      if (deleteResult.error) throw deleteResult.error;
       if (postsResult.error) throw postsResult.error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: libraryQueryKey(user?.id) });
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
       queryClient.invalidateQueries({ queryKey: ['posts'] });
     },
   });

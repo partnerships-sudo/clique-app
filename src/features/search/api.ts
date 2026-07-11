@@ -2,6 +2,8 @@ import { Buffer } from 'buffer';
 import { useQuery } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
+import type { CollectionFormat } from '@/features/collection/api';
+import { fetchIgdbCovers } from '@/features/games/igdb';
 
 const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 const GOOGLE_BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
@@ -25,7 +27,12 @@ async function searchTMDB(query: string): Promise<SearchResult[]> {
     { headers: { Authorization: `Bearer ${TMDB_KEY}`, 'Content-Type': 'application/json' } },
   );
   const data = await res.json();
-  const raw = (data.results ?? []).slice(0, 8) as any[];
+  // /search/multi also returns actors/crew matching by name — keep only
+  // actual movies and shows, filtered before the slice so a person result
+  // ranked highly by TMDB doesn't crowd out real title matches.
+  const raw = (data.results ?? [])
+    .filter((r: any) => r.media_type === 'movie' || r.media_type === 'tv')
+    .slice(0, 8) as any[];
 
   const results: (Omit<SearchResult, 'externalId' | 'mediaType'> & { tmdbId: number; mediaType: string })[] = raw
     .map((r) => {
@@ -94,15 +101,25 @@ async function searchGames(query: string): Promise<SearchResult[]> {
     `https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(query)}&page_size=8`,
   );
   const data = await res.json();
-  return ((data.results ?? []) as any[]).map((g) => ({
-    title: g.name,
-    sub: `${g.genres?.[0]?.name ?? 'Game'}${g.released ? ` · ${g.released.slice(0, 4)}` : ''}`,
-    img: g.background_image ?? null,
-    rating: g.rating ? g.rating.toFixed(1) : null,
-    square: true,
-    externalId: String(g.id),
-    mediaType: 'game',
-  }));
+  const games = (data.results ?? []) as any[];
+
+  // RAWG only has landscape screenshots — IGDB has real 2:3 box art, so it's
+  // the preferred source; RAWG's background_image is just the fallback for
+  // titles IGDB doesn't have.
+  const covers = await fetchIgdbCovers(games.map((g) => g.name));
+
+  return games.map((g) => {
+    const cover = covers[g.name] ?? null;
+    return {
+      title: g.name,
+      sub: `${g.genres?.[0]?.name ?? 'Game'}${g.released ? ` · ${g.released.slice(0, 4)}` : ''}`,
+      img: cover ?? g.background_image ?? null,
+      rating: g.rating ? g.rating.toFixed(1) : null,
+      square: !cover,
+      externalId: String(g.id),
+      mediaType: 'game',
+    };
+  });
 }
 
 let spotifyToken: string | null = null;
@@ -156,10 +173,35 @@ async function searchSpotifyPodcasts(query: string): Promise<SearchResult[]> {
   }));
 }
 
-async function searchByType(type: EntryType, query: string): Promise<SearchResult[]> {
+async function searchTMDBTV(query: string): Promise<SearchResult[]> {
+  const res = await fetch(
+    `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}&include_adult=false`,
+    { headers: { Authorization: `Bearer ${TMDB_KEY}`, 'Content-Type': 'application/json' } },
+  );
+  const data = await res.json();
+  const raw = ((data.results ?? []) as any[]).slice(0, 8);
+  return raw
+    .filter((r: any) => r.name)
+    .map((r: any) => {
+      const year = (r.first_air_date || '').slice(0, 4);
+      return {
+        title: r.name,
+        sub: `TV Series${year ? ` · ${year}` : ''}`,
+        img: r.poster_path ? `https://image.tmdb.org/t/p/w185${r.poster_path}` : null,
+        rating: r.vote_average ? r.vote_average.toFixed(1) : null,
+        square: false,
+        externalId: String(r.id),
+        mediaType: 'tv',
+      };
+    });
+}
+
+async function searchByType(type: EntryType | 'tv', query: string): Promise<SearchResult[]> {
   switch (type) {
     case 'watch':
       return searchTMDB(query);
+    case 'tv':
+      return searchTMDBTV(query);
     case 'read':
       return searchBooks(query);
     case 'play':
@@ -171,11 +213,85 @@ async function searchByType(type: EntryType, query: string): Promise<SearchResul
   }
 }
 
-export function useTitleSearch(type: EntryType | null, query: string) {
+export function useTitleSearch(type: EntryType | 'tv' | null, query: string) {
   const trimmed = query.trim();
   return useQuery({
     queryKey: ['title-search', type, trimmed],
     queryFn: () => searchByType(type!, trimmed),
     enabled: !!type && trimmed.length >= 2,
   });
+}
+
+/** Exact-match book lookup by the ISBN barcode on the back cover. */
+export async function searchBookByIsbn(isbn: string): Promise<SearchResult | null> {
+  const results = await searchBooks(`isbn:${isbn}`);
+  return results[0] ?? null;
+}
+
+/**
+ * UPC barcodes (on DVD/Blu-ray/4K/CD/vinyl cases) don't map to TMDB or
+ * Spotify directly, so this resolves the UPC to a product title + category
+ * via upcitemdb's free lookup first — same two-hop approach retailers use,
+ * no paid image-recognition API required.
+ */
+async function lookupUpc(upc: string): Promise<{ title: string; category: string } | null> {
+  try {
+    const res = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${upc}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    const item = data.items?.[0];
+    if (!item?.title) return null;
+    return { title: item.title as string, category: (item.category as string) ?? '' };
+  } catch {
+    return null;
+  }
+}
+
+function detectFormatFromText(text: string): CollectionFormat {
+  const lower = text.toLowerCase();
+  if (/4k|uhd/.test(lower)) return '4k';
+  if (/blu-?ray/.test(lower)) return 'bluray';
+  return 'dvd';
+}
+
+function detectMusicFormatFromText(text: string): CollectionFormat {
+  return /vinyl|\blp\b|12"|record/i.test(text) ? 'vinyl' : 'cd';
+}
+
+/**
+ * Single UPC lookup, routed to either the movie/TV or the music search based
+ * on upcitemdb's product category (falls back to movie/TV when the category
+ * is missing or ambiguous, matching prior behavior).
+ */
+export async function searchCollectionByUpc(
+  upc: string,
+): Promise<{ type: 'watch' | 'listen'; result: SearchResult; detectedFormat: CollectionFormat } | null> {
+  const item = await lookupUpc(upc);
+  if (!item) return null;
+  const isMusic = /music|cd|vinyl|album|record/i.test(item.category) || /vinyl|\blp\b/i.test(item.title);
+
+  if (isMusic) {
+    const detectedFormat = detectMusicFormatFromText(item.title);
+    // UPC product titles for albums are often retail listings like "Abbey
+    // Road [Vinyl LP] - The Beatles" — strip the packaging noise so Spotify
+    // search matches on the artist + album title instead.
+    const cleaned = item.title
+      .replace(/[\[(][^\])]*(vinyl|lp|cd|record|explicit)[^\])]*[\])]/gi, '')
+      .replace(/\b(vinyl|lp|cd|explicit)\b/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
+    const results = await searchSpotifyAlbums(cleaned || item.title);
+    return results[0] ? { type: 'listen', result: results[0], detectedFormat } : null;
+  }
+
+  const detectedFormat = detectFormatFromText(item.title);
+  // UPC product titles are often retail listings like "Inception (DVD, 2010)
+  // Widescreen" — strip the packaging/edition noise so TMDB search matches.
+  const cleaned = item.title
+    .replace(/[\[(][^\])]*(dvd|blu-?ray|4k|uhd|widescreen|full\s*screen|region\s*\d)[^\])]*[\])]/gi, '')
+    .replace(/\b(dvd|blu-?ray|4k uhd|4k|widescreen|full screen)\b/gi, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+  const results = await searchTMDB(cleaned || item.title);
+  return results[0] ? { type: 'watch', result: results[0], detectedFormat } : null;
 }

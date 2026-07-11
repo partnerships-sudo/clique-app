@@ -5,12 +5,13 @@ import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, AppState, type AppStateStatus, Platform, useColorScheme, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync();
 
+import { AnimatedSplash } from '@/components/splash/animated-splash';
 import { type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -38,6 +39,10 @@ function RootNavigator() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="profile" options={{ headerShown: false }} />
         <Stack.Screen name="settings" options={{ headerShown: false }} />
+        <Stack.Screen name="push-notifications-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="collection-sharing-settings" options={{ headerShown: false }} />
+        <Stack.Screen name="blocked-muted-accounts" options={{ headerShown: false }} />
+        <Stack.Screen name="close-friends-settings" options={{ headerShown: false }} />
         <Stack.Screen
           name="log-modal"
           options={{
@@ -108,6 +113,62 @@ function RootNavigator() {
             headerShown: false,
           }}
         />
+        <Stack.Screen
+          name="collection-add-modal"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.9],
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen name="collection-scan-modal" options={{ headerShown: false }} />
+        <Stack.Screen name="friend-collection-modal" options={{ headerShown: false }} />
+        <Stack.Screen
+          name="share-card-modal"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.92],
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="achievements-modal"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.92],
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="discover-people-modal"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.95],
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="profile-stats-modal"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.92],
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
+        <Stack.Screen
+          name="collection-item-detail-modal"
+          options={{
+            presentation: 'formSheet',
+            sheetAllowedDetents: [0.72],
+            sheetGrabberVisible: true,
+            headerShown: false,
+          }}
+        />
       </Stack.Protected>
     </Stack>
   );
@@ -124,6 +185,7 @@ function loadingStyle(Brand: BrandPalette) {
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
+  const [introDone, setIntroDone] = useState(false);
   const [fontsLoaded] = useFonts({
     'Satoshi-Light': require('../assets/fonts/Satoshi-Light.otf'),
     'Satoshi-Regular': require('../assets/fonts/Satoshi-Regular.otf'),
@@ -132,9 +194,16 @@ export default function RootLayout() {
     'Satoshi-Black': require('../assets/fonts/Satoshi-Black.otf'),
   });
 
+  // Wait for the custom fonts (Satoshi weights, incl. the "clique" wordmark's
+  // Black weight) to finish loading before hiding the splash screen —
+  // otherwise the app can render one frame in the system fallback font,
+  // which is a different width than Satoshi and clips/looks thinner until
+  // the real font swaps in.
   useEffect(() => {
-    SplashScreen.hideAsync();
-  }, []);
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
   useEffect(() => {
     function onAppStateChange(status: AppStateStatus) {
@@ -146,6 +215,10 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
+  if (!fontsLoaded) {
+    return null;
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
@@ -155,6 +228,7 @@ export default function RootLayout() {
           </SessionProvider>
         </QueryClientProvider>
       </ThemeProvider>
+      {!introDone ? <AnimatedSplash onFinish={() => setIntroDone(true)} /> : null}
     </GestureHandlerRootView>
   );
 }

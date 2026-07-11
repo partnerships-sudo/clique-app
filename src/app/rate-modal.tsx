@@ -16,6 +16,10 @@ export default function RateModal() {
     poster?: string;
     type?: EntryType;
     currentRating?: string;
+    sub?: string;
+    externalId?: string;
+    mediaType?: string;
+    extRating?: string;
   }>();
   const Brand = useBrand();
   const TypeColors = useTypeColors();
@@ -32,6 +36,11 @@ export default function RateModal() {
       rating,
       title: params.title,
       type: (params.type ?? 'watch') as EntryType,
+      sub: params.sub,
+      poster: params.poster,
+      externalId: params.externalId,
+      mediaType: params.mediaType,
+      extRating: params.extRating,
     });
     router.back();
   }

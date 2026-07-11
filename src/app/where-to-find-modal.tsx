@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
+import { useContentDetails } from '@/features/content/api';
 import { useCinemaDetails } from '@/features/movies/api';
 import { getWhereToFindConfig, type StoreLink } from '@/features/where-to-find/links';
 import { useBrand } from '@/hooks/use-brand';
@@ -16,6 +17,13 @@ export default function WhereToFindModal() {
     tmdbId?: string;
   }>();
   const config = getWhereToFindConfig(params.type ?? 'watch', params.title ?? '');
+  const providerType = params.type === 'watch' || params.type === 'play' ? params.type : undefined;
+  const { data: details } = useContentDetails(providerType ? params.title : undefined, providerType);
+  // Real per-title availability (TMDB for movies/TV, RAWG platforms for
+  // games) when we have it — falls back to the generic storefront list
+  // otherwise, same as content-detail-modal.
+  const usingRealProviders = !!providerType && (details?.watchProviders?.length ?? 0) > 0;
+  const stores = usingRealProviders ? details!.watchProviders : config.stores;
   const { data: cinemaDetails } = useCinemaDetails(
     params.type === 'cinema' ? params.tmdbId : undefined,
   );
@@ -111,7 +119,10 @@ export default function WhereToFindModal() {
         {/* ── Store links ── */}
         <View style={styles.content}>
           <Text style={styles.secLbl}>{config.label}</Text>
-          {config.stores.map((store, i) => (
+          {usingRealProviders && params.type === 'watch' ? (
+            <Text style={styles.attribution}>Availability powered by JustWatch</Text>
+          ) : null}
+          {stores.map((store, i) => (
             <Pressable
               key={store.name}
               style={[styles.row, i > 0 ? styles.rowSpacing : undefined]}
@@ -238,6 +249,13 @@ function createStyles(Brand: BrandPalette) {
     textTransform: 'uppercase',
     letterSpacing: 1,
     paddingBottom: 8,
+  },
+  attribution: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 10.5,
+    color: Brand.muted,
+    marginTop: -4,
+    marginBottom: 8,
   },
   row: {
     flexDirection: 'row',

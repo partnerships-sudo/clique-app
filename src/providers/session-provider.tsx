@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useState, type PropsWithChildren 
 
 import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/query-client';
-import { syncPushToken } from '@/lib/push-notifications';
+import { registerForPushNotificationsAsync, syncPushToken } from '@/lib/push-notifications';
 
 type SignUpParams = {
   email: string;
@@ -18,7 +18,10 @@ type SessionContextValue = {
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (params: SignUpParams) => Promise<{ error: string | null }>;
-  signOut: () => Promise<void>;
+  /** `forgetDevice` also removes this device's push token from the outgoing
+   * account, so it stops receiving notifications here — off by default so
+   * switching to another account on the same device doesn't need to. */
+  signOut: (options?: { forgetDevice?: boolean }) => Promise<void>;
 };
 
 const SessionContext = createContext<SessionContextValue | null>(null);
@@ -83,7 +86,17 @@ export function SessionProvider({ children }: PropsWithChildren) {
       setIsLoading(false);
       return { error: null };
     },
-    async signOut() {
+    async signOut({ forgetDevice = false } = {}) {
+      if (forgetDevice && session?.user?.id) {
+        try {
+          const token = await registerForPushNotificationsAsync();
+          if (token) {
+            await supabase.from('push_tokens').delete().eq('user_id', session.user.id).eq('token', token);
+          }
+        } catch {
+          // Best-effort — a push-cleanup hiccup shouldn't block signing out.
+        }
+      }
       await supabase.auth.signOut();
       queryClient.clear();
     },
