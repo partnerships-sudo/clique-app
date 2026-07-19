@@ -163,13 +163,13 @@ export function ProfileCard({
   const activePodcasts = active.filter((i) => i.type === 'podcast');
   const activeMusic = active.filter((i) => i.type === 'listen');
   const activeCategories = [
-    tvShows.length ? { label: 'TV', sub: `${tvShows.length} show${tvShows.length !== 1 ? 's' : ''}`, icon: '📺', color: '#FF6B6B', bg: '#FF6B6B22' } : null,
-    tvMovies.length ? { label: 'TV', sub: `${tvMovies.length} movie${tvMovies.length !== 1 ? 's' : ''}`, icon: '🎬', color: '#FF6B6B', bg: '#FF6B6B22' } : null,
-    activeBooks.length ? { label: 'Books', sub: `${activeBooks.length} book${activeBooks.length !== 1 ? 's' : ''}`, icon: '📚', color: '#5FA8FF', bg: '#5FA8FF22' } : null,
-    activeGames.length ? { label: 'Games', sub: `${activeGames.length} game${activeGames.length !== 1 ? 's' : ''}`, icon: '🎮', color: '#5FD9FF', bg: '#5FD9FF22' } : null,
-    activePodcasts.length ? { label: 'Podcasts', sub: `${activePodcasts.length} podcast${activePodcasts.length !== 1 ? 's' : ''}`, icon: '🎙️', color: '#C084FC', bg: '#C084FC22' } : null,
-    activeMusic.length ? { label: 'Music', sub: `${activeMusic.length} track${activeMusic.length !== 1 ? 's' : ''}`, icon: '🎵', color: '#9B95AC', bg: '#9B95AC22' } : null,
-  ].filter(Boolean) as { label: string; sub: string; icon: string; color: string; bg: string }[];
+    tvShows.length ? { label: 'TV', sub: `${tvShows.length} show${tvShows.length !== 1 ? 's' : ''}`, sf: 'tv.fill', color: '#FF6B6B', bg: '#FF6B6B18' } : null,
+    tvMovies.length ? { label: 'TV', sub: `${tvMovies.length} movie${tvMovies.length !== 1 ? 's' : ''}`, sf: 'film.fill', color: '#FF6B6B', bg: '#FF6B6B18' } : null,
+    activeBooks.length ? { label: 'Books', sub: `${activeBooks.length} book${activeBooks.length !== 1 ? 's' : ''}`, sf: 'book.fill', color: '#5FA8FF', bg: '#5FA8FF18' } : null,
+    activeGames.length ? { label: 'Games', sub: `${activeGames.length} game${activeGames.length !== 1 ? 's' : ''}`, sf: 'gamecontroller.fill', color: '#5FD9FF', bg: '#5FD9FF18' } : null,
+    activePodcasts.length ? { label: 'Podcasts', sub: `${activePodcasts.length} podcast${activePodcasts.length !== 1 ? 's' : ''}`, sf: 'mic.fill', color: '#C084FC', bg: '#C084FC18' } : null,
+    activeMusic.length ? { label: 'Music', sub: `${activeMusic.length} track${activeMusic.length !== 1 ? 's' : ''}`, sf: 'headphones', color: '#9B95AC', bg: '#9B95AC18' } : null,
+  ].filter(Boolean) as { label: string; sub: string; sf: string; color: string; bg: string }[];
 
   // Top genres: extract last segment of sub field
   const genreCounts = new Map<string, number>();
@@ -369,21 +369,21 @@ export function ProfileCard({
             {/* Logged / Followers / Following */}
             <View style={styles.statsBox}>
               <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
-                <Text style={styles.statIcon}>🗂️</Text>
-                <Text style={[styles.statNum, onLoggedPress && styles.statNumAccent]}>{logged.length}</Text>
+                <SymbolView name="archivebox.fill" size={22} tintColor={Brand.muted} type="monochrome" style={styles.statSfIcon} />
+                <Text style={[styles.statNum, styles.statNumAccent]}>{logged.length}</Text>
                 <Text style={styles.statLbl}>LOGGED</Text>
                 <Text style={styles.statSubLbl}>items logged</Text>
               </Pressable>
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowersPress} disabled={!onFollowersPress} hitSlop={4}>
-                <Text style={styles.statIcon}>👥</Text>
+                <SymbolView name="person.2.fill" size={22} tintColor={Brand.muted} type="monochrome" style={styles.statSfIcon} />
                 <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
                 <Text style={styles.statLbl}>FOLLOWERS</Text>
                 <Text style={styles.statSubLbl}>people follow you</Text>
               </Pressable>
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowingPress} disabled={!onFollowingPress} hitSlop={4}>
-                <Text style={styles.statIcon}>👤</Text>
+                <SymbolView name="person.fill" size={22} tintColor={Brand.muted} type="monochrome" style={styles.statSfIcon} />
                 <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
                 <Text style={styles.statLbl}>FOLLOWING</Text>
                 <Text style={styles.statSubLbl}>people you follow</Text>
@@ -393,20 +393,30 @@ export function ProfileCard({
             {/* Streak */}
             <View style={styles.streakCard}>
               <View style={styles.streakLeft}>
-                <Text style={styles.streakFire}>🔥</Text>
+                <View style={styles.streakFireCircle}>
+                  <Text style={styles.streakFireEmoji}>🔥</Text>
+                </View>
                 <Text style={styles.streakDays}>{streakDays} {streakDays === 1 ? 'DAY' : 'DAYS'} STREAK</Text>
                 <Text style={styles.streakMsg}>
                   {streakDays >= 3 ? "Keep it alive. You're on fire." : 'Start your streak today!'}
                 </Text>
                 <View style={styles.weekRow}>
-                  {weekDays.map((d, i) => (
-                    <View key={i} style={styles.weekDay}>
-                      <View style={[styles.weekDot, d.done && styles.weekDotDone]} />
-                      <Text style={styles.weekLabel}>{d.label}</Text>
-                    </View>
-                  ))}
+                  {weekDays.map((d, i) => {
+                    const isToday = i === weekDays.length - 1;
+                    return (
+                      <View key={i} style={styles.weekDay}>
+                        <View style={[
+                          styles.weekDot,
+                          d.done && !isToday && styles.weekDotDone,
+                          isToday && styles.weekDotToday,
+                        ]} />
+                        <Text style={styles.weekLabel}>{d.label}</Text>
+                      </View>
+                    );
+                  })}
                 </View>
               </View>
+              <View style={styles.streakDivider} />
               <View style={styles.streakRight}>
                 <Text style={styles.longestLabel}>Longest Streak</Text>
                 <Text style={styles.longestDays}>{streakDays}</Text>
@@ -437,13 +447,13 @@ export function ProfileCard({
                   activeCategories.slice(0, 4).map((cat, i) => (
                     <View key={i} style={[styles.activeRow, i > 0 && styles.activeRowBorder]}>
                       <View style={[styles.activeIcon, { backgroundColor: cat.bg }]}>
-                        <Text style={styles.activeIconEmoji}>{cat.icon}</Text>
+                        <SymbolView name={cat.sf as any} size={18} tintColor={cat.color} type="monochrome" />
                       </View>
                       <View style={styles.activeInfo}>
                         <Text style={styles.activeLabel}>{cat.label}</Text>
                         <Text style={[styles.activeSub, { color: cat.color }]}>{cat.sub}</Text>
                       </View>
-                      <Text style={styles.activeChevron}>›</Text>
+                      <SymbolView name="chevron.right" size={12} tintColor={Brand.muted} type="monochrome" />
                     </View>
                   ))
                 )}
@@ -678,11 +688,12 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       width: '100%',
-      borderWidth: 1.5,
+      backgroundColor: Brand.card,
+      borderWidth: 1,
       borderColor: Brand.border,
-      borderRadius: 16,
-      paddingVertical: 10,
-      marginBottom: 24,
+      borderRadius: 18,
+      paddingVertical: 14,
+      marginBottom: 16,
     },
     stat: { flex: 1, alignItems: 'center' },
     statNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 21, color: Brand.ink },
@@ -737,7 +748,7 @@ function createStyles(Brand: BrandPalette) {
     },
 
     // Stats box
-    statIcon: { fontSize: 18, marginBottom: 2 },
+    statSfIcon: { marginBottom: 4 },
     statSubLbl: { fontFamily: BrandFonts.interRegular, fontSize: 9, color: Brand.muted, marginTop: 1, textAlign: 'center' },
 
     // Tab content
@@ -784,37 +795,50 @@ function createStyles(Brand: BrandPalette) {
     // Streak card
     streakCard: {
       width: '100%',
-      backgroundColor: Brand.tlight,
-      borderRadius: 16,
-      padding: 16,
+      backgroundColor: Brand.card,
+      borderRadius: 18,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      padding: 18,
       flexDirection: 'row',
-      gap: 12,
+      alignItems: 'center',
+      gap: 0,
       marginBottom: 16,
     },
     streakLeft: { flex: 1 },
-    streakFire: { fontSize: 24, marginBottom: 4 },
-    streakDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.trust },
-    streakMsg: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2, marginBottom: 10 },
-    weekRow: { flexDirection: 'row', gap: 6 },
-    weekDay: { alignItems: 'center', gap: 4 },
-    weekDot: {
-      width: 20, height: 20, borderRadius: 10,
-      backgroundColor: Brand.border,
+    streakFireCircle: {
+      width: 44, height: 44, borderRadius: 22,
+      backgroundColor: '#FFF0E8',
       alignItems: 'center', justifyContent: 'center',
+      marginBottom: 10,
     },
-    weekDotDone: { backgroundColor: Brand.trust },
-    weekCheck: { fontSize: 10, color: '#fff' },
-    weekLabel: { fontFamily: BrandFonts.interMedium, fontSize: 8.5, color: Brand.muted },
-    streakRight: { alignItems: 'center', justifyContent: 'center', minWidth: 60 },
-    longestLabel: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
-    longestDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink, lineHeight: 32 },
-    longestUnit: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted },
+    streakFireEmoji: { fontSize: 22 },
+    streakDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink, marginBottom: 3 },
+    streakMsg: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, marginBottom: 14 },
+    weekRow: { flexDirection: 'row', gap: 8 },
+    weekDay: { alignItems: 'center', gap: 5 },
+    weekDot: {
+      width: 26, height: 26, borderRadius: 13,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      backgroundColor: 'transparent',
+    },
+    weekDotDone: { backgroundColor: Brand.trust, borderColor: Brand.trust },
+    weekDotToday: { borderColor: Brand.trust, borderWidth: 2, backgroundColor: 'transparent' },
+    weekLabel: { fontFamily: BrandFonts.interMedium, fontSize: 9, color: Brand.muted },
+    streakDivider: { width: 1, height: '80%', backgroundColor: Brand.border, marginHorizontal: 16 },
+    streakRight: { alignItems: 'center', justifyContent: 'center', minWidth: 70 },
+    longestLabel: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, textAlign: 'center', marginBottom: 2 },
+    longestDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 36, color: Brand.ink, lineHeight: 40 },
+    longestUnit: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
 
     // Stats card (top categories)
     statsCard: {
       width: '100%',
-      backgroundColor: Brand.tlight,
-      borderRadius: 16,
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      borderRadius: 18,
       padding: 16,
       marginBottom: 16,
     },
@@ -840,11 +864,10 @@ function createStyles(Brand: BrandPalette) {
     // Currently active
     activeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
     activeRowBorder: { borderTopWidth: 1, borderTopColor: Brand.border },
-    activeIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-    activeIconEmoji: { fontSize: 14 },
+    activeIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     activeInfo: { flex: 1, minWidth: 0 },
-    activeLabel: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.ink },
-    activeSub: { fontFamily: BrandFonts.interRegular, fontSize: 10.5 },
+    activeLabel: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14, color: Brand.ink },
+    activeSub: { fontFamily: BrandFonts.interRegular, fontSize: 12 },
     activeChevron: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.muted },
 
     // Card header
