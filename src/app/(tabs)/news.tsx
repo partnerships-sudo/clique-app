@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import {
   FlatList,
@@ -22,13 +23,13 @@ import { useBrand } from '@/hooks/use-brand';
 
 type NewsMode = 'headlines' | 'cinema';
 
-const CATEGORY_FILTERS: { value: FeedFilterValue; label: string; icon: string }[] = [
-  { value: 'all', label: 'All', icon: '⊞' },
-  { value: 'watch', label: 'TV & Film', icon: '🎬' },
-  { value: 'read', label: 'Books', icon: '📖' },
-  { value: 'play', label: 'Games', icon: '🎮' },
-  { value: 'podcast', label: 'Podcasts', icon: '🎙️' },
-  { value: 'listen', label: 'Music', icon: '🎧' },
+const CATEGORY_FILTERS: { value: FeedFilterValue; label: string; sf: string }[] = [
+  { value: 'all', label: 'All', sf: 'square.grid.2x2.fill' },
+  { value: 'watch', label: 'TV & Film', sf: 'film.stack' },
+  { value: 'read', label: 'Books', sf: 'book.fill' },
+  { value: 'play', label: 'Games', sf: 'gamecontroller.fill' },
+  { value: 'podcast', label: 'Podcasts', sf: 'mic.fill' },
+  { value: 'listen', label: 'Music', sf: 'headphones' },
 ];
 
 export default function NewsScreen() {
@@ -100,7 +101,7 @@ export default function NewsScreen() {
                   key={cat.value}
                   style={[styles.catChip, active && styles.catChipActive]}
                   onPress={() => setFilter(cat.value)}>
-                  <Text style={styles.catChipIcon}>{cat.icon}</Text>
+                  <SymbolView name={cat.sf as any} size={22} tintColor={active ? '#fff' : '#888'} type="monochrome" />
                   <Text style={[styles.catChipLabel, active && styles.catChipLabelActive]}>{cat.label}</Text>
                 </Pressable>
               );
@@ -310,7 +311,6 @@ function createStyles(Brand: BrandPalette) {
       gap: 5,
     },
     catChipActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
-    catChipIcon: { fontSize: 22 },
     catChipLabel: {
       fontFamily: BrandFonts.interMedium,
       fontSize: 10.5,
@@ -330,11 +330,11 @@ function createStyles(Brand: BrandPalette) {
     },
 
     // Trending row
-    trendingRow: { paddingHorizontal: Spacing.three, gap: 12, paddingBottom: 4 },
+    trendingRow: { paddingHorizontal: Spacing.three, gap: 10, paddingBottom: 4 },
     trendingCard: {
-      width: 220,
-      height: 280,
-      borderRadius: 18,
+      width: 158,
+      height: 220,
+      borderRadius: 16,
       overflow: 'hidden',
       backgroundColor: Brand.card,
     },
@@ -364,16 +364,16 @@ function createStyles(Brand: BrandPalette) {
     },
     trendingSource: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 9,
+      fontSize: 8.5,
       color: Brand.trust,
       letterSpacing: 0.6,
-      marginBottom: 4,
+      marginBottom: 3,
     },
     trendingTitle: {
       fontFamily: BrandFonts.syneExtraBold,
-      fontSize: 13.5,
+      fontSize: 12,
       color: '#fff',
-      lineHeight: 18,
+      lineHeight: 16,
     },
 
     // Feature card
