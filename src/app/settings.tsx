@@ -1,12 +1,21 @@
 import { router } from 'expo-router';
-import { useMemo } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { SymbolView } from 'expo-symbols';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { RATING_ICON_OPTIONS, type RatingIconStyle } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useProfile, useUpdatePrivacy } from '@/features/profile/api';
+import { useProfile, useUpdatePrivacy, useUpdateRatingIcon } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
+import { useAppearance, type AppearancePref } from '@/providers/appearance-provider';
+
+const APPEARANCE_OPTIONS: { value: AppearancePref; label: string; sf: string }[] = [
+  { value: 'system', label: 'System', sf: 'circle.lefthalf.filled' },
+  { value: 'light', label: 'Light', sf: 'sun.min' },
+  { value: 'dark', label: 'Dark', sf: 'moon' },
+];
 
 export default function SettingsScreen() {
   const Brand = useBrand();
@@ -14,6 +23,11 @@ export default function SettingsScreen() {
   const { signOut } = useSession();
   const { data: profile } = useProfile();
   const updatePrivacy = useUpdatePrivacy();
+  const updateRatingIcon = useUpdateRatingIcon();
+  const { pref: appearancePref, setPref: setAppearancePref } = useAppearance();
+  const [ratingIcon, setRatingIcon] = useState<RatingIconStyle>(
+    (profile?.rating_icon as RatingIconStyle) ?? 'stars',
+  );
 
   function handleSignOut() {
     Alert.alert('Sign Out', 'You can switch to a different account, or sign out completely.', [
@@ -23,55 +37,84 @@ export default function SettingsScreen() {
     ]);
   }
 
+  function handleRatingIcon(value: RatingIconStyle) {
+    setRatingIcon(value);
+    updateRatingIcon.mutate(value);
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backRow}>
-        <Text style={styles.backBtn}>‹ Back</Text>
-      </Pressable>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.scroll}>
+        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backRow}>
+          <Text style={styles.backBtn}>‹ Back</Text>
+        </Pressable>
         <Text style={styles.title}>Settings</Text>
 
+        {/* ACCOUNT */}
+        <Text style={styles.sectionLabel}>Account</Text>
         <View style={styles.card}>
-          <Pressable
-            style={styles.navRow}
-            onPress={() => router.push('/push-notifications-settings')}>
-            <View style={styles.navRowBody}>
-              <Text style={styles.navRowLabel}>Push Notifications</Text>
-              <Text style={styles.navRowSub}>Messages, friend requests, reactions, and more</Text>
+          <Pressable style={styles.row} onPress={() => router.push('/account-info')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="person" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Account info</Text>
+              <Text style={styles.rowSub}>Email, username, and password</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
-          <Pressable
-            style={[styles.navRow, styles.navRowDivider]}
-            onPress={() => router.push('/collection-sharing-settings')}>
-            <View style={styles.navRowBody}>
-              <Text style={styles.navRowLabel}>📦 My Collection</Text>
-              <Text style={styles.navRowSub}>Choose what friends can see on your profile</Text>
+          <Pressable style={[styles.row, styles.rowDivider]} onPress={() => router.push('/push-notifications-settings')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="bell" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Push notifications</Text>
+              <Text style={styles.rowSub}>Messages, friend requests, reactions, and more</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
-          <Pressable
-            style={[styles.navRow, styles.navRowDivider]}
-            onPress={() => router.push('/close-friends-settings')}>
-            <View style={styles.navRowBody}>
-              <Text style={styles.navRowLabel}>💚 Close Friends</Text>
-              <Text style={styles.navRowSub}>Tag your closest friends — private, just for you</Text>
+        </View>
+
+        {/* SOCIAL */}
+        <Text style={styles.sectionLabel}>Social</Text>
+        <View style={styles.card}>
+          <Pressable style={styles.row} onPress={() => router.push('/collection-sharing-settings')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="books.vertical" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>My collection</Text>
+              <Text style={styles.rowSub}>Choose what friends can see on your profile</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
-          <Pressable
-            style={[styles.navRow, styles.navRowDivider]}
-            onPress={() => router.push('/blocked-muted-accounts')}>
-            <View style={styles.navRowBody}>
-              <Text style={styles.navRowLabel}>Blocked & Muted Accounts</Text>
-              <Text style={styles.navRowSub}>Manage who can&rsquo;t reach you or show up in your feed</Text>
+          <Pressable style={[styles.row, styles.rowDivider]} onPress={() => router.push('/close-friends-settings')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="heart" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Close friends</Text>
+              <Text style={styles.rowSub}>Tag your closest friends — private, just for you</Text>
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
-          <View style={[styles.navRow, styles.navRowDivider]}>
-            <View style={styles.navRowBody}>
-              <Text style={styles.navRowLabel}>Private Account</Text>
-              <Text style={styles.navRowSub}>
+          <Pressable style={[styles.row, styles.rowDivider]} onPress={() => router.push('/blocked-muted-accounts')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="nosign" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Blocked & muted accounts</Text>
+              <Text style={styles.rowSub}>Manage who can't reach you or show up in your feed</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+          <View style={[styles.row, styles.rowDivider]}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="lock" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Private account</Text>
+              <Text style={styles.rowSub}>
                 {profile?.is_private
                   ? 'Only approved followers can see your posts'
                   : 'Anyone can see your posts and follow you instantly'}
@@ -79,19 +122,89 @@ export default function SettingsScreen() {
             </View>
             <Switch
               value={profile?.is_private ?? false}
-              onValueChange={(value) => updatePrivacy.mutate(value)}
+              onValueChange={(v) => updatePrivacy.mutate(v)}
               disabled={updatePrivacy.isPending}
               trackColor={{ false: Brand.tlight, true: Brand.trust }}
             />
           </View>
         </View>
 
-        <View style={styles.signOutSection}>
-          <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
-            <Text style={styles.signOutText}>Sign Out</Text>
-          </Pressable>
+        {/* PREFERENCES */}
+        <Text style={styles.sectionLabel}>Preferences</Text>
+        <View style={styles.card}>
+          {/* Rating style */}
+          <View style={styles.prefBlock}>
+            <Text style={styles.prefTitle}>Rating style</Text>
+            <Text style={styles.prefSub}>Choose your rating icon across the app</Text>
+            <View style={styles.pickerRow}>
+              {RATING_ICON_OPTIONS.map((opt) => {
+                const active = ratingIcon === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    style={[styles.pickerTile, active && styles.pickerTileActive]}
+                    onPress={() => handleRatingIcon(opt.value)}>
+                    <Text style={styles.pickerEmoji}>{opt.emoji}</Text>
+                    <Text style={[styles.pickerLabel, active && styles.pickerLabelActive]}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+
+          {/* Appearance */}
+          <View style={[styles.prefBlock, styles.prefBlockDivider]}>
+            <Text style={styles.prefTitle}>Appearance</Text>
+            <Text style={styles.prefSub}>Override your system theme</Text>
+            <View style={styles.pickerRow}>
+              {APPEARANCE_OPTIONS.map((opt) => {
+                const active = appearancePref === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    style={[styles.pickerTile, active && styles.pickerTileActive]}
+                    onPress={() => setAppearancePref(opt.value)}>
+                    <SymbolView
+                      name={opt.sf as any}
+                      size={24}
+                      tintColor={active ? Brand.trust : Brand.muted}
+                      type="monochrome"
+                    />
+                    <Text style={[styles.pickerLabel, active && styles.pickerLabelActive]}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
         </View>
-      </View>
+
+        {/* DEV TOOLS */}
+        {__DEV__ && (
+          <>
+            <Text style={styles.sectionLabel}>Dev Tools</Text>
+            <View style={styles.card}>
+              <Pressable style={styles.row} onPress={() => router.push('/onboarding')}>
+                <View style={styles.rowBody}>
+                  <Text style={styles.rowLabel}>🚀 Preview Onboarding</Text>
+                  <Text style={styles.rowSub}>Walk through the full new user experience</Text>
+                </View>
+                <Text style={styles.chevron}>›</Text>
+              </Pressable>
+            </View>
+          </>
+        )}
+
+        {/* Sign out */}
+        <Pressable style={styles.signOutBtn} onPress={handleSignOut}>
+          <SymbolView name="rectangle.portrait.and.arrow.right" size={16} tintColor="#E84F4F" type="monochrome" />
+          <Text style={styles.signOutText}>Sign out</Text>
+        </Pressable>
+
+        {/* Privacy Policy */}
+        <Pressable style={styles.privacyRow} onPress={() => router.push('/privacy-policy')}>
+          <Text style={styles.privacyText}>Privacy Policy</Text>
+        </Pressable>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -99,38 +212,72 @@ export default function SettingsScreen() {
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
-    backRow: { paddingHorizontal: Spacing.three, paddingTop: Spacing.three, marginBottom: Spacing.three },
+    scroll: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six },
+    backRow: { paddingTop: Spacing.three, marginBottom: Spacing.two },
     backBtn: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
-    content: { flex: 1, paddingHorizontal: Spacing.three },
-    title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 24, color: Brand.ink, marginBottom: Spacing.four },
+    title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink, marginBottom: Spacing.four },
+    sectionLabel: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 11,
+      color: Brand.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+      marginBottom: 8,
+      marginTop: Spacing.three,
+    },
     card: {
       backgroundColor: Brand.card,
       borderRadius: 16,
       borderWidth: 1,
       borderColor: Brand.border,
+      overflow: 'hidden',
     },
-    navRow: {
+    row: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingVertical: 14,
+      paddingVertical: 13,
       paddingHorizontal: Spacing.three,
       gap: 12,
     },
-    navRowDivider: { borderTopWidth: 1, borderTopColor: Brand.border },
-    navRowBody: { flex: 1, minWidth: 0 },
-    navRowLabel: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.ink, marginBottom: 2 },
-    navRowSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted },
+    rowDivider: { borderTopWidth: 1, borderTopColor: Brand.border },
+    rowIcon: { width: 24, alignItems: 'center' },
+    rowBody: { flex: 1, minWidth: 0 },
+    rowLabel: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.ink, marginBottom: 1 },
+    rowSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted },
     chevron: { fontSize: 22, color: Brand.muted },
-    signOutSection: { marginTop: 'auto', marginBottom: Spacing.four },
+    prefBlock: { padding: Spacing.three },
+    prefBlockDivider: { borderTopWidth: 1, borderTopColor: Brand.border },
+    prefTitle: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.ink, marginBottom: 2 },
+    prefSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginBottom: 14 },
+    pickerRow: { flexDirection: 'row', gap: 10 },
+    pickerTile: {
+      flex: 1,
+      alignItems: 'center',
+      paddingVertical: 14,
+      borderRadius: 14,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      backgroundColor: Brand.paper,
+      gap: 6,
+    },
+    pickerTileActive: { borderColor: Brand.trust, backgroundColor: Brand.tlight },
+    pickerEmoji: { fontSize: 26 },
+    pickerLabel: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.muted },
+    pickerLabelActive: { color: Brand.trust },
     signOutBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
       backgroundColor: Brand.card,
       borderRadius: 16,
       borderWidth: 1,
       borderColor: Brand.border,
       paddingVertical: 15,
-      alignItems: 'center',
+      marginTop: Spacing.four,
     },
-    signOutText: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: '#E84F4F' },
+    signOutText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#E84F4F' },
+    privacyRow: { alignItems: 'center', paddingVertical: Spacing.three },
+    privacyText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted },
   });
 }

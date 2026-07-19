@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/use-session';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
@@ -24,6 +25,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingReset, setIsSendingReset] = useState(false);
   const hasRedirected = useRef(false);
 
   useEffect(() => {
@@ -33,6 +35,21 @@ export default function LoginScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
+
+  async function handleForgotPassword() {
+    if (!email.trim()) {
+      setMessage({ text: 'Enter your email address above first', isError: true });
+      return;
+    }
+    setIsSendingReset(true);
+    setMessage(null);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    setIsSendingReset(false);
+    setMessage({
+      text: error ? error.message : 'Check your email for a password reset link.',
+      isError: !!error,
+    });
+  }
 
   async function handleSubmit() {
     if (!email.trim() || !password) {
@@ -111,6 +128,12 @@ export default function LoginScreen() {
             ) : (
               <Text style={styles.submitText}>Log in →</Text>
             )}
+          </Pressable>
+
+          <Pressable onPress={handleForgotPassword} disabled={isSendingReset} hitSlop={8} style={styles.forgotBtn}>
+            <Text style={styles.forgotText}>
+              {isSendingReset ? 'Sending…' : 'Forgot password?'}
+            </Text>
           </Pressable>
 
           {message ? (
@@ -212,8 +235,14 @@ function createStyles(Brand: BrandPalette) {
     fontSize: 16,
     color: '#fff',
   },
+  forgotBtn: { alignItems: 'center', marginTop: 12 },
+  forgotText: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 13,
+    color: Brand.trust,
+  },
   message: {
-    marginTop: 12,
+    marginTop: 8,
     textAlign: 'center',
     fontSize: 12.8,
     fontFamily: BrandFonts.interRegular,

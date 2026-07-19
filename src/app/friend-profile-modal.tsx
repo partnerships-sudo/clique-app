@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ProfileCard, type ProfileCardFriendAction } from '@/components/profile/profile-card';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBadgesForUser } from '@/features/badges/api';
+import { useCloseFriendIds, useToggleCloseFriend } from '@/features/close-friends/api';
 import { useFollow, useFollowStatus, useFollowersCount, useFollowingCount, useUnfollow } from '@/features/follows/api';
 import { useLibraryItemsByUser } from '@/features/library/api';
 import { useProfileById } from '@/features/profile/api';
@@ -34,6 +35,9 @@ export default function FriendProfileModal() {
   const { data: followStatus, refetch: refetchFollowStatus } = useFollowStatus(params.userId);
   const follow = useFollow();
   const unfollow = useUnfollow();
+  const { data: closeFriendIds } = useCloseFriendIds();
+  const toggleCloseFriend = useToggleCloseFriend();
+  const isCloseFriend = closeFriendIds?.has(params.userId) ?? false;
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const hasSharedCollection = !!(
@@ -117,6 +121,10 @@ export default function FriendProfileModal() {
               })
             }
             friendAction={friendAction}
+            closeFriendAction={followStatus?.kind === 'accepted' ? {
+              isCloseFriend,
+              onPress: () => toggleCloseFriend.mutate({ friendId: params.userId, isCloseFriend }),
+            } : undefined}
           />
         )}
       </ScrollView>

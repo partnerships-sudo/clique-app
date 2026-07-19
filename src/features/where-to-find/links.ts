@@ -40,11 +40,11 @@ export function getWhereToFindConfig(type: EntryType | 'cinema', title: string, 
         label: 'Where to buy',
         gradient: ['#1a1a2e', '#4F9CE8'],
         stores: [
-          { name: 'Amazon', logo: '📦', price: 'Hardcover & Kindle', cta: 'Buy on Amazon', color: '#FF9900', url: `https://www.amazon.com/s?k=${q}+book` },
-          { name: 'Kindle', logo: '📱', price: 'eBook', cta: 'Buy on Kindle', color: '#232F3E', url: `https://www.amazon.com/s?k=${q}&i=digital-text` },
-          { name: 'Audible', logo: '🎧', price: 'Audiobook', cta: 'Listen on Audible', color: '#F7991C', url: `https://www.audible.com/search?keywords=${q}` },
-          { name: 'Apple Books', logo: '🍎', price: 'eBook', cta: 'Buy on Apple Books', color: '#007AFF', url: `https://books.apple.com/search?term=${q}` },
-          { name: 'Bookshop.org', logo: '🏠', price: 'Supports local bookshops', cta: 'Buy on Bookshop', color: '#E8A84F', url: `https://bookshop.org/search?keywords=${q}` },
+          { name: 'Amazon', logo: '📦', logoUrl: 'https://www.google.com/s2/favicons?domain=amazon.com&sz=64', price: 'Hardcover & Kindle', cta: 'Buy on Amazon', color: '#FF9900', url: `https://www.amazon.com/s?k=${q}+book` },
+          { name: 'Kindle', logo: '📱', logoUrl: 'https://www.google.com/s2/favicons?domain=kindle.amazon.com&sz=64', price: 'eBook', cta: 'Buy on Kindle', color: '#232F3E', url: `https://www.amazon.com/s?k=${q}&i=digital-text` },
+          { name: 'Audible', logo: '🎧', logoUrl: 'https://www.google.com/s2/favicons?domain=audible.com&sz=64', price: 'Audiobook', cta: 'Listen on Audible', color: '#F7991C', url: `https://www.audible.com/search?keywords=${q}` },
+          { name: 'Apple Books', logo: '🍎', logoUrl: 'https://www.google.com/s2/favicons?domain=books.apple.com&sz=64', price: 'eBook', cta: 'Buy on Apple Books', color: '#007AFF', url: `https://books.apple.com/search?term=${q}` },
+          { name: 'Bookshop.org', logo: '🏠', logoUrl: 'https://www.google.com/s2/favicons?domain=bookshop.org&sz=64', price: 'Supports local bookshops', cta: 'Buy on Bookshop', color: '#E8A84F', url: `https://bookshop.org/search?keywords=${q}` },
         ],
       };
     case 'play':
@@ -95,6 +95,15 @@ export function getWhereToFindConfig(type: EntryType | 'cinema', title: string, 
           { name: 'Atom Tickets', logo: '🔵', price: 'US theaters — skip the line', cta: 'Buy on Atom', color: '#00ADEF', url: `https://www.atomtickets.com/movies/search?q=${q}` },
           { name: 'Odeon', logo: '🎬', price: 'UK cinemas', cta: 'Find on Odeon', color: '#1A1A1A', url: `https://www.odeon.co.uk/films/?search_term=${q}` },
           { name: 'Vue', logo: '🎦', price: 'UK & European cinemas', cta: 'Find on Vue', color: '#1A1A1A', url: `https://www.myvue.com/movies?search=${q}` },
+        ],
+      };
+    default:
+      return {
+        emoji: '🔍',
+        label: 'Find it online',
+        gradient: ['#1a1a2e', '#16213e'],
+        stores: [
+          { name: 'Google', logo: '🔍', price: 'Search', cta: 'Search on Google', color: '#4285F4', url: `https://www.google.com/search?q=${q}` },
         ],
       };
   }

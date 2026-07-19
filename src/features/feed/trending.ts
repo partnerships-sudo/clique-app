@@ -16,6 +16,8 @@ export interface TrendingEntry {
   loggers: TrendingLogger[];
   ratingSum?: number;
   ratingCount?: number;
+  externalId?: string;
+  mediaType?: string;
   // Normalized 0-100 relevance score, comparable ACROSS content types (unlike
   // `count`, whose meaning/scale differs per source — TMDB vote average, RAWG
   // rating, raw Spotify episode count, or a friend-circle log tally). Used
@@ -51,6 +53,8 @@ export function computeTrendingInCircle(posts: Post[], limit = 5): TrendingEntry
         loggers: [{ name: post.user_name, avatarUrl: post.user_avatar_url }],
         ratingSum: post.rating ?? 0,
         ratingCount: post.rating ? 1 : 0,
+        externalId: post.external_id ?? undefined,
+        mediaType: post.media_type ?? undefined,
       });
     }
   }

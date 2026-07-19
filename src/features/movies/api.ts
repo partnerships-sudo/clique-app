@@ -52,6 +52,8 @@ async function fetchUpcoming(): Promise<NowAndComingMovie[]> {
 export interface CinemaDetails {
   overview: string;
   cast: { name: string; character: string; profilePath: string | null }[];
+  trailerUrl: string | null;
+  trailerThumbnail: string | null;
 }
 
 export function useCinemaDetails(tmdbId: string | undefined) {
@@ -59,20 +61,23 @@ export function useCinemaDetails(tmdbId: string | undefined) {
     queryKey: ['cinema-details', tmdbId],
     queryFn: async () => {
       const res = await fetch(
-        `https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits`,
+        `https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits,videos`,
         { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
       );
       if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
       const data = await res.json();
+      const trailer = ((data.videos?.results ?? []) as any[]).find(
+        (v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official,
+      ) ?? ((data.videos?.results ?? []) as any[]).find((v) => v.site === 'YouTube');
       return {
         overview: data.overview ?? '',
         cast: ((data.credits?.cast ?? []) as any[]).slice(0, 4).map((c) => ({
           name: c.name as string,
           character: c.character as string,
-          profilePath: c.profile_path
-            ? `https://image.tmdb.org/t/p/w185${c.profile_path}`
-            : null,
+          profilePath: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : null,
         })),
+        trailerUrl: trailer ? `https://www.youtube.com/watch?v=${trailer.key}` : null,
+        trailerThumbnail: trailer ? `https://img.youtube.com/vi/${trailer.key}/hqdefault.jpg` : null,
       } as CinemaDetails;
     },
     enabled: !!tmdbId,

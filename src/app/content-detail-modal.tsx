@@ -75,18 +75,27 @@ export default function ContentDetailModal() {
     poster?: string;
     sub?: string;
     externalId?: string;
+    mediaType?: string;
   }>();
 
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [synopsisTruncated, setSynopsisTruncated] = useState(false);
-  const { data: details, isLoading } = useContentDetails(params.title, params.type);
+
+  // Some entries (especially from friend collections) store 'tv' or 'movie'
+  // as the type instead of the app's EntryType 'watch'. Normalise here.
+  const resolvedType: EntryType =
+    params.type === 'tv' || params.type === 'movie' ? 'watch' : (params.type as EntryType);
+  const resolvedMediaType: string | undefined =
+    params.type === 'tv' ? 'tv' : params.type === 'movie' ? 'movie' : params.mediaType;
+
+  const { data: details, isLoading } = useContentDetails(params.title, resolvedType, params.externalId, resolvedMediaType);
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const typeConfig = TypeColors[params.type ?? 'watch'];
-  const whereConfig = getWhereToFindConfig(params.type ?? 'watch', params.title ?? '', params.externalId);
+  const typeConfig = TypeColors[resolvedType ?? 'watch'];
+  const whereConfig = getWhereToFindConfig(resolvedType ?? 'watch', params.title ?? '', params.externalId);
   const usingRealProviders =
-    (params.type === 'watch' || params.type === 'play') && (details?.watchProviders?.length ?? 0) > 0;
+    !!details && (resolvedType === 'watch' || resolvedType === 'play') && (details.watchProviders?.length ?? 0) > 0;
   const stores = usingRealProviders ? details!.watchProviders : whereConfig.stores;
   // TMDB/Google Books/IGDB posters are all ~2:3, Spotify music/podcast art
   // is exactly 1:1 — forcing music/podcasts into a 2:3 box would crop the

@@ -48,6 +48,7 @@ export default function NewsScreen() {
   const { data: nowPlaying, isLoading: loadingNow } = useNowPlayingMovies();
   const { data: upcoming, isLoading: loadingUpcoming } = useUpcomingMovies();
   const { data: boxOffice } = useBoxOfficeTop10();
+  const boxOfficeByMovie = new Map((boxOffice ?? []).map((e) => [e.id, e.revenue]));
 
   function openArticle(article: NewsArticle) {
     router.push({
@@ -133,7 +134,7 @@ export default function NewsScreen() {
             contentContainerStyle={styles.circleRow}
             ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
             renderItem={({ item }) => (
-              <MovieCircle title={item.title} poster={item.poster} onPress={() => openMovie(item)} />
+              <MovieCircle title={item.title} poster={item.poster} boxOffice={boxOfficeByMovie.get(item.id)} onPress={() => openMovie(item)} />
             )}
             ListEmptyComponent={!loadingNow ? <Text style={styles.empty}>Nothing found right now.</Text> : null}
           />

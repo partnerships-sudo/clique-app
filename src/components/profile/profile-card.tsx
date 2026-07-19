@@ -65,6 +65,7 @@ export function ProfileCard({
   onOpenAchievements,
   onShare,
   friendAction,
+  closeFriendAction,
 }: {
   profile: Profile | null | undefined;
   library: LibraryItem[];
@@ -84,6 +85,8 @@ export function ProfileCard({
   onShare?: () => void;
   /** Friend's profile only — "+ Follow" / "Request to Follow" / "Following". */
   friendAction?: ProfileCardFriendAction;
+  /** Toggle close-friend status from the friend profile. */
+  closeFriendAction?: { isCloseFriend: boolean; onPress: () => void };
 }) {
   const isOwnProfile = !!onEditPress;
   const Brand = useBrand();
@@ -284,6 +287,14 @@ export function ProfileCard({
                   style={[styles.friendActionBtn, friendAction.variant === 'muted' && styles.friendActionBtnMuted]}>
                   <Text style={[styles.friendActionBtnText, friendAction.variant === 'muted' && styles.friendActionBtnTextMuted]}>
                     {friendAction.label}
+                  </Text>
+                </Pressable>
+              ) : null}
+              {closeFriendAction ? (
+                <Pressable onPress={closeFriendAction.onPress} hitSlop={8}
+                  style={[styles.friendActionBtn, closeFriendAction.isCloseFriend ? styles.closeFriendBtnActive : styles.friendActionBtnMuted]}>
+                  <Text style={[styles.friendActionBtnText, closeFriendAction.isCloseFriend ? styles.closeFriendBtnTextActive : styles.friendActionBtnTextMuted]}>
+                    {closeFriendAction.isCloseFriend ? '💚 Close Friend' : '+ Close Friend'}
                   </Text>
                 </Pressable>
               ) : null}
@@ -847,6 +858,8 @@ function createStyles(Brand: BrandPalette) {
     },
     activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ONLINE_COLOR },
     activityText: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.trust },
+    closeFriendBtnActive: { backgroundColor: '#E6F9EA', borderWidth: 1, borderColor: '#248A3D' },
+    closeFriendBtnTextActive: { color: '#248A3D' },
     friendActionBtn: {
       backgroundColor: Brand.trust,
       borderRadius: 20,

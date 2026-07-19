@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
@@ -16,6 +16,24 @@ import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const POSTER_W = 90;
 const POSTER_H = Math.round(POSTER_W * 1.5); // 2:3 → 135
+
+const CURL_SIZE = 22;
+
+function BookPageCurl() {
+  const anim = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    Animated.spring(anim, { toValue: 1, useNativeDriver: true, delay: 200, tension: 60, friction: 8 }).start();
+  }, []);
+  const scale = anim.interpolate({ inputRange: [0, 1], outputRange: [0, 1] });
+  return (
+    <Animated.View style={{ position: 'absolute', bottom: 0, right: 0, width: CURL_SIZE, height: CURL_SIZE, transform: [{ scale }] }}>
+      {/* Shadow behind fold */}
+      <View style={{ position: 'absolute', bottom: 0, right: 0, width: 0, height: 0, borderStyle: 'solid', borderBottomWidth: CURL_SIZE, borderLeftWidth: CURL_SIZE, borderBottomColor: 'rgba(0,0,0,0.18)', borderLeftColor: 'transparent' }} />
+      {/* White page underneath */}
+      <View style={{ position: 'absolute', bottom: 0, right: 0, width: 0, height: 0, borderStyle: 'solid', borderBottomWidth: CURL_SIZE, borderLeftWidth: CURL_SIZE, borderBottomColor: '#fff', borderLeftColor: 'transparent' }} />
+    </Animated.View>
+  );
+}
 
 function formatLoggedDate(isoDate: string) {
   return new Date(isoDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
@@ -96,6 +114,7 @@ export function PostCard({
               <Text style={styles.ratingBadgeText}>{post.ext_rating}</Text>
             </View>
           ) : null}
+          {post.type === 'read' ? <BookPageCurl /> : null}
         </Pressable>
 
         {/* ── Right: content ── */}
@@ -179,17 +198,26 @@ export function PostCard({
             {!isMine ? (
               <Pressable
                 onPress={onToggleReaction}
+                onLongPress={() => reactions.length > 0 && router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}
                 style={[styles.reactBtn, meReacted && styles.reactBtnActive]}>
                 <Text style={[styles.reactText, meReacted && styles.reactTextActive]}>
                   ✦ Me too!{reactions.length ? ` ${reactions.length}` : ''}
                 </Text>
               </Pressable>
-            ) : null}
+            ) : (
+              reactions.length > 0 ? (
+                <Pressable
+                  onPress={() => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}
+                  style={styles.reactBtn}>
+                  <Text style={styles.reactText}>✦ {reactions.length}</Text>
+                </Pressable>
+              ) : null
+            )}
             <View style={styles.shareChatRow}>
               <Pressable
                 onPress={() =>
                   router.push({
-                    pathname: '/recommend-modal',
+                    pathname: '/post-share-modal',
                     params: {
                       title: post.title,
                       type: post.type,
@@ -406,6 +434,7 @@ function createStyles(Brand: BrandPalette) {
     actionsRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       marginTop: 8,
     },
     actionsRowCompact: { paddingTop: 4 },

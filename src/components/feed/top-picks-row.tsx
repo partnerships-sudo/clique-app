@@ -22,6 +22,8 @@ function openEntry(entry: TrendingEntry) {
       type: entry.type,
       poster: entry.poster ?? undefined,
       sub: entry.sub ?? undefined,
+      externalId: entry.externalId ?? undefined,
+      mediaType: entry.mediaType ?? undefined,
     },
   });
 }

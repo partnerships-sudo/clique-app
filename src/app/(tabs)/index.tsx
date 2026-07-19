@@ -7,6 +7,7 @@ import { Avatar } from '@/components/avatar';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
 import { FeedViewSwitcher, type FeedView } from '@/components/feed/feed-view-switcher';
 import { FilterChips } from '@/components/feed/filter-chips';
+import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { NowBanner } from '@/components/feed/now-banner';
 import { PostCard } from '@/components/feed/post-card';
 import { CloseFriendsButton } from '@/components/feed/stories-strip';
@@ -82,6 +83,12 @@ export default function FeedScreen() {
   const { items: collectionItems } = useCollectionItems();
   const { data: followingCollections = [] } = useFollowingCollections();
   const { byPost: reactionsByPost } = useReactions(posts.map((p) => p.id));
+  const myLatestCFPost = useMemo(() => {
+    if (!user?.id) return null;
+    return allPosts
+      .filter((p) => p.user_id === user.id && p.visibility === 'close_friends')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null;
+  }, [allPosts, user?.id]);
   const toggleReaction = useToggleReaction();
 
   // Keyed by type + title, not title alone — a logged book and a recommended
@@ -113,30 +120,43 @@ export default function FeedScreen() {
     return map;
   }, [allPosts, user?.id]);
 
-  // Seeds come from both collection (rated, strongest signal) and logged
-  // (unrated/in-progress). Collection items are weighted higher since they
-  // carry a real rating. Up to 3 seeds per type so no single content type
-  // dominates the recs.
-  const MAX_SEEDS_PER_TYPE = 3;
+  // ── Seed building ──────────────────────────────────────────────────────────
+  // Seeds drive the API recommendation calls. Score = rating + recency bonus
+  // so something you rated 5★ last week outranks something you rated 5★ two
+  // years ago. Collection items get a +10 bonus (they carry a deliberate rating).
+  // Top 5 per type so we explore your taste more broadly.
+  const MAX_SEEDS_PER_TYPE = 5;
+  const now = Date.now();
 
-  type SeedCandidate = { title: string; type: EntryType; external_id: string | null; media_type: string | null; rating: number };
+  function recencyBonus(createdAt: string): number {
+    const ageMs = now - new Date(createdAt).getTime();
+    const ageDays = ageMs / (1000 * 60 * 60 * 24);
+    if (ageDays <= 14) return 6;
+    if (ageDays <= 30) return 4;
+    if (ageDays <= 90) return 2;
+    return 0;
+  }
+
+  type SeedCandidate = { title: string; type: EntryType; external_id: string | null; media_type: string | null; seedScore: number };
   const candidatesByType = new Map<EntryType, SeedCandidate[]>();
 
   for (const item of collectionItems) {
     const type = item.type as EntryType;
     const bucket = candidatesByType.get(type) ?? [];
-    bucket.push({ title: item.title, type, external_id: item.external_id, media_type: item.media_type, rating: (item.user_rating ?? 0) + 10 });
+    const rating = (item.user_rating ?? 0) + 10;
+    bucket.push({ title: item.title, type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
     candidatesByType.set(type, bucket);
   }
   for (const item of logged) {
     const bucket = candidatesByType.get(item.type) ?? [];
-    bucket.push({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, rating: item.rating ?? 0 });
+    const rating = item.rating ?? 0;
+    bucket.push({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
     candidatesByType.set(item.type, bucket);
   }
 
   const forYouSeeds: ForYouSeed[] = [...candidatesByType.values()].flatMap((items) =>
     [...items]
-      .sort((a, b) => b.rating - a.rating)
+      .sort((a, b) => b.seedScore - a.seedScore)
       .slice(0, MAX_SEEDS_PER_TYPE)
       .map((item) => ({
         title: item.title,
@@ -148,31 +168,74 @@ export default function FeedScreen() {
 
   const { data: rawApiRecs = [] } = useForYouRecs(forYouSeeds);
 
-  // Friend collection items the user hasn't logged or collected yet,
-  // weighted by compat score and rating — these surface as direct top picks.
-  const friendCollectionPicks: TrendingEntry[] = followingCollections
-    .filter((item) => {
-      const key = `${item.type}:${item.title.toLowerCase()}`;
-      return (
-        !loggedTitles.has(key) &&
-        (item.user_rating ?? 0) >= 4 &&
-        matchesFilter(item.type as Post['type'])
-      );
-    })
-    .map((item) => {
-      const compat = compatScores.get(item.user_id) ?? 0;
-      return {
+  // ── Friend-sourced picks ───────────────────────────────────────────────────
+  // Two sources: (1) items friends have in their collection with a high rating,
+  // (2) items friends have posted/logged. Both are weighted by compat score so
+  // a 🔥 90%+ match recommending something scores much higher than a 55% match.
+  // Score formula: compat drives 70% of the signal, rating the other 30%.
+  // Items the user already has in their own library are excluded.
+  function friendScore(compat: number, rating: number, maxRating: number): number {
+    const ratingNorm = (rating / maxRating) * 100;
+    return Math.round(compat * 0.7 + ratingNorm * 0.3);
+  }
+
+  const friendPickMap = new Map<string, TrendingEntry>();
+
+  // Source 1: following collections (explicit ratings)
+  for (const item of followingCollections) {
+    const key = `${item.type}:${item.title.toLowerCase()}`;
+    if (loggedTitles.has(key)) continue;
+    if (!matchesFilter(item.type as Post['type'])) continue;
+    const rating = item.user_rating ?? 0;
+    if (rating < 3) continue;
+    const compat = compatScores.get(item.user_id) ?? 0;
+    const score = friendScore(compat, rating, 5);
+    const existing = friendPickMap.get(key);
+    if (!existing || score > existing.score!) {
+      friendPickMap.set(key, {
         title: item.title,
         sub: item.sub ?? undefined,
         type: item.type as EntryType,
         poster: item.poster ?? null,
         count: 1,
-        score: Math.round((item.user_rating ?? 4) / 5 * 50 + compat * 0.5),
+        score,
         users: [],
         loggers: [item.user_id],
-      };
-    })
-    .sort((a, b) => b.score - a.score);
+        externalId: item.external_id ?? undefined,
+        mediaType: item.media_type ?? undefined,
+      });
+    }
+  }
+
+  // Source 2: friend posts (logged activity) — rating out of 10
+  for (const p of allPosts) {
+    if (p.user_id === user?.id) continue;
+    if (!p.rating) continue;
+    if (p.rating < 6) continue; // only well-rated posts
+    const key = `${p.type}:${p.title.toLowerCase()}`;
+    if (loggedTitles.has(key)) continue;
+    if (!matchesFilter(p.type)) continue;
+    const compat = compatScores.get(p.user_id) ?? 0;
+    const score = friendScore(compat, p.rating, 10);
+    const existing = friendPickMap.get(key);
+    if (!existing || score > existing.score!) {
+      friendPickMap.set(key, {
+        title: p.title,
+        sub: p.sub ?? undefined,
+        type: p.type as EntryType,
+        poster: p.poster ?? null,
+        count: 1,
+        score,
+        users: [],
+        loggers: [p.user_name],
+        externalId: p.external_id ?? undefined,
+        mediaType: p.media_type ?? undefined,
+      });
+    }
+  }
+
+  const friendCollectionPicks: TrendingEntry[] = [...friendPickMap.values()]
+    .sort((a, b) => b.score! - a.score!);
 
   // For types the API returned results for, show those discoveries.
   // For types it didn't cover (or where the user has no logged items of that type),
@@ -202,12 +265,13 @@ export default function FeedScreen() {
     .map((e) => {
       const friendPosts = friendPostsByKey.get(`${e.type}:${e.title.toLowerCase()}`) ?? [];
       if (friendPosts.length === 0) return e;
-      // Boost score based on compat of friends who logged it
-      const compatBoost = friendPosts.reduce((sum, p) => sum + (compatScores.get(p.user_id) ?? 50), 0) / friendPosts.length;
+      // Weight by the highest compat among friends who logged it — one 🔥 friend
+      // is a stronger signal than averaging across all friends including weak matches.
+      const maxCompat = Math.max(...friendPosts.map((p) => compatScores.get(p.user_id) ?? 50));
       return {
         ...e,
         loggers: friendPosts.map((p) => p.user_name),
-        score: Math.min(100, (e.score ?? 50) * 0.5 + compatBoost * 0.5),
+        score: Math.min(100, (e.score ?? 50) * 0.3 + maxCompat * 0.7),
       };
     });
 
@@ -315,6 +379,20 @@ export default function FeedScreen() {
           onPressLog={() => router.push('/log-modal')}
         />
       )}
+      {feedView === 'feed' && myLatestCFPost ? (() => {
+        const hearts = reactionsByPost.get(myLatestCFPost.id) ?? [];
+        return (
+          <Pressable
+            style={styles.cfBanner}
+            onPress={() => router.push({ pathname: '/stories-modal', params: { postId: myLatestCFPost.id } })}>
+            <Text style={styles.cfBannerText}>
+              💚 Your close friends can see this
+              {hearts.length > 0 ? ` · ${hearts.length} ❤️` : ''}
+            </Text>
+            <Text style={styles.cfBannerChevron}>›</Text>
+          </Pressable>
+        );
+      })() : null}
       <FilterChips
         value={filter}
         onChange={setFilter}
@@ -375,6 +453,7 @@ export default function FeedScreen() {
         <ScrollView contentContainerStyle={styles.content}>
           {header}
           <TrendingList entries={entries} showTop10Banner bannerTitle="Top 10 right now" />
+          <MostReviewedSection />
         </ScrollView>
       ) : (
         <FlatList
@@ -441,6 +520,28 @@ export default function FeedScreen() {
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
+    cfBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: '#E6F9EA',
+      borderRadius: 12,
+      marginHorizontal: Spacing.three,
+      marginBottom: 6,
+      paddingVertical: 9,
+      paddingHorizontal: 14,
+    },
+    cfBannerText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 13,
+      color: '#248A3D',
+      flex: 1,
+    },
+    cfBannerChevron: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 18,
+      color: '#248A3D',
+    },
     content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six },
     forYouSection: { marginBottom: Spacing.five },
     headerTop: {

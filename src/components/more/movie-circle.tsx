@@ -7,6 +7,12 @@ import { useBrand } from '@/hooks/use-brand';
 const SIZE = 84;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
+function formatBoxOffice(n: number): string {
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `$${Math.round(n / 1_000_000)}M`;
+  return `$${Math.round(n / 1_000)}K`;
+}
+
 function formatDate(dateStr: string): string {
   const [y, m, d] = dateStr.split('-');
   return `${parseInt(d)} ${MONTHS[parseInt(m) - 1]} ${y}`;
@@ -16,11 +22,13 @@ export function MovieCircle({
   title,
   poster,
   releaseDate,
+  boxOffice,
   onPress,
 }: {
   title: string;
   poster: string | null;
   releaseDate?: string;
+  boxOffice?: number;
   onPress: () => void;
 }) {
   const Brand = useBrand();
@@ -39,6 +47,9 @@ export function MovieCircle({
       </Text>
       {releaseDate ? (
         <Text style={styles.date}>{formatDate(releaseDate)}</Text>
+      ) : null}
+      {boxOffice ? (
+        <Text style={styles.boxOffice}>BO: {formatBoxOffice(boxOffice)}</Text>
       ) : null}
     </Pressable>
   );
@@ -64,6 +75,13 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.muted,
       textAlign: 'center',
       marginTop: 3,
+    },
+    boxOffice: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 10,
+      color: Brand.trust,
+      textAlign: 'center',
+      marginTop: 2,
     },
   });
 }

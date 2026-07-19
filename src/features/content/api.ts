@@ -226,6 +226,7 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
     `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}&language=en-US&page=1`,
     { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
   );
+  if (!searchRes.ok) return EMPTY_DETAILS;
   const searchData = await searchRes.json();
   const hit = (searchData.results ?? []).find(
     (r: any) => r.media_type === 'movie' || r.media_type === 'tv',
@@ -336,13 +337,106 @@ async function fetchBookDetails(title: string): Promise<ContentDetails> {
 
 const SUPPORTED_TYPES: EntryType[] = ['watch', 'play', 'read'];
 
-export function useContentDetails(title: string | undefined, type: EntryType | undefined) {
+export interface TVEpisode {
+  episodeNumber: number;
+  name: string;
+  airDate: string | null;
+}
+
+export interface TVSeason {
+  seasonNumber: number;
+  episodeCount: number;
+  episodes: TVEpisode[];
+}
+
+export function useTVSeasons(tmdbId: string | null | undefined) {
   return useQuery({
-    queryKey: ['content-details', type, title],
+    queryKey: ['tv-seasons', tmdbId],
+    queryFn: async (): Promise<TVSeason[]> => {
+      if (!tmdbId) return [];
+      const res = await fetch(
+        `https://api.themoviedb.org/3/tv/${tmdbId}?language=en-US`,
+        { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+      );
+      const detail = await res.json();
+      const seasons: TVSeason[] = await Promise.all(
+        ((detail.seasons ?? []) as any[])
+          .filter((s) => s.season_number > 0)
+          .sort((a, b) => a.season_number - b.season_number)
+          .map(async (s) => {
+            const epRes = await fetch(
+              `https://api.themoviedb.org/3/tv/${tmdbId}/season/${s.season_number}?language=en-US`,
+              { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+            );
+            const epData = await epRes.json();
+            return {
+              seasonNumber: s.season_number as number,
+              episodeCount: s.episode_count as number,
+              episodes: ((epData.episodes ?? []) as any[]).map((e) => ({
+                episodeNumber: e.episode_number as number,
+                name: e.name as string,
+                airDate: (e.air_date as string) ?? null,
+              })),
+            };
+          }),
+      );
+      return seasons;
+    },
+    enabled: !!tmdbId,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+export function useContentDetails(
+  title: string | undefined,
+  type: EntryType | undefined,
+  externalId?: string,
+  mediaType?: string,
+) {
+  return useQuery({
+    queryKey: ['content-details-v2', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {
         case 'watch':
+          if (externalId) {
+            const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
+            const detailRes = await fetch(
+              `https://api.themoviedb.org/3/${endpoint}/${externalId}?append_to_response=credits,videos&language=en-US`,
+              { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+            );
+            const detail = await detailRes.json();
+            const year = (detail.release_date || detail.first_air_date || '').slice(0, 4) || null;
+            const genre = ((detail.genres ?? []) as any[]).map((g: any) => g.name).slice(0, 2).join(', ') || null;
+            const runtime = detail.runtime
+              ? `${detail.runtime}min`
+              : detail.episode_run_time?.[0]
+                ? `${detail.episode_run_time[0]}min/ep`
+                : null;
+            const trailer = pickYouTubeTrailer(detail.videos?.results ?? []);
+            const watchProviders = await fetchWatchProviders(Number(externalId), endpoint, title).catch(() => []);
+            const seasons = ((detail.seasons ?? []) as any[])
+              .filter((s) => s.season_number > 0)
+              .map((s) => ({ seasonNumber: s.season_number as number, episodeCount: s.episode_count as number }))
+              .sort((a, b) => a.seasonNumber - b.seasonNumber);
+            return {
+              overview: detail.overview ?? '',
+              cast: ((detail.credits?.cast ?? []) as any[]).slice(0, 10).map((c: any) => ({
+                name: c.name as string,
+                character: (c.character ?? c.roles?.[0]?.character ?? '') as string,
+                profilePath: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : null,
+              })),
+              rating: detail.vote_average ? detail.vote_average.toFixed(1) : null,
+              year,
+              genre,
+              runtime,
+              trailerUrl: trailer?.url ?? null,
+              trailerThumbnail: trailer?.thumbnail ?? null,
+              watchProviders,
+              mediaType: (endpoint as 'movie' | 'tv'),
+              seasons,
+            };
+          }
           return fetchWatchDetails(title);
         case 'play':
           return fetchGameDetails(title);

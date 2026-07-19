@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
+import * as WebBrowser from 'expo-web-browser';
 import { useContentDetails } from '@/features/content/api';
 import { useCinemaDetails } from '@/features/movies/api';
 import { getWhereToFindConfig, type StoreLink } from '@/features/where-to-find/links';
@@ -114,6 +115,22 @@ export default function WhereToFindModal() {
               </View>
             ) : null}
           </View>
+        ) : null}
+
+        {/* ── Trailer ── */}
+        {cinemaDetails?.trailerUrl && cinemaDetails?.trailerThumbnail ? (
+          <Pressable
+            style={styles.trailerContainer}
+            onPress={() => WebBrowser.openBrowserAsync(cinemaDetails.trailerUrl!)}>
+            <Image source={{ uri: cinemaDetails.trailerThumbnail! }} style={styles.trailerThumb} resizeMode="cover" />
+            <View style={styles.trailerOverlay} />
+            <View style={styles.trailerPlayBtn}>
+              <Text style={styles.trailerPlayIcon}>▶</Text>
+            </View>
+            <View style={styles.trailerLabel}>
+              <Text style={styles.trailerLabelText}>TRAILER</Text>
+            </View>
+          </Pressable>
         ) : null}
 
         {/* ── Store links ── */}
@@ -238,6 +255,50 @@ function createStyles(Brand: BrandPalette) {
     textAlign: 'center',
     marginTop: 2,
     lineHeight: 12,
+  },
+
+  // Trailer
+  trailerContainer: {
+    marginHorizontal: Spacing.three,
+    marginBottom: 16,
+    borderRadius: 14,
+    overflow: 'hidden',
+    aspectRatio: 16 / 9,
+    backgroundColor: '#000',
+  },
+  trailerThumb: { width: '100%', height: '100%' },
+  trailerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+  },
+  trailerPlayBtn: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    marginTop: -26,
+    marginLeft: -26,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  trailerPlayIcon: { fontSize: 22, color: '#111', marginLeft: 3 },
+  trailerLabel: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  trailerLabelText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 9,
+    color: '#fff',
+    letterSpacing: 1,
   },
 
   // Store list

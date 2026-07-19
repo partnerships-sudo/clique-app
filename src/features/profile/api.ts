@@ -101,6 +101,23 @@ export function useUpdateProfile() {
   });
 }
 
+export function useUpdateRatingIcon() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ratingIcon: string) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ rating_icon: ratingIcon })
+        .eq('id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}
+
 export function useUpdateCollectionSharing() {
   const { user } = useSession();
   const queryClient = useQueryClient();

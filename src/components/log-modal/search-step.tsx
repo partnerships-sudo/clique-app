@@ -3,16 +3,28 @@ import {
   ActivityIndicator,
   Image,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import { router } from 'expo-router';
+
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useCloseFriendIds } from '@/features/close-friends/api';
+import { useTVSeasons } from '@/features/content/api';
 import { useTitleSearch, type SearchResult } from '@/features/search/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
+
+const TODAY = new Date();
+TODAY.setHours(0, 0, 0, 0);
+
+function isFutureEpisode(airDate: string | null): boolean {
+  if (!airDate) return false;
+  return new Date(airDate) > TODAY;
+}
 
 const PLACEHOLDERS: Record<EntryType, string> = {
   watch: 'Search for a show or film…',
@@ -63,8 +75,16 @@ export function SearchStep({
   const [manualTitle, setManualTitle] = useState('');
   const [note, setNote] = useState('');
   const [closeFriendsOnly, setCloseFriendsOnly] = useState(false);
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
+  const [selectedEpisode, setSelectedEpisode] = useState<{ number: number; name: string } | null>(null);
   const { data: closeFriendIds } = useCloseFriendIds();
   const hasCloseFriends = (closeFriendIds?.size ?? 0) > 0;
+
+  const isTVSelected = selected?.mediaType === 'tv';
+  const { data: tvSeasons = [], isFetching: seasonsFetching } = useTVSeasons(
+    isTVSelected ? selected?.externalId : null,
+  );
+  const currentSeason = tvSeasons.find((s) => s.seasonNumber === selectedSeason) ?? null;
 
 
   useEffect(() => {
@@ -89,15 +109,23 @@ export function SearchStep({
   function clearSelection() {
     setSelected(null);
     setQuery('');
+    setSelectedSeason(null);
+    setSelectedEpisode(null);
   }
 
   const finalTitle = selected?.title ?? manualTitle.trim();
   const canSubmit = finalTitle.length > 0 && !isSubmitting;
 
   function handleSubmit() {
+    let sub = selected?.sub;
+    if (isTVSelected && selectedSeason !== null && selectedEpisode !== null) {
+      sub = `${selected?.sub ?? ''} · S${selectedSeason} E${selectedEpisode.number} ${selectedEpisode.name}`.trim();
+    } else if (isTVSelected && selectedSeason !== null) {
+      sub = `${selected?.sub ?? ''} · Season ${selectedSeason}`.trim();
+    }
     onSubmit({
       title: finalTitle,
-      sub: selected?.sub,
+      sub,
       poster: selected?.poster ?? undefined,
       note: note.trim() || undefined,
       extRating: selected?.extRating ?? undefined,
@@ -198,6 +226,83 @@ export function SearchStep({
           </Pressable>
         </View>
       )}
+
+      {/* TV episode picker */}
+      {isTVSelected && selected ? (
+        <View style={styles.episodeSection}>
+          <Text style={styles.episodeSectionLabel}>PICK AN EPISODE</Text>
+          {seasonsFetching ? (
+            <ActivityIndicator color={Brand.trust} style={{ marginVertical: 10 }} />
+          ) : (
+            <>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.seasonScroll} contentContainerStyle={styles.seasonScrollContent}>
+                {tvSeasons.map((s) => (
+                  <Pressable
+                    key={s.seasonNumber}
+                    style={[styles.seasonChip, selectedSeason === s.seasonNumber && styles.seasonChipActive]}
+                    onPress={() => {
+                      setSelectedSeason(s.seasonNumber === selectedSeason ? null : s.seasonNumber);
+                      setSelectedEpisode(null);
+                    }}>
+                    <Text style={[styles.seasonChipText, selectedSeason === s.seasonNumber && styles.seasonChipTextActive]}>
+                      S{s.seasonNumber}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {currentSeason ? (
+                <View style={styles.episodeList}>
+                  {currentSeason.episodes.map((ep) => {
+                    const future = isFutureEpisode(ep.airDate);
+                    const isSelected = selectedEpisode?.number === ep.episodeNumber;
+                    return (
+                      <Pressable
+                        key={ep.episodeNumber}
+                        style={[styles.episodeRow, isSelected && styles.episodeRowActive]}
+                        onPress={() => setSelectedEpisode(isSelected ? null : { number: ep.episodeNumber, name: ep.name })}>
+                        <View style={styles.episodeRowBody}>
+                          <Text style={[styles.episodeTitle, isSelected && styles.episodeTitleActive]}>
+                            E{ep.episodeNumber}{'  '}{ep.name}
+                          </Text>
+                          {ep.airDate ? (
+                            <Text style={[styles.episodeDate, future && styles.episodeDateFuture]}>
+                              {future ? `Airs ${ep.airDate}` : ep.airDate}
+                            </Text>
+                          ) : null}
+                        </View>
+                        {isSelected ? <Text style={styles.episodeCheck}>✓</Text> : null}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              ) : null}
+              {selectedEpisode && currentSeason && isFutureEpisode(
+                currentSeason.episodes.find((e) => e.episodeNumber === selectedEpisode.number)?.airDate ?? null
+              ) ? (
+                <Pressable
+                  style={styles.watchPartyBtn}
+                  onPress={() => {
+                    const ep = currentSeason!.episodes.find((e) => e.episodeNumber === selectedEpisode!.number);
+                    router.push({
+                      pathname: '/premiere-modal',
+                      params: {
+                        showTitle: selected!.title,
+                        showPoster: selected!.poster ?? undefined,
+                        externalId: selected!.externalId ?? undefined,
+                        seasonNumber: String(selectedSeason),
+                        episodeNumber: String(selectedEpisode!.number),
+                        episodeName: selectedEpisode!.name,
+                        airDate: ep?.airDate ?? undefined,
+                      },
+                    });
+                  }}>
+                  <Text style={styles.watchPartyBtnText}>Premiere — Watch Party</Text>
+                </Pressable>
+              ) : null}
+            </>
+          )}
+        </View>
+      ) : null}
 
       {finalTitle ? (
         <View style={styles.afterSelect}>
@@ -317,6 +422,57 @@ function createStyles(Brand: BrandPalette) {
   selectedTitle: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.ink },
   selectedSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginTop: 2 },
   changeText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.trust },
+  episodeSection: {
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+  episodeSectionLabel: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 10.5,
+    color: Brand.muted,
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  seasonScroll: { flexGrow: 0 },
+  seasonScrollContent: { flexDirection: 'row', gap: 8, paddingBottom: 10 },
+  seasonChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Brand.border,
+    backgroundColor: Brand.paper,
+  },
+  seasonChipActive: { borderColor: Brand.trust, backgroundColor: Brand.tlight },
+  seasonChipText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
+  seasonChipTextActive: { color: Brand.trust },
+  episodeList: { borderTopWidth: 1, borderTopColor: Brand.border, marginTop: 2 },
+  episodeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderBottomWidth: 1,
+    borderBottomColor: Brand.border,
+  },
+  episodeRowActive: { backgroundColor: Brand.tlight },
+  episodeRowBody: { flex: 1 },
+  episodeTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: Brand.ink },
+  episodeTitleActive: { color: Brand.trust },
+  episodeDate: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2 },
+  episodeDateFuture: { color: '#F4A340' },
+  episodeCheck: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust, paddingLeft: 8 },
+  watchPartyBtn: {
+    backgroundColor: Brand.trust,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  watchPartyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#fff' },
   afterSelect: { marginTop: 6 },
   closeFriendsRow: {
     flexDirection: 'row',

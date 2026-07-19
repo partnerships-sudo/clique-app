@@ -14,11 +14,13 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { queryClient } from '@/lib/query-client';
 import { SessionProvider } from '@/providers/session-provider';
+import { ShakespearProvider } from '@/providers/shakespear-provider';
 
 function RootNavigator() {
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
+      <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
       <Stack.Screen name="profile" options={{ headerShown: false }} />
@@ -34,6 +36,7 @@ function RootNavigator() {
       <Stack.Screen name="news-article-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="content-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="recommend-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="post-share-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="friend-profile-modal" options={{ headerShown: false }} />
       <Stack.Screen name="rate-modal" options={{ headerShown: false }} />
       <Stack.Screen name="new-chat-modal" options={{ headerShown: false }} />
@@ -47,6 +50,17 @@ function RootNavigator() {
       <Stack.Screen name="share-card-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="achievements-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="discover-people-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="stories-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="notifications-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="dm-requests-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="archived-chats-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="post-reactions-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="news-share-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.85], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="account-info" options={{ headerShown: false }} />
+      <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+      <Stack.Screen name="premiere-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="premiere-waiting-room" options={{ headerShown: false }} />
+      <Stack.Screen name="premiere-live" options={{ headerShown: false }} />
       <Stack.Screen name="profile-stats-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-item-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
     </Stack>
@@ -77,7 +91,9 @@ export default function RootLayout() {
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <QueryClientProvider client={queryClient}>
           <SessionProvider>
-            <RootNavigator />
+            <ShakespearProvider>
+              <RootNavigator />
+            </ShakespearProvider>
           </SessionProvider>
         </QueryClientProvider>
       </ThemeProvider>

@@ -90,6 +90,8 @@ async function fetchTMDBRecs(id: string, mediaType: 'movie' | 'tv'): Promise<Tre
       poster: r.poster_path ? `https://image.tmdb.org/t/p/w185${r.poster_path}` : null,
       count: Math.round((r.vote_average ?? 5) * 10),
       score: Math.round((r.vote_average ?? 5) * 10),
+      externalId: String(r.id),
+      mediaType: isTV ? 'tv' : 'movie',
       users: [],
       loggers: [],
     }];
@@ -121,6 +123,7 @@ async function mapRAWGResults(results: any[], excludeId: string): Promise<Trendi
     poster: covers[g.name] ?? g.background_image ?? null,
     count: Math.round((g.rating ?? 3) * 20),
     score: Math.round((g.rating ?? 3) * 20),
+    externalId: String(g.id),
     users: [],
     loggers: [],
   }));

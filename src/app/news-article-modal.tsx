@@ -53,9 +53,24 @@ export default function NewsArticleModal() {
           {params.byline ? <Text style={styles.byline}>By {params.byline}</Text> : null}
           {params.trailText ? <Text style={styles.trailText}>{params.trailText}</Text> : null}
 
-          <Pressable style={styles.readBtn} onPress={openArticle}>
-            <Text style={styles.readBtnText}>Read full article ↗</Text>
-          </Pressable>
+          <View style={styles.actionRow}>
+            <Pressable style={[styles.readBtn, { flex: 1 }]} onPress={openArticle}>
+              <Text style={styles.readBtnText}>Read full article ↗</Text>
+            </Pressable>
+            <Pressable
+              style={styles.shareBtn}
+              onPress={() => router.push({
+                pathname: '/news-share-modal',
+                params: {
+                  title: params.title,
+                  thumbnail: params.thumbnail ?? undefined,
+                  url: params.url,
+                  section: params.section,
+                },
+              })}>
+              <Text style={styles.shareBtnText}>↗</Text>
+            </Pressable>
+          </View>
         </View>
 
         <Pressable style={styles.closeBtn} onPress={() => router.back()} hitSlop={8}>
@@ -106,14 +121,22 @@ function createStyles(Brand: BrandPalette) {
     color: Brand.ink,
     lineHeight: 21,
   },
+  actionRow: { flexDirection: 'row', gap: 10, marginTop: Spacing.four },
   readBtn: {
     backgroundColor: Brand.trust,
     borderRadius: 14,
     paddingVertical: 13,
     alignItems: 'center',
-    marginTop: Spacing.four,
   },
   readBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
+  shareBtn: {
+    backgroundColor: Brand.tlight,
+    borderRadius: 14,
+    width: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 18, color: Brand.trust },
   closeBtn: {
     backgroundColor: Brand.ink,
     borderRadius: 14,

@@ -1,18 +1,20 @@
 import type { StyleProp, TextStyle } from 'react-native';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-export type RatingIconStyle = 'stars' | 'hotdogs' | 'popcorn';
+export type RatingIconStyle = 'stars' | 'hotdogs' | 'popcorn' | 'sodas';
 
 export const RATING_ICON_OPTIONS: { value: RatingIconStyle; emoji: string; label: string }[] = [
   { value: 'stars', emoji: '⭐', label: 'Stars' },
   { value: 'hotdogs', emoji: '🌭', label: 'Hotdogs' },
   { value: 'popcorn', emoji: '🍿', label: 'Popcorn' },
+  { value: 'sodas', emoji: '🥤', label: 'Sodas' },
 ];
 
 const ICON_BY_STYLE: Record<RatingIconStyle, string> = {
   stars: '★',
   hotdogs: '🌭',
   popcorn: '🍿',
+  sodas: '🥤',
 };
 
 // ── Shared star-rendering helpers ─────────────────────────────────────────────

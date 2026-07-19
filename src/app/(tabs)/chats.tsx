@@ -107,9 +107,14 @@ export default function ChatsScreen() {
           <Text style={styles.screenTitle}>Chats</Text>
           <Text style={styles.screenSub}>Your conversations</Text>
         </View>
-        <Pressable style={styles.composeBtn} onPress={() => router.push('/new-chat-modal')} hitSlop={8}>
-          <Text style={styles.composeBtnText}>＋</Text>
-        </Pressable>
+        <View style={styles.headerActions}>
+          <Pressable onPress={() => router.push('/archived-chats-modal')} hitSlop={8} style={styles.archivedBtn}>
+            <Text style={styles.archivedBtnText}>Archived</Text>
+          </Pressable>
+          <Pressable style={styles.composeBtn} onPress={() => router.push('/new-chat-modal')} hitSlop={8}>
+            <Text style={styles.composeBtnText}>＋</Text>
+          </Pressable>
+        </View>
       </View>
       <View style={styles.modeRow}>
         <Pressable
@@ -161,13 +166,14 @@ export default function ChatsScreen() {
     <View>
       {headerContent}
       {filteredRequestThreads.length > 0 ? (
-        <View style={styles.requestsSection}>
-          <Text style={styles.requestsSectionTitle}>Message Requests ({filteredRequestThreads.length})</Text>
-          {filteredRequestThreads.map((t) => (
-            <DmListItem key={t.friendId} thread={t} onPress={() => openDm(t)} />
-          ))}
-          <View style={styles.requestsDivider} />
-        </View>
+        <Pressable
+          style={styles.requestsRow}
+          onPress={() => router.push('/dm-requests-modal')}>
+          <Text style={styles.requestsRowText}>
+            Message Requests ({filteredRequestThreads.length})
+          </Text>
+          <Text style={styles.requestsRowChevron}>›</Text>
+        </Pressable>
       ) : null}
     </View>
   );
@@ -313,16 +319,27 @@ function createStyles(Brand: BrandPalette) {
     modeBadgeActive: { backgroundColor: '#fff' },
     modeBadgeText: { color: '#fff', fontSize: 10, fontFamily: BrandFonts.syneBold, lineHeight: 20 },
     modeBadgeTextActive: { color: Brand.trust },
-    requestsSection: { marginBottom: 6 },
-    requestsSectionTitle: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 12.5,
-      color: Brand.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.6,
-      marginBottom: 10,
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
+    archivedBtn: {
+      borderWidth: 1,
+      borderColor: Brand.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 7,
     },
-    requestsDivider: { height: 1, backgroundColor: Brand.border, marginTop: 6, marginBottom: 12 },
+    archivedBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.muted },
+    requestsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      backgroundColor: Brand.tlight,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      marginBottom: 12,
+    },
+    requestsRowText: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: Brand.trust },
+    requestsRowChevron: { fontSize: 20, color: Brand.trust },
     empty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
     emptyEmoji: { fontSize: 40, marginBottom: 12 },
     emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, marginBottom: 8 },

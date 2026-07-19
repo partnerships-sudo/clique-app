@@ -149,3 +149,56 @@ export function useDeletePost() {
     },
   });
 }
+
+
+export type MostReviewedPeriod = 'week' | 'month' | 'year' | 'alltime';
+
+export interface MostReviewedEntry {
+  title: string;
+  type: EntryType;
+  poster: string | null;
+  sub: string | null;
+  count: number;
+  avgRating: number | null;
+}
+
+export function useMostReviewed(period: MostReviewedPeriod) {
+  return useQuery({
+    queryKey: ['most-reviewed', period],
+    queryFn: async () => {
+      const now = new Date();
+      let since: string | null = null;
+      if (period === 'week') {
+        since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (period === 'month') {
+        since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      } else if (period === 'year') {
+        since = new Date(now.getFullYear(), 0, 1).toISOString();
+      }
+
+      let query = supabase
+        .from('posts')
+        .select('title, type, poster, sub, rating')
+        .not('title', 'is', null);
+      if (since) query = query.gte('created_at', since);
+
+      const { data, error } = await query;
+      if (error) throw error;
+
+      const map = new Map<string, { title: string; type: EntryType; poster: string | null; sub: string | null; count: number; ratingSum: number; ratingCount: number }>();
+      for (const row of (data ?? []) as any[]) {
+        const key = `${row.type}:${row.title}`;
+        const entry = map.get(key) ?? { title: row.title, type: row.type, poster: row.poster ?? null, sub: row.sub ?? null, count: 0, ratingSum: 0, ratingCount: 0 };
+        entry.count += 1;
+        if (row.rating) { entry.ratingSum += row.rating; entry.ratingCount += 1; }
+        map.set(key, entry);
+      }
+
+      return [...map.values()]
+        .map((e) => ({ title: e.title, type: e.type, poster: e.poster, sub: e.sub, count: e.count, avgRating: e.ratingCount > 0 ? e.ratingSum / e.ratingCount : null }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 20) as MostReviewedEntry[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}

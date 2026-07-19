@@ -6,6 +6,7 @@ import { Avatar } from '@/components/avatar';
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import type { Message } from '@/features/chats/api';
 import { parseRec } from '@/features/dms/rec';
+import { parseStoryReply } from '@/features/dms/story-reply';
 import { timeAgo } from '@/features/feed/time-ago';
 import { compatColor, compatEmoji } from '@/features/friends/compatibility';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
@@ -29,7 +30,8 @@ export function MessageBubble({
   const [revealed, setRevealed] = useState(false);
   const blurred = isSpoiler && !revealed;
 
-  const rec = parseRec(message.content);
+  const storyReply = parseStoryReply(message.content);
+  const rec = storyReply ? null : parseRec(message.content);
 
   return (
     <View style={[styles.group, isMine && styles.groupMine]}>
@@ -57,6 +59,22 @@ export function MessageBubble({
               — tap to reveal
             </Text>
           </Pressable>
+        ) : storyReply ? (
+          /* ── Story reply card ── */
+          <View style={styles.storyReplyCard}>
+            <View style={styles.storyReplyPreview}>
+              {storyReply.poster ? (
+                <Image source={{ uri: storyReply.poster }} style={styles.storyReplyPoster} resizeMode="cover" />
+              ) : null}
+              <View style={styles.storyReplyInfo}>
+                <Text style={styles.storyReplyLabel}>Replied to your story</Text>
+                <Text style={styles.storyReplyTitle} numberOfLines={1}>{storyReply.title}</Text>
+              </View>
+            </View>
+            <View style={[styles.bubble, isMine && styles.bubbleMine, styles.storyReplyBubble]}>
+              <Text style={[styles.text, isMine && styles.textMine]}>{storyReply.text}</Text>
+            </View>
+          </View>
         ) : rec ? (
           /* ── Rich recommendation card ── */
           <Pressable
@@ -210,6 +228,50 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interMedium,
       fontSize: 13,
       color: '#fff',
+    },
+
+    // Story reply card
+    storyReplyCard: {
+      minWidth: 210,
+      maxWidth: 280,
+      borderRadius: 16,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: Brand.border,
+      backgroundColor: Brand.card,
+    },
+    storyReplyPreview: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      padding: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+      backgroundColor: Brand.tlight,
+    },
+    storyReplyPoster: {
+      width: 36,
+      height: 50,
+      borderRadius: 6,
+      backgroundColor: Brand.border,
+    },
+    storyReplyInfo: { flex: 1, minWidth: 0 },
+    storyReplyLabel: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 10.5,
+      color: Brand.muted,
+      marginBottom: 2,
+    },
+    storyReplyTitle: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 13,
+      color: Brand.ink,
+    },
+    storyReplyBubble: {
+      borderRadius: 0,
+      borderWidth: 0,
+      borderBottomLeftRadius: 0,
+      borderBottomRightRadius: 0,
     },
 
     // Rec card

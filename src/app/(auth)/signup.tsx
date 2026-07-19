@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Link, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
@@ -5,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -15,11 +17,110 @@ import { useSession } from '@/hooks/use-session';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+function isUnder13(day: number, month: number, year: number): boolean {
+  const today = new Date();
+  const thirteenth = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
+  const dob = new Date(year, month, day);
+  return dob > thirteenth;
+}
+
+function AgeGate({ onPass }: { onPass: () => void }) {
+  const Brand = useBrand();
+  const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const [day, setDay] = useState('');
+  const [month, setMonth] = useState<number | null>(null);
+  const [year, setYear] = useState('');
+  const [blocked, setBlocked] = useState(false);
+
+  function handleCheck() {
+    const d = parseInt(day, 10);
+    const y = parseInt(year, 10);
+    if (!d || month === null || !y || y < 1900 || y > new Date().getFullYear()) return;
+    if (isUnder13(d, month, y)) {
+      setBlocked(true);
+    } else {
+      onPass();
+    }
+  }
+
+  const canCheck = day.length > 0 && month !== null && year.length === 4;
+
+  if (blocked) {
+    return (
+      <View style={styles.container}>
+        <View style={styles.logoBlock}>
+          <Text style={styles.logo}><Text style={{ color: Brand.trust }}>Clique</Text></Text>
+        </View>
+        <View style={styles.card}>
+          <Text style={styles.ageGateTitle}>Sorry, you're not eligible</Text>
+          <Text style={styles.ageGateSub}>
+            You must be 13 or older to create a Clique account.
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.logoBlock}>
+        <Text style={styles.logo}><Text style={{ color: Brand.trust }}>Clique</Text></Text>
+        <Text style={styles.tagline}>Skip the algorithm. Trust your people.</Text>
+      </View>
+      <View style={styles.card}>
+        <Text style={styles.ageGateTitle}>When's your birthday?</Text>
+        <Text style={styles.ageGateSub}>We need to confirm you're old enough to use Clique.</Text>
+
+        <View style={styles.ageRow}>
+          <TextInput
+            style={[styles.input, styles.ageInputDay]}
+            placeholder="DD"
+            placeholderTextColor={Brand.muted}
+            value={day}
+            onChangeText={(v) => setDay(v.replace(/\D/g, '').slice(0, 2))}
+            keyboardType="number-pad"
+            maxLength={2}
+          />
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monthScroll} contentContainerStyle={styles.monthScrollContent}>
+            {MONTHS.map((m, i) => (
+              <Pressable
+                key={m}
+                style={[styles.monthChip, month === i && styles.monthChipActive]}
+                onPress={() => setMonth(i)}>
+                <Text style={[styles.monthChipText, month === i && styles.monthChipTextActive]}>{m}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          <TextInput
+            style={[styles.input, styles.ageInputYear]}
+            placeholder="YYYY"
+            placeholderTextColor={Brand.muted}
+            value={year}
+            onChangeText={(v) => setYear(v.replace(/\D/g, '').slice(0, 4))}
+            keyboardType="number-pad"
+            maxLength={4}
+          />
+        </View>
+
+        <Pressable
+          style={[styles.submitBtn, !canCheck && styles.submitBtnDisabled]}
+          onPress={handleCheck}
+          disabled={!canCheck}>
+          <Text style={styles.submitText}>Continue →</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function SignupScreen() {
   const { signUp, session } = useSession();
   const router = useRouter();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const [ageVerified, setAgeVerified] = useState(false);
   const [name, setName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -31,7 +132,9 @@ export default function SignupScreen() {
   useEffect(() => {
     if (session && !hasRedirected.current) {
       hasRedirected.current = true;
-      router.replace('/(tabs)');
+      AsyncStorage.getItem(`clique:onboarding:${session.user.id}`).then((done) => {
+        router.replace(done ? '/(tabs)' : '/onboarding');
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);
@@ -63,6 +166,14 @@ export default function SignupScreen() {
       return;
     }
     setMessage({ text: 'Welcome to Clique!', isError: false });
+  }
+
+  if (!ageVerified) {
+    return (
+      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <AgeGate onPass={() => setAgeVerified(true)} />
+      </KeyboardAvoidingView>
+    );
   }
 
   return (
@@ -240,5 +351,36 @@ function createStyles(Brand: BrandPalette) {
     fontSize: 12.8,
     fontFamily: BrandFonts.interRegular,
   },
+  ageGateTitle: {
+    fontFamily: BrandFonts.syneExtraBold,
+    fontSize: 20,
+    color: Brand.ink,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  ageGateSub: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 13.5,
+    color: Brand.muted,
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  ageRow: { gap: 10, marginBottom: 16 },
+  ageInputDay: { marginBottom: 0 },
+  ageInputYear: { marginBottom: 0 },
+  monthScroll: { flexGrow: 0 },
+  monthScrollContent: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
+  monthChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Brand.border,
+    backgroundColor: Brand.card,
+  },
+  monthChipActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
+  monthChipText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
+  monthChipTextActive: { color: '#fff' },
   });
 }
