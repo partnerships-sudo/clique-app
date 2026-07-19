@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
 import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -83,86 +84,56 @@ export default function FriendsScreen() {
         }
         ListHeaderComponent={
           <View>
+            {/* Header row */}
             <View style={styles.header}>
-              <View style={styles.headerTitleCol}>
-                <Text style={styles.headerTitle}>Friends</Text>
-                <Text style={styles.headerSubtitle}>The more friends, the better the experience.</Text>
-              </View>
+              <Text style={styles.headerTitle}>Friends</Text>
               <View style={styles.headerActions}>
-                <Pressable style={styles.headerIconBtn} hitSlop={6} onPress={() => setInviteSheetVisible(true)}>
-                  <Text style={styles.headerIconGlyph}>👤</Text>
-                  <View style={styles.headerIconPlusBadge}>
-                    <Text style={styles.headerIconPlusText}>+</Text>
-                  </View>
+                <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)}>
+                  <Text style={styles.inviteBtnText}>+ Invite</Text>
                 </Pressable>
-                <Pressable style={styles.headerIconBtn} hitSlop={6} onPress={() => router.push('/settings')}>
-                  <Text style={styles.headerIconGlyph}>⚙</Text>
+                <Pressable hitSlop={8} onPress={() => router.push('/settings')}>
+                  <SymbolView name="gearshape" size={22} tintColor={Brand.muted} style={{ width: 24, height: 24 }} />
                 </Pressable>
               </View>
             </View>
 
-            <View style={styles.findRow}>
-              <Pressable
-                style={styles.findBtn}
-                onPress={() =>
-                  Alert.alert('Find friends via Facebook', 'Coming soon — this will let you find friends already on Clique through your Facebook account.')
-                }>
-                <View style={[styles.findBtnIconWrap, { backgroundColor: '#1877F2' }]}>
-                  <Text style={styles.findBtnIcon}>f</Text>
-                </View>
-                <View style={styles.findBtnText}>
-                  <Text style={styles.findBtnTitle}>Connect Facebook</Text>
-                  <Text style={styles.findBtnSub}>Find your friends</Text>
-                </View>
+            {/* Following / Followers underline tabs */}
+            <View style={styles.tabRow}>
+              <Pressable style={[styles.tabBtn, tab === 'following' && styles.tabBtnActive]} onPress={() => setTab('following')}>
+                <Text style={[styles.tabBtnText, tab === 'following' && styles.tabBtnTextActive]}>
+                  Following {following?.length ?? ''}
+                </Text>
               </Pressable>
-              <Pressable
-                style={styles.findBtn}
-                onPress={() =>
-                  Alert.alert('Find friends via Contacts', 'Coming soon — this will match your phone contacts against people already on Clique.')
-                }>
-                <View style={[styles.findBtnIconWrap, { backgroundColor: Brand.trust }]}>
-                  <Text style={styles.findBtnIcon}>👥</Text>
-                </View>
-                <View style={styles.findBtnText}>
-                  <Text style={styles.findBtnTitle}>Sync Contacts</Text>
-                  <Text style={styles.findBtnSub}>Find your contacts</Text>
-                </View>
+              <Pressable style={[styles.tabBtn, tab === 'followers' && styles.tabBtnActive]} onPress={() => setTab('followers')}>
+                <Text style={[styles.tabBtnText, tab === 'followers' && styles.tabBtnTextActive]}>
+                  Followers {followers?.length ?? ''}
+                </Text>
               </Pressable>
             </View>
 
+            {/* Inner search */}
             <UserSearch ref={searchRef} />
 
+            {/* Follow requests */}
             {requests?.length ? (
               <View style={styles.section}>
-                <Text style={styles.sectionLabel}>
-                  👋 Follow Requests <Text style={styles.countBadge}>{requests.length}</Text>
-                </Text>
                 {requests.map((request) => (
                   <FriendRequestCard
                     key={request.followId}
                     request={request}
-                    onAccept={() =>
-                      acceptRequest.mutate(request, {
-                        onError: (err) => Alert.alert('Could not accept request', err.message),
-                      })
-                    }
-                    onDecline={() =>
-                      declineRequest.mutate(request.followId, {
-                        onError: (err) => Alert.alert('Could not decline request', err.message),
-                      })
-                    }
+                    onAccept={() => acceptRequest.mutate(request, { onError: (err) => Alert.alert('Could not accept request', err.message) })}
+                    onDecline={() => declineRequest.mutate(request.followId, { onError: (err) => Alert.alert('Could not decline request', err.message) })}
                   />
                 ))}
               </View>
             ) : null}
 
+            {/* Suggested follows */}
             {visibleSuggestions.length ? (
               <View style={styles.section}>
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionLabelInline}>People you may know</Text>
-                  <Pressable
-                    hitSlop={8}
-                    onPress={() => Alert.alert('People you may know', 'More suggestions coming soon.')}>
+                  <Pressable hitSlop={8} onPress={() => Alert.alert('People you may know', 'More suggestions coming soon.')}>
                     <Text style={styles.seeAll}>See all</Text>
                   </Pressable>
                 </View>
@@ -178,41 +149,26 @@ export default function FriendsScreen() {
                       profile={profile}
                       mutualCount={profile.mutualCount}
                       isAdding={follow.isPending && follow.variables?.targetUserId === profile.id}
-                      onAdd={() =>
-                        follow.mutate({ targetUserId: profile.id, isTargetPrivate: profile.is_private })
-                      }
+                      onAdd={() => follow.mutate({ targetUserId: profile.id, isTargetPrivate: profile.is_private })}
                       onDismiss={() => setDismissedIds((prev) => new Set(prev).add(profile.id))}
                     />
                   )}
                 />
               </View>
             ) : null}
-
-            <View style={styles.tabRow}>
-              <Pressable
-                style={[styles.tabBtn, tab === 'following' && styles.tabBtnActive]}
-                onPress={() => setTab('following')}>
-                <Text style={[styles.tabBtnText, tab === 'following' && styles.tabBtnTextActive]}>
-                  Following{following?.length ? ` (${following.length})` : ''}
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[styles.tabBtn, tab === 'followers' && styles.tabBtnActive]}
-                onPress={() => setTab('followers')}>
-                <Text style={[styles.tabBtnText, tab === 'followers' && styles.tabBtnTextActive]}>
-                  Followers{followers?.length ? ` (${followers.length})` : ''}
-                </Text>
-              </Pressable>
-            </View>
           </View>
         }
-        renderItem={({ item }: { item: Profile }) => {
+        renderItem={({ item, index }: { item: Profile; index: number }) => {
           const friendPosts = allPosts.filter((p) => p.user_id === item.id);
+          const compat = computeCompatibility(myPosts, friendPosts);
+          const activePost = friendPosts.find((p) => p.rating == null) ?? friendPosts[0] ?? null;
           return (
             <FriendCard
               profile={item}
-              compatibility={computeCompatibility(myPosts, friendPosts)}
+              compatibility={compat}
               hasUnread={unreadFriendIds.has(item.id)}
+              currentlyWatching={activePost}
+              isTopMatch={index === 0 && tab === 'following'}
             />
           );
         }}
@@ -235,118 +191,34 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Brand.paper },
   content: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.six },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: Spacing.three,
-  },
-  headerTitleCol: { flex: 1, minWidth: 0, marginRight: 12 },
+  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink },
-  headerSubtitle: {
-    fontFamily: BrandFonts.interRegular,
-    fontSize: 12.5,
-    color: Brand.muted,
-    marginTop: 4,
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  inviteBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 9, paddingHorizontal: 18 },
+  inviteBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: '#fff' },
+  globalSearch: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    backgroundColor: Brand.card, borderRadius: 50,
+    borderWidth: 1, borderColor: Brand.border,
+    paddingLeft: 14, paddingRight: 6, paddingVertical: 4,
+    marginBottom: 16,
   },
-  headerActions: { flexDirection: 'row', gap: 10 },
-  headerIconBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: Brand.card,
-    alignItems: 'center',
-    justifyContent: 'center',
+  globalSearchText: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, paddingVertical: 8 },
+  filterIconWrap: {
+    width: 34, height: 34, borderRadius: 17,
+    backgroundColor: Brand.tlight,
+    alignItems: 'center', justifyContent: 'center',
   },
-  headerIconGlyph: { fontSize: 18, color: Brand.ink },
-  headerIconPlusBadge: {
-    position: 'absolute',
-    bottom: 4,
-    right: 4,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: Brand.trust,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerIconPlusText: { fontSize: 9, color: '#fff', fontFamily: BrandFonts.syneBold, lineHeight: 11 },
-  findRow: { flexDirection: 'row', gap: 10, marginBottom: Spacing.three },
-  findBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    backgroundColor: Brand.card,
-    borderRadius: 16,
-    padding: 12,
-    shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
-    elevation: 1,
-  },
-  findBtnIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  findBtnIcon: { fontSize: 17, color: '#fff', fontFamily: BrandFonts.syneExtraBold },
-  findBtnText: { flex: 1, minWidth: 0 },
-  findBtnTitle: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.ink },
-  findBtnSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 1 },
+  tabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Brand.border, marginBottom: 14 },
+  tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 20 },
+  tabBtnActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
+  tabBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.muted },
+  tabBtnTextActive: { color: Brand.ink },
   section: { marginBottom: Spacing.two },
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
-  },
-  sectionLabelInline: {
-    fontFamily: BrandFonts.syneBold,
-    fontSize: 11,
-    color: Brand.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
+  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  sectionLabelInline: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 1 },
   seeAll: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.trust },
   suggestRow: { paddingBottom: 4 },
-  sectionLabel: {
-    fontFamily: BrandFonts.syneBold,
-    fontSize: 11,
-    color: Brand.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    marginBottom: 12,
-  },
-  countBadge: {
-    backgroundColor: '#E84F4F',
-    color: '#fff',
-    fontSize: 10,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    gap: 6,
-    backgroundColor: Brand.card,
-    borderWidth: 1,
-    borderColor: Brand.border,
-    borderRadius: 14,
-    padding: 5,
-    marginBottom: Spacing.three,
-  },
-  tabBtn: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' },
-  tabBtnActive: { backgroundColor: Brand.ink },
-  tabBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
-  tabBtnTextActive: { color: '#fff' },
-  empty: {
-    textAlign: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-    color: Brand.muted,
-    fontFamily: BrandFonts.interRegular,
-    fontSize: 13.6,
-  },
+  empty: { textAlign: 'center', paddingVertical: 40, paddingHorizontal: 20, color: Brand.muted, fontFamily: BrandFonts.interRegular, fontSize: 13.6 },
   });
 }

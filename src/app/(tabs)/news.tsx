@@ -100,7 +100,7 @@ export default function NewsScreen() {
                   key={cat.value}
                   style={[styles.catChip, active && styles.catChipActive]}
                   onPress={() => setFilter(cat.value)}>
-                  <SymbolView name={cat.sf as any} size={22} tintColor={active ? '#fff' : '#888'} type="monochrome" />
+                  <SymbolView name={cat.sf as any} size={17} tintColor={active ? '#fff' : '#888'} type="monochrome" />
                   <Text style={[styles.catChipLabel, active && styles.catChipLabelActive]}>{cat.label}</Text>
                 </Pressable>
               );
@@ -170,20 +170,22 @@ export default function NewsScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
                 {trending.map((article, i) => (
                   <Pressable key={article.id} style={styles.trendingCard} onPress={() => openArticle(article)}>
-                    {article.thumbnail ? (
-                      <Image source={{ uri: article.thumbnail }} style={styles.trendingImg} />
-                    ) : (
-                      <View style={[styles.trendingImg, styles.trendingImgFallback]}>
-                        <Text style={styles.trendingImgFallbackEmoji}>📰</Text>
+                    {/* Image with rank badge overlaid */}
+                    <View style={styles.trendingImgWrap}>
+                      {article.thumbnail ? (
+                        <Image source={{ uri: article.thumbnail }} style={styles.trendingImg} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.trendingImg, styles.trendingImgFallback]}>
+                          <Text style={styles.trendingImgFallbackEmoji}>📰</Text>
+                        </View>
+                      )}
+                      <View style={styles.trendingNumBadge}>
+                        <Text style={styles.trendingNum}>{i + 1}</Text>
                       </View>
-                    )}
-                    <View style={styles.trendingNumBadge}>
-                      <Text style={styles.trendingNum}>{i + 1}</Text>
                     </View>
-                    <View style={styles.trendingOverlay}>
-                      <Text style={styles.trendingSource}>{article.section.toUpperCase()}</Text>
-                      <Text style={styles.trendingTitle} numberOfLines={3}>{article.title}</Text>
-                    </View>
+                    {/* Text below image */}
+                    <Text style={styles.trendingTitle} numberOfLines={3}>{article.title}</Text>
+                    <Text style={styles.trendingSource}>{article.section.toUpperCase()}</Text>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -315,18 +317,18 @@ function createStyles(Brand: BrandPalette) {
     catChip: {
       alignItems: 'center',
       justifyContent: 'center',
-      width: 72,
-      height: 72,
-      borderRadius: 18,
+      width: 54,
+      paddingVertical: 7,
+      borderRadius: 12,
       backgroundColor: Brand.card,
       borderWidth: 1,
       borderColor: Brand.border,
-      gap: 5,
+      gap: 3,
     },
     catChipActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
     catChipLabel: {
-      fontFamily: BrandFonts.interMedium,
-      fontSize: 10.5,
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 8.5,
       color: Brand.muted,
       textAlign: 'center',
     },
@@ -343,50 +345,45 @@ function createStyles(Brand: BrandPalette) {
     },
 
     // Trending row
-    trendingRow: { paddingHorizontal: Spacing.three, gap: 10, paddingBottom: 4 },
+    trendingRow: { paddingHorizontal: Spacing.three, gap: 14, paddingBottom: 4 },
     trendingCard: {
-      width: 126,
-      height: 176,
-      borderRadius: 14,
-      overflow: 'hidden',
-      backgroundColor: Brand.card,
+      width: 160,
     },
-    trendingImg: { width: '100%', height: '100%', position: 'absolute' },
+    trendingImgWrap: {
+      width: '100%',
+      height: 210,
+      borderRadius: 16,
+      overflow: 'hidden',
+      marginBottom: 10,
+      backgroundColor: Brand.tlight,
+    },
+    trendingImg: { width: '100%', height: '100%' },
     trendingImgFallback: { backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
     trendingImgFallbackEmoji: { fontSize: 40 },
     trendingNumBadge: {
       position: 'absolute',
       top: 12,
       left: 12,
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       backgroundColor: Brand.trust,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    trendingNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 13, color: '#fff' },
-    trendingOverlay: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: 14,
-      paddingTop: 40,
-      backgroundColor: 'rgba(0,0,0,0.55)',
+    trendingNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: '#fff' },
+    trendingTitle: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 14,
+      color: Brand.ink,
+      lineHeight: 19,
+      marginBottom: 5,
     },
     trendingSource: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 8.5,
+      fontSize: 9.5,
       color: Brand.trust,
       letterSpacing: 0.6,
-      marginBottom: 3,
-    },
-    trendingTitle: {
-      fontFamily: BrandFonts.syneExtraBold,
-      fontSize: 12,
-      color: '#fff',
-      lineHeight: 16,
     },
 
     // Feature card: whole image dimmed, text overlaid at bottom

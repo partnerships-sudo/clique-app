@@ -1,14 +1,17 @@
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
+import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
-import type { LibraryItem } from '@/features/library/api';
+import { useMoveToLibrary, type LibraryItem } from '@/features/library/api';
 import { useUploadBanner, type Profile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
+import { LibCard } from '@/components/library/lib-card';
 
 export type ProfileCardBadge = Pick<BadgeDef, 'key' | 'name' | 'icon' | 'tier'>;
 
@@ -23,13 +26,13 @@ const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
   { key: 'stats', label: 'Stats' },
 ];
 
-const CAT_FILTERS: { type: EntryType | 'all'; label: string; color: string }[] = [
-  { type: 'all', label: 'All', color: '#5B4FE8' },
-  { type: 'watch', label: 'TV & Film', color: '#FF6B6B' },
-  { type: 'read', label: 'Books', color: '#5FA8FF' },
-  { type: 'play', label: 'Games', color: '#5FD9FF' },
-  { type: 'podcast', label: 'Podcasts', color: '#C084FC' },
-  { type: 'listen', label: 'Music', color: '#9B95AC' },
+const CAT_FILTERS: { type: EntryType | 'all'; label: string; color: string; sf: string }[] = [
+  { type: 'all',     label: 'All',      color: '#5B4FE8', sf: 'square.grid.2x2.fill' },
+  { type: 'watch',  label: 'TV & Film', color: '#FF6B6B', sf: 'film.stack' },
+  { type: 'read',   label: 'Books',     color: '#5FA8FF', sf: 'book.closed.fill' },
+  { type: 'play',   label: 'Games',     color: '#5FD9FF', sf: 'gamecontroller.fill' },
+  { type: 'podcast',label: 'Podcasts',  color: '#C084FC', sf: 'mic.fill' },
+  { type: 'listen', label: 'Music',     color: '#9B95AC', sf: 'headphones' },
 ];
 
 const STAT_CATEGORIES = [
@@ -111,14 +114,46 @@ export function ProfileCard({
 
   const [profileTab, setProfileTab] = useState<ProfileTab>('feed');
   const [catFilter, setCatFilter] = useState<EntryType | 'all'>('all');
+  const [feedSort, setFeedSort] = useState<'recent' | 'alpha'>('recent');
+  const [watchlistView, setWatchlistView] = useState<'mine' | 'friends'>('mine');
+  const moveToLibrary = useMoveToLibrary();
+
+  // Collection tab state
+  type CollectionView = 'read' | 'watch' | 'tv' | 'listen' | 'play' | 'podcast';
+  type CollectionSort = 'recent' | 'rating' | 'alpha';
+  const [collectionView, setCollectionView] = useState<CollectionView>('watch');
+  const [collectionSort, setCollectionSort] = useState<CollectionSort>('recent');
+  const { items: collectionItems, isLoading: isCollectionLoading } = useCollectionItems();
+  const removeFromCollection = useRemoveFromCollection();
+  const hasAutoSelectedCollView = useRef(false);
+  useMemo(() => {
+    if (isCollectionLoading || hasAutoSelectedCollView.current) return;
+    hasAutoSelectedCollView.current = true;
+    const order: CollectionView[] = ['watch', 'read', 'tv', 'listen', 'play', 'podcast'];
+    if (collectionItems.some((i) => i.type === collectionView)) return;
+    const first = order.find((v) => collectionItems.some((i) => i.type === v));
+    if (first) setCollectionView(first);
+  }, [isCollectionLoading, collectionItems]);
+
+  const collectionFiltered = useMemo(() => {
+    const items = collectionItems.filter((i: CollectionItem) => i.type === collectionView);
+    const sorted = [...items];
+    if (collectionSort === 'recent') sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    else if (collectionSort === 'rating') sorted.sort((a, b) => (b.user_rating ?? 0) - (a.user_rating ?? 0));
+    else if (collectionSort === 'alpha') sorted.sort((a, b) => a.title.localeCompare(b.title));
+    return sorted;
+  }, [collectionItems, collectionView, collectionSort]);
 
   const logged = library.filter((i) => i.status !== 'watchlist');
   const watchlist = library.filter((i) => i.status === 'watchlist');
 
   const feedItems = useMemo(() => {
     const items = catFilter === 'all' ? logged : logged.filter((i) => i.type === catFilter);
-    return [...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  }, [logged, catFilter]);
+    const sorted = [...items];
+    if (feedSort === 'alpha') sorted.sort((a, b) => a.title.localeCompare(b.title));
+    else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return sorted;
+  }, [logged, catFilter, feedSort]);
 
   const counts: Record<EntryType, number> = { watch: 0, read: 0, play: 0, listen: 0, podcast: 0 };
   logged.forEach((item) => { counts[item.type] += 1; });
@@ -304,37 +339,48 @@ export function ProfileCard({
         {/* FEED TAB */}
         {profileTab === 'feed' ? (
           <View style={styles.tabContent}>
+            {/* Category filter chips with SF Symbols */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
               {CAT_FILTERS.map((f) => {
-                const active = catFilter === f.type;
+                const isActive = catFilter === f.type;
                 return (
-                  <Pressable key={f.type} style={[styles.chip, active && { backgroundColor: f.color }]} onPress={() => setCatFilter(f.type)}>
-                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{f.label}</Text>
+                  <Pressable
+                    key={f.type}
+                    style={[styles.chip, isActive && { backgroundColor: f.color }]}
+                    onPress={() => setCatFilter(f.type)}>
+                    <SymbolView
+                      name={f.sf as any}
+                      size={22}
+                      tintColor={isActive ? '#fff' : Brand.muted}
+                      style={styles.chipIcon}
+                    />
+                    <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{f.label}</Text>
                   </Pressable>
                 );
               })}
             </ScrollView>
+
+            {/* Sort row */}
+            <View style={styles.feedSortRow}>
+              <Text style={styles.feedSortLabel}>Sort by</Text>
+              {([{ value: 'recent', label: 'Recent' }, { value: 'alpha', label: 'A—Z' }] as const).map((opt) => {
+                const isActive = feedSort === opt.value;
+                return (
+                  <Pressable
+                    key={opt.value}
+                    style={[styles.feedSortBtn, isActive && styles.feedSortBtnActive]}
+                    onPress={() => setFeedSort(opt.value)}>
+                    <Text style={[styles.feedSortBtnText, isActive && styles.feedSortBtnTextActive]}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             {feedItems.length === 0 ? (
               <Text style={styles.emptyText}>Nothing logged yet.</Text>
             ) : (
               feedItems.map((item) => (
-                <View key={item.id} style={styles.feedRow}>
-                  {item.poster ? (
-                    <Image source={{ uri: item.poster }} style={styles.feedThumb} resizeMode="cover" />
-                  ) : (
-                    <View style={[styles.feedThumb, styles.feedThumbFallback]} />
-                  )}
-                  <View style={styles.feedInfo}>
-                    <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
-                    {item.sub ? <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text> : null}
-                    <View style={styles.feedMeta}>
-                      <View style={styles.statusPill}>
-                        <Text style={styles.statusPillText}>{item.status.toUpperCase()}</Text>
-                      </View>
-                      {item.date ? <Text style={styles.feedDate}>{item.date}</Text> : null}
-                    </View>
-                  </View>
-                </View>
+                <LibCard key={item.id} item={item} />
               ))
             )}
           </View>
@@ -343,35 +389,148 @@ export function ProfileCard({
         {/* WATCHLIST TAB */}
         {profileTab === 'watchlist' ? (
           <View style={styles.tabContent}>
-            {watchlist.length === 0 ? (
-              <Text style={styles.emptyText}>Your watchlist is empty.</Text>
-            ) : (
-              watchlist.map((item) => (
-                <View key={item.id} style={styles.feedRow}>
-                  {item.poster ? (
-                    <Image source={{ uri: item.poster }} style={styles.feedThumb} resizeMode="cover" />
-                  ) : (
-                    <View style={[styles.feedThumb, styles.feedThumbFallback]} />
-                  )}
-                  <View style={styles.feedInfo}>
-                    <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
-                    {item.sub ? <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text> : null}
-                  </View>
+            {/* My Watchlist / From Friends toggle */}
+            <View style={styles.wlToggleRow}>
+              <Pressable
+                style={[styles.wlToggleBtn, watchlistView === 'mine' && styles.wlToggleBtnActive]}
+                onPress={() => setWatchlistView('mine')}>
+                <Text style={[styles.wlToggleTxt, watchlistView === 'mine' && styles.wlToggleTxtActive]}>My Watchlist</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.wlToggleBtn, watchlistView === 'friends' && styles.wlToggleBtnActive]}
+                onPress={() => setWatchlistView('friends')}>
+                <Text style={[styles.wlToggleTxt, watchlistView === 'friends' && styles.wlToggleTxtActive]}>From Friends</Text>
+              </Pressable>
+            </View>
+
+            {/* Add to watchlist button */}
+            {watchlistView === 'mine' ? (
+              <Pressable
+                style={styles.wlAddBtn}
+                onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })}>
+                <Text style={styles.wlAddBtnText}>+ Add to watchlist</Text>
+              </Pressable>
+            ) : null}
+
+            {/* Poster grid */}
+            {(() => {
+              const items = watchlistView === 'mine'
+                ? watchlist
+                : watchlist.filter((i) => !!i.rec_from_user_name);
+              if (items.length === 0) {
+                return <Text style={styles.emptyText}>{watchlistView === 'mine' ? 'Your watchlist is empty — add things you want to get to!' : 'No recs yet — when a friend sends you a rec it shows up here automatically.'}</Text>;
+              }
+              return (
+                <View style={styles.wlGrid}>
+                  {items.map((item) => (
+                    <View key={item.id} style={styles.wlGridItem}>
+                      <View style={styles.wlPosterWrap}>
+                        {item.poster ? (
+                          <Image source={{ uri: item.poster }} style={styles.wlPoster} resizeMode="cover" />
+                        ) : (
+                          <View style={[styles.wlPoster, styles.wlPosterFallback]}>
+                            <Text style={styles.wlPosterFallbackText} numberOfLines={2}>{item.title}</Text>
+                          </View>
+                        )}
+                        {item.rec_from_user_name ? (
+                          <View style={styles.wlAvatar}>
+                            <Text style={styles.wlAvatarText}>{item.rec_from_user_name.slice(0, 1).toUpperCase()}</Text>
+                          </View>
+                        ) : null}
+                      </View>
+                      <Pressable style={styles.wlLogBtn} onPress={() => moveToLibrary.mutate(item)}>
+                        <SymbolView name="checkmark" size={10} tintColor="#fff" style={{ width: 11, height: 11 }} />
+                        <Text style={styles.wlLogBtnText}>Log it</Text>
+                      </Pressable>
+                    </View>
+                  ))}
                 </View>
-              ))
-            )}
+              );
+            })()}
           </View>
         ) : null}
 
         {/* COLLECTION TAB */}
         {profileTab === 'collection' ? (
           <View style={styles.tabContent}>
-            {onCollectionPress ? (
-              <Pressable style={styles.collectionBtn} onPress={onCollectionPress}>
-                <Text style={styles.collectionBtnText}>📦 View My Collection</Text>
+            {/* Search bar */}
+            <Pressable style={styles.collSearchRow} onPress={() => router.push('/collection-add-modal')}>
+              <SymbolView name="magnifyingglass" size={14} tintColor={Brand.muted} style={{ width: 16, height: 16, marginRight: 7 }} />
+              <Text style={styles.collSearchPlaceholder}>Search & add to your collection…</Text>
+              <Pressable
+                style={styles.collScanBtn}
+                hitSlop={8}
+                onPress={() => router.push('/collection-scan-modal')}>
+                <SymbolView name="barcode.viewfinder" size={16} tintColor="#fff" style={{ width: 18, height: 18 }} />
               </Pressable>
+            </Pressable>
+
+            {/* Category chips */}
+            <View style={styles.collCatRow}>
+              {([
+                { view: 'read',    sf: 'books.vertical', label: 'Books'    },
+                { view: 'watch',   sf: 'film',           label: 'Movies'   },
+                { view: 'tv',      sf: 'tv',             label: 'TV'       },
+                { view: 'listen',  sf: 'music.note',     label: 'Music'    },
+                { view: 'play',    sf: 'gamecontroller', label: 'Games'    },
+                { view: 'podcast', sf: 'mic',            label: 'Podcasts' },
+              ] as const).map(({ view, sf, label }) => {
+                const count = collectionItems.filter((i: CollectionItem) => i.type === view).length;
+                const active = collectionView === view;
+                return (
+                  <Pressable
+                    key={view}
+                    style={[styles.collCatBtn, active && styles.collCatBtnActive]}
+                    onPress={() => setCollectionView(view)}>
+                    <SymbolView name={sf as any} size={15} tintColor={active ? '#fff' : Brand.muted} style={{ width: 18, height: 18 }} />
+                    <Text style={[styles.collCatLabel, active && styles.collCatLabelActive]}>{label}</Text>
+                    <Text style={[styles.collCatCount, active && styles.collCatCountActive]}>{count}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* Sort row */}
+            <View style={styles.collSortRow}>
+              <Text style={styles.collSortLabel}>Organize</Text>
+              {([{ value: 'recent', label: 'Recent' }, { value: 'rating', label: 'Rating' }, { value: 'alpha', label: 'A–Z' }] as const).map((opt) => {
+                const active = collectionSort === opt.value;
+                return (
+                  <Pressable key={opt.value} style={[styles.collSortBtn, active && styles.collSortBtnActive]} onPress={() => setCollectionSort(opt.value)}>
+                    <Text style={[styles.collSortBtnText, active && styles.collSortBtnTextActive]}>{opt.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
+            {/* 3-column grid */}
+            {collectionFiltered.length === 0 && !isCollectionLoading ? (
+              <Text style={styles.emptyText}>Nothing here yet.</Text>
             ) : (
-              <Text style={styles.emptyText}>No collection yet.</Text>
+              <View style={styles.collGrid}>
+                {collectionFiltered.map((item: CollectionItem) => {
+                  const stars = item.user_rating ? Math.round(item.user_rating) : 0;
+                  return (
+                    <Pressable
+                      key={item.id}
+                      style={styles.collGridItem}
+                      onPress={() => router.push({ pathname: '/collection-item-detail-modal', params: { id: item.id, title: item.title, sub: item.sub ?? undefined, poster: item.poster ?? undefined, type: item.type, format: item.format ?? undefined, userRating: item.user_rating?.toString() ?? undefined } })}>
+                      {item.poster ? (
+                        <Image source={{ uri: item.poster }} style={styles.collGridImg} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.collGridImg, styles.collGridImgPlaceholder]}>
+                          <Text style={styles.collGridImgPlaceholderText} numberOfLines={2}>{item.title}</Text>
+                        </View>
+                      )}
+                      {stars > 0 ? (
+                        <View style={styles.collGridStars}>
+                          <Text style={styles.collGridStarText}>{'★'.repeat(stars)}</Text>
+                        </View>
+                      ) : null}
+                    </Pressable>
+                  );
+                })}
+              </View>
             )}
           </View>
         ) : null}
@@ -782,18 +941,27 @@ function createStyles(Brand: BrandPalette) {
     emptyText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, textAlign: 'center', paddingVertical: 24 },
 
     // Feed tab
-    chipScroll: { marginBottom: 14 },
-    chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 0 },
+    chipScroll: { marginBottom: 12 },
+    chipRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 0 },
     chip: {
-      paddingVertical: 5,
-      paddingHorizontal: 12,
-      borderRadius: 20,
-      backgroundColor: Brand.tlight,
+      width: 54,
+      paddingVertical: 7,
+      borderRadius: 12,
+      backgroundColor: Brand.card,
       borderWidth: 1,
       borderColor: Brand.border,
+      alignItems: 'center',
+      gap: 3,
     },
-    chipText: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.muted },
+    chipIcon: { width: 17, height: 17 },
+    chipText: { fontFamily: BrandFonts.syneBold, fontSize: 8.5, color: Brand.muted, textAlign: 'center' },
     chipTextActive: { color: '#fff' },
+    feedSortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+    feedSortLabel: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginRight: 2 },
+    feedSortBtn: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 14 },
+    feedSortBtnActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
+    feedSortBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
+    feedSortBtnTextActive: { color: '#fff' },
     feedRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 14 },
     feedThumb: { width: 44, height: 62, borderRadius: 8 },
     feedThumbFallback: { backgroundColor: Brand.tlight },
@@ -805,18 +973,54 @@ function createStyles(Brand: BrandPalette) {
     statusPillText: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.muted, letterSpacing: 0.5 },
     feedDate: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted },
 
+    // Watchlist tab
+    wlToggleRow: { flexDirection: 'row', backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, borderRadius: 50, padding: 4, marginBottom: 14, gap: 4 },
+    wlToggleBtn: { flex: 1, paddingVertical: 9, borderRadius: 50, alignItems: 'center' },
+    wlToggleBtnActive: { backgroundColor: Brand.trust },
+    wlToggleTxt: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
+    wlToggleTxtActive: { color: '#fff' },
+    wlAddBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 11, alignItems: 'center', marginBottom: 16 },
+    wlAddBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: '#fff' },
+    wlGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    wlGridItem: { width: '30.5%', alignItems: 'center' },
+    wlPosterWrap: { width: '100%', position: 'relative', marginBottom: 7 },
+    wlPoster: { width: '100%', aspectRatio: 2 / 3, borderRadius: 10, backgroundColor: Brand.border },
+    wlPosterFallback: { alignItems: 'center', justifyContent: 'center', padding: 6 },
+    wlPosterFallbackText: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.muted, textAlign: 'center' },
+    wlAvatar: { position: 'absolute', bottom: -6, left: 6, width: 24, height: 24, borderRadius: 12, backgroundColor: Brand.trust, borderWidth: 2, borderColor: Brand.card, alignItems: 'center', justifyContent: 'center' },
+    wlAvatarText: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: '#fff' },
+    wlLogBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 6, paddingHorizontal: 12 },
+    wlLogBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#fff' },
+
     // Collection tab
-    collectionBtn: {
-      width: '100%',
-      paddingVertical: 14,
-      alignItems: 'center',
-      backgroundColor: Brand.tlight,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: Brand.border,
-      marginTop: 8,
+    collSearchRow: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: Brand.card, borderRadius: 26,
+      paddingLeft: 14, paddingRight: 6, marginBottom: 12,
+      borderWidth: 1, borderColor: Brand.border,
     },
-    collectionBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
+    collSearchPlaceholder: { flex: 1, paddingVertical: 12, fontSize: 13.5, fontFamily: BrandFonts.interRegular, color: Brand.muted },
+    collScanBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: Brand.trust, alignItems: 'center', justifyContent: 'center' },
+    collCatRow: { flexDirection: 'row', backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, borderRadius: 14, padding: 4, marginBottom: 12, gap: 3 },
+    collCatBtn: { flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center' },
+    collCatBtnActive: { backgroundColor: Brand.ink },
+    collCatLabel: { fontFamily: BrandFonts.syneBold, fontSize: 8, color: Brand.muted, marginTop: 2 },
+    collCatLabelActive: { color: '#fff' },
+    collCatCount: { fontFamily: BrandFonts.interRegular, fontSize: 8, color: Brand.muted, marginTop: 1 },
+    collCatCountActive: { color: 'rgba(255,255,255,0.75)' },
+    collSortRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
+    collSortLabel: { fontSize: 12, color: Brand.muted, fontFamily: BrandFonts.interRegular },
+    collSortBtn: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 20, paddingVertical: 4, paddingHorizontal: 11 },
+    collSortBtnActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
+    collSortBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.muted },
+    collSortBtnTextActive: { color: '#fff' },
+    collGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    collGridItem: { width: '31%' },
+    collGridImg: { width: '100%', aspectRatio: 2 / 3, borderRadius: 8, backgroundColor: Brand.border },
+    collGridImgPlaceholder: { alignItems: 'center', justifyContent: 'center', padding: 6 },
+    collGridImgPlaceholderText: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textAlign: 'center' },
+    collGridStars: { paddingTop: 4, paddingHorizontal: 2 },
+    collGridStarText: { fontSize: 10, color: '#F59E0B', letterSpacing: 0.5 },
 
     // Streak card
     streakCard: {

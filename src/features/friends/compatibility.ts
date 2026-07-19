@@ -49,3 +49,10 @@ export function compatColor(n: number) {
 export function compatEmoji(n: number) {
   return n >= 90 ? '🔥' : n >= 75 ? '✨' : n >= 60 ? '👍' : '🤔';
 }
+
+export function compatLabel(n: number): { emoji: string; label: string } {
+  if (n >= 80) return { emoji: '🎬', label: 'Movie Soulmate' };
+  if (n >= 60) return { emoji: '📺', label: 'TV Twin' };
+  if (n >= 40) return { emoji: '🤔', label: 'Curious Minds' };
+  return { emoji: '😀', label: 'Fun Seeker' };
+}

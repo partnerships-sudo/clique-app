@@ -243,7 +243,7 @@ export default function LibraryScreen() {
               </Pressable>
               <View style={styles.subToggleRow6}>
                 {([
-                  { view: 'read',    sf: 'book.open',         label: 'Books'    },
+                  { view: 'read',    sf: 'books.vertical',    label: 'Books'    },
                   { view: 'watch',   sf: 'film',              label: 'Movies'   },
                   { view: 'tv',      sf: 'tv',                label: 'TV'       },
                   { view: 'listen',  sf: 'music.note',        label: 'Music'    },

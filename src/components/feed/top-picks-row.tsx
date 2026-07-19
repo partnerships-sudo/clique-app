@@ -71,7 +71,7 @@ function TopPickCard({
           {entry.title}
         </Text>
         <Text style={styles.typeLabel} numberOfLines={1}>
-          {TypeColors[entry.type].label}
+          {(TypeColors[entry.type] ?? TypeColors.watch).label}
         </Text>
 
         {shownLoggers.length > 0 && (
