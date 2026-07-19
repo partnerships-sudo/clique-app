@@ -2,7 +2,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
@@ -12,16 +12,32 @@ import { useBrand } from '@/hooks/use-brand';
 
 export type ProfileCardBadge = Pick<BadgeDef, 'key' | 'name' | 'icon' | 'tier'>;
 
-// Online-status green stays fixed regardless of theme, same as the app's
-// other status colors (e.g. rating stars) — it signals state, not brand.
 const ONLINE_COLOR = '#3DDC84';
 
-const CATEGORY_TABS: { type: EntryType; icon: string; label: string; barColor: string }[] = [
-  { type: 'watch', icon: 'movieclapper', label: 'TV & Film', barColor: '#FF6B6B' },
-  { type: 'read', icon: 'book.closed', label: 'Books', barColor: '#5FA8FF' },
-  { type: 'play', icon: 'gamecontroller', label: 'Games', barColor: '#5FD9FF' },
-  { type: 'listen', icon: 'headphones', label: 'Music', barColor: '#9B95AC' },
-  { type: 'podcast', icon: 'mic', label: 'Podcasts', barColor: '#C084FC' },
+type ProfileTab = 'feed' | 'watchlist' | 'collection' | 'stats';
+
+const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
+  { key: 'feed', label: 'Feed' },
+  { key: 'watchlist', label: 'Watchlist' },
+  { key: 'collection', label: 'Collection' },
+  { key: 'stats', label: 'Stats' },
+];
+
+const CAT_FILTERS: { type: EntryType | 'all'; label: string; color: string }[] = [
+  { type: 'all', label: 'All', color: '#5B4FE8' },
+  { type: 'watch', label: 'TV & Film', color: '#FF6B6B' },
+  { type: 'read', label: 'Books', color: '#5FA8FF' },
+  { type: 'play', label: 'Games', color: '#5FD9FF' },
+  { type: 'podcast', label: 'Podcasts', color: '#C084FC' },
+  { type: 'listen', label: 'Music', color: '#9B95AC' },
+];
+
+const STAT_CATEGORIES = [
+  { type: 'watch' as EntryType, label: 'TV', icon: '📺', color: '#FF6B6B' },
+  { type: 'play' as EntryType, label: 'Games', icon: '🎮', color: '#5FD9FF' },
+  { type: 'podcast' as EntryType, label: 'Podcasts', icon: '🎙️', color: '#C084FC' },
+  { type: 'listen' as EntryType, label: 'Music', icon: '🎵', color: '#9B95AC' },
+  { type: 'read' as EntryType, label: 'Books', icon: '📚', color: '#5FA8FF' },
 ];
 
 export interface ProfileCardFriendAction {
@@ -93,20 +109,42 @@ export function ProfileCard({
     }
   }
 
+  const [profileTab, setProfileTab] = useState<ProfileTab>('feed');
+  const [catFilter, setCatFilter] = useState<EntryType | 'all'>('all');
+
+  const logged = library.filter((i) => i.status !== 'watchlist');
+  const watchlist = library.filter((i) => i.status === 'watchlist');
+
+  const feedItems = useMemo(() => {
+    const items = catFilter === 'all' ? logged : logged.filter((i) => i.type === catFilter);
+    return [...items].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [logged, catFilter]);
+
   const counts: Record<EntryType, number> = { watch: 0, read: 0, play: 0, listen: 0, podcast: 0 };
-  library.forEach((item) => {
-    counts[item.type] += 1;
+  logged.forEach((item) => { counts[item.type] += 1; });
+  const maxCount = Math.max(1, ...Object.values(counts));
+
+  // Streak
+  const loggedDates = new Set(logged.map((i) => {
+    const d = new Date(i.created_at);
+    return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+  }));
+  let streakDays = 0;
+  const today = new Date();
+  for (let offset = 0; offset < 365; offset++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - offset);
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    if (loggedDates.has(key)) streakDays++;
+    else if (offset > 0) break;
+  }
+  const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+  const weekDays = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(today.getDate() - (6 - i));
+    const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+    return { label: DAY_LABELS[d.getDay()], done: loggedDates.has(key) };
   });
-  const max = Math.max(1, ...Object.values(counts));
-
-  const defaultTab = CATEGORY_TABS.reduce((best, tab) => (counts[tab.type] > counts[best.type] ? tab : best))
-    .type;
-  const [activeTab, setActiveTab] = useState<EntryType>(defaultTab);
-
-  const recentForTab = library
-    .filter((item) => item.type === activeTab)
-    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-    .slice(0, 4);
 
   return (
     <View style={styles.card}>
@@ -204,88 +242,158 @@ export function ProfileCard({
           </Pressable>
         ) : null}
 
+        {/* Profile tab bar */}
         <View style={styles.tabRow}>
-        {CATEGORY_TABS.map((tab) => {
-          const active = tab.type === activeTab;
-          return (
-            <Pressable key={tab.type} style={styles.tab} onPress={() => setActiveTab(tab.type)}>
-              <SymbolView
-                name={tab.icon as any}
-                size={24}
-                tintColor={active ? Brand.trust : Brand.muted}
-                type="monochrome"
-                style={active ? styles.tabIconGlow : undefined}
-              />
-              <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
-              {active ? <View style={styles.tabUnderline} /> : null}
-            </Pressable>
-          );
-        })}
-      </View>
+          {PROFILE_TABS.map((tab) => {
+            const active = tab.key === profileTab;
+            return (
+              <Pressable key={tab.key} style={styles.tab} onPress={() => setProfileTab(tab.key)}>
+                <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
+                {active ? <View style={styles.tabUnderline} /> : null}
+              </Pressable>
+            );
+          })}
+        </View>
 
-      <View style={styles.statsBox}>
-        <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
-          <Text style={[styles.statNum, onLoggedPress && styles.statNumAccent]}>{library.length}</Text>
-          <Text style={styles.statLbl}>Logged</Text>
-        </Pressable>
-        <View style={styles.statDiv} />
-        <Pressable style={styles.stat} onPress={onFollowersPress} disabled={!onFollowersPress} hitSlop={4}>
-          <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
-          <Text style={styles.statLbl}>Followers</Text>
-        </Pressable>
-        <View style={styles.statDiv} />
-        <Pressable style={styles.stat} onPress={onFollowingPress} disabled={!onFollowingPress} hitSlop={4}>
-          <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
-          <Text style={styles.statLbl}>Following</Text>
-        </Pressable>
-      </View>
+        {/* FEED TAB */}
+        {profileTab === 'feed' ? (
+          <View style={styles.tabContent}>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
+              {CAT_FILTERS.map((f) => {
+                const active = catFilter === f.type;
+                return (
+                  <Pressable key={f.type} style={[styles.chip, active && { backgroundColor: f.color }]} onPress={() => setCatFilter(f.type)}>
+                    <Text style={[styles.chipText, active && styles.chipTextActive]}>{f.label}</Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            {feedItems.length === 0 ? (
+              <Text style={styles.emptyText}>Nothing logged yet.</Text>
+            ) : (
+              feedItems.map((item) => (
+                <View key={item.id} style={styles.feedRow}>
+                  {item.poster ? (
+                    <Image source={{ uri: item.poster }} style={styles.feedThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.feedThumb, styles.feedThumbFallback]} />
+                  )}
+                  <View style={styles.feedInfo}>
+                    <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
+                    {item.sub ? <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text> : null}
+                    <View style={styles.feedMeta}>
+                      <View style={styles.statusPill}>
+                        <Text style={styles.statusPillText}>{item.status.toUpperCase()}</Text>
+                      </View>
+                      {item.date ? <Text style={styles.feedDate}>{item.date}</Text> : null}
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        ) : null}
 
-      <View style={styles.splitRow}>
-        <View style={styles.splitCol}>
-          <Text style={styles.secLbl}>Recently Logged</Text>
-          {recentForTab.length ? (
-            recentForTab.map((item) => (
-              <View key={item.id} style={styles.recentRow}>
-                {item.poster ? (
-                  <Image source={{ uri: item.poster }} style={styles.recentThumb} />
-                ) : (
-                  <View style={[styles.recentThumb, styles.recentThumbFallback]} />
-                )}
-                <View style={styles.recentInfo}>
-                  <Text style={styles.recentTitle} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  {item.date ? <Text style={styles.recentDate}>{item.date}</Text> : null}
+        {/* WATCHLIST TAB */}
+        {profileTab === 'watchlist' ? (
+          <View style={styles.tabContent}>
+            {watchlist.length === 0 ? (
+              <Text style={styles.emptyText}>Your watchlist is empty.</Text>
+            ) : (
+              watchlist.map((item) => (
+                <View key={item.id} style={styles.feedRow}>
+                  {item.poster ? (
+                    <Image source={{ uri: item.poster }} style={styles.feedThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.feedThumb, styles.feedThumbFallback]} />
+                  )}
+                  <View style={styles.feedInfo}>
+                    <Text style={styles.feedTitle} numberOfLines={1}>{item.title}</Text>
+                    {item.sub ? <Text style={styles.feedSub} numberOfLines={1}>{item.sub}</Text> : null}
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        ) : null}
+
+        {/* COLLECTION TAB */}
+        {profileTab === 'collection' ? (
+          <View style={styles.tabContent}>
+            {onCollectionPress ? (
+              <Pressable style={styles.collectionBtn} onPress={onCollectionPress}>
+                <Text style={styles.collectionBtnText}>📦 View My Collection</Text>
+              </Pressable>
+            ) : (
+              <Text style={styles.emptyText}>No collection yet.</Text>
+            )}
+          </View>
+        ) : null}
+
+        {/* STATS TAB */}
+        {profileTab === 'stats' ? (
+          <View style={styles.tabContent}>
+            {/* Logged / Followers / Following */}
+            <View style={styles.statsBox}>
+              <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
+                <Text style={[styles.statNum, onLoggedPress && styles.statNumAccent]}>{logged.length}</Text>
+                <Text style={styles.statLbl}>Logged</Text>
+              </Pressable>
+              <View style={styles.statDiv} />
+              <Pressable style={styles.stat} onPress={onFollowersPress} disabled={!onFollowersPress} hitSlop={4}>
+                <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
+                <Text style={styles.statLbl}>Followers</Text>
+              </Pressable>
+              <View style={styles.statDiv} />
+              <Pressable style={styles.stat} onPress={onFollowingPress} disabled={!onFollowingPress} hitSlop={4}>
+                <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
+                <Text style={styles.statLbl}>Following</Text>
+              </Pressable>
+            </View>
+
+            {/* Streak */}
+            <View style={styles.streakCard}>
+              <View style={styles.streakLeft}>
+                <Text style={styles.streakFire}>🔥</Text>
+                <Text style={styles.streakDays}>{streakDays} {streakDays === 1 ? 'DAY' : 'DAYS'} STREAK</Text>
+                <Text style={styles.streakMsg}>
+                  {streakDays >= 3 ? "Keep it alive. You're on fire." : 'Start your streak today!'}
+                </Text>
+                <View style={styles.weekRow}>
+                  {weekDays.map((d, i) => (
+                    <View key={i} style={styles.weekDay}>
+                      <View style={[styles.weekDot, d.done && styles.weekDotDone]}>
+                        {d.done ? <Text style={styles.weekCheck}>✓</Text> : null}
+                      </View>
+                      <Text style={styles.weekLabel}>{d.label}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
-            ))
-          ) : (
-            <Text style={styles.recentEmpty}>Nothing logged here yet.</Text>
-          )}
-        </View>
+              <View style={styles.streakRight}>
+                <Text style={styles.longestLabel}>Longest Streak</Text>
+                <Text style={styles.longestDays}>{streakDays}</Text>
+                <Text style={styles.longestUnit}>days</Text>
+              </View>
+            </View>
 
-        <View style={styles.splitDiv} />
-
-        <View style={[styles.splitCol, styles.splitColRight]}>
-          <Text style={styles.secLbl}>Top Categories</Text>
-          <View style={styles.bars}>
-            {CATEGORY_TABS.map((tab) => {
-              const pct = Math.round((counts[tab.type] / max) * 100);
-              return (
-                <View key={tab.type} style={styles.barRow}>
-                  <Text style={styles.barLbl} numberOfLines={1}>
-                    {tab.label === 'TV & Film' ? 'TV' : tab.label}
-                  </Text>
-                  <View style={styles.barTrack}>
-                    <View style={[styles.barFill, { width: `${pct}%`, backgroundColor: tab.barColor }]} />
+            {/* Top Categories */}
+            <View style={styles.statsCard}>
+              <Text style={styles.statsCardTitle}>TOP CATEGORIES</Text>
+              {STAT_CATEGORIES.map((cat) => (
+                <View key={cat.label} style={styles.catRow}>
+                  <Text style={styles.catIcon}>{cat.icon}</Text>
+                  <Text style={styles.catLabel}>{cat.label}</Text>
+                  <View style={styles.catBarBg}>
+                    <View style={[styles.catBarFill, { backgroundColor: cat.color, width: `${Math.round((counts[cat.type] / maxCount) * 100)}%` }]} />
                   </View>
-                  <Text style={styles.barCount}>{counts[tab.type]}</Text>
+                  <Text style={styles.catCount}>{counts[cat.type]}</Text>
                 </View>
-              );
-            })}
+              ))}
+            </View>
           </View>
-        </View>
-        </View>
+        ) : null}
+
       </View>
     </View>
   );
@@ -466,30 +574,90 @@ function createStyles(Brand: BrandPalette) {
       textAlign: 'center',
     },
 
-    splitRow: { flexDirection: 'row', width: '100%', gap: 16 },
-    splitCol: { flex: 1, minWidth: 0 },
-    splitColRight: { flex: 1, minWidth: 0 },
-    splitDiv: { width: 1, backgroundColor: Brand.border, alignSelf: 'stretch' },
-    secLbl: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 12.5,
-      color: Brand.ink,
-      marginBottom: 12,
+    // Tab content
+    tabContent: { width: '100%' },
+    emptyText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, textAlign: 'center', paddingVertical: 24 },
+
+    // Feed tab
+    chipScroll: { marginBottom: 14 },
+    chipRow: { flexDirection: 'row', gap: 8, paddingHorizontal: 0 },
+    chip: {
+      paddingVertical: 5,
+      paddingHorizontal: 12,
+      borderRadius: 20,
+      backgroundColor: Brand.tlight,
+      borderWidth: 1,
+      borderColor: Brand.border,
     },
+    chipText: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.muted },
+    chipTextActive: { color: '#fff' },
+    feedRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', marginBottom: 14 },
+    feedThumb: { width: 44, height: 62, borderRadius: 8 },
+    feedThumbFallback: { backgroundColor: Brand.tlight },
+    feedInfo: { flex: 1, minWidth: 0, paddingTop: 2 },
+    feedTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: Brand.ink },
+    feedSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2 },
+    feedMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 6 },
+    statusPill: { backgroundColor: Brand.tlight, borderRadius: 10, paddingVertical: 2, paddingHorizontal: 7 },
+    statusPillText: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.muted, letterSpacing: 0.5 },
+    feedDate: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted },
 
-    recentRow: { flexDirection: 'row', alignItems: 'center', gap: 9, marginBottom: 12 },
-    recentThumb: { width: 40, height: 40, borderRadius: 8 },
-    recentThumbFallback: { backgroundColor: Brand.tlight },
-    recentInfo: { flex: 1, minWidth: 0 },
-    recentTitle: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.ink },
-    recentDate: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted, marginTop: 1 },
-    recentEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
+    // Collection tab
+    collectionBtn: {
+      width: '100%',
+      paddingVertical: 14,
+      alignItems: 'center',
+      backgroundColor: Brand.tlight,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      marginTop: 8,
+    },
+    collectionBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
 
-    bars: { gap: 12 },
-    barRow: { gap: 4 },
-    barLbl: { fontFamily: BrandFonts.interMedium, fontSize: 11, color: Brand.muted },
-    barTrack: { height: 6, backgroundColor: Brand.tlight, borderRadius: 3, overflow: 'hidden' },
-    barFill: { height: '100%', borderRadius: 3 },
-    barCount: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted, alignSelf: 'flex-end' },
+    // Streak card
+    streakCard: {
+      width: '100%',
+      backgroundColor: Brand.tlight,
+      borderRadius: 16,
+      padding: 16,
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 16,
+    },
+    streakLeft: { flex: 1 },
+    streakFire: { fontSize: 24, marginBottom: 4 },
+    streakDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.trust },
+    streakMsg: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2, marginBottom: 10 },
+    weekRow: { flexDirection: 'row', gap: 6 },
+    weekDay: { alignItems: 'center', gap: 4 },
+    weekDot: {
+      width: 20, height: 20, borderRadius: 10,
+      backgroundColor: Brand.border,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    weekDotDone: { backgroundColor: Brand.trust },
+    weekCheck: { fontSize: 10, color: '#fff' },
+    weekLabel: { fontFamily: BrandFonts.interMedium, fontSize: 8.5, color: Brand.muted },
+    streakRight: { alignItems: 'center', justifyContent: 'center', minWidth: 60 },
+    longestLabel: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center' },
+    longestDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink, lineHeight: 32 },
+    longestUnit: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted },
+
+    // Stats card (top categories)
+    statsCard: {
+      width: '100%',
+      backgroundColor: Brand.tlight,
+      borderRadius: 16,
+      padding: 16,
+      marginBottom: 16,
+    },
+    statsCardTitle: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
+    catRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    catIcon: { fontSize: 16, width: 22, textAlign: 'center' },
+    catLabel: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.ink, width: 58 },
+    catBarBg: { flex: 1, height: 6, backgroundColor: Brand.border, borderRadius: 3, overflow: 'hidden' },
+    catBarFill: { height: '100%', borderRadius: 3 },
+    catCount: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, width: 24, textAlign: 'right' },
   });
 }

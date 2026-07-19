@@ -21,7 +21,7 @@ export default function ProfileTab() {
   const [shareVisible, setShareVisible] = useState(false);
   const [interests, setInterests] = useState<Chip[]>(DEFAULT_INTERESTS);
   const { data: profile } = useProfile();
-  const { logged } = useLibraryItems();
+  const { data: allLibrary } = useLibraryItems();
   const { data: followersCount } = useFollowersCount(profile?.id);
   const { data: followingCount } = useFollowingCount(profile?.id);
   const updateProfile = useUpdateProfile();
@@ -39,7 +39,7 @@ export default function ProfileTab() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <ProfileCard
           profile={profile}
-          library={logged}
+          library={allLibrary ?? []}
           followersCount={followersCount ?? 0}
           followingCount={followingCount ?? 0}
           onLoggedPress={() =>
