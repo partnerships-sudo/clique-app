@@ -805,7 +805,7 @@ function createStyles(Brand: BrandPalette) {
       gap: 0,
       marginBottom: 16,
     },
-    streakLeft: { flex: 1 },
+    streakLeft: { flex: 1, minWidth: 0 },
     streakFireCircle: {
       width: 44, height: 44, borderRadius: 22,
       backgroundColor: '#FFF0E8',
@@ -815,10 +815,10 @@ function createStyles(Brand: BrandPalette) {
     streakFireEmoji: { fontSize: 22 },
     streakDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink, marginBottom: 3 },
     streakMsg: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, marginBottom: 14 },
-    weekRow: { flexDirection: 'row', gap: 8 },
-    weekDay: { alignItems: 'center', gap: 5 },
+    weekRow: { flexDirection: 'row', gap: 5 },
+    weekDay: { alignItems: 'center', gap: 4 },
     weekDot: {
-      width: 26, height: 26, borderRadius: 13,
+      width: 22, height: 22, borderRadius: 11,
       borderWidth: 1.5,
       borderColor: Brand.border,
       backgroundColor: 'transparent',
