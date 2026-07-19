@@ -33,11 +33,11 @@ const CAT_FILTERS: { type: EntryType | 'all'; label: string; color: string }[] =
 ];
 
 const STAT_CATEGORIES = [
-  { type: 'watch' as EntryType, label: 'TV', icon: '📺', color: '#FF6B6B' },
-  { type: 'play' as EntryType, label: 'Games', icon: '🎮', color: '#5FD9FF' },
-  { type: 'podcast' as EntryType, label: 'Podcasts', icon: '🎙️', color: '#C084FC' },
-  { type: 'listen' as EntryType, label: 'Music', icon: '🎵', color: '#9B95AC' },
-  { type: 'read' as EntryType, label: 'Books', icon: '📚', color: '#5FA8FF' },
+  { type: 'watch' as EntryType, label: 'TV', sf: 'tv.fill', color: '#FF6B6B', bg: '#FF6B6B18' },
+  { type: 'play' as EntryType, label: 'Games', sf: 'gamecontroller.fill', color: '#5BC8F5', bg: '#5BC8F518' },
+  { type: 'podcast' as EntryType, label: 'Podcasts', sf: 'mic.fill', color: '#C084FC', bg: '#C084FC18' },
+  { type: 'listen' as EntryType, label: 'Music', sf: 'music.note', color: '#9B95AC', bg: '#9B95AC18' },
+  { type: 'read' as EntryType, label: 'Books', sf: 'book.fill', color: '#5FA8FF', bg: '#5FA8FF18' },
 ];
 
 export interface ProfileCardFriendAction {
@@ -494,28 +494,41 @@ export function ProfileCard({
 
             {/* Top Genres + Top Categories side by side */}
             <View style={styles.goalRow}>
+              {/* TOP GENRES */}
               <View style={[styles.goalCard, styles.statsCard]}>
-                <Text style={styles.statsCardTitle}>TOP GENRES</Text>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.statsCardTitle}>TOP GENRES</Text>
+                </View>
                 {topGenres.length === 0 ? (
                   <Text style={styles.goalSub}>No data yet.</Text>
                 ) : topGenres.map((g) => (
                   <View key={g.name} style={styles.genreRow}>
-                    <Text style={[styles.genreRank, { color: g.color }]}>#{g.rank}</Text>
+                    <View style={styles.genreRankWrap}>
+                      <Text style={[styles.genreRank, { color: g.color }]}>#{g.rank}</Text>
+                    </View>
                     <View style={styles.genreInfo}>
-                      <Text style={styles.genreName} numberOfLines={1}>{g.name}</Text>
-                      <View style={[styles.genreBar, { backgroundColor: g.color + '33' }]}>
+                      <View style={styles.genreNameRow}>
+                        <Text style={styles.genreName} numberOfLines={1}>{g.name}</Text>
+                        <Text style={[styles.genreCount, { color: g.color }]}>{g.count}</Text>
+                      </View>
+                      <View style={styles.genreBarTrack}>
                         <View style={[styles.genreBarFill, { backgroundColor: g.color, width: `${Math.round((g.count / (topGenres[0]?.count || 1)) * 100)}%` }]} />
                       </View>
                     </View>
-                    <Text style={styles.genreCount}>{g.count}</Text>
                   </View>
                 ))}
               </View>
+
+              {/* TOP CATEGORIES */}
               <View style={[styles.goalCard, styles.statsCard]}>
-                <Text style={styles.statsCardTitle}>TOP CATEGORIES</Text>
+                <View style={styles.cardHeaderRow}>
+                  <Text style={styles.statsCardTitle}>TOP CATEGORIES</Text>
+                </View>
                 {STAT_CATEGORIES.map((cat) => (
                   <View key={cat.label} style={styles.catRow}>
-                    <Text style={styles.catIcon}>{cat.icon}</Text>
+                    <View style={[styles.catIconBox, { backgroundColor: cat.bg }]}>
+                      <SymbolView name={cat.sf as any} size={18} tintColor={cat.color} type="monochrome" />
+                    </View>
                     <Text style={styles.catLabel}>{cat.label}</Text>
                     <View style={styles.catBarBg}>
                       <View style={[styles.catBarFill, { backgroundColor: cat.color, width: `${Math.round((counts[cat.type] / maxCount) * 100)}%` }]} />
@@ -843,12 +856,12 @@ function createStyles(Brand: BrandPalette) {
       marginBottom: 16,
     },
     statsCardTitle: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
-    catRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
-    catIcon: { fontSize: 16, width: 22, textAlign: 'center' },
-    catLabel: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.ink, width: 58 },
-    catBarBg: { flex: 1, height: 6, backgroundColor: Brand.border, borderRadius: 3, overflow: 'hidden' },
-    catBarFill: { height: '100%', borderRadius: 3 },
-    catCount: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, width: 24, textAlign: 'right' },
+    catRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+    catIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
+    catLabel: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.ink, flex: 1 },
+    catBarBg: { width: 52, height: 4, backgroundColor: Brand.border, borderRadius: 2, overflow: 'hidden' },
+    catBarFill: { height: '100%', borderRadius: 2 },
+    catCount: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, width: 20, textAlign: 'right' },
 
     // Goal row (side-by-side cards)
     goalRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
@@ -892,13 +905,15 @@ function createStyles(Brand: BrandPalette) {
     top4Handle: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: Brand.muted, textAlign: 'center' },
 
     // Top genres
-    genreRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-    genreRank: { fontFamily: BrandFonts.syneExtraBold, fontSize: 11, width: 18 },
+    genreRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 14 },
+    genreRankWrap: { width: 26, paddingTop: 1 },
+    genreRank: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14 },
     genreInfo: { flex: 1, minWidth: 0 },
-    genreName: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.ink, marginBottom: 3 },
-    genreBar: { height: 5, borderRadius: 3, overflow: 'hidden' },
+    genreNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 },
+    genreName: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink, flex: 1 },
+    genreBarTrack: { height: 5, borderRadius: 3, backgroundColor: Brand.border, overflow: 'hidden' },
     genreBarFill: { height: '100%', borderRadius: 3 },
-    genreCount: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, width: 18, textAlign: 'right' },
+    genreCount: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
 
     // Recently logged (stats tab)
     recentChip: {
