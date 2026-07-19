@@ -1,5 +1,4 @@
 import * as ImagePicker from 'expo-image-picker';
-import { LinearGradient } from 'expo-linear-gradient';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -200,27 +199,6 @@ export function ProfileCard({
 
   return (
     <View style={styles.card}>
-      <Pressable
-        onPress={handleChangeBanner}
-        style={styles.bannerWrap}
-        disabled={uploadBanner.isPending || !isOwnProfile}>
-        {profile?.banner_url ? (
-          <Image source={{ uri: profile.banner_url }} style={styles.bannerImg} />
-        ) : (
-          <View style={styles.bannerPlaceholder} />
-        )}
-        <LinearGradient colors={['transparent', Brand.card]} style={styles.bannerFade} />
-        {uploadBanner.isPending ? (
-          <View style={styles.bannerLoading}>
-            <ActivityIndicator color="#fff" />
-          </View>
-        ) : isOwnProfile ? (
-          <View style={styles.bannerEditBadge}>
-            <SymbolView name="camera.fill" size={13} tintColor="#fff" type="monochrome" />
-          </View>
-        ) : null}
-      </Pressable>
-
       <View style={styles.contentPad}>
         {/* Avatar left + name/buttons right */}
         <View style={styles.headerRow}>
@@ -612,7 +590,7 @@ function createStyles(Brand: BrandPalette) {
       paddingHorizontal: 18,
     },
     // New header: avatar left, name+info right
-    headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginTop: -42, marginBottom: 16 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
     avWrap: { position: 'relative' },
     avRing: {
       width: 90,
@@ -650,7 +628,7 @@ function createStyles(Brand: BrandPalette) {
       borderWidth: 2,
       borderColor: Brand.card,
     },
-    headerInfo: { flex: 1, minWidth: 0, paddingTop: 46 },
+    headerInfo: { flex: 1, minWidth: 0 },
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
     name: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink, flexShrink: 1 },
     iconBtn: {
