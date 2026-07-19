@@ -161,7 +161,7 @@ export default function FriendsScreen() {
         renderItem={({ item, index }: { item: Profile; index: number }) => {
           const friendPosts = allPosts.filter((p) => p.user_id === item.id);
           const compat = computeCompatibility(myPosts, friendPosts);
-          const activePost = friendPosts.find((p) => p.rating == null) ?? friendPosts[0] ?? null;
+          const activePost = [...friendPosts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null;
           return (
             <FriendCard
               profile={item}
@@ -196,19 +196,6 @@ function createStyles(Brand: BrandPalette) {
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   inviteBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 9, paddingHorizontal: 18 },
   inviteBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: '#fff' },
-  globalSearch: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    backgroundColor: Brand.card, borderRadius: 50,
-    borderWidth: 1, borderColor: Brand.border,
-    paddingLeft: 14, paddingRight: 6, paddingVertical: 4,
-    marginBottom: 16,
-  },
-  globalSearchText: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, paddingVertical: 8 },
-  filterIconWrap: {
-    width: 34, height: 34, borderRadius: 17,
-    backgroundColor: Brand.tlight,
-    alignItems: 'center', justifyContent: 'center',
-  },
   tabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Brand.border, marginBottom: 14 },
   tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 20 },
   tabBtnActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },

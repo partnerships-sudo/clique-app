@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
@@ -126,7 +126,7 @@ export function ProfileCard({
   const { items: collectionItems, isLoading: isCollectionLoading } = useCollectionItems();
   const removeFromCollection = useRemoveFromCollection();
   const hasAutoSelectedCollView = useRef(false);
-  useMemo(() => {
+  useEffect(() => {
     if (isCollectionLoading || hasAutoSelectedCollView.current) return;
     hasAutoSelectedCollView.current = true;
     const order: CollectionView[] = ['watch', 'read', 'tv', 'listen', 'play', 'podcast'];
