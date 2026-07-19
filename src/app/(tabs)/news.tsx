@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FlatList,
   Image,
@@ -65,8 +65,7 @@ export default function NewsScreen() {
 
   const articles = data ?? [];
   const trending = articles.slice(0, 3);
-  const topStory = articles[3] ?? null;
-  const gridArticles = articles.slice(4);
+  const topStories = articles.slice(3);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -191,52 +190,66 @@ export default function NewsScreen() {
             </View>
           ) : null}
 
-          {/* Your Top Stories */}
-          {topStory || gridArticles.length > 0 ? (
+          {/* Your Top Stories — alternating full-width and 2-col pairs */}
+          {topStories.length > 0 ? (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Your Top Stories</Text>
-
-              {/* Feature card */}
-              {topStory ? (
-                <Pressable style={styles.featureCard} onPress={() => openArticle(topStory)}>
-                  {topStory.thumbnail ? (
-                    <Image source={{ uri: topStory.thumbnail }} style={styles.featureImg} />
-                  ) : (
-                    <View style={[styles.featureImg, styles.featureImgFallback]}>
-                      <Text style={styles.featureImgFallbackEmoji}>📰</Text>
-                    </View>
-                  )}
-                  <View style={styles.featureOverlay}>
-                    <View style={styles.featureMeta}>
-                      <Text style={styles.featureSection}>{topStory.section.toUpperCase()}</Text>
-                      <Text style={styles.featureTime}> · {timeAgo(topStory.publishedAt)}</Text>
-                    </View>
-                    <Text style={styles.featureTitle} numberOfLines={3}>{topStory.title}</Text>
-                  </View>
-                </Pressable>
-              ) : null}
-
-              {/* 2-column grid */}
-              <View style={styles.grid}>
-                {gridArticles.map((article) => (
-                  <Pressable key={article.id} style={styles.gridCard} onPress={() => openArticle(article)}>
-                    {article.thumbnail ? (
-                      <Image source={{ uri: article.thumbnail }} style={styles.gridImg} />
-                    ) : (
-                      <View style={[styles.gridImg, styles.gridImgFallback]}>
-                        <Text style={styles.gridImgFallbackEmoji}>📰</Text>
+              {(() => {
+                const rows: React.ReactElement[] = [];
+                let i = 0;
+                while (i < topStories.length) {
+                  if (i % 3 === 0) {
+                    // Full-width card: entire image darkened, text overlaid at bottom
+                    const a = topStories[i];
+                    rows.push(
+                      <Pressable key={a.id} style={styles.featureCard} onPress={() => openArticle(a)}>
+                        {a.thumbnail ? (
+                          <Image source={{ uri: a.thumbnail }} style={styles.featureImg} resizeMode="cover" />
+                        ) : (
+                          <View style={[styles.featureImg, styles.featureImgFallback]} />
+                        )}
+                        <View style={styles.featureDimOverlay} />
+                        <View style={styles.featureTextBlock}>
+                          <View style={styles.featureMeta}>
+                            <Text style={styles.featureSection}>{a.section.toUpperCase()}</Text>
+                            <Text style={styles.featureTime}> · {timeAgo(a.publishedAt)}</Text>
+                          </View>
+                          <Text style={styles.featureTitle} numberOfLines={3}>{a.title}</Text>
+                        </View>
+                      </Pressable>
+                    );
+                    i += 1;
+                  } else {
+                    // 2-column pair: image on top, text below (no overlay on text)
+                    const pair = topStories.slice(i, i + 2);
+                    rows.push(
+                      <View key={`pair-${i}`} style={styles.grid}>
+                        {pair.map((a) => (
+                          <Pressable key={a.id} style={styles.gridCard} onPress={() => openArticle(a)}>
+                            <View style={styles.gridImgWrap}>
+                              {a.thumbnail ? (
+                                <Image source={{ uri: a.thumbnail }} style={styles.gridImg} resizeMode="cover" />
+                              ) : (
+                                <View style={[styles.gridImg, styles.gridImgFallback]} />
+                              )}
+                              <View style={styles.gridBottomGradient} />
+                            </View>
+                            <View style={styles.gridBody}>
+                              <View style={styles.gridMeta}>
+                                <Text style={styles.gridSection}>{a.section.toUpperCase()}</Text>
+                                <Text style={styles.gridTime}> · {timeAgo(a.publishedAt)}</Text>
+                              </View>
+                              <Text style={styles.gridTitle} numberOfLines={3}>{a.title}</Text>
+                            </View>
+                          </Pressable>
+                        ))}
                       </View>
-                    )}
-                    <View style={styles.gridBody}>
-                      <View style={styles.gridMeta}>
-                        <Text style={styles.gridSection}>{article.section.toUpperCase()}</Text>
-                        <Text style={styles.gridTime}> · {timeAgo(article.publishedAt)}</Text>
-                      </View>
-                      <Text style={styles.gridTitle} numberOfLines={3}>{article.title}</Text>
-                    </View>
-                  </Pressable>
-                ))}
-              </View>
+                    );
+                    i += 2;
+                  }
+                }
+                return rows;
+              })()}
             </View>
           ) : null}
 
@@ -332,9 +345,9 @@ function createStyles(Brand: BrandPalette) {
     // Trending row
     trendingRow: { paddingHorizontal: Spacing.three, gap: 10, paddingBottom: 4 },
     trendingCard: {
-      width: 158,
-      height: 220,
-      borderRadius: 16,
+      width: 126,
+      height: 176,
+      borderRadius: 14,
       overflow: 'hidden',
       backgroundColor: Brand.card,
     },
@@ -376,75 +389,52 @@ function createStyles(Brand: BrandPalette) {
       lineHeight: 16,
     },
 
-    // Feature card
+    // Feature card: whole image dimmed, text overlaid at bottom
     featureCard: {
       marginHorizontal: Spacing.three,
-      height: 260,
+      height: 240,
       borderRadius: 18,
       overflow: 'hidden',
       backgroundColor: Brand.card,
       marginBottom: 12,
     },
-    featureImg: { width: '100%', height: '100%', position: 'absolute' },
-    featureImgFallback: { backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
-    featureImgFallbackEmoji: { fontSize: 48 },
-    featureOverlay: {
-      position: 'absolute',
-      bottom: 0,
-      left: 0,
-      right: 0,
-      padding: 18,
-      paddingTop: 60,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+    featureImg: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
+    featureImgFallback: { backgroundColor: Brand.tlight },
+    featureDimOverlay: {
+      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.45)',
+    },
+    featureTextBlock: {
+      position: 'absolute', bottom: 0, left: 0, right: 0,
+      padding: 16,
     },
     featureMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 6 },
-    featureSection: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 10,
-      color: Brand.trust,
-      letterSpacing: 0.6,
-    },
-    featureTime: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: 'rgba(255,255,255,0.7)' },
-    featureTitle: {
-      fontFamily: BrandFonts.syneExtraBold,
-      fontSize: 20,
-      color: '#fff',
-      lineHeight: 26,
-    },
+    featureSection: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.trust, letterSpacing: 0.6 },
+    featureTime: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: 'rgba(255,255,255,0.65)' },
+    featureTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 19, color: '#fff', lineHeight: 25 },
 
-    // Grid
-    grid: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      gap: 12,
-      paddingHorizontal: Spacing.three,
-    },
+    // Grid: image on top with bottom gradient, text below
+    grid: { flexDirection: 'row', gap: 12, paddingHorizontal: Spacing.three, marginBottom: 12 },
     gridCard: {
-      width: '47%',
+      flex: 1,
       borderRadius: 16,
       overflow: 'hidden',
       backgroundColor: Brand.card,
       borderWidth: 1,
       borderColor: Brand.border,
     },
+    gridImgWrap: { position: 'relative' },
     gridImg: { width: '100%', aspectRatio: 16 / 9 },
-    gridImgFallback: { backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
-    gridImgFallbackEmoji: { fontSize: 26 },
+    gridImgFallback: { backgroundColor: Brand.tlight },
+    gridBottomGradient: {
+      position: 'absolute', bottom: 0, left: 0, right: 0, height: 30,
+      backgroundColor: 'rgba(0,0,0,0.25)',
+    },
     gridBody: { padding: 10 },
     gridMeta: { flexDirection: 'row', alignItems: 'center', marginBottom: 5 },
-    gridSection: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 9,
-      color: Brand.trust,
-      letterSpacing: 0.5,
-    },
+    gridSection: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.trust, letterSpacing: 0.5 },
     gridTime: { fontFamily: BrandFonts.interRegular, fontSize: 9, color: Brand.muted },
-    gridTitle: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 12.5,
-      color: Brand.ink,
-      lineHeight: 17,
-    },
+    gridTitle: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.ink, lineHeight: 17 },
 
     // Cinema / misc
     movieContent: { paddingTop: Spacing.two, paddingBottom: Spacing.six },
