@@ -222,54 +222,58 @@ export function ProfileCard({
       </Pressable>
 
       <View style={styles.contentPad}>
-        <View style={styles.avWrap}>
-          <View style={styles.avRing}>
-            {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.avImg} />
-            ) : (
-              <View style={styles.avFallback}>
-                <Text style={styles.avFallbackText}>{name[0]?.toUpperCase() ?? '?'}</Text>
-              </View>
-            )}
+        {/* Avatar left + name/buttons right */}
+        <View style={styles.headerRow}>
+          <View style={styles.avWrap}>
+            <View style={styles.avRing}>
+              {profile?.avatar_url ? (
+                <Image source={{ uri: profile.avatar_url }} style={styles.avImg} />
+              ) : (
+                <View style={styles.avFallback}>
+                  <Text style={styles.avFallbackText}>{name[0]?.toUpperCase() ?? '?'}</Text>
+                </View>
+              )}
+            </View>
+            <View style={styles.onlineDot} />
           </View>
-          <View style={styles.onlineDot} />
-        </View>
 
-        <View style={styles.nameRow}>
-          <Text style={styles.name}>{name}</Text>
-          {onShare ? (
-            <Pressable onPress={onShare} hitSlop={10} style={styles.shareIconBtn}>
-              <SymbolView name="square.and.arrow.up" size={15} tintColor={Brand.trust} type="monochrome" />
-            </Pressable>
-          ) : null}
-        </View>
-        {profile?.username ? <Text style={styles.handle}>@{profile.username}</Text> : null}
-        <View style={styles.linkRow}>
-          {onEditPress ? (
-            <Pressable onPress={onEditPress} hitSlop={8}>
-              <Text style={styles.editLinkText}>✏️ Edit Profile</Text>
-            </Pressable>
-          ) : null}
-          {onCollectionPress ? (
-            <Pressable onPress={onCollectionPress} hitSlop={8}>
-              <Text style={styles.editLinkText}>{collectionLabel}</Text>
-            </Pressable>
-          ) : null}
-          {friendAction ? (
-            <Pressable
-              onPress={friendAction.onPress}
-              disabled={!friendAction.onPress}
-              hitSlop={8}
-              style={[styles.friendActionBtn, friendAction.variant === 'muted' && styles.friendActionBtnMuted]}>
-              <Text
-                style={[
-                  styles.friendActionBtnText,
-                  friendAction.variant === 'muted' && styles.friendActionBtnTextMuted,
-                ]}>
-                {friendAction.label}
-              </Text>
-            </Pressable>
-          ) : null}
+          <View style={styles.headerInfo}>
+            <View style={styles.nameRow}>
+              <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>{name}</Text>
+              {onEditPress ? (
+                <Pressable onPress={onEditPress} hitSlop={10} style={styles.iconBtn}>
+                  <SymbolView name="pencil" size={14} tintColor={Brand.trust} type="monochrome" />
+                </Pressable>
+              ) : null}
+              {onShare ? (
+                <Pressable onPress={onShare} hitSlop={10} style={styles.iconBtn}>
+                  <SymbolView name="square.and.arrow.up" size={14} tintColor={Brand.trust} type="monochrome" />
+                </Pressable>
+              ) : null}
+              {friendAction ? (
+                <Pressable
+                  onPress={friendAction.onPress}
+                  disabled={!friendAction.onPress}
+                  hitSlop={8}
+                  style={[styles.friendActionBtn, friendAction.variant === 'muted' && styles.friendActionBtnMuted]}>
+                  <Text style={[styles.friendActionBtnText, friendAction.variant === 'muted' && styles.friendActionBtnTextMuted]}>
+                    {friendAction.label}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </View>
+            {profile?.username ? <Text style={styles.handle}>@{profile.username}</Text> : null}
+
+            {/* Currently active status pill */}
+            {active[0] ? (
+              <View style={styles.activityPill}>
+                <View style={styles.activityDot} />
+                <Text style={styles.activityText} numberOfLines={1}>
+                  {active[0].status.charAt(0).toUpperCase() + active[0].status.slice(1)}: {active[0].title}
+                </Text>
+              </View>
+            ) : null}
+          </View>
         </View>
 
         {onOpenAchievements ? (
@@ -297,11 +301,10 @@ export function ProfileCard({
         {/* Profile tab bar */}
         <View style={styles.tabRow}>
           {PROFILE_TABS.map((tab) => {
-            const active = tab.key === profileTab;
+            const isActive = tab.key === profileTab;
             return (
-              <Pressable key={tab.key} style={styles.tab} onPress={() => setProfileTab(tab.key)}>
-                <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>{tab.label}</Text>
-                {active ? <View style={styles.tabUnderline} /> : null}
+              <Pressable key={tab.key} style={[styles.tab, isActive && styles.tabActive]} onPress={() => setProfileTab(tab.key)}>
+                <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
               </Pressable>
             );
           })}
@@ -607,28 +610,30 @@ function createStyles(Brand: BrandPalette) {
       paddingTop: 0,
       paddingBottom: 22,
       paddingHorizontal: 18,
-      alignItems: 'center',
     },
-    avWrap: { marginTop: -78, marginBottom: 6 },
+    // New header: avatar left, name+info right
+    headerRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginTop: -42, marginBottom: 16 },
+    avWrap: { position: 'relative' },
     avRing: {
-      width: 86,
-      height: 86,
-      borderRadius: 43,
-      borderWidth: 2,
+      width: 90,
+      height: 90,
+      borderRadius: 45,
+      borderWidth: 2.5,
       borderColor: Brand.trust,
       alignItems: 'center',
       justifyContent: 'center',
       shadowColor: Brand.trust,
       shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.7,
-      shadowRadius: 11,
+      shadowOpacity: 0.6,
+      shadowRadius: 10,
       elevation: 10,
+      backgroundColor: Brand.card,
     },
-    avImg: { width: 79, height: 79, borderRadius: 40 },
+    avImg: { width: 82, height: 82, borderRadius: 41 },
     avFallback: {
-      width: 79,
-      height: 79,
-      borderRadius: 40,
+      width: 82,
+      height: 82,
+      borderRadius: 41,
       backgroundColor: Brand.tlight,
       alignItems: 'center',
       justifyContent: 'center',
@@ -636,8 +641,8 @@ function createStyles(Brand: BrandPalette) {
     avFallbackText: { fontFamily: BrandFonts.syneExtraBold, fontSize: 29, color: Brand.ink },
     onlineDot: {
       position: 'absolute',
-      bottom: 2,
-      right: 2,
+      bottom: 3,
+      right: 3,
       width: 14,
       height: 14,
       borderRadius: 7,
@@ -645,18 +650,30 @@ function createStyles(Brand: BrandPalette) {
       borderWidth: 2,
       borderColor: Brand.card,
     },
-    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    name: { fontFamily: BrandFonts.syneExtraBold, fontSize: 26, color: Brand.ink },
-    shareIconBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
+    headerInfo: { flex: 1, minWidth: 0, paddingTop: 46 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+    name: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink, flexShrink: 1 },
+    iconBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
       backgroundColor: Brand.tlight,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    handle: { fontFamily: BrandFonts.interMedium, fontSize: 14, color: Brand.muted, marginTop: 2 },
-    linkRow: { flexDirection: 'row', gap: 16, marginTop: 6, marginBottom: 16, alignItems: 'center' },
+    handle: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted, marginBottom: 8 },
+    activityPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      backgroundColor: Brand.tlight,
+      borderRadius: 20,
+      paddingVertical: 6,
+      paddingHorizontal: 12,
+      alignSelf: 'flex-start',
+    },
+    activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ONLINE_COLOR },
+    activityText: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.trust },
     friendActionBtn: {
       backgroundColor: Brand.trust,
       borderRadius: 20,
@@ -666,19 +683,18 @@ function createStyles(Brand: BrandPalette) {
     friendActionBtnMuted: { backgroundColor: Brand.tlight, borderWidth: 1, borderColor: Brand.border },
     friendActionBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: '#fff' },
     friendActionBtnTextMuted: { color: Brand.muted },
-    editLinkText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
 
-    tabRow: { flexDirection: 'row', justifyContent: 'space-between', width: '100%', marginBottom: 22 },
-    tab: { alignItems: 'center', gap: 6, flex: 1 },
-    tabIconGlow: {
-      shadowColor: Brand.trust,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.9,
-      shadowRadius: 10,
+    tabRow: {
+      flexDirection: 'row',
+      width: '100%',
+      marginBottom: 22,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
     },
-    tabLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11, color: Brand.muted },
+    tab: { flex: 1, alignItems: 'center', paddingBottom: 10 },
+    tabActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
+    tabLabel: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted },
     tabLabelActive: { color: Brand.ink, fontFamily: BrandFonts.syneBold },
-    tabUnderline: { width: 24, height: 2.5, borderRadius: 2, backgroundColor: Brand.trust, marginTop: 2 },
 
     statsBox: {
       flexDirection: 'row',
