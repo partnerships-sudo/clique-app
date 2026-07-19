@@ -138,6 +138,7 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "TheCliqueApp" */;
 			buildPhases = (
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* [Git] Auto-commit source snapshot */,
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
 				D28A062107D19FE8C5C0E91F /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
@@ -330,6 +331,22 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-TheCliqueApp/expo-configure-project.sh\"\n";
+		};
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* [Git] Auto-commit source snapshot */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "[Git] Auto-commit source snapshot";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "cd \"$SRCROOT/..\"\ngit add -A\ngit diff --cached --quiet || git commit -m \"auto: pre-build snapshot $(date '+%Y-%m-%d %H:%M')\"\n";
+			showEnvVarsInLog = 0;
 		};
 /* End PBXShellScriptBuildPhase section */
 
