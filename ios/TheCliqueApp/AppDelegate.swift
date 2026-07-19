@@ -1,4 +1,5 @@
 import Expo
+import ExpoSplashScreen
 import React
 import ReactAppDependencyProvider
 
@@ -29,7 +30,13 @@ public class AppDelegate: ExpoAppDelegate {
       launchOptions: launchOptions)
 #endif
 
-    return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    let result = super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    // Safety valve: if JS never calls SplashScreen.hide() (TurboModule unavailable),
+    // force-hide the native splash after 5 s so the user sees the app.
+    DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
+      SplashScreenManager.shared.hide()
+    }
+    return result
   }
 
   // Linking API

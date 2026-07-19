@@ -42,11 +42,14 @@ export function SessionProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    const timeout = setTimeout(() => setIsLoading(false), 3000);
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setIsLoading(false);
+      clearTimeout(timeout);
     }).catch(() => {
       setIsLoading(false);
+      clearTimeout(timeout);
     });
 
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
