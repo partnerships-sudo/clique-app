@@ -15,13 +15,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MovieCircle } from '@/components/more/movie-circle';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
+
 import type { FeedFilterValue } from '@/features/feed/api';
 import { timeAgo } from '@/features/feed/time-ago';
-import { useNowPlayingMovies, useUpcomingMovies, type NowAndComingMovie } from '@/features/movies/api';
+import { useBoxOfficeTop10, useNowPlayingMovies, useUpcomingMovies, type NowAndComingMovie } from '@/features/movies/api';
 import { useNewsArticles, type NewsArticle } from '@/features/news/api';
 import { useBrand } from '@/hooks/use-brand';
 
 type NewsMode = 'headlines' | 'cinema';
+
+function formatRevenue(n: number): string {
+  if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
+  if (n >= 1_000_000) return `$${Math.round(n / 1_000_000)}M`;
+  return `$${Math.round(n / 1_000)}K`;
+}
 
 const CATEGORY_FILTERS: { value: FeedFilterValue; label: string; sf: string }[] = [
   { value: 'all', label: 'All', sf: 'square.grid.2x2.fill' },
@@ -40,6 +47,7 @@ export default function NewsScreen() {
   const { data, isLoading, isFetching, isError, refetch } = useNewsArticles(filter);
   const { data: nowPlaying, isLoading: loadingNow } = useNowPlayingMovies();
   const { data: upcoming, isLoading: loadingUpcoming } = useUpcomingMovies();
+  const { data: boxOffice } = useBoxOfficeTop10();
 
   function openArticle(article: NewsArticle) {
     router.push({
@@ -72,7 +80,11 @@ export default function NewsScreen() {
       {/* Sticky header */}
       <View style={styles.header}>
         <Text style={styles.screenTitle}>News</Text>
-        <Text style={styles.screenSub}>What&apos;s happening in film,{'\n'}TV, books, games and music</Text>
+        <Text style={styles.screenSub}>
+          {mode === 'cinema'
+            ? 'In cinemas, coming soon\nand topping the box office'
+            : "What’s happening in film,\nTV, books, games and music"}
+        </Text>
 
         {/* Headlines / Cinema tabs */}
         <View style={styles.modeRow}>
@@ -145,6 +157,46 @@ export default function NewsScreen() {
               !loadingUpcoming ? <Text style={styles.empty}>Nothing found right now.</Text> : null
             }
           />
+
+          {/* Box Office Top 10 */}
+          {boxOffice && boxOffice.length > 0 ? (
+            <View style={styles.boxOfficeSection}>
+              <Text style={styles.sectionTitle}>Box Office Top 10</Text>
+              {(() => {
+                const maxRevenue = boxOffice[0] ? Math.max(...boxOffice.map((e) => e.revenue)) : 1;
+                return boxOffice.map((entry, i) => (
+                  <Pressable
+                    key={entry.id}
+                    style={styles.boRow}
+                    onPress={() => openMovie({ id: entry.id, title: entry.title, poster: entry.poster, releaseDate: entry.releaseDate })}>
+                    <Text style={styles.boRank}>{String(i + 1).padStart(2, '0')}</Text>
+                    {entry.poster ? (
+                      <Image source={{ uri: entry.poster }} style={styles.boPoster} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.boPoster, styles.boPosterFallback]} />
+                    )}
+                    <View style={styles.boBody}>
+                      <View style={styles.boTitleRow}>
+                        <Text style={styles.boTitle} numberOfLines={1}>{entry.title}</Text>
+                        {entry.weeksInTheater === 1 ? (
+                          <View style={styles.boNewBadge}><Text style={styles.boNewText}>NEW</Text></View>
+                        ) : null}
+                        {entry.revenue > 0 ? (
+                          <Text style={styles.boRevenue}>{formatRevenue(entry.revenue)}</Text>
+                        ) : null}
+                      </View>
+                      <Text style={styles.boWeeks}>
+                        {entry.weeksInTheater === 1 ? 'New this week' : `Week ${entry.weeksInTheater}`}
+                      </Text>
+                      <View style={styles.boBarTrack}>
+                        <View style={[styles.boBarFill, { width: `${Math.round((entry.revenue / maxRevenue) * 100)}%` as any }]} />
+                      </View>
+                    </View>
+                  </Pressable>
+                ));
+              })()}
+            </View>
+          ) : null}
         </ScrollView>
       ) : (
         /* Headlines mode */
@@ -432,6 +484,70 @@ function createStyles(Brand: BrandPalette) {
     gridSection: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.trust, letterSpacing: 0.5 },
     gridTime: { fontFamily: BrandFonts.interRegular, fontSize: 9, color: Brand.muted },
     gridTitle: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.ink, lineHeight: 17 },
+
+    // Box Office Top 10
+    boxOfficeSection: { paddingHorizontal: Spacing.three, paddingTop: 4, paddingBottom: Spacing.two },
+    boRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 20,
+    },
+    boRank: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 18,
+      color: Brand.border,
+      width: 28,
+      textAlign: 'right',
+    },
+    boPoster: {
+      width: 52,
+      height: 74,
+      borderRadius: 8,
+      backgroundColor: Brand.border,
+    },
+    boPosterFallback: { backgroundColor: Brand.tlight },
+    boBody: { flex: 1, gap: 3 },
+    boTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    boTitle: {
+      flex: 1,
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: Brand.ink,
+    },
+    boNewBadge: {
+      backgroundColor: Brand.trust,
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 2,
+    },
+    boNewText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 9,
+      color: '#fff',
+      letterSpacing: 0.5,
+    },
+    boRevenue: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 14,
+      color: Brand.trust,
+    },
+    boWeeks: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12,
+      color: Brand.muted,
+    },
+    boBarTrack: {
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: Brand.border,
+      marginTop: 4,
+    },
+    boBarFill: {
+      height: 3,
+      borderRadius: 2,
+      backgroundColor: Brand.trust,
+    },
 
     // Cinema / misc
     movieContent: { paddingTop: Spacing.two, paddingBottom: Spacing.six },

@@ -43,6 +43,43 @@ export function useReactions(postIds: string[]) {
   return { ...query, byPost };
 }
 
+export function useSendStoryLike() {
+  const { user } = useSession();
+  return useMutation({
+    mutationFn: async ({
+      postId,
+      postAuthorId,
+      postTitle,
+      postType,
+      postPoster,
+    }: {
+      postId: string;
+      postAuthorId: string;
+      postTitle: string;
+      postType: string;
+      postPoster?: string | null;
+    }) => {
+      const userName = user?.user_metadata?.full_name ?? user?.email ?? 'Someone';
+      // Insert reaction
+      await supabase
+        .from('reactions')
+        .upsert({ post_id: postId, user_id: user!.id, user_name: userName }, { onConflict: 'post_id,user_id' });
+      // Notify post author (skip if reacting to own post)
+      if (postAuthorId !== user!.id) {
+        await supabase.from('notifications').insert({
+          recipient_id: postAuthorId,
+          actor_id: user!.id,
+          kind: 'story_like',
+          post_id: postId,
+          post_title: postTitle,
+          post_type: postType,
+          post_poster: postPoster ?? null,
+        });
+      }
+    },
+  });
+}
+
 export function useToggleReaction() {
   const { user } = useSession();
   const queryClient = useQueryClient();

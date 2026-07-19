@@ -6,7 +6,6 @@ import type { CollectionFormat } from '@/features/collection/api';
 import { fetchIgdbCovers } from '@/features/games/igdb';
 
 const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
-const GOOGLE_BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 const RAWG_KEY = process.env.EXPO_PUBLIC_RAWG_KEY!;
 const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID!;
 const SPOTIFY_CLIENT_SECRET = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET!;
@@ -76,24 +75,71 @@ async function searchTMDB(query: string): Promise<SearchResult[]> {
   }));
 }
 
+const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
+
+async function hardcoverQuery(query: string, variables: Record<string, unknown>): Promise<any> {
+  const res = await fetch('https://api.hardcover.app/v1/graphql', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${HARDCOVER_TOKEN}`,
+    },
+    body: JSON.stringify({ query, variables }),
+  });
+  const json = await res.json();
+  return json.data;
+}
+
 async function searchBooks(query: string): Promise<SearchResult[]> {
-  const res = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(query)}&maxResults=8&key=${GOOGLE_BOOKS_KEY}`,
+  const data = await hardcoverQuery(
+    `query SearchBooks($query: String!) {
+      search(query: $query, query_type: "Book", per_page: 8, page: 1) {
+        results
+      }
+    }`,
+    { query },
   );
-  const data = await res.json();
-  return ((data.items ?? []) as any[]).map((item) => {
-    const info = item.volumeInfo ?? {};
-    const publisher = info.publisher ? ` · ${info.publisher}` : '';
+  const hits: any[] = data?.search?.results?.hits ?? [];
+  return hits.map((hit) => {
+    const doc = hit.document ?? {};
+    const author = doc.author_names?.[0] ?? 'Unknown';
+    const year = doc.release_year ? ` · ${doc.release_year}` : '';
     return {
-      title: info.title ?? 'Untitled',
-      sub: `${info.authors?.[0] ?? 'Unknown'}${info.publishedDate ? ` · ${info.publishedDate.slice(0, 4)}` : ''}${publisher}`,
-      img: info.imageLinks?.thumbnail?.replace('http:', 'https:') ?? null,
-      rating: info.averageRating ? info.averageRating.toFixed(1) : null,
+      title: doc.title ?? 'Untitled',
+      sub: `${author}${year}`,
+      img: doc.image?.url ?? null,
+      rating: doc.rating ? String(doc.rating.toFixed(1)) : null,
       square: false,
-      externalId: item.id as string,
+      externalId: String(doc.id),
       mediaType: 'book',
     };
   });
+}
+
+export async function searchBookByIsbn(isbn: string): Promise<SearchResult | null> {
+  const data = await hardcoverQuery(
+    `query BookByIsbn($isbn: String!) {
+      books(where: { isbns: { isbn_10: { _eq: $isbn } } }, limit: 1) {
+        id title rating
+        contributions { author { name } }
+        default_physical_edition { image { url } release_year }
+      }
+    }`,
+    { isbn },
+  );
+  const book = data?.books?.[0];
+  if (!book) return null;
+  const author = book.contributions?.[0]?.author?.name ?? 'Unknown';
+  const year = book.default_physical_edition?.release_year ?? '';
+  return {
+    title: book.title,
+    sub: `${author}${year ? ` · ${year}` : ''}`,
+    img: book.default_physical_edition?.image?.url ?? null,
+    rating: book.rating ? String(book.rating.toFixed(1)) : null,
+    square: false,
+    externalId: String(book.id),
+    mediaType: 'book',
+  };
 }
 
 async function searchGames(query: string): Promise<SearchResult[]> {
@@ -222,11 +268,67 @@ export function useTitleSearch(type: EntryType | 'tv' | null, query: string) {
   });
 }
 
-/** Exact-match book lookup by the ISBN barcode on the back cover. */
-export async function searchBookByIsbn(isbn: string): Promise<SearchResult | null> {
-  const results = await searchBooks(`isbn:${isbn}`);
-  return results[0] ?? null;
+export interface TvSeason {
+  seasonNumber: number;
+  name: string;
+  episodeCount: number;
+  poster: string | null;
+  airDate: string | null;
 }
+
+export interface TvEpisode {
+  episodeNumber: number;
+  seasonNumber: number;
+  name: string;
+  airDate: string | null;
+  stillPath: string | null;
+  overview: string;
+}
+
+export function useTVSeasons(tmdbId: string | null) {
+  return useQuery({
+    queryKey: ['tv-seasons', tmdbId],
+    queryFn: async () => {
+      const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}`, {
+        headers: { Authorization: `Bearer ${TMDB_KEY}` },
+      });
+      const data = await res.json();
+      return (data.seasons as any[])
+        .filter((s) => s.season_number > 0)
+        .map((s) => ({
+          seasonNumber: s.season_number,
+          name: s.name,
+          episodeCount: s.episode_count,
+          poster: s.poster_path ? `https://image.tmdb.org/t/p/w185${s.poster_path}` : null,
+          airDate: s.air_date ?? null,
+        })) as TvSeason[];
+    },
+    enabled: !!tmdbId,
+  });
+}
+
+export function useTVEpisodes(tmdbId: string | null, seasonNumber: number | null) {
+  return useQuery({
+    queryKey: ['tv-episodes', tmdbId, seasonNumber],
+    queryFn: async () => {
+      const res = await fetch(
+        `https://api.themoviedb.org/3/tv/${tmdbId}/season/${seasonNumber}`,
+        { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+      );
+      const data = await res.json();
+      return (data.episodes as any[]).map((e) => ({
+        episodeNumber: e.episode_number,
+        seasonNumber: e.season_number,
+        name: e.name,
+        airDate: e.air_date ?? null,
+        stillPath: e.still_path ?? null,
+        overview: e.overview ?? '',
+      })) as TvEpisode[];
+    },
+    enabled: !!tmdbId && seasonNumber != null,
+  });
+}
+
 
 /**
  * UPC barcodes (on DVD/Blu-ray/4K/CD/vinyl cases) don't map to TMDB or

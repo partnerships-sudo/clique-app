@@ -1,13 +1,14 @@
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { SymbolView } from 'expo-symbols';
+import { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
-import { InstagramIcon } from '@/components/share/instagram-icon';
 import { SwipeableRow } from '@/components/swipeable-row';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import type { Post } from '@/features/feed/api';
+import { EMOJI_OPTIONS, useEmojiReactions, useToggleEmojiReaction } from '@/features/feed/emoji-reactions';
 import type { Reaction } from '@/features/feed/reactions';
 import { timeAgo } from '@/features/feed/time-ago';
 import { compatColor, compatEmoji } from '@/features/friends/compatibility';
@@ -44,6 +45,13 @@ export function PostCard({
   const ratingIcon = (post.user_rating_icon as RatingIconStyle) ?? 'stars';
   const type = TypeColors[post.type];
   const meReacted = reactions.some((r) => r.user_id === currentUserId);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const { byPost: emojiByPost } = useEmojiReactions([post.id]);
+  const emojiSummary = emojiByPost.get(post.id) ?? { counts: {}, mine: new Set<string>() };
+  const toggleEmoji = useToggleEmojiReaction();
+  const topEmojis = Object.entries(emojiSummary.counts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3);
 
   function confirmDelete() {
     Alert.alert('Delete post?', `Delete "${post.title}" from the feed?`, [
@@ -130,6 +138,43 @@ export function PostCard({
             <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
           ) : null}
 
+          {/* Emoji picker popover */}
+          {showEmojiPicker && (
+            <View style={styles.emojiPickerWrap}>
+              {EMOJI_OPTIONS.map((e) => (
+                <Pressable
+                  key={e}
+                  style={[styles.emojiPickerBtn, emojiSummary.mine.has(e) && styles.emojiPickerBtnActive]}
+                  onPress={() => {
+                    toggleEmoji.mutate({ postId: post.id, emoji: e, reacted: emojiSummary.mine.has(e) });
+                    setShowEmojiPicker(false);
+                  }}>
+                  <Text style={styles.emojiPickerEmoji}>{e}</Text>
+                </Pressable>
+              ))}
+            </View>
+          )}
+
+          {/* Emoji reactions row */}
+          <View style={styles.emojiRow}>
+            {topEmojis.map(([emoji, count]) => (
+              <Pressable
+                key={emoji}
+                style={[styles.emojiPill, emojiSummary.mine.has(emoji) && styles.emojiPillActive]}
+                onPress={() => toggleEmoji.mutate({ postId: post.id, emoji, reacted: emojiSummary.mine.has(emoji) })}
+                hitSlop={4}>
+                <Text style={styles.emojiPillText}>{emoji} {count}</Text>
+              </Pressable>
+            ))}
+            <Pressable
+              style={styles.emojiAddBtn}
+              onPress={() => setShowEmojiPicker((v) => !v)}
+              hitSlop={8}>
+              <Text style={styles.emojiAddText}>+</Text>
+            </Pressable>
+          </View>
+
+          {/* Me too + share + comment row */}
           <View style={[styles.actionsRow, isSquareType && styles.actionsRowCompact]}>
             {!isMine ? (
               <Pressable
@@ -140,70 +185,30 @@ export function PostCard({
                 </Text>
               </Pressable>
             ) : null}
-            {reactions.length > 0 ? (
-              <View style={styles.reactorRow}>
-                {reactions.slice(0, 3).map((r, i) => (
-                  <View key={r.id} style={[styles.reactorBubble, i > 0 && styles.reactorBubbleOverlap]}>
-                    {r.avatar_url ? (
-                      <Image source={{ uri: r.avatar_url }} style={styles.reactorPhoto} />
-                    ) : (
-                      <Avatar name={r.user_name} size={22} />
-                    )}
-                  </View>
-                ))}
-                {reactions.length > 3 ? (
-                  <View style={[styles.reactorBubble, styles.reactorBubbleOverlap, styles.reactorOverflow]}>
-                    <Text style={styles.reactorOverflowText}>+{reactions.length - 3}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-            <Pressable
-              style={styles.shareBtn}
-              onPress={() =>
-                router.push({
-                  pathname: '/recommend-modal',
-                  params: {
-                    title: post.title,
-                    type: post.type,
-                    sub: post.sub ?? undefined,
-                    poster: post.poster ?? undefined,
-                    extRating: post.ext_rating ?? undefined,
-                  },
-                })
-              }
-              hitSlop={8}>
-              <Text style={styles.shareBtnText}>↗</Text>
-            </Pressable>
-            {isMine ? (
+            <View style={styles.shareChatRow}>
               <Pressable
-                style={styles.storyBtn}
                 onPress={() =>
                   router.push({
-                    pathname: '/share-card-modal',
+                    pathname: '/recommend-modal',
                     params: {
                       title: post.title,
                       type: post.type,
                       sub: post.sub ?? undefined,
                       poster: post.poster ?? undefined,
-                      rating: post.rating ? String(post.rating) : undefined,
-                      note: post.note ?? undefined,
-                      date: formatLoggedDate(post.created_at),
+                      extRating: post.ext_rating ?? undefined,
                     },
                   })
                 }
                 hitSlop={8}>
-                <InstagramIcon size={17} />
+                <SymbolView name="paperplane" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
               </Pressable>
-            ) : null}
-            <Pressable
-              style={styles.chatBtn}
-              onPress={() =>
-                router.push({ pathname: '/chat-modal', params: { title: post.title, type: post.type } })
-              }
-              hitSlop={8}>
-              <Text style={styles.chatBtnText}>💬</Text>
-            </Pressable>
+              <View style={styles.shareDivider} />
+              <Pressable
+                onPress={() => router.push({ pathname: '/chat-modal', params: { title: post.title, type: post.type } })}
+                hitSlop={8}>
+                <SymbolView name="bubble.left" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -340,20 +345,76 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 13,
       marginTop: 4,
     },
-    actionsRow: {
+    emojiPickerWrap: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 6,
+      backgroundColor: Brand.card,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      padding: 10,
+      marginTop: 8,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 8,
+      shadowOffset: { width: 0, height: 2 },
+    },
+    emojiPickerBtn: {
+      width: 38,
+      height: 38,
+      borderRadius: 19,
+      backgroundColor: Brand.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emojiPickerBtnActive: { backgroundColor: Brand.tlight, borderWidth: 1.5, borderColor: Brand.trust },
+    emojiPickerEmoji: { fontSize: 20 },
+    emojiRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginTop: 'auto',
-      paddingTop: 8,
-      flexWrap: 'wrap',
+      marginTop: 8,
+    },
+    emojiPill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: Brand.tlight,
+      borderRadius: 20,
+      paddingVertical: 5,
+      paddingHorizontal: 10,
+    },
+    emojiPillActive: { backgroundColor: Brand.trust },
+    emojiPillText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 13,
+      color: Brand.trust,
+    },
+    emojiAddBtn: {
+      width: 30,
+      height: 30,
+      borderRadius: 15,
+      backgroundColor: Brand.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    emojiAddText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 16,
+      color: Brand.muted,
+    },
+    actionsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 8,
     },
     actionsRowCompact: { paddingTop: 4 },
     reactBtn: {
+      alignSelf: 'flex-start',
       backgroundColor: Brand.tlight,
       borderRadius: 20,
-      paddingVertical: 4,
-      paddingHorizontal: 10,
+      paddingVertical: 6,
+      paddingHorizontal: 14,
     },
     reactBtnActive: { backgroundColor: Brand.trust },
     reactText: {
@@ -362,35 +423,16 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.trust,
     },
     reactTextActive: { color: '#fff' },
-    reactorRow: {
+    shareChatRow: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 10,
+      marginLeft: 10,
     },
-    reactorBubble: {
-      borderRadius: 13,
-      borderWidth: 2,
-      borderColor: Brand.card,
-      overflow: 'hidden',
+    shareDivider: {
+      width: 1,
+      height: 16,
+      backgroundColor: Brand.border,
     },
-    reactorBubbleOverlap: { marginLeft: -7 },
-    reactorPhoto: { width: 26, height: 26, borderRadius: 13 },
-    reactorOverflow: {
-      width: 26,
-      height: 26,
-      borderRadius: 13,
-      backgroundColor: Brand.tlight,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    reactorOverflowText: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 9,
-      color: Brand.trust,
-    },
-    shareBtn: { marginLeft: 'auto', padding: 4 },
-    storyBtn: { padding: 4 },
-    shareBtnText: { fontSize: 15, color: Brand.muted },
-    chatBtn: { padding: 4 },
-    chatBtnText: { fontSize: 15 },
   });
 }

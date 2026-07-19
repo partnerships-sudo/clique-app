@@ -9,6 +9,7 @@ import { FeedViewSwitcher, type FeedView } from '@/components/feed/feed-view-swi
 import { FilterChips } from '@/components/feed/filter-chips';
 import { NowBanner } from '@/components/feed/now-banner';
 import { PostCard } from '@/components/feed/post-card';
+import { CloseFriendsButton } from '@/components/feed/stories-strip';
 import { SectionHeader } from '@/components/feed/section-header';
 import { SectionLabel } from '@/components/feed/section-label';
 import { TopPicksRow } from '@/components/feed/top-picks-row';
@@ -30,8 +31,11 @@ import { useReactions, useToggleReaction } from '@/features/feed/reactions';
 import { useLibraryItems } from '@/features/library/api';
 import { useCollectionItems, useFollowingCollections } from '@/features/collection/api';
 import { useProfile } from '@/features/profile/api';
+import { useCloseFriendsPosts } from '@/features/close-friends/posts';
+import { useUnreadCount } from '@/features/notifications/inbox';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
+import { SymbolView } from 'expo-symbols';
 
 const SECTION_TITLES: Record<FeedView, string> = {
   feed: 'Friend Activity',
@@ -61,6 +65,8 @@ export default function FeedScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: profile } = useProfile();
+  const { data: storyPosts = [] } = useCloseFriendsPosts();
+  const unreadCount = useUnreadCount();
 
   const [feedView, setFeedView] = useState<FeedView>('feed');
   const [filter, setFilter] = useState<FeedFilterValue>('all');
@@ -249,9 +255,21 @@ export default function FeedScreen() {
     router.push('/settings');
   }
 
+  function openWatchParty() {
+    setShowMenu(false);
+    router.push('/premiere-modal');
+  }
+
   const header = (
     <View>
       <View style={styles.headerTop}>
+        {/* Left: close friends / stories button */}
+        <CloseFriendsButton
+          posts={storyPosts}
+          onPress={() => router.push('/stories-modal')}
+        />
+
+        {/* Center: logo */}
         <View style={styles.logoWrap}>
           <Image
             source={require('@/assets/images/logo-icon.png')}
@@ -267,14 +285,26 @@ export default function FeedScreen() {
             <Text style={styles.logoClique}>que</Text>
           </View>
         </View>
-        <Pressable onPress={() => setShowMenu((v) => !v)} style={styles.avatarBtn} hitSlop={8}>
-          <Avatar
-            name={profile?.full_name ?? user?.email ?? 'You'}
-            size={36}
-            avatarUrl={profile?.avatar_url}
-            ring={Brand.trust}
-          />
-        </Pressable>
+
+        {/* Right: bell + avatar */}
+        <View style={styles.headerRight}>
+          <Pressable hitSlop={8} onPress={() => router.push('/notifications-modal')} style={styles.bellWrap}>
+            <SymbolView name="bell" size={22} tintColor={Brand.ink} style={{ width: 24, height: 24 }} />
+            {unreadCount > 0 && (
+              <View style={styles.bellBadge}>
+                <Text style={styles.bellBadgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable onPress={() => setShowMenu((v) => !v)} hitSlop={8}>
+            <Avatar
+              name={profile?.full_name ?? user?.email ?? 'You'}
+              size={36}
+              avatarUrl={profile?.avatar_url}
+              ring={Brand.trust}
+            />
+          </Pressable>
+        </View>
       </View>
       <FeedViewSwitcher value={feedView} onChange={setFeedView} />
       {feedView === 'feed' && (
@@ -394,6 +424,10 @@ export default function FeedScreen() {
               <Text style={styles.menuItemText}>👤  Profile</Text>
             </Pressable>
             <View style={styles.menuDivider} />
+            <Pressable style={styles.menuItem} onPress={openWatchParty}>
+              <Text style={styles.menuItemText}>📺  Host a Watch Party</Text>
+            </Pressable>
+            <View style={styles.menuDivider} />
             <Pressable style={styles.menuItem} onPress={openSettings}>
               <Text style={styles.menuItemText}>⚙️  Settings</Text>
             </Pressable>
@@ -412,11 +446,25 @@ function createStyles(Brand: BrandPalette) {
     headerTop: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
+      justifyContent: 'space-between',
       marginBottom: Spacing.four,
     },
-    logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    avatarBtn: { position: 'absolute', right: 0, top: 0 },
+    logoWrap: { flexDirection: 'row', alignItems: 'center', gap: 8, position: 'absolute', left: 0, right: 0, justifyContent: 'center' },
+    headerRight: { flexDirection: 'row', alignItems: 'center', gap: 12, zIndex: 1 },
+    bellWrap: { position: 'relative' },
+    bellBadge: {
+      position: 'absolute',
+      top: -4,
+      right: -4,
+      minWidth: 16,
+      height: 16,
+      borderRadius: 8,
+      backgroundColor: Brand.trust,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 3,
+    },
+    bellBadgeText: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: '#fff' },
     logoIcon: { width: 34, height: 30 },
     logoWordRow: { flexDirection: 'row', alignItems: 'flex-end' },
     logoClique: {

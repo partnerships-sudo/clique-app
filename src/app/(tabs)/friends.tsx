@@ -91,6 +91,9 @@ export default function FriendsScreen() {
                 <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)}>
                   <Text style={styles.inviteBtnText}>+ Invite</Text>
                 </Pressable>
+                <Pressable hitSlop={8} onPress={() => router.push('/discover-people-modal')}>
+                  <SymbolView name="person.badge.plus" size={22} tintColor={Brand.muted} style={{ width: 26, height: 24 }} />
+                </Pressable>
                 <Pressable hitSlop={8} onPress={() => router.push('/settings')}>
                   <SymbolView name="gearshape" size={22} tintColor={Brand.muted} style={{ width: 24, height: 24 }} />
                 </Pressable>

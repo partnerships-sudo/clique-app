@@ -91,9 +91,18 @@ export function RatingIcons({
     <View style={[displayStyles.row, outerLayout]}>
       {[1, 2, 3, 4, 5].map((n) => {
         const state = starStateAt(n, rating);
-        const opacity = state === 'full' ? 1 : state === 'half' ? 0.55 : 0.25;
+        if (state === 'half') {
+          return (
+            <View key={n} style={{ position: 'relative' }}>
+              <Text style={[flat, { opacity: 0.25 }]}>{icon}</Text>
+              <View style={{ width: flat.fontSize ? flat.fontSize * 0.5 : 12, overflow: 'hidden', position: 'absolute' }}>
+                <Text style={flat}>{icon}</Text>
+              </View>
+            </View>
+          );
+        }
         return (
-          <Text key={n} style={[flat, { opacity }]}>
+          <Text key={n} style={[flat, { opacity: state === 'full' ? 1 : 0.25 }]}>
             {icon}
           </Text>
         );
@@ -144,8 +153,15 @@ export function RatingPicker({
                 <EmptyStar size={size} />
               );
             })()
+          ) : n - 0.5 === value ? (
+            <View style={{ position: 'relative' }}>
+              <Text style={{ fontSize: size, opacity: 0.3 }}>{icon}</Text>
+              <View style={{ width: size * 0.5, overflow: 'hidden', position: 'absolute' }}>
+                <Text style={{ fontSize: size }}>{icon}</Text>
+              </View>
+            </View>
           ) : (
-            <Text style={{ fontSize: size, opacity: n <= value ? 1 : n - 0.5 === value ? 0.55 : 0.3 }}>
+            <Text style={{ fontSize: size, opacity: n <= value ? 1 : 0.3 }}>
               {icon}
             </Text>
           )}

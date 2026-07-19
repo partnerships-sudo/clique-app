@@ -4,7 +4,7 @@ import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
 // Predefined emoji set for the reaction bar
-export const EMOJI_OPTIONS = ['❤️', '👍', '👎', '🔥', '🍿', '😂'];
+export const EMOJI_OPTIONS = ['❤️', '👍', '👎', '🔥', '🍿', '😂', '✨', '😮', '🎉', '👀', '💯', '🤣'];
 
 export interface EmojiReaction {
   id: string;
