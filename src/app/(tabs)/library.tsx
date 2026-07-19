@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -242,13 +243,13 @@ export default function LibraryScreen() {
               </Pressable>
               <View style={styles.subToggleRow6}>
                 {([
-                  { view: 'read',    emoji: '📖', label: 'Books'    },
-                  { view: 'watch',   emoji: '🎬', label: 'Movies'   },
-                  { view: 'tv',      emoji: '📺', label: 'TV'       },
-                  { view: 'listen',  emoji: '🎵', label: 'Music'    },
-                  { view: 'play',    emoji: '🎮', label: 'Games'    },
-                  { view: 'podcast', emoji: '🎙', label: 'Podcasts' },
-                ] as const).map(({ view, emoji, label }) => {
+                  { view: 'read',    sf: 'book.open',         label: 'Books'    },
+                  { view: 'watch',   sf: 'film',              label: 'Movies'   },
+                  { view: 'tv',      sf: 'tv',                label: 'TV'       },
+                  { view: 'listen',  sf: 'music.note',        label: 'Music'    },
+                  { view: 'play',    sf: 'gamecontroller',    label: 'Games'    },
+                  { view: 'podcast', sf: 'mic',               label: 'Podcasts' },
+                ] as const).map(({ view, sf, label }) => {
                   const count = collectionItems.filter((i) => i.type === view).length;
                   const active = collectionView === view;
                   return (
@@ -256,7 +257,12 @@ export default function LibraryScreen() {
                       key={view}
                       style={[styles.subToggle6, active && styles.subToggleActive]}
                       onPress={() => setCollectionView(view)}>
-                      <Text style={styles.subToggleEmoji}>{emoji}</Text>
+                      <SymbolView
+                        name={sf as any}
+                        size={15}
+                        tintColor={active ? '#fff' : Brand.muted}
+                        style={styles.subToggleIcon}
+                      />
                       <Text style={[styles.subToggleLabel, active && styles.subToggleTextActive]}>
                         {label}
                       </Text>
@@ -357,7 +363,7 @@ function createStyles(Brand: BrandPalette) {
   subToggle6: { flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center' },
   subToggle: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, alignItems: 'center' },
   subToggleActive: { backgroundColor: Brand.ink },
-  subToggleEmoji: { fontSize: 15, lineHeight: 19 },
+  subToggleIcon: { width: 19, height: 19 },
   subToggleLabel: { fontFamily: BrandFonts.syneBold, fontSize: 8.5, color: Brand.muted, marginTop: 1 },
   subToggleText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
   subToggleTextActive: { color: '#fff' },

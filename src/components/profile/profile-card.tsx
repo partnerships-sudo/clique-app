@@ -33,11 +33,11 @@ const CAT_FILTERS: { type: EntryType | 'all'; label: string; color: string }[] =
 ];
 
 const STAT_CATEGORIES = [
-  { type: 'watch' as EntryType, label: 'TV', sf: 'tv.fill', color: '#FF6B6B', bg: '#FF6B6B18' },
+  { type: 'watch' as EntryType, label: 'TV', sf: 'tv', color: '#FF6B6B', bg: '#FF6B6B18' },
   { type: 'play' as EntryType, label: 'Games', sf: 'gamecontroller.fill', color: '#5BC8F5', bg: '#5BC8F518' },
   { type: 'podcast' as EntryType, label: 'Podcasts', sf: 'mic.fill', color: '#C084FC', bg: '#C084FC18' },
   { type: 'listen' as EntryType, label: 'Music', sf: 'music.note', color: '#9B95AC', bg: '#9B95AC18' },
-  { type: 'read' as EntryType, label: 'Books', sf: 'book.fill', color: '#5FA8FF', bg: '#5FA8FF18' },
+  { type: 'read' as EntryType, label: 'Books', sf: 'book.open.fill', color: '#5FA8FF', bg: '#5FA8FF18' },
 ];
 
 export interface ProfileCardFriendAction {
@@ -171,14 +171,27 @@ export function ProfileCard({
     activeMusic.length ? { label: 'Music', sub: `${activeMusic.length} track${activeMusic.length !== 1 ? 's' : ''}`, sf: 'headphones', color: '#9B95AC', bg: '#9B95AC18' } : null,
   ].filter(Boolean) as { label: string; sub: string; sf: string; color: string; bg: string }[];
 
-  // Top genres: extract last segment of sub field
+  // Top genres: parse sub field using · separator (middle dot, not bullet)
+  // Games: "Genre · Year" — genre is FIRST segment
+  // Books: "Author · Year · Publisher" — publisher is LAST segment
+  // TV/Movies: "TV Series · Network · Year" — last segment is year (skipped)
   const genreCounts = new Map<string, number>();
   for (const item of logged) {
     if (!item.sub) continue;
-    const parts = item.sub.split('•').map((s) => s.trim()).filter(Boolean);
-    const last = parts[parts.length - 1];
-    if (!last || last.match(/^\d{4}$/)) continue;
-    for (const g of last.split(',').map((s) => s.trim()).filter(Boolean)) {
+    const parts = item.sub.split('·').map((s) => s.trim()).filter(Boolean);
+    if (!parts.length) continue;
+    let genre: string | null = null;
+    if (item.type === 'play') {
+      // Games store genre as first segment
+      const first = parts[0];
+      if (first && first !== 'Game' && !first.match(/^\d{4}$/)) genre = first;
+    } else {
+      // Books/others: publisher or genre is last segment
+      const last = parts[parts.length - 1];
+      if (last && !last.match(/^\d{4}$/) && last !== 'Podcast' && last !== 'Album') genre = last;
+    }
+    if (!genre) continue;
+    for (const g of genre.split(',').map((s) => s.trim()).filter(Boolean)) {
       genreCounts.set(g, (genreCounts.get(g) ?? 0) + 1);
     }
   }
