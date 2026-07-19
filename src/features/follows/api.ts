@@ -579,6 +579,50 @@ export function useDeclineFollowRequest() {
   });
 }
 
+export interface MyTasteEntry extends Profile {
+  compatibility: number;
+}
+
+export function useMyTasteTop4() {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['mytaste-top4', user?.id],
+    queryFn: async (): Promise<MyTasteEntry[]> => {
+      const { data: followingRows, error: e1 } = await supabase
+        .from('follows')
+        .select('followed_id')
+        .eq('follower_id', user!.id)
+        .eq('status', 'accepted');
+      if (e1) throw e1;
+      const followingIds = (followingRows ?? []).map((r) => r.followed_id);
+      if (!followingIds.length) return [];
+
+      const [{ data: profiles, error: e2 }, { data: myPosts, error: e3 }, { data: friendPosts, error: e4 }] =
+        await Promise.all([
+          supabase.from('profiles').select('*').in('id', followingIds),
+          supabase.from('posts').select('*').eq('user_id', user!.id),
+          supabase.from('posts').select('*').in('user_id', followingIds),
+        ]);
+      if (e2) throw e2;
+      if (e3) throw e3;
+      if (e4) throw e4;
+
+      const postsByUser = new Map<string, Post[]>();
+      for (const p of (friendPosts ?? []) as Post[]) {
+        const list = postsByUser.get(p.user_id) ?? [];
+        list.push(p);
+        postsByUser.set(p.user_id, list);
+      }
+
+      return ((profiles ?? []) as Profile[])
+        .map((p) => ({ ...p, compatibility: computeCompatibility((myPosts ?? []) as Post[], postsByUser.get(p.id) ?? []) }))
+        .sort((a, b) => b.compatibility - a.compatibility)
+        .slice(0, 4);
+    },
+    enabled: !!user,
+  });
+}
+
 export function useRemoveFollower() {
   const { user } = useSession();
   const queryClient = useQueryClient();

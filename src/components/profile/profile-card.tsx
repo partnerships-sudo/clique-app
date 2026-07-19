@@ -6,6 +6,7 @@ import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Tex
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
+import { useMyTasteTop4 } from '@/features/follows/api';
 import type { LibraryItem } from '@/features/library/api';
 import { useUploadBanner, type Profile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
@@ -145,6 +146,57 @@ export function ProfileCard({
     const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
     return { label: DAY_LABELS[d.getDay()], done: loggedDates.has(key) };
   });
+
+  // Weekly goal: logs since last Monday
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  monday.setHours(0, 0, 0, 0);
+  const weeklyCount = logged.filter((i) => new Date(i.created_at) >= monday).length;
+  const WEEKLY_TARGET = 10;
+  const daysLeftInWeek = 7 - ((today.getDay() + 6) % 7) - 1;
+
+  // Currently active (non-finished, non-watchlist)
+  const active = logged.filter((i) => i.status !== 'finished');
+  const tvShows = active.filter((i) => i.type === 'watch' && i.media_type !== 'movie');
+  const tvMovies = active.filter((i) => i.type === 'watch' && i.media_type === 'movie');
+  const activeBooks = active.filter((i) => i.type === 'read');
+  const activeGames = active.filter((i) => i.type === 'play');
+  const activePodcasts = active.filter((i) => i.type === 'podcast');
+  const activeMusic = active.filter((i) => i.type === 'listen');
+  const activeCategories = [
+    tvShows.length ? { label: 'TV', sub: `${tvShows.length} show${tvShows.length !== 1 ? 's' : ''}`, icon: '📺', color: '#FF6B6B', bg: '#FF6B6B22' } : null,
+    tvMovies.length ? { label: 'TV', sub: `${tvMovies.length} movie${tvMovies.length !== 1 ? 's' : ''}`, icon: '🎬', color: '#FF6B6B', bg: '#FF6B6B22' } : null,
+    activeBooks.length ? { label: 'Books', sub: `${activeBooks.length} book${activeBooks.length !== 1 ? 's' : ''}`, icon: '📚', color: '#5FA8FF', bg: '#5FA8FF22' } : null,
+    activeGames.length ? { label: 'Games', sub: `${activeGames.length} game${activeGames.length !== 1 ? 's' : ''}`, icon: '🎮', color: '#5FD9FF', bg: '#5FD9FF22' } : null,
+    activePodcasts.length ? { label: 'Podcasts', sub: `${activePodcasts.length} podcast${activePodcasts.length !== 1 ? 's' : ''}`, icon: '🎙️', color: '#C084FC', bg: '#C084FC22' } : null,
+    activeMusic.length ? { label: 'Music', sub: `${activeMusic.length} track${activeMusic.length !== 1 ? 's' : ''}`, icon: '🎵', color: '#9B95AC', bg: '#9B95AC22' } : null,
+  ].filter(Boolean) as { label: string; sub: string; icon: string; color: string; bg: string }[];
+
+  // Top genres: extract last segment of sub field
+  const genreCounts = new Map<string, number>();
+  for (const item of logged) {
+    if (!item.sub) continue;
+    const parts = item.sub.split('•').map((s) => s.trim()).filter(Boolean);
+    const last = parts[parts.length - 1];
+    if (!last || last.match(/^\d{4}$/)) continue;
+    for (const g of last.split(',').map((s) => s.trim()).filter(Boolean)) {
+      genreCounts.set(g, (genreCounts.get(g) ?? 0) + 1);
+    }
+  }
+  const topGenres = [...genreCounts.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([name, count], i) => ({ name, count, rank: i + 1, color: ['#FF6B6B', '#5B4FE8', '#F59E0B'][i] }));
+
+  // Recently logged (for stats tab bottom)
+  const [recentCatFilter, setRecentCatFilter] = useState<EntryType | 'all'>('all');
+  const recentItems = useMemo(() => {
+    const base = recentCatFilter === 'all' ? logged : logged.filter((i) => i.type === recentCatFilter);
+    return base.slice(0, 8);
+  }, [logged, recentCatFilter]);
+
+  // MyTaste Top 4
+  const { data: top4 = [] } = useMyTasteTop4();
 
   return (
     <View style={styles.card}>
@@ -336,18 +388,24 @@ export function ProfileCard({
             {/* Logged / Followers / Following */}
             <View style={styles.statsBox}>
               <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
+                <Text style={styles.statIcon}>🗂️</Text>
                 <Text style={[styles.statNum, onLoggedPress && styles.statNumAccent]}>{logged.length}</Text>
-                <Text style={styles.statLbl}>Logged</Text>
+                <Text style={styles.statLbl}>LOGGED</Text>
+                <Text style={styles.statSubLbl}>items logged</Text>
               </Pressable>
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowersPress} disabled={!onFollowersPress} hitSlop={4}>
+                <Text style={styles.statIcon}>👥</Text>
                 <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
-                <Text style={styles.statLbl}>Followers</Text>
+                <Text style={styles.statLbl}>FOLLOWERS</Text>
+                <Text style={styles.statSubLbl}>people follow you</Text>
               </Pressable>
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowingPress} disabled={!onFollowingPress} hitSlop={4}>
+                <Text style={styles.statIcon}>👤</Text>
                 <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
-                <Text style={styles.statLbl}>Following</Text>
+                <Text style={styles.statLbl}>FOLLOWING</Text>
+                <Text style={styles.statSubLbl}>people you follow</Text>
               </Pressable>
             </View>
 
@@ -362,9 +420,7 @@ export function ProfileCard({
                 <View style={styles.weekRow}>
                   {weekDays.map((d, i) => (
                     <View key={i} style={styles.weekDay}>
-                      <View style={[styles.weekDot, d.done && styles.weekDotDone]}>
-                        {d.done ? <Text style={styles.weekCheck}>✓</Text> : null}
-                      </View>
+                      <View style={[styles.weekDot, d.done && styles.weekDotDone]} />
                       <Text style={styles.weekLabel}>{d.label}</Text>
                     </View>
                   ))}
@@ -377,17 +433,129 @@ export function ProfileCard({
               </View>
             </View>
 
-            {/* Top Categories */}
-            <View style={styles.statsCard}>
-              <Text style={styles.statsCardTitle}>TOP CATEGORIES</Text>
-              {STAT_CATEGORIES.map((cat) => (
-                <View key={cat.label} style={styles.catRow}>
-                  <Text style={styles.catIcon}>{cat.icon}</Text>
-                  <Text style={styles.catLabel}>{cat.label}</Text>
-                  <View style={styles.catBarBg}>
-                    <View style={[styles.catBarFill, { backgroundColor: cat.color, width: `${Math.round((counts[cat.type] / maxCount) * 100)}%` }]} />
+            {/* Weekly Goal + Currently Active */}
+            <View style={styles.goalRow}>
+              <View style={[styles.goalCard, styles.statsCard]}>
+                <Text style={styles.statsCardTitle}>WEEKLY GOAL</Text>
+                <Text style={styles.goalNum}>{weeklyCount}<Text style={styles.goalTarget}> / {WEEKLY_TARGET}</Text></Text>
+                <Text style={styles.goalSub}>logs this week</Text>
+                <View style={styles.goalBarRow}>
+                  {Array.from({ length: WEEKLY_TARGET }, (_, i) => (
+                    <View key={i} style={[styles.goalBlock, i < weeklyCount && styles.goalBlockFilled]} />
+                  ))}
+                </View>
+                <Text style={styles.goalFooter}>
+                  {weeklyCount >= WEEKLY_TARGET ? '🎉 Goal reached!' : `${daysLeftInWeek} day${daysLeftInWeek !== 1 ? 's' : ''} left to go!`}
+                </Text>
+              </View>
+              <View style={[styles.goalCard, styles.statsCard]}>
+                <Text style={styles.statsCardTitle}>CURRENTLY ACTIVE</Text>
+                {activeCategories.length === 0 ? (
+                  <Text style={styles.goalSub}>Nothing active yet.</Text>
+                ) : (
+                  activeCategories.slice(0, 4).map((cat, i) => (
+                    <View key={i} style={[styles.activeRow, i > 0 && styles.activeRowBorder]}>
+                      <View style={[styles.activeIcon, { backgroundColor: cat.bg }]}>
+                        <Text style={styles.activeIconEmoji}>{cat.icon}</Text>
+                      </View>
+                      <View style={styles.activeInfo}>
+                        <Text style={styles.activeLabel}>{cat.label}</Text>
+                        <Text style={[styles.activeSub, { color: cat.color }]}>{cat.sub}</Text>
+                      </View>
+                      <Text style={styles.activeChevron}>›</Text>
+                    </View>
+                  ))
+                )}
+              </View>
+            </View>
+
+            {/* MyTaste Top 4 */}
+            {top4.length > 0 ? (
+              <View style={styles.statsCard}>
+                <View style={styles.cardHeaderRow}>
+                  <View>
+                    <Text style={styles.cardHeaderTitle}>MyTaste Top 4</Text>
+                    <Text style={styles.cardHeaderSub}>your most compatible friends</Text>
                   </View>
-                  <Text style={styles.catCount}>{counts[cat.type]}</Text>
+                </View>
+                <View style={styles.top4Row}>
+                  {top4.map((friend) => (
+                    <View key={friend.id} style={styles.top4Item}>
+                      <View style={styles.top4ImgWrap}>
+                        {friend.avatar_url ? (
+                          <Image source={{ uri: friend.avatar_url }} style={styles.top4Img} />
+                        ) : (
+                          <View style={[styles.top4Img, styles.top4ImgFallback]}>
+                            <Text style={styles.top4ImgFallbackText}>{(friend.full_name || friend.username || '?')[0].toUpperCase()}</Text>
+                          </View>
+                        )}
+                        <View style={styles.top4Badge}>
+                          <Text style={styles.top4BadgeText}>{friend.compatibility}%</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.top4Name} numberOfLines={1}>{friend.full_name || friend.username}</Text>
+                      <Text style={styles.top4Handle} numberOfLines={1}>@{friend.username}</Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
+            {/* Top Genres + Top Categories side by side */}
+            <View style={styles.goalRow}>
+              <View style={[styles.goalCard, styles.statsCard]}>
+                <Text style={styles.statsCardTitle}>TOP GENRES</Text>
+                {topGenres.length === 0 ? (
+                  <Text style={styles.goalSub}>No data yet.</Text>
+                ) : topGenres.map((g) => (
+                  <View key={g.name} style={styles.genreRow}>
+                    <Text style={[styles.genreRank, { color: g.color }]}>#{g.rank}</Text>
+                    <View style={styles.genreInfo}>
+                      <Text style={styles.genreName} numberOfLines={1}>{g.name}</Text>
+                      <View style={[styles.genreBar, { backgroundColor: g.color + '33' }]}>
+                        <View style={[styles.genreBarFill, { backgroundColor: g.color, width: `${Math.round((g.count / (topGenres[0]?.count || 1)) * 100)}%` }]} />
+                      </View>
+                    </View>
+                    <Text style={styles.genreCount}>{g.count}</Text>
+                  </View>
+                ))}
+              </View>
+              <View style={[styles.goalCard, styles.statsCard]}>
+                <Text style={styles.statsCardTitle}>TOP CATEGORIES</Text>
+                {STAT_CATEGORIES.map((cat) => (
+                  <View key={cat.label} style={styles.catRow}>
+                    <Text style={styles.catIcon}>{cat.icon}</Text>
+                    <Text style={styles.catLabel}>{cat.label}</Text>
+                    <View style={styles.catBarBg}>
+                      <View style={[styles.catBarFill, { backgroundColor: cat.color, width: `${Math.round((counts[cat.type] / maxCount) * 100)}%` }]} />
+                    </View>
+                    <Text style={styles.catCount}>{counts[cat.type]}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            {/* Recently Logged */}
+            <View style={styles.statsCard}>
+              <Text style={styles.statsCardTitle}>RECENTLY LOGGED</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
+                {[{ type: 'all' as EntryType | 'all', label: 'All' }, ...STAT_CATEGORIES.map((c) => ({ type: c.type as EntryType | 'all', label: c.label }))].map((f) => {
+                  const active = recentCatFilter === f.type;
+                  return (
+                    <Pressable key={f.type} style={[styles.recentChip, active && styles.recentChipActive]} onPress={() => setRecentCatFilter(f.type)}>
+                      <Text style={[styles.recentChipText, active && styles.recentChipTextActive]}>{f.label}</Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+              {recentItems.map((item) => (
+                <View key={item.id} style={styles.recentRow}>
+                  {item.poster ? (
+                    <Image source={{ uri: item.poster }} style={styles.recentThumb} resizeMode="cover" />
+                  ) : (
+                    <View style={[styles.recentThumb, styles.recentThumbFallback]} />
+                  )}
+                  <Text style={styles.recentTitle} numberOfLines={1}>{item.title}</Text>
                 </View>
               ))}
             </View>
@@ -574,6 +742,10 @@ function createStyles(Brand: BrandPalette) {
       textAlign: 'center',
     },
 
+    // Stats box
+    statIcon: { fontSize: 18, marginBottom: 2 },
+    statSubLbl: { fontFamily: BrandFonts.interRegular, fontSize: 9, color: Brand.muted, marginTop: 1, textAlign: 'center' },
+
     // Tab content
     tabContent: { width: '100%' },
     emptyText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, textAlign: 'center', paddingVertical: 24 },
@@ -659,5 +831,69 @@ function createStyles(Brand: BrandPalette) {
     catBarBg: { flex: 1, height: 6, backgroundColor: Brand.border, borderRadius: 3, overflow: 'hidden' },
     catBarFill: { height: '100%', borderRadius: 3 },
     catCount: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, width: 24, textAlign: 'right' },
+
+    // Goal row (side-by-side cards)
+    goalRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+    goalCard: { flex: 1, marginBottom: 0 },
+    goalNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.trust, lineHeight: 32, marginTop: 4 },
+    goalTarget: { fontFamily: BrandFonts.interRegular, fontSize: 16, color: Brand.muted },
+    goalSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 2, marginBottom: 8 },
+    goalBarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, marginBottom: 6 },
+    goalBlock: { width: 14, height: 10, borderRadius: 3, backgroundColor: Brand.border },
+    goalBlockFilled: { backgroundColor: Brand.trust },
+    goalFooter: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted },
+
+    // Currently active
+    activeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+    activeRowBorder: { borderTopWidth: 1, borderTopColor: Brand.border },
+    activeIcon: { width: 30, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+    activeIconEmoji: { fontSize: 14 },
+    activeInfo: { flex: 1, minWidth: 0 },
+    activeLabel: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.ink },
+    activeSub: { fontFamily: BrandFonts.interRegular, fontSize: 10.5 },
+    activeChevron: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.muted },
+
+    // Card header
+    cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
+    cardHeaderTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: Brand.ink },
+    cardHeaderSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2 },
+
+    // MyTaste Top 4
+    top4Row: { flexDirection: 'row', justifyContent: 'space-between' },
+    top4Item: { alignItems: 'center', flex: 1 },
+    top4ImgWrap: { position: 'relative', marginBottom: 6 },
+    top4Img: { width: 64, height: 64, borderRadius: 10 },
+    top4ImgFallback: { backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
+    top4ImgFallbackText: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink },
+    top4Badge: {
+      position: 'absolute', bottom: -6, right: -6,
+      backgroundColor: Brand.trust, borderRadius: 10,
+      paddingVertical: 2, paddingHorizontal: 5,
+    },
+    top4BadgeText: { fontFamily: BrandFonts.syneBold, fontSize: 9.5, color: '#fff' },
+    top4Name: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.ink, textAlign: 'center', marginTop: 8 },
+    top4Handle: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: Brand.muted, textAlign: 'center' },
+
+    // Top genres
+    genreRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
+    genreRank: { fontFamily: BrandFonts.syneExtraBold, fontSize: 11, width: 18 },
+    genreInfo: { flex: 1, minWidth: 0 },
+    genreName: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.ink, marginBottom: 3 },
+    genreBar: { height: 5, borderRadius: 3, overflow: 'hidden' },
+    genreBarFill: { height: '100%', borderRadius: 3 },
+    genreCount: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, width: 18, textAlign: 'right' },
+
+    // Recently logged (stats tab)
+    recentChip: {
+      paddingVertical: 4, paddingHorizontal: 12, borderRadius: 20,
+      backgroundColor: Brand.tlight, borderWidth: 1, borderColor: Brand.border,
+    },
+    recentChipActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
+    recentChipText: { fontFamily: BrandFonts.interMedium, fontSize: 11.5, color: Brand.muted },
+    recentChipTextActive: { color: Brand.paper },
+    recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+    recentThumb: { width: 44, height: 62, borderRadius: 8 },
+    recentThumbFallback: { backgroundColor: Brand.tlight },
+    recentTitle: { flex: 1, fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
   });
 }
