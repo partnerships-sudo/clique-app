@@ -59,7 +59,6 @@ export default function ProfileTab() {
           earnedBadgeCount={badges.filter((b) => b.earned).length}
           onOpenAchievements={() => router.push('/achievements-modal')}
           onShare={() => setShareVisible(true)}
-          onStatsPress={() => router.push('/my-stats-modal')}
         />
         {view === 'edit' ? (
           <EditProfile
