@@ -98,6 +98,7 @@ export default function ChatModal() {
   const sendDm = useSendDm();
   const sendGroupMessage = useSendGroupMessage(isGroup ? params.groupId! : null);
   const [input, setInput] = useState('');
+  const [mediaExpanded, setMediaExpanded] = useState(false);
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const [gifQuery, setGifQuery] = useState('');
   const [gifs, setGifs] = useState<GiphyResult[]>([]);
@@ -223,6 +224,7 @@ export default function ChatModal() {
   }
 
   function openGifPicker() {
+    setMediaExpanded(false);
     setGifPickerOpen(true);
     setGifQuery('');
     setGifsLoading(true);
@@ -480,22 +482,39 @@ export default function ChatModal() {
         )}
 
         {!isDmLocked ? (
-          <View style={styles.inputRow}>
-            <Pressable style={styles.gifBtn} onPress={openGifPicker} hitSlop={8}>
-              <Text style={styles.gifBtnText}>GIF</Text>
-            </Pressable>
-            <TextInput
-              style={styles.input}
-              placeholder="Say something…"
-              placeholderTextColor={Brand.muted}
-              value={input}
-              onChangeText={setInput}
-              onSubmitEditing={handleSend}
-              returnKeyType="send"
-            />
-            <Pressable style={styles.sendBtn} onPress={handleSend} hitSlop={8}>
-              <Text style={styles.sendText}>➤</Text>
-            </Pressable>
+          <View style={styles.inputWrap}>
+            <View style={styles.inputRow}>
+              <Pressable
+                style={[styles.plusBtn, mediaExpanded && styles.plusBtnActive]}
+                onPress={() => setMediaExpanded((v) => !v)}
+                hitSlop={8}>
+                <Text style={styles.plusText}>{mediaExpanded ? '✕' : '+'}</Text>
+              </Pressable>
+              <TextInput
+                style={styles.input}
+                placeholder="Say something…"
+                placeholderTextColor={Brand.muted}
+                value={input}
+                onChangeText={setInput}
+                onSubmitEditing={handleSend}
+                returnKeyType="send"
+              />
+              <Pressable style={styles.sendBtn} onPress={handleSend} hitSlop={8}>
+                <Text style={styles.sendText}>➤</Text>
+              </Pressable>
+            </View>
+            {mediaExpanded ? (
+              <View style={styles.mediaTiles}>
+                <Pressable style={[styles.mediaTile, { backgroundColor: '#5B8DEF' }]}>
+                  <Text style={styles.mediaTileIcon}>🖼</Text>
+                  <Text style={styles.mediaTileLabel}>Photo</Text>
+                </Pressable>
+                <Pressable style={[styles.mediaTile, { backgroundColor: Brand.trust }]} onPress={openGifPicker}>
+                  <Text style={[styles.mediaTileIcon, { fontFamily: BrandFonts.syneBold, fontSize: 22, color: '#fff' }]}>GIF</Text>
+                  <Text style={styles.mediaTileLabel}>GIF</Text>
+                </Pressable>
+              </View>
+            ) : null}
           </View>
         ) : null}
 
@@ -717,10 +736,7 @@ function createStyles(Brand: BrandPalette) {
     inputRow: {
       flexDirection: 'row',
       gap: 10,
-      padding: Spacing.three,
-      backgroundColor: Brand.card,
-      borderTopWidth: 1,
-      borderTopColor: Brand.border,
+      alignItems: 'center',
     },
     input: {
       flex: 1,
@@ -744,17 +760,45 @@ function createStyles(Brand: BrandPalette) {
     },
     sendText: { color: '#fff', fontSize: 16 },
 
-    // GIF button in input row
-    gifBtn: {
+    // Plus / media expand
+    inputWrap: {
+      backgroundColor: Brand.card,
+      borderTopWidth: 1,
+      borderTopColor: Brand.border,
+      paddingHorizontal: Spacing.three,
+      paddingTop: Spacing.three,
+      paddingBottom: Spacing.three,
+    },
+    plusBtn: {
+      width: 44,
       height: 44,
-      paddingHorizontal: 10,
       borderRadius: 22,
-      borderWidth: 1.5,
-      borderColor: Brand.border,
+      backgroundColor: Brand.trust,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    gifBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.trust, letterSpacing: 0.5 },
+    plusBtnActive: { backgroundColor: Brand.muted },
+    plusText: { color: '#fff', fontSize: 22, lineHeight: 26 },
+    mediaTiles: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingTop: 14,
+    },
+    mediaTile: {
+      width: 80,
+      height: 80,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 4,
+    },
+    mediaTileIcon: { fontSize: 28 },
+    mediaTileLabel: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 11,
+      color: '#fff',
+      letterSpacing: 0.3,
+    },
 
     // GIF picker modal
     gifHeader: {
