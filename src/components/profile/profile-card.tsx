@@ -7,6 +7,7 @@ import { ActivityIndicator, Alert, Image, Pressable, StyleSheet, Text, View } fr
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
 import type { LibraryItem } from '@/features/library/api';
+import { computeProfileStats } from '@/features/library/stats';
 import { useUploadBanner, type Profile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 
@@ -45,6 +46,7 @@ export function ProfileCard({
   earnedBadgeCount,
   onOpenAchievements,
   onShare,
+  onStatsPress,
   friendAction,
 }: {
   profile: Profile | null | undefined;
@@ -63,12 +65,14 @@ export function ProfileCard({
   onOpenAchievements?: () => void;
   /** Own profile only — shows a share icon next to the name. */
   onShare?: () => void;
+  onStatsPress?: () => void;
   /** Friend's profile only — "+ Follow" / "Request to Follow" / "Following". */
   friendAction?: ProfileCardFriendAction;
 }) {
   const isOwnProfile = !!onEditPress;
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const stats = useMemo(() => computeProfileStats(library), [library]);
   const name = profile?.full_name || profile?.username || 'Someone';
   const uploadBanner = useUploadBanner();
 
@@ -239,6 +243,17 @@ export function ProfileCard({
           <Text style={styles.statLbl}>Following</Text>
         </Pressable>
       </View>
+
+      {isOwnProfile ? (
+        <Pressable style={styles.streakCard} onPress={onStatsPress}>
+          <Text style={styles.streakIcon}>🔥</Text>
+          <View style={styles.streakInfo}>
+            <Text style={styles.streakDays}>{stats.streakDays} {stats.streakDays === 1 ? 'day' : 'days'}</Text>
+            <Text style={styles.streakLbl}>LOGGING STREAK</Text>
+          </View>
+          <Text style={styles.streakChevron}>›</Text>
+        </Pressable>
+      ) : null}
 
       <View style={styles.splitRow}>
         <View style={styles.splitCol}>
@@ -426,6 +441,24 @@ function createStyles(Brand: BrandPalette) {
       marginTop: 2,
     },
     statDiv: { width: 1, height: 22, backgroundColor: Brand.border },
+
+    streakCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FFF8EE',
+      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginTop: 10,
+      gap: 10,
+      borderWidth: 1,
+      borderColor: '#F4D08A',
+    },
+    streakIcon: { fontSize: 24 },
+    streakInfo: { flex: 1 },
+    streakDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: '#F4A340' },
+    streakLbl: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: '#C87941', letterSpacing: 0.8, marginTop: 1 },
+    streakChevron: { fontFamily: BrandFonts.syneBold, fontSize: 20, color: '#F4A340' },
 
     badgesSection: {
       width: '100%',

@@ -48,6 +48,7 @@ function RootNavigator() {
       <Stack.Screen name="achievements-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="discover-people-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="profile-stats-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="my-stats-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-item-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
     </Stack>
   );
