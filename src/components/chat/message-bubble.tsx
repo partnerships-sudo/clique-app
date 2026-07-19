@@ -32,6 +32,9 @@ export function MessageBubble({
 
   const storyReply = parseStoryReply(message.content);
   const rec = storyReply ? null : parseRec(message.content);
+  const gifUrl = (!storyReply && !rec && message.content.startsWith('__gif:'))
+    ? message.content.slice(6, -2)
+    : null;
 
   return (
     <View style={[styles.group, isMine && styles.groupMine]}>
@@ -161,6 +164,9 @@ export function MessageBubble({
               <Text style={styles.recTapHintText}>Synopsis & cast →</Text>
             </View>
           </Pressable>
+        ) : gifUrl ? (
+          /* ── GIF bubble ── */
+          <Image source={{ uri: gifUrl }} style={styles.gifImage} resizeMode="cover" />
         ) : (
           /* ── Plain text bubble ── */
           <View style={[styles.bubble, isMine && styles.bubbleMine]}>
@@ -396,6 +402,14 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interMedium,
       fontSize: 11,
       color: Brand.trust,
+    },
+
+    // GIF bubble
+    gifImage: {
+      width: 220,
+      height: 160,
+      borderRadius: 14,
+      backgroundColor: Brand.border,
     },
   });
 }

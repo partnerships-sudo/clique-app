@@ -4,6 +4,7 @@ import {
   FlatList,
   Image,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Pressable,
   StyleSheet,
@@ -29,6 +30,7 @@ import {
 } from '@/features/dms/api';
 import { useExtendedNetworkProfiles } from '@/features/follows/api';
 import { useGroupMessages, useSendGroupMessage } from '@/features/groups/api';
+import { searchGifs, type GiphyResult } from '@/features/chat-media/giphy';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -96,6 +98,10 @@ export default function ChatModal() {
   const sendDm = useSendDm();
   const sendGroupMessage = useSendGroupMessage(isGroup ? params.groupId! : null);
   const [input, setInput] = useState('');
+  const [gifPickerOpen, setGifPickerOpen] = useState(false);
+  const [gifQuery, setGifQuery] = useState('');
+  const [gifs, setGifs] = useState<GiphyResult[]>([]);
+  const [gifsLoading, setGifsLoading] = useState(false);
   const listRef = useRef<FlatList>(null);
   const isContentChat = !isDm && !isGroup;
   const isBookChat = isContentChat && params.type === 'read';
@@ -214,6 +220,38 @@ export default function ChatModal() {
     setCheckpoint(params.title, cp);
     setForceShowGate(false);
     setCautionExpanded(false);
+  }
+
+  function openGifPicker() {
+    setGifPickerOpen(true);
+    setGifQuery('');
+    setGifsLoading(true);
+    searchGifs('').then((results) => { setGifs(results); setGifsLoading(false); }).catch(() => setGifsLoading(false));
+  }
+
+  function searchGifQuery(q: string) {
+    setGifQuery(q);
+    setGifsLoading(true);
+    searchGifs(q).then((results) => { setGifs(results); setGifsLoading(false); }).catch(() => setGifsLoading(false));
+  }
+
+  function sendGif(gif: GiphyResult) {
+    setGifPickerOpen(false);
+    const content = `__gif:${gif.url}__`;
+    if (isGroup) {
+      sendGroupMessage.mutate(content);
+      return;
+    }
+    if (isDm) {
+      sendDm.mutate({ friendId: params.friendId!, content });
+      return;
+    }
+    if (!params.title) return;
+    sendMessage.mutate({
+      title: params.title,
+      type: params.type as EntryType,
+      content,
+    });
   }
 
   function handleSend() {
@@ -443,6 +481,9 @@ export default function ChatModal() {
 
         {!isDmLocked ? (
           <View style={styles.inputRow}>
+            <Pressable style={styles.gifBtn} onPress={openGifPicker} hitSlop={8}>
+              <Text style={styles.gifBtnText}>GIF</Text>
+            </Pressable>
             <TextInput
               style={styles.input}
               placeholder="Say something…"
@@ -457,6 +498,44 @@ export default function ChatModal() {
             </Pressable>
           </View>
         ) : null}
+
+        <Modal visible={gifPickerOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setGifPickerOpen(false)}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: Brand.paper }} edges={['top']}>
+            <View style={styles.gifHeader}>
+              <TextInput
+                style={styles.gifSearch}
+                placeholder="Search GIFs…"
+                placeholderTextColor={Brand.muted}
+                value={gifQuery}
+                onChangeText={searchGifQuery}
+                autoFocus
+                returnKeyType="search"
+              />
+              <Pressable onPress={() => setGifPickerOpen(false)} hitSlop={8} style={styles.gifCloseBtn}>
+                <Text style={styles.gifCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            {gifsLoading ? (
+              <View style={styles.gifLoading}>
+                <Text style={{ color: Brand.muted, fontFamily: BrandFonts.interRegular }}>Loading…</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={gifs}
+                keyExtractor={(g) => g.id}
+                numColumns={2}
+                contentContainerStyle={styles.gifGrid}
+                columnWrapperStyle={{ gap: 4 }}
+                renderItem={({ item }) => (
+                  <Pressable onPress={() => sendGif(item)} style={styles.gifCell}>
+                    <Image source={{ uri: item.preview }} style={styles.gifThumb} resizeMode="cover" />
+                  </Pressable>
+                )}
+                ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
+              />
+            )}
+          </SafeAreaView>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -664,5 +743,54 @@ function createStyles(Brand: BrandPalette) {
       justifyContent: 'center',
     },
     sendText: { color: '#fff', fontSize: 16 },
+
+    // GIF button in input row
+    gifBtn: {
+      height: 44,
+      paddingHorizontal: 10,
+      borderRadius: 22,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    gifBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.trust, letterSpacing: 0.5 },
+
+    // GIF picker modal
+    gifHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+    },
+    gifSearch: {
+      flex: 1,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      borderRadius: 22,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      fontSize: 14.5,
+      fontFamily: BrandFonts.interRegular,
+      color: Brand.ink,
+      backgroundColor: Brand.paper,
+    },
+    gifCloseBtn: {
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    gifCloseText: { fontSize: 14, color: Brand.ink },
+    gifGrid: { padding: 4 },
+    gifCell: { flex: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: Brand.border },
+    gifThumb: { width: '100%', aspectRatio: 1 },
+    gifLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   });
 }
