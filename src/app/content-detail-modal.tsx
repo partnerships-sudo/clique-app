@@ -167,6 +167,21 @@ export default function ContentDetailModal() {
             </View>
           ) : null}
 
+          {/* Trailer */}
+          {!isLoading && details?.trailerUrl && details?.trailerThumbnail ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Trailer</Text>
+              <Pressable
+                onPress={() => Linking.openURL(details.trailerUrl!).catch(() => {})}
+                style={styles.trailerContainer}>
+                <Image source={{ uri: details.trailerThumbnail }} style={styles.trailerThumb} resizeMode="cover" />
+                <View style={styles.trailerPlayBtn}>
+                  <Text style={styles.trailerPlayIcon}>▶</Text>
+                </View>
+              </Pressable>
+            </View>
+          ) : null}
+
           {/* Cast */}
           {!isLoading && details?.cast && details.cast.length > 0 ? (
             <View style={styles.section}>
@@ -244,6 +259,14 @@ function createStyles(Brand: BrandPalette) {
     marginBottom: 8,
   },
   section: { marginBottom: 20 },
+  trailerContainer: { borderRadius: 12, overflow: 'hidden', aspectRatio: 16 / 9, backgroundColor: '#000' },
+  trailerThumb: { width: '100%', height: '100%' },
+  trailerPlayBtn: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.3)',
+  },
+  trailerPlayIcon: { fontSize: 36, color: '#fff' },
 
   // Rating + meta row
   metaRow: {

@@ -29,14 +29,14 @@ export default function AppTabs() {
         <Icon sf="person.2.fill" />
       </NativeTabs.Trigger>
 
-      <NativeTabs.Trigger name="library">
-        <Label>Library</Label>
-        <Icon sf="books.vertical.fill" />
-      </NativeTabs.Trigger>
-
       <NativeTabs.Trigger name="news">
         <Label>News</Label>
         <Icon sf="newspaper.fill" />
+      </NativeTabs.Trigger>
+
+      <NativeTabs.Trigger name="profile">
+        <Label>Profile</Label>
+        <Icon sf="person.crop.circle.fill" />
       </NativeTabs.Trigger>
     </NativeTabs>
   );
