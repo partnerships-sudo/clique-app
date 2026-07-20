@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
+import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
 import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
@@ -775,17 +776,12 @@ export function ProfileCard({
                 </View>
               </View>
               <Text style={styles.rateLabel}>Your rating</Text>
-              <View style={styles.rateRow}>
-                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                  <Pressable
-                    key={n}
-                    style={[styles.rateDot, ratingValue === n && styles.rateDotActive]}
-                    onPress={() => setRatingValue(ratingValue === n ? null : n)}
-                    hitSlop={4}>
-                    <Text style={[styles.rateDotText, ratingValue === n && styles.rateDotTextActive]}>{n}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <RatingPicker
+                value={ratingValue ?? 0}
+                iconStyle={(profile?.rating_icon as RatingIconStyle) ?? 'stars'}
+                onChange={(v) => setRatingValue(v === 0 ? null : v)}
+                size={36}
+              />
               <TextInput
                 style={styles.rateNote}
                 placeholder="Add a note (optional)"
@@ -795,10 +791,10 @@ export function ProfileCard({
                 multiline
               />
               <Pressable
-                style={[styles.rateLogBtn, (!ratingValue || rateItem.isPending) && styles.rateLogBtnDisabled]}
-                disabled={!ratingValue || rateItem.isPending}
+                style={[styles.rateLogBtn, (ratingValue === null || rateItem.isPending) && styles.rateLogBtnDisabled]}
+                disabled={ratingValue === null || rateItem.isPending}
                 onPress={async () => {
-                  if (!ratingValue || !ratingItem) return;
+                  if (ratingValue === null || !ratingItem) return;
                   await rateItem.mutateAsync({
                     id: ratingItem.id,
                     rating: ratingValue,
@@ -1251,20 +1247,6 @@ function createStyles(Brand: BrandPalette) {
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
-    rateRow: { flexDirection: 'row', gap: 7, flexWrap: 'wrap' },
-    rateDot: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      borderWidth: 1.5,
-      borderColor: Brand.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: Brand.card,
-    },
-    rateDotActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
-    rateDotText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
-    rateDotTextActive: { color: '#fff' },
     rateNote: {
       borderWidth: 1.5,
       borderColor: Brand.border,

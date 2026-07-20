@@ -10,6 +10,7 @@ import { LibCard } from '@/components/library/lib-card';
 import { SortRow, type LibrarySort } from '@/components/library/sort-row';
 import { WatchlistCard } from '@/components/library/watchlist-card';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
+import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import type { FeedFilterValue } from '@/features/feed/api';
 import {
@@ -19,6 +20,7 @@ import {
   useRemoveLibraryItem,
   type LibraryItem,
 } from '@/features/library/api';
+import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 
 type LibTab = 'logged' | 'watchlist' | 'collection';
@@ -61,6 +63,7 @@ export default function LibraryScreen() {
   const [filter, setFilter] = useState<FeedFilterValue>('all');
   const [sort, setSort] = useState<LibrarySort>('recent');
 
+  const { data: profile } = useProfile();
   const { logged, watchlist, friendRecItems, isLoading, isFetching, refetch } = useLibraryItems();
   const moveToLibrary = useMoveToLibrary();
   const removeItem = useRemoveLibraryItem();
@@ -343,17 +346,12 @@ export default function LibraryScreen() {
                 </View>
               </View>
               <Text style={styles.rateLabel}>Your rating</Text>
-              <View style={styles.rateRow}>
-                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                  <Pressable
-                    key={n}
-                    style={[styles.rateDot, ratingValue === n && styles.rateDotActive]}
-                    onPress={() => setRatingValue(ratingValue === n ? null : n)}
-                    hitSlop={4}>
-                    <Text style={[styles.rateDotText, ratingValue === n && styles.rateDotTextActive]}>{n}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <RatingPicker
+                value={ratingValue ?? 0}
+                iconStyle={(profile?.rating_icon as RatingIconStyle) ?? 'stars'}
+                onChange={(v) => setRatingValue(v === 0 ? null : v)}
+                size={36}
+              />
               <TextInput
                 style={styles.rateNote}
                 placeholder="Add a note (optional)"
@@ -363,10 +361,10 @@ export default function LibraryScreen() {
                 multiline
               />
               <Pressable
-                style={[styles.rateLogBtn, (!ratingValue || rateItem.isPending) && styles.rateLogBtnDisabled]}
-                disabled={!ratingValue || rateItem.isPending}
+                style={[styles.rateLogBtn, (ratingValue === null || rateItem.isPending) && styles.rateLogBtnDisabled]}
+                disabled={ratingValue === null || rateItem.isPending}
                 onPress={async () => {
-                  if (!ratingValue || !ratingItem) return;
+                  if (ratingValue === null || !ratingItem) return;
                   await rateItem.mutateAsync({
                     id: ratingItem.id,
                     rating: ratingValue,
@@ -525,20 +523,6 @@ function createStyles(Brand: BrandPalette) {
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  rateRow: { flexDirection: 'row', gap: 7, flexWrap: 'wrap' },
-  rateDot: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    borderWidth: 1.5,
-    borderColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Brand.card,
-  },
-  rateDotActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
-  rateDotText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
-  rateDotTextActive: { color: '#fff' },
   rateNote: {
     borderWidth: 1.5,
     borderColor: Brand.border,
