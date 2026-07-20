@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FilterChips } from '@/components/feed/filter-chips';
@@ -15,6 +15,7 @@ import type { FeedFilterValue } from '@/features/feed/api';
 import {
   useLibraryItems,
   useMoveToLibrary,
+  useRateLibraryItem,
   useRemoveLibraryItem,
   type LibraryItem,
 } from '@/features/library/api';
@@ -63,6 +64,10 @@ export default function LibraryScreen() {
   const { logged, watchlist, friendRecItems, isLoading, isFetching, refetch } = useLibraryItems();
   const moveToLibrary = useMoveToLibrary();
   const removeItem = useRemoveLibraryItem();
+  const rateItem = useRateLibraryItem();
+  const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
+  const [ratingValue, setRatingValue] = useState<number | null>(null);
+  const [ratingNote, setRatingNote] = useState('');
   const { items: collectionItems, isLoading: isCollectionLoading, isFetching: isCollectionFetching, refetch: refetchCollection } = useCollectionItems();
   const removeFromCollection = useRemoveFromCollection();
 
@@ -199,21 +204,7 @@ export default function LibraryScreen() {
           renderItem={({ item }: { item: LibraryItem }) => (
             <WatchlistCard
               item={item}
-              onLogIt={() =>
-                router.push({
-                  pathname: '/rate-watchlist-modal',
-                  params: {
-                    id: item.id,
-                    title: item.title,
-                    type: item.type,
-                    sub: item.sub ?? undefined,
-                    poster: item.poster ?? undefined,
-                    externalId: item.external_id ?? undefined,
-                    mediaType: item.media_type ?? undefined,
-                    extRating: item.ext_rating ?? undefined,
-                  },
-                })
-              }
+              onLogIt={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}
               onRemove={() => removeItem.mutate(item.id)}
             />
           )}
@@ -332,6 +323,73 @@ export default function LibraryScreen() {
           }
         />
       )}
+      {/* Inline rate-and-log sheet */}
+      <Modal
+        visible={!!ratingItem}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRatingItem(null)}>
+        <Pressable style={styles.rateOverlay} onPress={() => setRatingItem(null)} />
+        <View style={styles.rateSheet}>
+          {ratingItem ? (
+            <>
+              <View style={styles.rateItemRow}>
+                {ratingItem.poster ? (
+                  <Image source={{ uri: ratingItem.poster }} style={styles.ratePoster} resizeMode="cover" />
+                ) : null}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.rateTitle} numberOfLines={2}>{ratingItem.title}</Text>
+                  {ratingItem.sub ? <Text style={styles.rateSub} numberOfLines={1}>{ratingItem.sub}</Text> : null}
+                </View>
+              </View>
+              <Text style={styles.rateLabel}>Your rating</Text>
+              <View style={styles.rateRow}>
+                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                  <Pressable
+                    key={n}
+                    style={[styles.rateDot, ratingValue === n && styles.rateDotActive]}
+                    onPress={() => setRatingValue(ratingValue === n ? null : n)}
+                    hitSlop={4}>
+                    <Text style={[styles.rateDotText, ratingValue === n && styles.rateDotTextActive]}>{n}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={styles.rateNote}
+                placeholder="Add a note (optional)"
+                placeholderTextColor={Brand.muted}
+                value={ratingNote}
+                onChangeText={setRatingNote}
+                multiline
+              />
+              <Pressable
+                style={[styles.rateLogBtn, (!ratingValue || rateItem.isPending) && styles.rateLogBtnDisabled]}
+                disabled={!ratingValue || rateItem.isPending}
+                onPress={async () => {
+                  if (!ratingValue || !ratingItem) return;
+                  await rateItem.mutateAsync({
+                    id: ratingItem.id,
+                    rating: ratingValue,
+                    title: ratingItem.title,
+                    type: ratingItem.type,
+                    sub: ratingItem.sub ?? null,
+                    poster: ratingItem.poster ?? null,
+                    externalId: ratingItem.external_id ?? null,
+                    mediaType: ratingItem.media_type ?? null,
+                    extRating: ratingItem.ext_rating ?? null,
+                  });
+                  setRatingItem(null);
+                }}>
+                {rateItem.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.rateLogBtnText}>Log it →</Text>
+                )}
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -445,5 +503,62 @@ function createStyles(Brand: BrandPalette) {
     fontFamily: BrandFonts.interRegular,
     fontSize: 13.6,
   },
+
+  // Inline rate-and-log modal
+  rateOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+  rateSheet: {
+    backgroundColor: Brand.paper,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    padding: 24,
+    gap: 16,
+    paddingBottom: 40,
+  },
+  rateItemRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
+  ratePoster: { width: 52, height: 72, borderRadius: 10, backgroundColor: Brand.border },
+  rateTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: Brand.ink, lineHeight: 21 },
+  rateSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginTop: 2 },
+  rateLabel: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 11,
+    color: Brand.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  rateRow: { flexDirection: 'row', gap: 7, flexWrap: 'wrap' },
+  rateDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: Brand.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Brand.card,
+  },
+  rateDotActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
+  rateDotText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
+  rateDotTextActive: { color: '#fff' },
+  rateNote: {
+    borderWidth: 1.5,
+    borderColor: Brand.border,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    fontFamily: BrandFonts.interRegular,
+    color: Brand.ink,
+    backgroundColor: Brand.card,
+    minHeight: 52,
+    textAlignVertical: 'top',
+  },
+  rateLogBtn: {
+    backgroundColor: Brand.trust,
+    borderRadius: 14,
+    paddingVertical: 15,
+    alignItems: 'center',
+  },
+  rateLogBtnDisabled: { opacity: 0.45 },
+  rateLogBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: '#fff' },
   });
 }
