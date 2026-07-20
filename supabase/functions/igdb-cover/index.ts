@@ -120,9 +120,9 @@ async function handleDetails(id: number, token: string) {
   // Two independent queries: game details + voice cast (separate endpoint)
   const [gameData, charData] = await Promise.all([
     igdb(token, 'games',
-      `fields name, summary, rating, first_release_date, genres.name, platforms.id, websites.url, websites.category, cover.image_id, similar_games, involved_companies.developer, involved_companies.company.name, involved_companies.company.logo.image_id; where id = ${id}; limit 1;`),
+      `fields name, summary, rating, first_release_date, genres.name, platforms.id, websites.url, websites.category, cover.image_id, similar_games, involved_companies.developer, involved_companies.company.name, involved_companies.company.logo.image_id, videos.video_id, videos.name; where id = ${id}; limit 1;`),
     igdb(token, 'characters',
-      `fields name, voice_actors.name, voice_actors.mug_shot.image_id; where games = ${id}; limit 10;`)
+      `fields name, voice_actors.name, voice_actors.mug_shot.image_id; where games = (${id}); limit 10;`)
       .catch(() => []),
   ]);
 
@@ -150,7 +150,17 @@ async function handleDetails(id: number, token: string) {
     });
   }
 
-  return { game: { ...mapGame(game), developer, cast } };
+  const trailerVideo = (game.videos ?? []).find((v: any) =>
+    /trailer/i.test(v.name ?? '')
+  ) ?? game.videos?.[0] ?? null;
+  const trailerUrl = trailerVideo?.video_id
+    ? `https://www.youtube.com/watch?v=${trailerVideo.video_id}`
+    : null;
+  const trailerThumbnail = trailerVideo?.video_id
+    ? `https://img.youtube.com/vi/${trailerVideo.video_id}/hqdefault.jpg`
+    : null;
+
+  return { game: { ...mapGame(game), developer, cast, trailerUrl, trailerThumbnail } };
 }
 
 // --- action: similar ---

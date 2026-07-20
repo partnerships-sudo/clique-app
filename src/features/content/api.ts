@@ -277,6 +277,8 @@ async function fetchGameDetails(title: string): Promise<ContentDetails> {
     year: detail.year ?? null,
     genre: detail.genre ?? null,
     developer: detail.developer ?? null,
+    trailerUrl: detail.trailerUrl ?? null,
+    trailerThumbnail: detail.trailerThumbnail ?? null,
     watchProviders: stores,
   };
 }
@@ -494,7 +496,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v6', type, externalId ?? title],
+    queryKey: ['content-details-v8', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {

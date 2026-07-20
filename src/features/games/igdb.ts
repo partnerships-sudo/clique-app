@@ -47,6 +47,8 @@ export interface IgdbGame {
   similarIds: number[];
   developer?: { name: string; logoUrl: string | null } | null;
   cast?: { name: string; character: string; profilePath: string | null }[];
+  trailerUrl?: string | null;
+  trailerThumbnail?: string | null;
 }
 
 export async function igdbSearch(query: string): Promise<IgdbGame[]> {

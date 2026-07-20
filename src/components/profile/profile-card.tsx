@@ -566,7 +566,7 @@ export function ProfileCard({
                     <Pressable
                       key={item.id}
                       style={styles.collGridItem}
-                      onPress={() => router.push({ pathname: '/collection-item-detail-modal', params: { id: item.id, title: item.title, sub: item.sub ?? undefined, poster: item.poster ?? undefined, type: item.type, format: item.format ?? undefined, userRating: item.user_rating?.toString() ?? undefined, externalId: item.external_id ?? undefined } })}>
+                      onPress={() => router.push({ pathname: '/collection-item-detail-modal', params: { id: item.id, title: item.title, sub: item.sub ?? undefined, poster: item.poster ?? undefined, type: item.type, format: item.format ?? undefined, userRating: item.user_rating?.toString() ?? undefined, externalId: item.external_id ?? undefined, isOwner: isOwnProfile ? '1' : '0' } })}>
                       {item.poster ? (
                         <Image source={{ uri: item.poster }} style={styles.collGridImg} resizeMode="cover" />
                       ) : (

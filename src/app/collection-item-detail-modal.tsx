@@ -34,6 +34,7 @@ export default function CollectionItemDetailModal() {
     format?: string;
     userRating?: string;
     externalId?: string;
+    isOwner?: string;
   }>();
 
   const Brand = useBrand();
@@ -45,6 +46,7 @@ export default function CollectionItemDetailModal() {
   const updateRating = useUpdateCollectionItemRating();
   const removeItem = useRemoveFromCollection();
 
+  const isOwner = params.isOwner !== '0';
   const typeKey = params.type === 'tv' ? 'watch' : params.type === 'podcast' ? 'podcast' : params.type;
   const typeConfig = TypeColors[typeKey as keyof typeof TypeColors];
   const isSquareArt = params.type === 'listen' || params.type === 'podcast';
@@ -101,21 +103,23 @@ export default function CollectionItemDetailModal() {
         </View>
       </View>
 
-      {/* Rating section */}
-      <View style={styles.ratingSection}>
-        <Text style={styles.sectionLabel}>Your Rating</Text>
-        <RatingPicker value={rating} iconStyle={ratingIcon} onChange={setRating} size={36} />
-        <Pressable
-          style={[styles.saveBtn, updateRating.isPending && styles.saveBtnLoading]}
-          onPress={handleSaveRating}
-          disabled={updateRating.isPending}>
-          {updateRating.isPending ? (
-            <ActivityIndicator color="#fff" size="small" />
-          ) : (
-            <Text style={styles.saveBtnText}>{rating ? 'Save rating' : 'Clear rating'}</Text>
-          )}
-        </Pressable>
-      </View>
+      {/* Rating section — own profile only */}
+      {isOwner ? (
+        <View style={styles.ratingSection}>
+          <Text style={styles.sectionLabel}>Your Rating</Text>
+          <RatingPicker value={rating} iconStyle={ratingIcon} onChange={setRating} size={36} />
+          <Pressable
+            style={[styles.saveBtn, updateRating.isPending && styles.saveBtnLoading]}
+            onPress={handleSaveRating}
+            disabled={updateRating.isPending}>
+            {updateRating.isPending ? (
+              <ActivityIndicator color="#fff" size="small" />
+            ) : (
+              <Text style={styles.saveBtnText}>{rating ? 'Save rating' : 'Clear rating'}</Text>
+            )}
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Action buttons */}
       <View style={styles.actions}>
@@ -135,16 +139,18 @@ export default function CollectionItemDetailModal() {
           }>
           <Text style={styles.infoBtnText}>View full info ›</Text>
         </Pressable>
-        <Pressable
-          style={styles.removeBtn}
-          onPress={handleRemove}
-          disabled={removeItem.isPending}>
-          {removeItem.isPending ? (
-            <ActivityIndicator color="#E84F4F" size="small" />
-          ) : (
-            <Text style={styles.removeBtnText}>Remove from collection</Text>
-          )}
-        </Pressable>
+        {isOwner ? (
+          <Pressable
+            style={styles.removeBtn}
+            onPress={handleRemove}
+            disabled={removeItem.isPending}>
+            {removeItem.isPending ? (
+              <ActivityIndicator color="#E84F4F" size="small" />
+            ) : (
+              <Text style={styles.removeBtnText}>Remove from collection</Text>
+            )}
+          </Pressable>
+        ) : null}
       </View>
     </ScrollView>
   );
