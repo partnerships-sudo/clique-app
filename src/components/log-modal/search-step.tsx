@@ -78,6 +78,7 @@ export function SearchStep({
   const [manualMode, setManualMode] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
   const [note, setNote] = useState('');
+  const [rating, setRating] = useState<number | null>(null);
   const [closeFriendsOnly, setCloseFriendsOnly] = useState(false);
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<{ number: number; name: string } | null>(null);
@@ -132,6 +133,7 @@ export function SearchStep({
       sub,
       poster: selected?.poster ?? undefined,
       note: note.trim() || undefined,
+      rating: rating ?? undefined,
       extRating: selected?.extRating ?? undefined,
       externalId: selected?.externalId ?? undefined,
       mediaType: selected?.mediaType ?? undefined,
@@ -310,6 +312,22 @@ export function SearchStep({
 
       {finalTitle ? (
         <View style={styles.afterSelect}>
+          {intent === 'log' ? (
+            <View style={styles.ratingCard}>
+              <Text style={styles.ratingLabel}>Your rating</Text>
+              <View style={styles.ratingRow}>
+                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                  <Pressable
+                    key={n}
+                    style={[styles.ratingDot, rating === n && styles.ratingDotActive]}
+                    onPress={() => setRating(rating === n ? null : n)}
+                    hitSlop={4}>
+                    <Text style={[styles.ratingDotText, rating === n && styles.ratingDotTextActive]}>{n}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+          ) : null}
           <TextInput
             style={[styles.input, styles.noteInput]}
             placeholder="Add a note (optional)"
@@ -478,6 +496,47 @@ function createStyles(Brand: BrandPalette) {
   },
   watchPartyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#fff' },
   afterSelect: { marginTop: 6 },
+  ratingCard: {
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+  },
+  ratingLabel: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 11,
+    color: Brand.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+  },
+  ratingRow: {
+    flexDirection: 'row',
+    gap: 6,
+    flexWrap: 'wrap',
+  },
+  ratingDot: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: Brand.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: Brand.paper,
+  },
+  ratingDotActive: {
+    backgroundColor: Brand.trust,
+    borderColor: Brand.trust,
+  },
+  ratingDotText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 13,
+    color: Brand.ink,
+  },
+  ratingDotTextActive: { color: '#fff' },
   closeFriendsRow: {
     flexDirection: 'row',
     alignItems: 'center',
