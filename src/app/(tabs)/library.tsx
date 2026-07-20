@@ -199,7 +199,19 @@ export default function LibraryScreen() {
           renderItem={({ item }: { item: LibraryItem }) => (
             <WatchlistCard
               item={item}
-              onLogIt={() => moveToLibrary.mutate(item)}
+              onLogIt={() =>
+                router.push({
+                  pathname: '/log-modal',
+                  params: {
+                    prefillTitle: item.title,
+                    prefillType: item.type,
+                    prefillSub: item.sub ?? undefined,
+                    prefillPoster: item.poster ?? undefined,
+                    prefillExternalId: item.external_id ?? undefined,
+                    prefillMediaType: item.media_type ?? undefined,
+                  },
+                })
+              }
               onRemove={() => removeItem.mutate(item.id)}
             />
           )}

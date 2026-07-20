@@ -11,8 +11,17 @@ import { useAddLibraryItem } from '@/features/library/api';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function LogModal() {
-  const params = useLocalSearchParams<{ intent?: string }>();
-  const [type, setType] = useState<EntryType | null>(null);
+  const params = useLocalSearchParams<{
+    intent?: string;
+    prefillTitle?: string;
+    prefillType?: EntryType;
+    prefillSub?: string;
+    prefillPoster?: string;
+    prefillExternalId?: string;
+    prefillMediaType?: string;
+  }>();
+  const hasPrefill = !!params.prefillTitle && !!params.prefillType;
+  const [type, setType] = useState<EntryType | null>(hasPrefill ? (params.prefillType ?? null) : null);
   const [intent, setIntent] = useState<LogIntent>(params.intent === 'watchlist' ? 'watchlist' : 'log');
   const createPost = useCreatePost();
   const addLibraryItem = useAddLibraryItem();
@@ -57,12 +66,24 @@ export default function LogModal() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
-        <Text style={styles.heading}>What are you into right now?</Text>
-        <TypePickerStep value={type} onSelect={setType} />
+        {!hasPrefill && <Text style={styles.heading}>What are you into right now?</Text>}
+        {!hasPrefill && <TypePickerStep value={type} onSelect={setType} />}
         {type ? (
-          <View style={styles.entrySection}>
-            <IntentToggle value={intent} onChange={setIntent} />
-            <SearchStep type={type} intent={intent} onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+          <View style={hasPrefill ? undefined : styles.entrySection}>
+            {!hasPrefill && <IntentToggle value={intent} onChange={setIntent} />}
+            <SearchStep
+              type={type}
+              intent={intent}
+              onSubmit={handleSubmit}
+              isSubmitting={isSubmitting}
+              prefill={hasPrefill ? {
+                title: params.prefillTitle!,
+                sub: params.prefillSub ?? '',
+                poster: params.prefillPoster ?? null,
+                externalId: params.prefillExternalId ?? null,
+                mediaType: params.prefillMediaType ?? null,
+              } : undefined}
+            />
           </View>
         ) : null}
       </ScrollView>

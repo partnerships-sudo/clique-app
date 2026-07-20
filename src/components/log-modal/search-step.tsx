@@ -49,6 +49,7 @@ export function SearchStep({
   intent,
   onSubmit,
   isSubmitting,
+  prefill,
 }: {
   type: EntryType;
   intent: 'log' | 'watchlist';
@@ -64,13 +65,16 @@ export function SearchStep({
     visibility?: 'everyone' | 'close_friends';
   }) => void;
   isSubmitting: boolean;
+  prefill?: { title: string; sub: string; poster: string | null; externalId: string | null; mediaType: string | null };
 }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [selected, setSelected] = useState<SelectedTitle | null>(null);
+  const [selected, setSelected] = useState<SelectedTitle | null>(
+    prefill ? { title: prefill.title, sub: prefill.sub, poster: prefill.poster, extRating: null, externalId: prefill.externalId, mediaType: prefill.mediaType, square: false } : null,
+  );
   const [manualMode, setManualMode] = useState(false);
   const [manualTitle, setManualTitle] = useState('');
   const [note, setNote] = useState('');
