@@ -1,4 +1,5 @@
 import { router, Stack } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,7 +61,7 @@ export default function DiscoverPeopleModal() {
 
           <View style={styles.content}>
           <View style={styles.searchRow}>
-            <Text style={styles.searchIcon}>🔍</Text>
+            <SymbolView name="magnifyingglass" size={15} tintColor="#999" style={{ width: 16, height: 16, marginRight: 8 }} />
             <TextInput
               style={styles.input}
               placeholder="Search by name or username…"

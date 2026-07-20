@@ -82,6 +82,6 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
     scroll: { flex: 1 },
-    content: { padding: Spacing.three, paddingBottom: Spacing.six },
+    content: { paddingBottom: Spacing.six },
   });
 }

@@ -208,6 +208,7 @@ export default function StoriesModal() {
                 poster: post.poster ?? undefined,
                 sub: post.sub ?? undefined,
                 externalId: post.external_id ?? undefined,
+                mediaType: post.sub?.includes('Film') ? 'movie' : post.sub?.includes('TV') ? 'tv' : undefined,
               },
             });
           }}

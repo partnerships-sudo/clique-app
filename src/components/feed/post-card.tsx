@@ -97,6 +97,7 @@ export function PostCard({
                 poster: post.poster ?? undefined,
                 sub: post.sub ?? undefined,
                 externalId: post.external_id ?? undefined,
+                mediaType: post.sub?.includes('Film') ? 'movie' : post.sub?.includes('TV') ? 'tv' : undefined,
               },
             })
           }
@@ -134,13 +135,6 @@ export function PostCard({
             {post.visibility === 'close_friends' ? (
               <View style={styles.closeFriendsPill}>
                 <Text style={styles.closeFriendsPillText}>💚 Friends</Text>
-              </View>
-            ) : null}
-            {!isMine && compatScore !== undefined ? (
-              <View style={[styles.compatBadge, { backgroundColor: compatColor(compatScore) + '1A' }]}>
-                <Text style={[styles.compatText, { color: compatColor(compatScore) }]}>
-                  {compatEmoji(compatScore)} {compatScore}%
-                </Text>
               </View>
             ) : null}
             <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
@@ -269,7 +263,8 @@ function createStyles(Brand: BrandPalette) {
     posterPressSquare: { height: POSTER_W, alignSelf: 'flex-start' },
     poster: {
       width: POSTER_W,
-      flex: 1,
+      height: POSTER_H,
+      alignSelf: 'flex-start',
       backgroundColor: Brand.border,
     },
     posterFallback: {
@@ -408,14 +403,14 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       backgroundColor: Brand.tlight,
-      borderRadius: 20,
-      paddingVertical: 5,
-      paddingHorizontal: 10,
+      borderRadius: 12,
+      paddingVertical: 2,
+      paddingHorizontal: 6,
     },
     emojiPillActive: { backgroundColor: Brand.trust },
     emojiPillText: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 13,
+      fontSize: 11,
       color: Brand.trust,
     },
     emojiAddBtn: {

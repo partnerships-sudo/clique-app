@@ -19,7 +19,7 @@ export function SectionLabel({ children }: { children: ReactNode }) {
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
     text: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 11,

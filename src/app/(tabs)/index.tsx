@@ -479,7 +479,7 @@ export default function FeedScreen() {
               />
             );
           }}
-          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.empty}>

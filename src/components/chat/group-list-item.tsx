@@ -42,15 +42,12 @@ export function GroupListItem({ thread, onPress }: { thread: GroupThread; onPres
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     card: {
-      backgroundColor: Brand.card,
-      borderWidth: 1,
-      borderColor: Brand.border,
-      borderRadius: 16,
-      padding: 14,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      marginBottom: 10,
+      paddingVertical: 13,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Brand.border,
     },
     icon: {
       width: 48,

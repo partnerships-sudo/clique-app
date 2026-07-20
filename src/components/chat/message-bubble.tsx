@@ -90,6 +90,7 @@ export function MessageBubble({
                   type: rec.type,
                   poster: rec.poster,
                   sub: rec.sub,
+                  mediaType: rec.sub?.includes('Film') ? 'movie' : rec.sub?.includes('TV') ? 'tv' : undefined,
                 },
               })
             }>

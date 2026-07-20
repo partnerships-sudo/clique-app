@@ -1,4 +1,5 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { forwardRef, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -55,7 +56,7 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
   return (
     <View>
       <View style={styles.searchRow}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <SymbolView name="magnifyingglass" size={15} tintColor="#999" style={{ width: 16, height: 16, marginRight: 8 }} />
         <TextInput
           ref={inputRef}
           style={styles.input}

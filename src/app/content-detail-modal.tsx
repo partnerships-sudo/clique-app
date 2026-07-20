@@ -2,6 +2,7 @@ import React from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import WebView from 'react-native-webview';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withDecay } from 'react-native-reanimated';
 
@@ -108,7 +109,21 @@ export default function ContentDetailModal() {
   const whereConfig = getWhereToFindConfig(resolvedType ?? 'watch', params.title ?? '', params.externalId);
   const usingRealProviders =
     !!details && (resolvedType === 'watch' || resolvedType === 'play') && (details.watchProviders?.length ?? 0) > 0;
-  const stores = usingRealProviders ? details!.watchProviders : whereConfig.stores;
+  // For watch/play, if TMDB loaded but returned no providers (e.g. theatrical release,
+  // not yet on streaming), only show JustWatch so users can check current availability
+  // themselves — don't show platforms the content isn't actually on.
+  const noStreamingYet = !!details && resolvedType === 'watch' && (details.watchProviders?.length ?? 0) === 0;
+  const q = encodeURIComponent(params.title ?? '');
+  const justWatchOnly = [{
+    name: 'JustWatch',
+    logo: '🎬',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=justwatch.com&sz=64',
+    price: 'Check current availability & showtimes',
+    cta: 'Find on JustWatch',
+    color: '#0E0E10',
+    url: `https://www.justwatch.com/us/search?q=${q}`,
+  }];
+  const stores = usingRealProviders ? details!.watchProviders : noStreamingYet ? justWatchOnly : whereConfig.stores;
   // TMDB/Google Books/IGDB posters are all ~2:3, Spotify music/podcast art
   // is exactly 1:1 — forcing music/podcasts into a 2:3 box would crop the
   // square art, so they get their own matching box instead.
@@ -266,17 +281,19 @@ export default function ContentDetailModal() {
           ) : null}
 
           {/* Trailer */}
-          {!isLoading && details?.trailerUrl && details?.trailerThumbnail ? (
+          {!isLoading && details?.trailerUrl ? (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Trailer</Text>
-              <Pressable
-                onPress={() => Linking.openURL(details.trailerUrl!).catch(() => {})}
-                style={styles.trailerContainer}>
-                <Image source={{ uri: details.trailerThumbnail }} style={styles.trailerThumb} resizeMode="cover" />
-                <View style={styles.trailerPlayBtn}>
-                  <Text style={styles.trailerPlayIcon}>▶</Text>
-                </View>
-              </Pressable>
+              <View style={styles.trailerContainer}>
+                <WebView
+                  source={{ uri: details.trailerUrl.replace('watch?v=', 'embed/') + '?autoplay=0&rel=0&playsinline=1' }}
+                  style={styles.trailerThumb}
+                  allowsFullscreenVideo
+                  allowsInlineMediaPlayback
+                  mediaPlaybackRequiresUserAction
+                  javaScriptEnabled
+                />
+              </View>
             </View>
           ) : null}
 

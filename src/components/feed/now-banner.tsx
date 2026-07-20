@@ -56,8 +56,8 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     banner: {
       borderRadius: 20,
-      minHeight: 150,
-      marginBottom: 22,
+      height: POSTER_WIDTH,
+      marginBottom: 14,
       position: 'relative',
       overflow: 'hidden',
     },
@@ -66,7 +66,7 @@ function createStyles(Brand: BrandPalette) {
       paddingLeft: 18,
       paddingRight: POSTER_WIDTH + 14,
       justifyContent: 'center',
-      minHeight: 150,
+      flex: 1,
     },
     label: {
       fontFamily: BrandFonts.syneBold,
@@ -85,15 +85,18 @@ function createStyles(Brand: BrandPalette) {
     },
     btn: {
       backgroundColor: Brand.trust,
-      borderRadius: 24,
-      paddingVertical: 11,
-      paddingHorizontal: 18,
+      borderRadius: 20,
+      paddingVertical: 7,
+      paddingHorizontal: 14,
       alignSelf: 'flex-start',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     btnText: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 13,
+      fontSize: 12,
       color: '#fff',
+      lineHeight: 16,
     },
     poster: {
       position: 'absolute',

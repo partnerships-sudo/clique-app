@@ -101,11 +101,7 @@ export default function NewsScreen() {
 
         {/* Category icon chips (headlines only) */}
         {mode === 'headlines' ? (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.catRow}
-            style={styles.catScroll}>
+          <View style={styles.catRow}>
             {CATEGORY_FILTERS.map((cat) => {
               const active = filter === cat.value;
               return (
@@ -118,7 +114,7 @@ export default function NewsScreen() {
                 </Pressable>
               );
             })}
-          </ScrollView>
+          </View>
         ) : null}
       </View>
 
@@ -287,7 +283,6 @@ export default function NewsScreen() {
                               ) : (
                                 <View style={[styles.gridImg, styles.gridImgFallback]} />
                               )}
-                              <View style={styles.gridBottomGradient} />
                             </View>
                             <View style={styles.gridBody}>
                               <View style={styles.gridMeta}>
@@ -366,7 +361,7 @@ function createStyles(Brand: BrandPalette) {
 
     // Category chips
     catScroll: { marginBottom: 14 },
-    catRow: { flexDirection: 'row', gap: 10, paddingRight: 16 },
+    catRow: { flexDirection: 'row', gap: 7, paddingHorizontal: Spacing.three, justifyContent: 'center', marginBottom: 14 },
     catChip: {
       alignItems: 'center',
       justifyContent: 'center',
@@ -491,20 +486,20 @@ function createStyles(Brand: BrandPalette) {
     boRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
-      marginBottom: 20,
+      gap: 10,
+      marginBottom: 12,
     },
     boRank: {
       fontFamily: BrandFonts.syneExtraBold,
-      fontSize: 18,
+      fontSize: 14,
       color: Brand.border,
-      width: 28,
+      width: 24,
       textAlign: 'right',
     },
     boPoster: {
-      width: 52,
-      height: 74,
-      borderRadius: 8,
+      width: 38,
+      height: 54,
+      borderRadius: 6,
       backgroundColor: Brand.border,
     },
     boPosterFallback: { backgroundColor: Brand.tlight },

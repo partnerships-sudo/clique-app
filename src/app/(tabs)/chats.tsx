@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { SymbolView } from 'expo-symbols';
+
 import { ChatListItem } from '@/components/chat/chat-list-item';
 import { DmListItem } from '@/components/chat/dm-list-item';
 import { GroupListItem } from '@/components/chat/group-list-item';
@@ -14,7 +16,7 @@ import { type FeedFilterValue } from '@/features/feed/api';
 import { useGroupThreads, type GroupThread } from '@/features/groups/api';
 import { useBrand } from '@/hooks/use-brand';
 
-type ChatsMode = 'content' | 'private';
+type ChatsMode = 'content' | 'private' | 'requests';
 
 type PrivateItem =
   | { kind: 'dm'; data: DmThread }
@@ -40,6 +42,7 @@ export default function ChatsScreen() {
         t.lastText.toLowerCase().includes(trimmedQuery),
     );
   const isPrivate = mode === 'private';
+  const isRequests = mode === 'requests';
 
   const contentUnread = threads.reduce((sum, t) => sum + t.unreadCount, 0);
   const privateUnread =
@@ -111,39 +114,49 @@ export default function ChatsScreen() {
           <Pressable onPress={() => router.push('/archived-chats-modal')} hitSlop={8} style={styles.archivedBtn}>
             <Text style={styles.archivedBtnText}>Archived</Text>
           </Pressable>
-          <Pressable style={styles.composeBtn} onPress={() => router.push('/new-chat-modal')} hitSlop={8}>
-            <Text style={styles.composeBtnText}>＋</Text>
+          <Pressable onPress={() => router.push('/new-chat-modal')} hitSlop={8}>
+            <SymbolView name="square.and.pencil" size={22} tintColor={Brand.ink} style={{ width: 24, height: 24 }} />
           </Pressable>
         </View>
       </View>
       <View style={styles.modeRow}>
-        <Pressable
-          style={[styles.modeBtn, !isPrivate && styles.modeBtnActive]}
-          onPress={() => setMode('content')}>
-          <Text style={[styles.modeBtnText, !isPrivate && styles.modeBtnTextActive]}>💬 Content Chats</Text>
+        <Pressable style={styles.modeTab} onPress={() => setMode('content')}>
+          <Text style={[styles.modeTabText, mode === 'content' && styles.modeTabTextActive]}>
+            Content
+          </Text>
           {contentUnread > 0 && (
-            <View style={[styles.modeBadge, !isPrivate && styles.modeBadgeActive]}>
-              <Text style={[styles.modeBadgeText, !isPrivate && styles.modeBadgeTextActive]}>
-                {contentUnread > 99 ? '99+' : String(contentUnread)}
-              </Text>
+            <View style={styles.modeBadge}>
+              <Text style={styles.modeBadgeText}>{contentUnread > 99 ? '99+' : String(contentUnread)}</Text>
             </View>
           )}
+          {mode === 'content' && <View style={styles.modeTabUnderline} />}
         </Pressable>
-        <Pressable
-          style={[styles.modeBtn, isPrivate && styles.modeBtnActive]}
-          onPress={() => setMode('private')}>
-          <Text style={[styles.modeBtnText, isPrivate && styles.modeBtnTextActive]}>🔒 Private Chats</Text>
+        <Pressable style={styles.modeTab} onPress={() => setMode('private')}>
+          <Text style={[styles.modeTabText, mode === 'private' && styles.modeTabTextActive]}>
+            Private
+          </Text>
           {privateUnread > 0 && (
-            <View style={[styles.modeBadge, isPrivate && styles.modeBadgeActive]}>
-              <Text style={[styles.modeBadgeText, isPrivate && styles.modeBadgeTextActive]}>
-                {privateUnread > 99 ? '99+' : String(privateUnread)}
-              </Text>
+            <View style={styles.modeBadge}>
+              <Text style={styles.modeBadgeText}>{privateUnread > 99 ? '99+' : String(privateUnread)}</Text>
             </View>
           )}
+          {mode === 'private' && <View style={styles.modeTabUnderline} />}
+        </Pressable>
+        <View style={styles.modeTabSpacer} />
+        <Pressable style={styles.modeTab} onPress={() => setMode('requests')}>
+          <Text style={[styles.modeTabText, mode === 'requests' && styles.modeTabTextActive]}>
+            Requests
+          </Text>
+          {filteredRequestThreads.length > 0 && (
+            <View style={styles.modeBadge}>
+              <Text style={styles.modeBadgeText}>{filteredRequestThreads.length}</Text>
+            </View>
+          )}
+          {mode === 'requests' && <View style={styles.modeTabUnderline} />}
         </Pressable>
       </View>
       <View style={styles.searchRow}>
-        <Text style={styles.searchIcon}>🔍</Text>
+        <SymbolView name="magnifyingglass" size={15} tintColor="#999" style={{ width: 16, height: 16, marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
           placeholder={isPrivate ? 'Search private chats…' : 'Search content chats…'}
@@ -158,23 +171,7 @@ export default function ChatsScreen() {
           </Pressable>
         ) : null}
       </View>
-      {!isPrivate && <FilterChips value={filter} onChange={setFilter} />}
-    </View>
-  );
-
-  const privateHeaderContent = (
-    <View>
-      {headerContent}
-      {filteredRequestThreads.length > 0 ? (
-        <Pressable
-          style={styles.requestsRow}
-          onPress={() => router.push('/dm-requests-modal')}>
-          <Text style={styles.requestsRowText}>
-            Message Requests ({filteredRequestThreads.length})
-          </Text>
-          <Text style={styles.requestsRowChevron}>›</Text>
-        </Pressable>
-      ) : null}
+      {mode === 'content' && <FilterChips value={filter} onChange={setFilter} />}
     </View>
   );
 
@@ -187,7 +184,7 @@ export default function ChatsScreen() {
           keyExtractor={(item) =>
             item.kind === 'dm' ? `dm-${item.data.friendId}` : `group-${item.data.id}`
           }
-          ListHeaderComponent={privateHeaderContent}
+          ListHeaderComponent={headerContent}
           renderItem={({ item }) =>
             item.kind === 'dm' ? (
               <DmListItem thread={item.data} onPress={() => openDm(item.data)} />
@@ -197,7 +194,9 @@ export default function ChatsScreen() {
           }
           ListEmptyComponent={
             <View style={styles.empty}>
-              <Text style={styles.emptyEmoji}>{trimmedQuery ? '🔍' : '🔒'}</Text>
+              {trimmedQuery
+                ? <SymbolView name="magnifyingglass" size={40} tintColor="#999" style={{ width: 44, height: 44, marginBottom: 12 }} />
+                : <Text style={styles.emptyEmoji}>🔒</Text>}
               <Text style={styles.emptyTitle}>
                 {trimmedQuery ? `No matches for "${query.trim()}"` : 'No private chats yet'}
               </Text>
@@ -206,6 +205,23 @@ export default function ChatsScreen() {
                   ? 'Try a different name or search term.'
                   : 'Tap ＋ above to start a direct message or create a group chat.'}
               </Text>
+            </View>
+          }
+        />
+      ) : isRequests ? (
+        <FlatList
+          contentContainerStyle={styles.content}
+          data={filteredRequestThreads}
+          keyExtractor={(item) => item.friendId}
+          ListHeaderComponent={headerContent}
+          renderItem={({ item }) => (
+            <DmListItem thread={item} onPress={() => openDm(item)} />
+          )}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyEmoji}>📬</Text>
+              <Text style={styles.emptyTitle}>No message requests</Text>
+              <Text style={styles.emptyBody}>When someone you don't follow messages you, it'll show up here.</Text>
             </View>
           }
         />
@@ -222,7 +238,9 @@ export default function ChatsScreen() {
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>{trimmedQuery ? '🔍' : '💬'}</Text>
+                {trimmedQuery
+                  ? <SymbolView name="magnifyingglass" size={40} tintColor="#999" style={{ width: 44, height: 44, marginBottom: 12 }} />
+                  : <Text style={styles.emptyEmoji}>💬</Text>}
                 <Text style={styles.emptyTitle}>
                   {trimmedQuery
                     ? `No matches for "${query.trim()}"`
@@ -258,16 +276,6 @@ function createStyles(Brand: BrandPalette) {
     },
     screenTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, color: Brand.ink, marginBottom: 2 },
     screenSub: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted },
-    composeBtn: {
-      width: 38,
-      height: 38,
-      borderRadius: 19,
-      backgroundColor: Brand.trust,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 2,
-    },
-    composeBtnText: { color: '#fff', fontSize: 20, fontFamily: BrandFonts.syneBold, lineHeight: 24 },
     searchRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -291,34 +299,48 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.ink,
     },
     searchClear: { fontSize: 13, color: Brand.muted, padding: 4 },
-    modeRow: { flexDirection: 'row', gap: 10, marginBottom: Spacing.three },
-    modeBtn: {
-      flex: 1,
+    modeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: Brand.card,
-      borderWidth: 1,
-      borderColor: Brand.border,
-      borderRadius: 14,
-      paddingVertical: 11,
-      gap: 6,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Brand.border,
+      marginBottom: Spacing.three,
     },
-    modeBtnActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
-    modeBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
-    modeBtnTextActive: { color: '#fff' },
+    modeTab: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 10,
+      paddingHorizontal: 4,
+      marginRight: 20,
+      gap: 5,
+      position: 'relative',
+    },
+    modeTabText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: Brand.muted,
+    },
+    modeTabTextActive: { color: Brand.ink },
+    modeTabUnderline: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      height: 2,
+      borderRadius: 2,
+      backgroundColor: Brand.trust,
+    },
+    modeTabSpacer: { flex: 1 },
     modeBadge: {
-      minWidth: 20,
-      height: 20,
-      borderRadius: 10,
+      minWidth: 18,
+      height: 18,
+      borderRadius: 9,
       backgroundColor: Brand.trust,
       alignItems: 'center',
       justifyContent: 'center',
-      paddingHorizontal: 5,
+      paddingHorizontal: 4,
     },
-    modeBadgeActive: { backgroundColor: '#fff' },
-    modeBadgeText: { color: '#fff', fontSize: 10, fontFamily: BrandFonts.syneBold, lineHeight: 20 },
-    modeBadgeTextActive: { color: Brand.trust },
+    modeBadgeText: { color: '#fff', fontSize: 10, fontFamily: BrandFonts.syneBold, lineHeight: 18 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 2 },
     archivedBtn: {
       borderWidth: 1,
@@ -328,18 +350,6 @@ function createStyles(Brand: BrandPalette) {
       paddingVertical: 7,
     },
     archivedBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.muted },
-    requestsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      backgroundColor: Brand.tlight,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      marginBottom: 12,
-    },
-    requestsRowText: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: Brand.trust },
-    requestsRowChevron: { fontSize: 20, color: Brand.trust },
     empty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
     emptyEmoji: { fontSize: 40, marginBottom: 12 },
     emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, marginBottom: 8 },

@@ -226,7 +226,7 @@ export function ProfileCard({
     if (item.type === 'play') {
       const first = parts[0];
       if (first && first !== 'Game' && !first.match(/^\d{4}$/)) genre = first;
-    } else if (item.type === 'watch' || item.type === 'read') {
+    } else if (item.type === 'watch') {
       const last = parts[parts.length - 1];
       // Genre is appended as the last segment; skip years and format labels
       if (last && !last.match(/^\d{4}$/) && last !== 'Film' && last !== 'TV Series') genre = last;
@@ -354,7 +354,7 @@ export function ProfileCard({
         {profileTab === 'feed' ? (
           <View style={styles.tabContent}>
             {/* Category filter chips with SF Symbols */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
+            <View style={[styles.chipScroll, styles.chipRow, styles.chipRowCentered]}>
               {CAT_FILTERS.map((f) => {
                 const isActive = catFilter === f.type;
                 return (
@@ -372,7 +372,7 @@ export function ProfileCard({
                   </Pressable>
                 );
               })}
-            </ScrollView>
+            </View>
 
             {/* Sort row */}
             <View style={styles.feedSortRow}>
@@ -396,6 +396,7 @@ export function ProfileCard({
               feedItems.map((item) => (
                 <Pressable
                   key={item.id}
+                  style={{ marginBottom: 5 }}
                   onLongPress={() => {
                     Vibration.vibrate(40);
                     Alert.alert('Remove from feed?', item.title, [
@@ -593,22 +594,28 @@ export function ProfileCard({
             {/* Logged / Followers / Following */}
             <View style={styles.statsBox}>
               <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
-                <SymbolView name="archivebox.fill" size={22} tintColor={Brand.muted} type="monochrome" style={styles.statSfIcon} />
-                <Text style={[styles.statNum, styles.statNumAccent]}>{logged.length}</Text>
+                <View style={styles.statNumRow}>
+                  <SymbolView name="archivebox.fill" size={14} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
+                  <Text style={[styles.statNum, styles.statNumAccent]}>{logged.length}</Text>
+                </View>
                 <Text style={styles.statLbl}>LOGGED</Text>
                 <Text style={styles.statSubLbl}>items logged</Text>
               </Pressable>
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowersPress} disabled={!onFollowersPress} hitSlop={4}>
-                <SymbolView name="person.2.fill" size={22} tintColor={Brand.muted} type="monochrome" style={styles.statSfIcon} />
-                <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
+                <View style={styles.statNumRow}>
+                  <SymbolView name="person.2.fill" size={14} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
+                  <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
+                </View>
                 <Text style={styles.statLbl}>FOLLOWERS</Text>
                 <Text style={styles.statSubLbl}>people follow you</Text>
               </Pressable>
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowingPress} disabled={!onFollowingPress} hitSlop={4}>
-                <SymbolView name="person.fill" size={22} tintColor={Brand.muted} type="monochrome" style={styles.statSfIcon} />
-                <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
+                <View style={styles.statNumRow}>
+                  <SymbolView name="person.fill" size={14} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
+                  <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
+                </View>
                 <Text style={styles.statLbl}>FOLLOWING</Text>
                 <Text style={styles.statSubLbl}>people you follow</Text>
               </Pressable>
@@ -671,7 +678,7 @@ export function ProfileCard({
                   activeCategories.slice(0, 4).map((cat, i) => (
                     <View key={i} style={[styles.activeRow, i > 0 && styles.activeRowBorder]}>
                       <View style={[styles.activeIcon, { backgroundColor: cat.bg }]}>
-                        <SymbolView name={cat.sf as any} size={18} tintColor={cat.color} type="monochrome" />
+                        <SymbolView name={cat.sf as any} size={13} tintColor={cat.color} type="monochrome" />
                       </View>
                       <View style={styles.activeInfo}>
                         <Text style={styles.activeLabel}>{cat.label}</Text>
@@ -687,11 +694,12 @@ export function ProfileCard({
             {/* MyTaste Top 4 */}
             {top4.length > 0 ? (
               <View style={styles.statsCard}>
-                <View style={styles.cardHeaderRow}>
-                  <View>
-                    <Text style={styles.cardHeaderTitle}>MyTaste Top 4</Text>
-                    <Text style={styles.cardHeaderSub}>your most compatible friends</Text>
-                  </View>
+                <View style={styles.myTasteHeader}>
+                  <Text style={styles.myTasteTitle}>MyTaste Top 4</Text>
+                  <Text style={styles.myTasteSub}>your most compatible friends</Text>
+                  <Pressable style={styles.myTasteViewAll} hitSlop={8}>
+                    <Text style={styles.myTasteViewAllText}>View all</Text>
+                  </Pressable>
                 </View>
                 <View style={styles.top4Row}>
                   {top4.map((friend) => (
@@ -722,6 +730,7 @@ export function ProfileCard({
               <View style={[styles.goalCard, styles.statsCard]}>
                 <View style={styles.cardHeaderRow}>
                   <Text style={styles.statsCardTitle}>TOP GENRES</Text>
+                  <Pressable hitSlop={8}><Text style={styles.myTasteViewAllText}>View all</Text></Pressable>
                 </View>
                 {topGenres.length === 0 ? (
                   <Text style={styles.goalSub}>No data yet.</Text>
@@ -747,11 +756,12 @@ export function ProfileCard({
               <View style={[styles.goalCard, styles.statsCard]}>
                 <View style={styles.cardHeaderRow}>
                   <Text style={styles.statsCardTitle}>TOP CATEGORIES</Text>
+                  <Pressable hitSlop={8}><Text style={styles.myTasteViewAllText}>View all</Text></Pressable>
                 </View>
                 {STAT_CATEGORIES.map((cat) => (
                   <View key={cat.label} style={styles.catRow}>
                     <View style={[styles.catIconBox, { backgroundColor: cat.bg }]}>
-                      <SymbolView name={cat.sf as any} size={18} tintColor={cat.color} type="monochrome" />
+                      <SymbolView name={cat.sf as any} size={13} tintColor={cat.color} type="monochrome" />
                     </View>
                     <Text style={styles.catLabel}>{cat.label}</Text>
                     <View style={styles.catBarBg}>
@@ -766,7 +776,7 @@ export function ProfileCard({
             {/* Recently Logged */}
             <View style={styles.statsCard}>
               <Text style={styles.statsCardTitle}>RECENTLY LOGGED</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipScroll} contentContainerStyle={styles.chipRow}>
+              <View style={[styles.chipRow, styles.recentChipRow]}>
                 {[{ type: 'all' as EntryType | 'all', label: 'All' }, ...STAT_CATEGORIES.map((c) => ({ type: c.type as EntryType | 'all', label: c.label }))].map((f) => {
                   const active = recentCatFilter === f.type;
                   return (
@@ -775,7 +785,7 @@ export function ProfileCard({
                     </Pressable>
                   );
                 })}
-              </ScrollView>
+              </View>
               {recentItems.map((item) => (
                 <View key={item.id} style={styles.recentRow}>
                   {item.poster ? (
@@ -861,9 +871,7 @@ export function ProfileCard({
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     card: {
-      backgroundColor: Brand.card,
-      borderRadius: 24,
-      overflow: 'hidden',
+      backgroundColor: Brand.paper,
     },
     bannerWrap: {
       width: '100%',
@@ -895,12 +903,12 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: 'rgba(0,0,0,0.5)',
     },
     contentPad: {
-      paddingTop: 0,
-      paddingBottom: 22,
-      paddingHorizontal: 18,
+      paddingTop: 4,
+      paddingBottom: 32,
+      paddingHorizontal: 20,
     },
     // New header: avatar left, name+info right
-    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 14, marginBottom: 16 },
+    headerRow: { flexDirection: 'row', alignItems: 'center', gap: 16, marginBottom: 20 },
     avWrap: { position: 'relative' },
     avRing: {
       width: 90,
@@ -977,11 +985,11 @@ function createStyles(Brand: BrandPalette) {
     tabRow: {
       flexDirection: 'row',
       width: '100%',
-      marginBottom: 22,
+      marginBottom: 11,
       borderBottomWidth: 1,
       borderBottomColor: Brand.border,
     },
-    tab: { flex: 1, alignItems: 'center', paddingBottom: 10 },
+    tab: { flex: 1, alignItems: 'center', paddingBottom: 12 },
     tabActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
     tabLabel: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted },
     tabLabelActive: { color: Brand.ink, fontFamily: BrandFonts.syneBold },
@@ -994,11 +1002,12 @@ function createStyles(Brand: BrandPalette) {
       borderWidth: 1,
       borderColor: Brand.border,
       borderRadius: 18,
-      paddingVertical: 14,
-      marginBottom: 16,
+      paddingVertical: 16,
+      marginBottom: 8,
     },
-    stat: { flex: 1, alignItems: 'center' },
-    statNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 21, color: Brand.ink },
+    stat: { flex: 1, alignItems: 'flex-start', paddingHorizontal: 14 },
+    statNumRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: 2 },
+    statNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: Brand.ink },
     statNumAccent: { color: Brand.trust },
     statLbl: {
       fontFamily: BrandFonts.syneBold,
@@ -1006,14 +1015,14 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.muted,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
-      marginTop: 2,
+      marginLeft: 20,
     },
-    statDiv: { width: 1, height: 22, backgroundColor: Brand.border },
+    statDiv: { width: 1, height: 36, backgroundColor: Brand.border },
 
     badgesSection: {
       width: '100%',
       alignItems: 'center',
-      marginBottom: 20,
+      marginBottom: 28,
     },
     badgesTitle: {
       fontFamily: BrandFonts.syneBold,
@@ -1051,15 +1060,16 @@ function createStyles(Brand: BrandPalette) {
 
     // Stats box
     statSfIcon: { marginBottom: 4 },
-    statSubLbl: { fontFamily: BrandFonts.interRegular, fontSize: 9, color: Brand.muted, marginTop: 1, textAlign: 'center' },
+    statSubLbl: { fontFamily: BrandFonts.interRegular, fontSize: 9, color: Brand.muted, marginTop: 1, marginLeft: 20 },
 
     // Tab content
     tabContent: { width: '100%' },
     emptyText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, textAlign: 'center', paddingVertical: 24 },
 
     // Feed tab
-    chipScroll: { marginBottom: 12 },
-    chipRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 0 },
+    chipScroll: {},
+    chipRow: { flexDirection: 'row', gap: 4, paddingHorizontal: 0 },
+    chipRowCentered: { justifyContent: 'center' },
     chip: {
       width: 54,
       paddingVertical: 7,
@@ -1150,17 +1160,17 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 0,
-      marginBottom: 16,
+      marginBottom: 8,
     },
     streakLeft: { flex: 1, minWidth: 0 },
     streakFireCircle: {
-      width: 44, height: 44, borderRadius: 22,
+      width: 32, height: 32, borderRadius: 16,
       backgroundColor: '#FFF0E8',
       alignItems: 'center', justifyContent: 'center',
-      marginBottom: 10,
+      marginBottom: 8,
     },
-    streakFireEmoji: { fontSize: 22 },
-    streakDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink, marginBottom: 3 },
+    streakFireEmoji: { fontSize: 15 },
+    streakDays: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink, marginBottom: 3 },
     streakMsg: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, marginBottom: 14 },
     weekRow: { flexDirection: 'row', gap: 5 },
     weekDay: { alignItems: 'center', gap: 4 },
@@ -1176,7 +1186,7 @@ function createStyles(Brand: BrandPalette) {
     streakDivider: { width: 1, height: '80%', backgroundColor: Brand.border, marginHorizontal: 16 },
     streakRight: { alignItems: 'center', justifyContent: 'center', minWidth: 70 },
     longestLabel: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, textAlign: 'center', marginBottom: 2 },
-    longestDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 36, color: Brand.ink, lineHeight: 40 },
+    longestDays: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink, lineHeight: 26 },
     longestUnit: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
 
     // Stats card (top categories)
@@ -1186,41 +1196,48 @@ function createStyles(Brand: BrandPalette) {
       borderWidth: 1,
       borderColor: Brand.border,
       borderRadius: 18,
-      padding: 16,
-      marginBottom: 16,
+      padding: 12,
+      marginBottom: 8,
     },
-    statsCardTitle: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 14 },
-    catRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 10 },
-    catIconBox: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginRight: 4 },
-    catLabel: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.ink, flex: 1 },
-    catBarBg: { width: 52, height: 4, backgroundColor: Brand.border, borderRadius: 2, overflow: 'hidden' },
+    statsCardTitle: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 10, flex: 1 },
+    catRow: { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 7 },
+    catIconBox: { width: 26, height: 26, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
+    catLabel: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.ink, flex: 1 },
+    catBarBg: { width: 40, height: 4, backgroundColor: Brand.border, borderRadius: 2, overflow: 'hidden' },
     catBarFill: { height: '100%', borderRadius: 2 },
     catCount: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, width: 20, textAlign: 'right' },
 
     // Goal row (side-by-side cards)
-    goalRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+    goalRow: { flexDirection: 'row', gap: 8, marginBottom: 0 },
     goalCard: { flex: 1, marginBottom: 0 },
-    goalNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.trust, lineHeight: 32, marginTop: 4 },
-    goalTarget: { fontFamily: BrandFonts.interRegular, fontSize: 16, color: Brand.muted },
-    goalSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 2, marginBottom: 8 },
-    goalBarRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 3, marginBottom: 6 },
-    goalBlock: { width: 14, height: 10, borderRadius: 3, backgroundColor: Brand.border },
+    goalNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: Brand.trust, lineHeight: 20, marginTop: 4 },
+    goalTarget: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
+    goalSub: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: Brand.muted, marginTop: 2, marginBottom: 6 },
+    goalBarRow: { flexDirection: 'row', flexWrap: 'nowrap', gap: 2, marginBottom: 4 },
+    goalBlock: { flex: 1, height: 6, borderRadius: 2, backgroundColor: Brand.border },
     goalBlockFilled: { backgroundColor: Brand.trust },
-    goalFooter: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted },
+    goalFooter: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: Brand.muted },
 
     // Currently active
-    activeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 6 },
+    activeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 4 },
     activeRowBorder: { borderTopWidth: 1, borderTopColor: Brand.border },
-    activeIcon: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+    activeIcon: { width: 28, height: 28, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
     activeInfo: { flex: 1, minWidth: 0 },
-    activeLabel: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14, color: Brand.ink },
-    activeSub: { fontFamily: BrandFonts.interRegular, fontSize: 12 },
+    activeLabel: { fontFamily: BrandFonts.syneExtraBold, fontSize: 11, color: Brand.ink },
+    activeSub: { fontFamily: BrandFonts.interRegular, fontSize: 10 },
     activeChevron: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.muted },
 
     // Card header
-    cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 },
-    cardHeaderTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: Brand.ink },
-    cardHeaderSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2 },
+    cardHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 },
+    cardHeaderTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14, color: Brand.ink },
+    cardHeaderSub: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted, marginTop: 1 },
+
+    // MyTaste Top 4 header
+    myTasteHeader: { alignItems: 'center', marginBottom: 14 },
+    myTasteTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 18, color: Brand.ink },
+    myTasteSub: { fontFamily: BrandFonts.interRegular, fontStyle: 'italic', fontSize: 12, color: Brand.muted, marginTop: 2 },
+    myTasteViewAll: { position: 'absolute', right: 0, top: 4 },
+    myTasteViewAllText: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust },
 
     // MyTaste Top 4
     top4Row: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -1239,26 +1256,27 @@ function createStyles(Brand: BrandPalette) {
     top4Handle: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: Brand.muted, textAlign: 'center' },
 
     // Top genres
-    genreRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 14 },
+    genreRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginBottom: 10 },
     genreRankWrap: { width: 26, paddingTop: 1 },
-    genreRank: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14 },
+    genreRank: { fontFamily: BrandFonts.syneExtraBold, fontSize: 11 },
     genreInfo: { flex: 1, minWidth: 0 },
-    genreNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 5 },
-    genreName: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink, flex: 1 },
-    genreBarTrack: { height: 5, borderRadius: 3, backgroundColor: Brand.border, overflow: 'hidden' },
-    genreBarFill: { height: '100%', borderRadius: 3 },
-    genreCount: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
+    genreNameRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 },
+    genreName: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.ink, flex: 1 },
+    genreBarTrack: { height: 4, borderRadius: 2, backgroundColor: Brand.border, overflow: 'hidden' },
+    genreBarFill: { height: '100%', borderRadius: 2 },
+    genreCount: { fontFamily: BrandFonts.syneBold, fontSize: 11 },
 
     // Recently logged (stats tab)
+    recentChipRow: { flexWrap: 'wrap', marginBottom: 12 },
     recentChip: {
-      paddingVertical: 4, paddingHorizontal: 12, borderRadius: 20,
-      backgroundColor: Brand.tlight, borderWidth: 1, borderColor: Brand.border,
+      paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20,
+      backgroundColor: Brand.paper, borderWidth: 1, borderColor: Brand.border,
     },
     recentChipActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
     recentChipText: { fontFamily: BrandFonts.interMedium, fontSize: 11.5, color: Brand.muted },
     recentChipTextActive: { color: Brand.paper },
     recentRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
-    recentThumb: { width: 44, height: 62, borderRadius: 8 },
+    recentThumb: { width: 44, height: 44, borderRadius: 7 },
     recentThumbFallback: { backgroundColor: Brand.tlight },
     recentTitle: { flex: 1, fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
 

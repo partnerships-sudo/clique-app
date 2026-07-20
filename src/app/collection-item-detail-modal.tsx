@@ -134,6 +134,7 @@ export default function CollectionItemDetailModal() {
                 poster: params.poster ?? undefined,
                 sub: params.sub ?? undefined,
                 externalId: params.externalId ?? undefined,
+                mediaType: params.type === 'tv' ? 'tv' : params.type === 'movie' ? 'movie' : params.sub?.includes('Film') ? 'movie' : params.sub?.includes('TV') ? 'tv' : undefined,
               },
             })
           }>
@@ -164,13 +165,14 @@ function createStyles(Brand: BrandPalette) {
       paddingTop: 20,
       paddingBottom: 36,
     },
-    header: { flexDirection: 'row', gap: 14, marginBottom: 28 },
+    header: { flexDirection: 'row', gap: 14, marginBottom: 28, alignItems: 'flex-start' },
     posterBox: {
       width: 96,
       height: 144,
       borderRadius: 14,
       overflow: 'hidden',
       backgroundColor: Brand.border,
+      flexShrink: 0,
     },
     posterBoxSquare: { width: 120, height: 120 },
     posterImg: { width: '100%', height: '100%' },

@@ -240,7 +240,7 @@ export default function LibraryScreen() {
           ListHeaderComponent={
             <View>
               <Pressable style={styles.collectionSearchRow} onPress={() => router.push('/collection-add-modal')}>
-                <Text style={styles.collectionSearchIcon}>🔍</Text>
+                <SymbolView name="magnifyingglass" size={15} tintColor="#999" style={{ width: 16, height: 16, marginRight: 8 }} />
                 <Text style={styles.collectionSearchPlaceholder}>Search & add to your collection…</Text>
                 <Pressable
                   style={styles.collectionScanBtn}

@@ -70,6 +70,7 @@ const GAME_STORE_BY_PLATFORM: Record<
   pc: {
     name: 'Steam',
     logo: '🖥',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=store.steampowered.com&sz=64',
     price: 'PC / Mac',
     cta: 'Find on Steam',
     color: '#1B2838',
@@ -78,6 +79,7 @@ const GAME_STORE_BY_PLATFORM: Record<
   playstation: {
     name: 'PlayStation Store',
     logo: '🔵',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=store.playstation.com&sz=64',
     price: 'PS4 / PS5',
     cta: 'Find on PS Store',
     color: '#003791',
@@ -86,6 +88,7 @@ const GAME_STORE_BY_PLATFORM: Record<
   xbox: {
     name: 'Xbox Store',
     logo: '🟢',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=xbox.com&sz=64',
     price: 'Xbox / Game Pass',
     cta: 'Find on Xbox',
     color: '#107C10',
@@ -94,6 +97,7 @@ const GAME_STORE_BY_PLATFORM: Record<
   'nintendo-switch': {
     name: 'Nintendo eShop',
     logo: '🔴',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=nintendo.com&sz=64',
     price: 'Switch',
     cta: 'Find on eShop',
     color: '#E4000F',
@@ -102,6 +106,7 @@ const GAME_STORE_BY_PLATFORM: Record<
   ios: {
     name: 'App Store',
     logo: '📱',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=apps.apple.com&sz=64',
     price: 'iOS',
     cta: 'Find on App Store',
     color: '#007AFF',
@@ -110,6 +115,7 @@ const GAME_STORE_BY_PLATFORM: Record<
   android: {
     name: 'Google Play',
     logo: '▶️',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=play.google.com&sz=64',
     price: 'Android',
     cta: 'Find on Google Play',
     color: '#01875F',

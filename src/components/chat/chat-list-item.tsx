@@ -30,7 +30,13 @@ export function ChatListItem({ thread, onPress }: { thread: ChatThread; onPress:
         </View>
         <Text style={styles.preview} numberOfLines={1}>
           <Text style={styles.previewUser}>{thread.lastUser}: </Text>
-          {thread.lastText}
+          {(() => {
+            try {
+              const parsed = JSON.parse(thread.lastText);
+              if (parsed.__chatGif) return 'GIF';
+            } catch {}
+            return thread.lastText;
+          })()}
         </Text>
       </View>
       {thread.unreadCount > 0 ? (
@@ -55,7 +61,7 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      marginBottom: 10,
+      marginBottom: 4,
     },
     icon: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
     iconText: { fontSize: 20 },

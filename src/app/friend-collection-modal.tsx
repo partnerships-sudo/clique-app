@@ -88,6 +88,7 @@ export default function FriendCollectionModal() {
                     poster: item.poster ?? undefined,
                     sub: item.sub ?? undefined,
                     externalId: item.external_id ?? undefined,
+                    mediaType: item.type === 'tv' ? 'tv' : item.type === 'movie' ? 'movie' : item.sub?.includes('Film') ? 'movie' : item.sub?.includes('TV') ? 'tv' : undefined,
                   },
                 })
               }

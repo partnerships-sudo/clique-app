@@ -50,17 +50,14 @@ export function DmListItem({ thread, onPress }: { thread: DmThread; onPress: () 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     card: {
-      backgroundColor: Brand.card,
-      borderWidth: 1,
-      borderColor: Brand.border,
-      borderRadius: 16,
-      padding: 14,
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      marginBottom: 10,
+      paddingVertical: 13,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Brand.border,
     },
-    cardRequest: { borderColor: Brand.trust, borderStyle: 'dashed' },
+    cardRequest: { opacity: 0.75 },
     body: { flex: 1, minWidth: 0 },
     titleRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 4 },
     title: { flex: 1, fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },

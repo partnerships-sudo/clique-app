@@ -97,7 +97,7 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 18,
       borderWidth: 1,
       borderColor: Brand.border,
-      marginBottom: 12,
+      marginBottom: 6,
       overflow: 'hidden',
     },
     cardTopMatch: {
@@ -157,10 +157,6 @@ function createStyles(Brand: BrandPalette) {
     watchingPoster: { width: 32, height: 44, borderRadius: 5, backgroundColor: Brand.border },
     watchingTitle: { flex: 1, fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.ink, lineHeight: 14 },
     chatBtn: {
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: Brand.tlight,
       alignItems: 'center',
       justifyContent: 'center',
     },
