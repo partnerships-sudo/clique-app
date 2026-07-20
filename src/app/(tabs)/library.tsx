@@ -313,6 +313,7 @@ export default function LibraryScreen() {
                     type: item.type,
                     format: item.format ?? undefined,
                     userRating: item.user_rating?.toString() ?? undefined,
+                    externalId: item.external_id ?? undefined,
                   },
                 })
               }

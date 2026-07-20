@@ -41,7 +41,7 @@ const STAT_CATEGORIES = [
   { type: 'play' as EntryType, label: 'Games', sf: 'gamecontroller.fill', color: '#5BC8F5', bg: '#5BC8F518' },
   { type: 'podcast' as EntryType, label: 'Podcasts', sf: 'mic.fill', color: '#C084FC', bg: '#C084FC18' },
   { type: 'listen' as EntryType, label: 'Music', sf: 'music.note', color: '#9B95AC', bg: '#9B95AC18' },
-  { type: 'read' as EntryType, label: 'Books', sf: 'book.open.fill', color: '#5FA8FF', bg: '#5FA8FF18' },
+  { type: 'read' as EntryType, label: 'Books', sf: 'book.fill', color: '#5FA8FF', bg: '#5FA8FF18' },
 ];
 
 export interface ProfileCardFriendAction {
@@ -212,10 +212,11 @@ export function ProfileCard({
     activeMusic.length ? { label: 'Music', sub: `${activeMusic.length} track${activeMusic.length !== 1 ? 's' : ''}`, sf: 'headphones', color: '#9B95AC', bg: '#9B95AC18' } : null,
   ].filter(Boolean) as { label: string; sub: string; sf: string; color: string; bg: string }[];
 
-  // Top genres: parse sub field using · separator (middle dot, not bullet)
-  // Games: "Genre · Year" — genre is FIRST segment
-  // Books: "Author · Year · Publisher" — publisher is LAST segment
-  // TV/Movies: "TV Series · Network · Year" — last segment is year (skipped)
+  // Top genres:
+  // - Games ('play'): genre is first sub segment ("Genre · Year")
+  // - Movies/TV ('watch'): genre is last sub segment ("Film · Year · Genre" or "TV Series · Year · Genre")
+  //   New logs include genre; older entries without it are simply skipped.
+  // - Books/listen/podcast: no genre stored in sub, skip.
   const genreCounts = new Map<string, number>();
   for (const item of logged) {
     if (!item.sub) continue;
@@ -223,13 +224,12 @@ export function ProfileCard({
     if (!parts.length) continue;
     let genre: string | null = null;
     if (item.type === 'play') {
-      // Games store genre as first segment
       const first = parts[0];
       if (first && first !== 'Game' && !first.match(/^\d{4}$/)) genre = first;
-    } else {
-      // Books/others: publisher or genre is last segment
+    } else if (item.type === 'watch' || item.type === 'read') {
       const last = parts[parts.length - 1];
-      if (last && !last.match(/^\d{4}$/) && last !== 'Podcast' && last !== 'Album') genre = last;
+      // Genre is appended as the last segment; skip years and format labels
+      if (last && !last.match(/^\d{4}$/) && last !== 'Film' && last !== 'TV Series') genre = last;
     }
     if (!genre) continue;
     for (const g of genre.split(',').map((s) => s.trim()).filter(Boolean)) {
@@ -566,7 +566,7 @@ export function ProfileCard({
                     <Pressable
                       key={item.id}
                       style={styles.collGridItem}
-                      onPress={() => router.push({ pathname: '/collection-item-detail-modal', params: { id: item.id, title: item.title, sub: item.sub ?? undefined, poster: item.poster ?? undefined, type: item.type, format: item.format ?? undefined, userRating: item.user_rating?.toString() ?? undefined } })}>
+                      onPress={() => router.push({ pathname: '/collection-item-detail-modal', params: { id: item.id, title: item.title, sub: item.sub ?? undefined, poster: item.poster ?? undefined, type: item.type, format: item.format ?? undefined, userRating: item.user_rating?.toString() ?? undefined, externalId: item.external_id ?? undefined } })}>
                       {item.poster ? (
                         <Image source={{ uri: item.poster }} style={styles.collGridImg} resizeMode="cover" />
                       ) : (

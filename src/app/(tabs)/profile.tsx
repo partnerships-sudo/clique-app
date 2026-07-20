@@ -37,29 +37,6 @@ export default function ProfileTab() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <ProfileCard
-          profile={profile}
-          library={allLibrary ?? []}
-          followersCount={followersCount ?? 0}
-          followingCount={followingCount ?? 0}
-          onLoggedPress={() =>
-            router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'logged', name: profile?.full_name ?? profile?.username ?? 'You' } })
-          }
-          onFollowersPress={() =>
-            router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'followers', name: profile?.full_name ?? profile?.username ?? 'You' } })
-          }
-          onFollowingPress={() =>
-            router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'following', name: profile?.full_name ?? profile?.username ?? 'You' } })
-          }
-          onEditPress={() => setView('edit')}
-          onCollectionPress={() =>
-            router.push({ pathname: '/(tabs)/library', params: { tab: 'collection' } })
-          }
-          featuredBadges={featuredBadges}
-          earnedBadgeCount={badges.filter((b) => b.earned).length}
-          onOpenAchievements={() => router.push('/achievements-modal')}
-          onShare={() => setShareVisible(true)}
-        />
         {view === 'edit' ? (
           <EditProfile
             profile={profile}
@@ -70,7 +47,31 @@ export default function ProfileTab() {
               setView('card');
             }}
           />
-        ) : null}
+        ) : (
+          <ProfileCard
+            profile={profile}
+            library={allLibrary ?? []}
+            followersCount={followersCount ?? 0}
+            followingCount={followingCount ?? 0}
+            onLoggedPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'logged', name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
+            onFollowersPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'followers', name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
+            onFollowingPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'following', name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
+            onEditPress={() => setView('edit')}
+            onCollectionPress={() =>
+              router.push({ pathname: '/(tabs)/library', params: { tab: 'collection' } })
+            }
+            featuredBadges={featuredBadges}
+            earnedBadgeCount={badges.filter((b) => b.earned).length}
+            onOpenAchievements={() => router.push('/achievements-modal')}
+            onShare={() => setShareVisible(true)}
+          />
+        )}
       </ScrollView>
       <ShareProfileModal visible={shareVisible} onClose={() => setShareVisible(false)} profile={profile} />
     </SafeAreaView>

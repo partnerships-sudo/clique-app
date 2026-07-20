@@ -23,7 +23,7 @@ import { ShareCard } from '@/components/share/share-card';
 import { BrandFonts } from '@/constants/theme';
 import { SymbolView } from 'expo-symbols';
 import { useCloseFriendsPosts } from '@/features/close-friends/posts';
-import { useSendStoryLike } from '@/features/feed/reactions';
+import { useSendStoryLike, useToggleReaction } from '@/features/feed/reactions';
 import { useRecordStoryView, useStoryActivity } from '@/features/stories/views';
 import { useAddLibraryItem, useRemoveLibraryItem } from '@/features/library/api';
 import { useSendDm } from '@/features/dms/api';
@@ -51,6 +51,7 @@ export default function StoriesModal() {
   const pausedAt = useRef(0);
 
   const sendStoryLike = useSendStoryLike();
+  const toggleReaction = useToggleReaction();
   const recordView = useRecordStoryView();
   const sendDm = useSendDm();
   const addLibraryItem = useAddLibraryItem();
@@ -206,6 +207,7 @@ export default function StoriesModal() {
                 type: post.type,
                 poster: post.poster ?? undefined,
                 sub: post.sub ?? undefined,
+                externalId: post.external_id ?? undefined,
               },
             });
           }}
@@ -304,7 +306,10 @@ export default function StoriesModal() {
             <Pressable
               style={[styles.actionBtn, meReacted && styles.actionBtnActive]}
               onPress={() => {
-                if (!meReacted) {
+                if (meReacted) {
+                  setLikedIds((prev) => { const s = new Set(prev); s.delete(post.id); return s; });
+                  toggleReaction.mutate({ postId: post.id, reacted: true });
+                } else {
                   setLikedIds((prev) => new Set([...prev, post.id]));
                   sendStoryLike.mutate({
                     postId: post.id,

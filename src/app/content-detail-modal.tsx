@@ -1,3 +1,4 @@
+import React from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -89,6 +90,17 @@ export default function ContentDetailModal() {
     params.type === 'tv' ? 'tv' : params.type === 'movie' ? 'movie' : params.mediaType;
 
   const { data: details, isLoading } = useContentDetails(params.title, resolvedType, params.externalId, resolvedMediaType);
+
+  // For podcasts, show first host name in meta row as a preview
+  const podcastHost = resolvedType === 'podcast'
+    ? (() => {
+        const raw = details?.hosts?.[0]?.name ?? (params.sub?.split('·')[0]?.trim() || null);
+        if (!raw) return null;
+        return raw === raw.toUpperCase()
+          ? raw.replace(/\b\w/g, (c) => c.toUpperCase()).toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase())
+          : raw;
+      })()
+    : null;
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -132,25 +144,40 @@ export default function ContentDetailModal() {
               {params.sub ? <Text style={styles.subText} numberOfLines={2}>{params.sub}</Text> : null}
               {isLoading ? (
                 <ActivityIndicator color={Brand.trust} style={styles.headerLoading} />
-              ) : details?.rating || details?.year || details?.genre || details?.runtime ? (
+              ) : details?.rating || details?.year || details?.genre || details?.runtime || podcastHost ? (
                 <View style={styles.metaRow}>
-                  {details?.rating ? (
-                    <View style={styles.ratingPill}>
-                      <Text style={styles.ratingPillText}>★ {details.rating}</Text>
-                    </View>
-                  ) : null}
-                  {details?.year ? <Text style={styles.metaText}>{details.year}</Text> : null}
-                  {details?.genre ? <Text style={styles.metaText}>{details.genre}</Text> : null}
-                  {details?.runtime ? <Text style={styles.metaText}>{details.runtime}</Text> : null}
+                  {(() => {
+                    // Books already show year in the sub line — skip it in meta row
+                    const yearInSub = resolvedType === 'read' && params.sub?.includes(details?.year ?? '---');
+                    const items = [
+                      details?.rating ? { key: 'rating', isPill: true, value: `★ ${details.rating}` } : null,
+                      podcastHost ? { key: 'host', isPill: false, value: podcastHost } : null,
+                      details?.year && !yearInSub ? { key: 'year', isPill: false, value: details.year } : null,
+                      details?.genre ? { key: 'genre', isPill: false, value: details.genre } : null,
+                      details?.runtime ? { key: 'runtime', isPill: false, value: details.runtime } : null,
+                    ].filter(Boolean) as { key: string; isPill: boolean; value: string }[];
+                    return items.map((item, i) => (
+                      <React.Fragment key={item.key}>
+                        {i > 0 && <Text style={styles.metaDot}>·</Text>}
+                        {item.isPill ? (
+                          <View style={styles.ratingPill}>
+                            <Text style={styles.ratingPillText}>{item.value}</Text>
+                          </View>
+                        ) : (
+                          <Text style={styles.metaText}>{item.value}</Text>
+                        )}
+                      </React.Fragment>
+                    ));
+                  })()}
                 </View>
               ) : null}
             </View>
           </View>
 
-          {/* Synopsis */}
+          {/* Synopsis / About */}
           {!isLoading && details?.overview ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Synopsis</Text>
+              <Text style={styles.sectionLabel}>{resolvedType === 'podcast' || resolvedType === 'read' ? 'About' : 'Synopsis'}</Text>
               {/* Invisible full-height measurer: tells us whether the text
                   actually overflows 3 lines, so we only show the toggle
                   when there's really more to reveal. */}
@@ -176,6 +203,68 @@ export default function ContentDetailModal() {
             </View>
           ) : null}
 
+          {/* Hosted by (podcasts) */}
+          {!isLoading && resolvedType === 'podcast' && details?.hosts && details.hosts.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Hosted by</Text>
+              <View style={styles.castRow}>
+                {details.hosts.map((host) => (
+                  <View key={host.name} style={styles.actorItem}>
+                    {host.photoUrl ? (
+                      <Image source={{ uri: host.photoUrl }} style={styles.actorCircle} />
+                    ) : (
+                      <View style={[styles.actorCircle, styles.actorFallback]}>
+                        <Text style={styles.actorFallbackEmoji}>🎙</Text>
+                      </View>
+                    )}
+                    <Text style={styles.actorName} numberOfLines={2}>{host.name}</Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+          ) : null}
+
+          {/* Author (books) */}
+          {!isLoading && resolvedType === 'read' && details?.author ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Author</Text>
+              <View style={styles.authorRow}>
+                {details.author.photoUrl ? (
+                  <Image source={{ uri: details.author.photoUrl }} style={styles.authorPhoto} />
+                ) : (
+                  <View style={[styles.authorPhoto, styles.actorFallback]}>
+                    <Text style={styles.actorFallbackEmoji}>✍️</Text>
+                  </View>
+                )}
+                <View style={styles.authorInfo}>
+                  <Text style={styles.authorName}>{details.author.name}</Text>
+                  {details.author.bio ? (
+                    <Text style={styles.authorBio} numberOfLines={3}>{details.author.bio}</Text>
+                  ) : null}
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Developer (games) */}
+          {!isLoading && resolvedType === 'play' && details?.developer ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Developer</Text>
+              <View style={styles.authorRow}>
+                {details.developer.logoUrl ? (
+                  <Image source={{ uri: details.developer.logoUrl }} style={styles.developerLogo} resizeMode="contain" />
+                ) : (
+                  <View style={[styles.developerLogo, styles.actorFallback]}>
+                    <Text style={styles.actorFallbackEmoji}>🎮</Text>
+                  </View>
+                )}
+                <View style={styles.authorInfo}>
+                  <Text style={styles.authorName}>{details.developer.name}</Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
           {/* Trailer */}
           {!isLoading && details?.trailerUrl && details?.trailerThumbnail ? (
             <View style={styles.section}>
@@ -191,10 +280,10 @@ export default function ContentDetailModal() {
             </View>
           ) : null}
 
-          {/* Cast */}
+          {/* Cast / Key Staff */}
           {!isLoading && details?.cast && details.cast.length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Top cast</Text>
+              <Text style={styles.sectionLabel}>{resolvedType === 'play' ? 'Key Staff' : 'Top cast'}</Text>
               <CastRow cast={details.cast} />
             </View>
           ) : null}
@@ -281,7 +370,7 @@ function createStyles(Brand: BrandPalette) {
   metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 5,
     flexWrap: 'wrap',
     marginTop: 2,
   },
@@ -300,6 +389,11 @@ function createStyles(Brand: BrandPalette) {
     fontFamily: BrandFonts.interRegular,
     fontSize: 12.8,
     color: Brand.muted,
+  },
+  metaDot: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12.8,
+    color: Brand.border,
   },
   sectionLabel: {
     fontFamily: BrandFonts.syneBold,
@@ -356,6 +450,34 @@ function createStyles(Brand: BrandPalette) {
     color: Brand.muted,
     textAlign: 'center',
     marginTop: 2,
+  },
+
+  // Author (books)
+  authorRow: { flexDirection: 'row', gap: 12, alignItems: 'flex-start' },
+  authorPhoto: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Brand.border,
+  },
+  developerLogo: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+    backgroundColor: Brand.border,
+  },
+  authorInfo: { flex: 1, minWidth: 0 },
+  authorName: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 14,
+    color: Brand.ink,
+    marginBottom: 4,
+  },
+  authorBio: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12.5,
+    color: Brand.muted,
+    lineHeight: 18,
   },
 
   // Store links

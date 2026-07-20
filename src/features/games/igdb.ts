@@ -4,9 +4,14 @@ import type { TrendingEntry } from '@/features/feed/trending';
 import { supabase } from '@/lib/supabase';
 
 // Session-lifetime cache — the same game title is looked up repeatedly across
-// search, For You recs, and re-renders, and IGDB's rate limit (4 req/s,
-// shared across every user of this app) makes re-fetching wasteful.
+// search, For You recs, and re-renders, and IGDB's rate limit makes re-fetching wasteful.
 const coverCache = new Map<string, string | null>();
+
+async function invokeIgdb<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke<T>('igdb-cover', { body });
+  if (error) throw error;
+  return data as T;
+}
 
 export async function fetchIgdbCovers(titles: string[]): Promise<Record<string, string | null>> {
   const unique = [...new Set(titles.filter(Boolean))];
@@ -14,19 +19,11 @@ export async function fetchIgdbCovers(titles: string[]): Promise<Record<string, 
 
   if (uncached.length > 0) {
     try {
-      const { data, error } = await supabase.functions.invoke<{ covers: Record<string, string | null> }>(
-        'igdb-cover',
-        { body: { titles: uncached } },
-      );
-      if (!error && data?.covers) {
-        for (const [title, url] of Object.entries(data.covers)) {
-          coverCache.set(title, url);
-        }
+      const data = await invokeIgdb<{ covers: Record<string, string | null> }>({ titles: uncached });
+      for (const [title, url] of Object.entries(data?.covers ?? {})) {
+        coverCache.set(title, url);
       }
-    } catch {
-      // Network hiccup — fall through and cache these as "no cover" below so
-      // a flaky request doesn't get retried on every render.
-    }
+    } catch { /* fall through */ }
     for (const title of uncached) {
       if (!coverCache.has(title)) coverCache.set(title, null);
     }
@@ -37,19 +34,43 @@ export async function fetchIgdbCovers(titles: string[]): Promise<Record<string, 
   return result;
 }
 
-// Trending entries built from stored posts (My Circle / Global Top 10) carry
-// whatever poster was saved at log time — for games logged before IGDB was
-// wired in, that's RAWG's landscape screenshot, permanently. Rather than
-// backfilling the DB, this always resolves the freshest cover at render
-// time and overrides the stored one, the same "prefer IGDB, fall back to
-// what's already there" rule used everywhere else games get art.
+export interface IgdbGame {
+  id: number;
+  title: string;
+  cover: string | null;
+  summary: string | null;
+  rating: string | null;
+  year: string | null;
+  genre: string | null;
+  platforms: string[];
+  storeUrls: Record<string, string>;
+  similarIds: number[];
+  developer?: { name: string; logoUrl: string | null } | null;
+  cast?: { name: string; character: string; profilePath: string | null }[];
+}
+
+export async function igdbSearch(query: string): Promise<IgdbGame[]> {
+  const data = await invokeIgdb<{ results: IgdbGame[] }>({ action: 'search', query });
+  return data?.results ?? [];
+}
+
+export async function igdbDetails(id: number): Promise<IgdbGame | null> {
+  const data = await invokeIgdb<{ game: IgdbGame | null }>({ action: 'details', id });
+  return data?.game ?? null;
+}
+
+export async function igdbSimilar(id: number): Promise<IgdbGame[]> {
+  const data = await invokeIgdb<{ results: IgdbGame[] }>({ action: 'similar', id });
+  return data?.results ?? [];
+}
+
 export function useGameCoverOverrides(titles: string[]): Record<string, string | null> {
   const unique = [...new Set(titles)];
   const { data } = useQuery({
     queryKey: ['igdb-covers', unique],
     queryFn: () => fetchIgdbCovers(unique),
     enabled: unique.length > 0,
-    staleTime: Infinity, // box art for a given title doesn't change
+    staleTime: Infinity,
   });
   return data ?? {};
 }

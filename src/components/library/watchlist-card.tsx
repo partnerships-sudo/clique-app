@@ -60,7 +60,7 @@ export function WatchlistCard({
             onPress={() =>
               router.push({
                 pathname: '/where-to-find-modal',
-                params: { title: item.title, type: item.type, poster: item.poster ?? undefined },
+                params: { title: item.title, type: item.type, sub: item.sub ?? undefined, poster: item.poster ?? undefined, externalId: item.external_id ?? undefined },
               })
             }>
             <Text style={styles.whereBtnText}>{WHERE_TO_FIND_CTA[item.type]}</Text>

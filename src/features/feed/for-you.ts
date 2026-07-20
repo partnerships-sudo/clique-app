@@ -1,13 +1,12 @@
 import { useQuery } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
-import { fetchIgdbCovers } from '@/features/games/igdb';
+import { igdbSearch, igdbSimilar } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
 
 import type { TrendingEntry } from './trending';
 
 const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
-const RAWG_KEY = process.env.EXPO_PUBLIC_RAWG_KEY!;
 const GOOGLE_BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 
 export interface ForYouSeed {
@@ -33,31 +32,19 @@ async function resolveTMDBId(title: string): Promise<{ id: string; mediaType: 'm
   return { id: String(first.id), mediaType: first.media_type as 'movie' | 'tv' };
 }
 
-// RAWG tags mix crowd-sourced English and Russian labels, and skew toward
-// ultra-generic ones ("Singleplayer" alone spans 250k+ games). Picking the
-// rarest English tags gives the most differentiating signal — "roguelike" or
-// "isometric" narrows things down far more than "singleplayer" ever could.
-function pickSpecificTags(tags: any[]): string[] {
-  return tags
-    .filter((t) => t.language === 'eng' && t.games_count >= 500)
-    .sort((a, b) => a.games_count - b.games_count)
-    .slice(0, 4)
-    .map((t) => t.slug as string);
-}
-
-async function resolveRAWGId(title: string): Promise<{ id: string; genres: string[]; tags: string[] } | null> {
-  const res = await fetch(
-    `https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(title)}&page_size=1`,
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  const first = data.results?.[0];
-  if (!first) return null;
-  return {
-    id: String(first.id),
-    genres: (first.genres ?? []).map((g: any) => g.slug as string),
-    tags: pickSpecificTags(first.tags ?? []),
-  };
+async function fetchIgdbRecs(seedId: number): Promise<TrendingEntry[]> {
+  const similar = await igdbSimilar(seedId);
+  return similar.map((g) => ({
+    title: g.title,
+    sub: `${g.genre ?? 'Game'}${g.year ? ` · ${g.year}` : ''}`,
+    type: 'play' as EntryType,
+    poster: g.cover ?? null,
+    count: g.rating ? Math.round(parseFloat(g.rating) * 20) : 60,
+    score: g.rating ? Math.round(parseFloat(g.rating) * 20) : 60,
+    externalId: String(g.id),
+    users: [],
+    loggers: [],
+  }));
 }
 
 async function resolveBookId(title: string): Promise<string | null> {
@@ -98,74 +85,6 @@ async function fetchTMDBRecs(id: string, mediaType: 'movie' | 'tv'): Promise<Tre
   });
 }
 
-async function fetchRAWGGenresAndTags(id: string): Promise<{ genres: string[]; tags: string[] }> {
-  const res = await fetch(`https://api.rawg.io/api/games/${id}?key=${RAWG_KEY}`);
-  if (!res.ok) return { genres: [], tags: [] };
-  const data = await res.json();
-  return {
-    genres: ((data.genres ?? []) as any[]).map((g: any) => g.slug as string),
-    tags: pickSpecificTags(data.tags ?? []),
-  };
-}
-
-async function mapRAWGResults(results: any[], excludeId: string): Promise<TrendingEntry[]> {
-  const games = (results as any[]).filter((g) => g.name && String(g.id) !== excludeId);
-
-  // RAWG only has landscape screenshots — IGDB has real 2:3 box art, so it's
-  // the preferred source; RAWG's background_image is just the fallback for
-  // titles IGDB doesn't have.
-  const covers = await fetchIgdbCovers(games.map((g) => g.name));
-
-  return games.map((g) => ({
-    title: g.name as string,
-    sub: `${g.genres?.[0]?.name ?? 'Game'}${g.released ? ` · ${g.released.slice(0, 4)}` : ''}`,
-    type: 'play' as EntryType,
-    poster: covers[g.name] ?? g.background_image ?? null,
-    count: Math.round((g.rating ?? 3) * 20),
-    score: Math.round((g.rating ?? 3) * 20),
-    externalId: String(g.id),
-    users: [],
-    loggers: [],
-  }));
-}
-
-async function fetchRAWGRecs(id: string, genreSlugs: string[], tagSlugs: string[] = []): Promise<TrendingEntry[]> {
-  // RAWG's /games/{id}/suggested endpoint 401s under this API key's access
-  // tier (verified directly — basic search/detail calls work fine, this one
-  // doesn't, consistently, likely gated behind a paid RAWG plan). Genre+tag
-  // discovery is the real source of game recs, not a fallback supplement.
-  if (genreSlugs.length === 0) return [];
-
-  const params = new URLSearchParams({
-    key: RAWG_KEY,
-    genres: genreSlugs.join(','),
-    ordering: '-rating',
-    page_size: '15',
-  });
-  // Specific tags (roguelike, isometric, etc.) narrow genre-only results —
-  // which skew toward whatever's broadly popular in that genre — down to
-  // games that actually share what makes the seed distinctive. Newer/niche
-  // titles sometimes have no tags yet, so this is additive, not required.
-  if (tagSlugs.length > 0) params.set('tags', tagSlugs.join(','));
-
-  const res = await fetch(`https://api.rawg.io/api/games?${params.toString()}`);
-  let results = res.ok ? ((await res.json()).results ?? []) : [];
-
-  // Tags can over-narrow for unusual combinations — fall back to genres alone
-  // rather than showing a sparse or empty section.
-  if (results.length < 5 && tagSlugs.length > 0) {
-    const fallbackParams = new URLSearchParams({
-      key: RAWG_KEY,
-      genres: genreSlugs.join(','),
-      ordering: '-rating',
-      page_size: '15',
-    });
-    const fallbackRes = await fetch(`https://api.rawg.io/api/games?${fallbackParams.toString()}`);
-    results = fallbackRes.ok ? ((await fallbackRes.json()).results ?? []) : [];
-  }
-
-  return mapRAWGResults(results, id);
-}
 
 async function fetchBookRecs(id: string): Promise<TrendingEntry[]> {
   const detailRes = await fetch(
@@ -350,8 +269,8 @@ async function fetchSpotifyPodcastRecs(seed: ForYouSeed | null): Promise<Trendin
 
 /**
  * Recommendations for exactly one seed — same content type, same-ish genre,
- * via each source's own similarity engine (TMDB's /recommendations, RAWG
- * genre+tag search, Google Books subject search). Deliberately does NOT
+ * via each source's own similarity engine (TMDB's /recommendations, IGDB
+ * similar_games, Google Books subject search). Deliberately does NOT
  * blend across content types, so "Because you watched a documentary" never
  * surfaces podcasts or games.
  */
@@ -374,23 +293,13 @@ export function useBecauseYouRecs(seed: ForYouSeed | null) {
           return fetchTMDBRecs(id, mType);
         }
         if (seed.type === 'play') {
-          let id = seed.externalId ?? null;
-          let genres: string[] = [];
-          let tags: string[] = [];
-          if (id) {
-            // Already have the RAWG id (logged via search) — still need its
-            // genres + tags, since that's what actually drives fetchRAWGRecs now.
-            const resolved = await fetchRAWGGenresAndTags(id);
-            genres = resolved.genres;
-            tags = resolved.tags;
-          } else {
-            const resolved = await resolveRAWGId(seed.title);
-            if (!resolved) return [];
-            id = resolved.id;
-            genres = resolved.genres;
-            tags = resolved.tags;
+          let igdbId = seed.externalId ? Number(seed.externalId) : null;
+          if (!igdbId) {
+            const results = await igdbSearch(seed.title);
+            igdbId = results[0]?.id ?? null;
           }
-          return fetchRAWGRecs(id, genres, tags);
+          if (!igdbId) return [];
+          return fetchIgdbRecs(igdbId);
         }
         if (seed.type === 'read') {
           let id = seed.externalId ?? null;
@@ -451,21 +360,13 @@ export function useForYouRecs(seeds: ForYouSeed[]) {
               return fetchTMDBRecs(id, mType);
             }
             if (seed.type === 'play') {
-              let id = seed.externalId ?? null;
-              let genres: string[] = [];
-              let tags: string[] = [];
-              if (id) {
-                const resolved = await fetchRAWGGenresAndTags(id);
-                genres = resolved.genres;
-                tags = resolved.tags;
-              } else {
-                const resolved = await resolveRAWGId(seed.title);
-                if (!resolved) return [];
-                id = resolved.id;
-                genres = resolved.genres;
-                tags = resolved.tags;
+              let igdbId = seed.externalId ? Number(seed.externalId) : null;
+              if (!igdbId) {
+                const results = await igdbSearch(seed.title);
+                igdbId = results[0]?.id ?? null;
               }
-              return fetchRAWGRecs(id, genres, tags);
+              if (!igdbId) return [];
+              return fetchIgdbRecs(igdbId);
             }
             if (seed.type === 'read') {
               let id = seed.externalId ?? null;

@@ -87,6 +87,7 @@ export default function FriendCollectionModal() {
                     type: item.type === 'tv' ? 'watch' : item.type === 'podcast' ? 'podcast' : item.type,
                     poster: item.poster ?? undefined,
                     sub: item.sub ?? undefined,
+                    externalId: item.external_id ?? undefined,
                   },
                 })
               }

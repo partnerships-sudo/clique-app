@@ -1,14 +1,24 @@
-import { Buffer } from 'buffer';
 import { useQuery } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
 import type { CollectionFormat } from '@/features/collection/api';
-import { fetchIgdbCovers } from '@/features/games/igdb';
+import { igdbSearch } from '@/features/games/igdb';
+import { supabase } from '@/lib/supabase';
 
 const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
-const RAWG_KEY = process.env.EXPO_PUBLIC_RAWG_KEY!;
-const SPOTIFY_CLIENT_ID = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_ID!;
-const SPOTIFY_CLIENT_SECRET = process.env.EXPO_PUBLIC_SPOTIFY_CLIENT_SECRET!;
+
+const TMDB_MOVIE_GENRES: Record<number, string> = {
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance',
+  878: 'Sci-Fi', 53: 'Thriller', 10752: 'War', 37: 'Western',
+};
+const TMDB_TV_GENRES: Record<number, string> = {
+  10759: 'Action & Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 10762: 'Kids',
+  9648: 'Mystery', 10764: 'Reality', 10765: 'Sci-Fi & Fantasy',
+  10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics', 37: 'Western',
+};
 
 export interface SearchResult {
   title: string;
@@ -37,7 +47,11 @@ async function searchTMDB(query: string): Promise<SearchResult[]> {
     .map((r) => {
       const isTV = r.media_type === 'tv';
       const year = (r.release_date || r.first_air_date || '').slice(0, 4);
-      const sub = isTV ? `TV Series${year ? ` · ${year}` : ''}` : `Film${year ? ` · ${year}` : ''}`;
+      const genreMap = isTV ? TMDB_TV_GENRES : TMDB_MOVIE_GENRES;
+      const genreName = r.genre_ids?.[0] ? genreMap[r.genre_ids[0]] : null;
+      const sub = isTV
+        ? `TV Series${year ? ` · ${year}` : ''}${genreName ? ` · ${genreName}` : ''}`
+        : `Film${year ? ` · ${year}` : ''}${genreName ? ` · ${genreName}` : ''}`;
       return {
         title: r.title || r.name,
         sub,
@@ -104,9 +118,10 @@ async function searchBooks(query: string): Promise<SearchResult[]> {
     const doc = hit.document ?? {};
     const author = doc.author_names?.[0] ?? 'Unknown';
     const year = doc.release_year ? ` · ${doc.release_year}` : '';
+    const genre = doc.genre_names?.[0] ?? null;
     return {
       title: doc.title ?? 'Untitled',
-      sub: `${author}${year}`,
+      sub: `${author}${year}${genre ? ` · ${genre}` : ''}`,
       img: doc.image?.url ?? null,
       rating: doc.rating ? String(doc.rating.toFixed(1)) : null,
       square: false,
@@ -131,9 +146,10 @@ export async function searchBookByIsbn(isbn: string): Promise<SearchResult | nul
   if (!book) return null;
   const author = book.contributions?.[0]?.author?.name ?? 'Unknown';
   const year = book.default_physical_edition?.release_year ?? '';
+  const genre = book.genre_names?.[0] ?? null;
   return {
     title: book.title,
-    sub: `${author}${year ? ` · ${year}` : ''}`,
+    sub: `${author}${year ? ` · ${year}` : ''}${genre ? ` · ${genre}` : ''}`,
     img: book.default_physical_edition?.image?.url ?? null,
     rating: book.rating ? String(book.rating.toFixed(1)) : null,
     square: false,
@@ -143,29 +159,16 @@ export async function searchBookByIsbn(isbn: string): Promise<SearchResult | nul
 }
 
 async function searchGames(query: string): Promise<SearchResult[]> {
-  const res = await fetch(
-    `https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(query)}&page_size=8`,
-  );
-  const data = await res.json();
-  const games = (data.results ?? []) as any[];
-
-  // RAWG only has landscape screenshots — IGDB has real 2:3 box art, so it's
-  // the preferred source; RAWG's background_image is just the fallback for
-  // titles IGDB doesn't have.
-  const covers = await fetchIgdbCovers(games.map((g) => g.name));
-
-  return games.map((g) => {
-    const cover = covers[g.name] ?? null;
-    return {
-      title: g.name,
-      sub: `${g.genres?.[0]?.name ?? 'Game'}${g.released ? ` · ${g.released.slice(0, 4)}` : ''}`,
-      img: cover ?? g.background_image ?? null,
-      rating: g.rating ? g.rating.toFixed(1) : null,
-      square: !cover,
-      externalId: String(g.id),
-      mediaType: 'game',
-    };
-  });
+  const games = await igdbSearch(query);
+  return games.map((g) => ({
+    title: g.title,
+    sub: `${g.genre ?? 'Game'}${g.year ? ` · ${g.year}` : ''}`,
+    img: g.cover,
+    rating: g.rating,
+    square: false,
+    externalId: String(g.id),
+    mediaType: 'game',
+  }));
 }
 
 let spotifyToken: string | null = null;
@@ -173,16 +176,12 @@ let spotifyTokenExpiresAt = 0;
 
 export async function getSpotifyToken(): Promise<string> {
   if (spotifyToken && Date.now() < spotifyTokenExpiresAt) return spotifyToken;
-  const basic = Buffer.from(`${SPOTIFY_CLIENT_ID}:${SPOTIFY_CLIENT_SECRET}`).toString('base64');
-  const res = await fetch('https://accounts.spotify.com/api/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic ${basic}` },
-    body: 'grant_type=client_credentials',
-  });
-  const data = await res.json();
-  spotifyToken = data.access_token;
-  spotifyTokenExpiresAt = Date.now() + (data.expires_in - 60) * 1000;
-  return spotifyToken!;
+  const { data, error } = await supabase.functions.invoke<{ token: string }>('spotify-token');
+  if (error || !data?.token) throw new Error(`Spotify token fetch failed: ${error}`);
+  spotifyToken = data.token;
+  // Edge function caches for ~59min; client caches for 55min to stay safely inside that
+  spotifyTokenExpiresAt = Date.now() + 55 * 60 * 1000;
+  return spotifyToken;
 }
 
 async function searchSpotifyAlbums(query: string): Promise<SearchResult[]> {

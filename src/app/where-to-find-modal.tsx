@@ -14,12 +14,16 @@ export default function WhereToFindModal() {
   const params = useLocalSearchParams<{
     title: string;
     type: EntryType | 'cinema';
+    sub?: string;
     poster?: string;
     tmdbId?: string;
+    externalId?: string;
   }>();
   const config = getWhereToFindConfig(params.type ?? 'watch', params.title ?? '');
   const providerType = params.type === 'watch' || params.type === 'play' ? params.type : undefined;
+  const podcastType = params.type === 'podcast' ? 'podcast' as EntryType : undefined;
   const { data: details } = useContentDetails(providerType ? params.title : undefined, providerType);
+  const { data: podcastDetails } = useContentDetails(podcastType ? params.title : undefined, podcastType, params.externalId);
   // Real per-title availability (TMDB for movies/TV, RAWG platforms for
   // games) when we have it — falls back to the generic storefront list
   // otherwise, same as content-detail-modal.
@@ -28,6 +32,9 @@ export default function WhereToFindModal() {
   const { data: cinemaDetails } = useCinemaDetails(
     params.type === 'cinema' ? params.tmdbId : undefined,
   );
+  const podcastHost = params.type === 'podcast'
+    ? (podcastDetails?.hosts?.[0]?.name ?? (params.sub?.split('·')[0]?.trim() || null))
+    : null;
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -66,9 +73,37 @@ export default function WhereToFindModal() {
             <Text style={styles.heroTitle} numberOfLines={2}>
               {params.title}
             </Text>
-            <Text style={styles.heroMeta}>{config.label}</Text>
+            <Text style={styles.heroMeta}>
+              {podcastHost ? `${podcastHost} · ${config.label}` : config.label}
+            </Text>
+            {podcastDetails?.overview ? (
+              <Text style={styles.heroSynopsis} numberOfLines={3}>
+                {podcastDetails.overview}
+              </Text>
+            ) : null}
           </View>
         </View>
+
+        {/* ── Podcast: hosted by ── */}
+        {params.type === 'podcast' && podcastDetails?.hosts && podcastDetails.hosts.length > 0 ? (
+          <View style={styles.cinemaSection}>
+            <Text style={styles.castLabel}>Hosted by</Text>
+            <View style={styles.castRow}>
+              {podcastDetails.hosts.map((host) => (
+                <View key={host.name} style={styles.actorItem}>
+                  {host.photoUrl ? (
+                    <Image source={{ uri: host.photoUrl }} style={styles.actorCircle} />
+                  ) : (
+                    <View style={[styles.actorCircle, styles.actorFallback]}>
+                      <Text style={styles.actorFallbackText}>🎙</Text>
+                    </View>
+                  )}
+                  <Text style={styles.actorName} numberOfLines={2}>{host.name}</Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        ) : null}
 
         {/* ── Cinema: synopsis + cast ── */}
         {cinemaDetails ? (
@@ -172,9 +207,10 @@ function createStyles(Brand: BrandPalette) {
 
   // Hero
   hero: {
-    height: 150,
+    minHeight: 150,
     padding: Spacing.four,
     paddingTop: 28,
+    paddingBottom: 18,
     flexDirection: 'row',
     gap: 16,
     alignItems: 'flex-end',
@@ -197,6 +233,28 @@ function createStyles(Brand: BrandPalette) {
     fontSize: 12.5,
     color: 'rgba(255,255,255,0.7)',
     marginTop: 4,
+  },
+  heroSynopsis: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.6)',
+    lineHeight: 17,
+    marginTop: 8,
+  },
+
+  // Podcast section
+  podcastSection: {
+    paddingHorizontal: Spacing.three,
+    paddingTop: 14,
+    paddingBottom: 6,
+  },
+  podcastHost: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 12,
+    color: Brand.muted,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
 
   // Cinema section

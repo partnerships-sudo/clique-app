@@ -33,6 +33,7 @@ export default function CollectionItemDetailModal() {
     type: CollectionType;
     format?: string;
     userRating?: string;
+    externalId?: string;
   }>();
 
   const Brand = useBrand();
@@ -128,6 +129,7 @@ export default function CollectionItemDetailModal() {
                 type: entryType,
                 poster: params.poster ?? undefined,
                 sub: params.sub ?? undefined,
+                externalId: params.externalId ?? undefined,
               },
             })
           }>

@@ -3,10 +3,28 @@ import * as Localization from 'expo-localization';
 
 import type { EntryType } from '@/constants/theme';
 import type { StoreLink } from '@/features/where-to-find/links';
+import { igdbSearch, igdbDetails } from '@/features/games/igdb';
+import { getSpotifyToken } from '@/features/search/api';
+import { supabase } from '@/lib/supabase';
 
 const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
-const RAWG_KEY = process.env.EXPO_PUBLIC_RAWG_KEY!;
 const BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
+const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
+
+async function hardcoverQuery(query: string): Promise<any> {
+  const res = await fetch('https://api.hardcover.app/v1/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HARDCOVER_TOKEN}` },
+    body: JSON.stringify({ query }),
+  });
+  const json = await res.json();
+  return json.data;
+}
+
+async function podcastIndexSearch(query: string): Promise<any> {
+  const { data } = await supabase.functions.invoke('podcast-index', { body: { action: 'search', query } });
+  return data;
+}
 
 // TMDB's watch/providers data is region-specific and sourced from JustWatch.
 // Use the device's own region so someone in the UK sees BBC iPlayer/Now TV
@@ -99,52 +117,13 @@ const GAME_STORE_BY_PLATFORM: Record<
   },
 };
 
-// Collapses RAWG's many specific platform slugs (playstation5, playstation4,
-// ps-vita, xbox-series-x, xbox-one, xbox360...) down to the storefront
-// buckets above. Older/niche platforms (3DS, Wii U, Dreamcast, etc.) have no
-// modern digital storefront to link to, so they're intentionally dropped.
-function normalizeRawgPlatformSlug(slug: string): string | null {
-  if (slug === 'pc' || slug === 'macos' || slug === 'linux') return 'pc';
-  if (slug.startsWith('playstation') || slug === 'ps-vita') return 'playstation';
-  if (slug.startsWith('xbox')) return 'xbox';
-  if (slug === 'nintendo-switch') return 'nintendo-switch';
-  if (slug === 'ios') return 'ios';
-  if (slug === 'android') return 'android';
-  return null;
-}
-
-// RAWG store IDs → platform bucket
-const RAWG_STORE_ID_TO_BUCKET: Record<number, string> = {
-  1: 'pc',       // Steam
-  2: 'xbox',     // Xbox Store
-  3: 'playstation',
-  4: 'ios',      // App Store
-  5: 'pc',       // GOG (PC)
-  6: 'nintendo-switch',
-  7: 'xbox',     // Xbox 360
-  8: 'android',  // Google Play
-  11: 'pc',      // Epic Games (PC)
-};
-
-function buildGameStores(
-  platforms: { platform?: { slug?: string; name?: string } }[] | undefined,
-  title: string,
-  storeUrls?: Record<string, string>,
-): StoreLink[] {
-  const buckets = new Set<string>();
-  for (const p of platforms ?? []) {
-    const bucket = normalizeRawgPlatformSlug(p.platform?.slug ?? '');
-    if (bucket) buckets.add(bucket);
-  }
-  return Array.from(buckets)
-    .map((bucket) => GAME_STORE_BY_PLATFORM[bucket])
-    .filter((store): store is (typeof GAME_STORE_BY_PLATFORM)[string] => !!store)
-    .map((store) => ({ ...store, url: storeUrls?.[store.name] ?? store.url(title) }));
-}
 
 export interface ContentDetails {
   overview: string;
   cast: { name: string; character: string; profilePath: string | null }[];
+  hosts: { name: string; photoUrl: string | null }[];
+  author: { name: string; bio: string; photoUrl: string | null } | null;
+  developer: { name: string; logoUrl: string | null } | null;
   rating: string | null;
   year: string | null;
   genre: string | null;
@@ -153,15 +132,15 @@ export interface ContentDetails {
   trailerThumbnail: string | null;
   watchProviders: StoreLink[];
   mediaType: 'movie' | 'tv' | null;
-  // TV only — episode count per season (specials/season 0 excluded), straight
-  // from TMDB's own live season data, so it stays correct as new seasons air
-  // with no maintenance on our end.
   seasons: { seasonNumber: number; episodeCount: number }[];
 }
 
 const EMPTY_DETAILS: ContentDetails = {
   overview: '',
   cast: [],
+  hosts: [],
+  author: null,
+  developer: null,
   rating: null,
   year: null,
   genre: null,
@@ -262,6 +241,9 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
       character: (c.character ?? c.roles?.[0]?.character ?? '') as string,
       profilePath: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : null,
     })),
+    hosts: [],
+    author: null,
+    developer: null,
     rating: detail.vote_average ? detail.vote_average.toFixed(1) : null,
     year,
     genre,
@@ -275,67 +257,83 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
 }
 
 async function fetchGameDetails(title: string): Promise<ContentDetails> {
-  const searchRes = await fetch(
-    `https://api.rawg.io/api/games?key=${RAWG_KEY}&search=${encodeURIComponent(title)}&page_size=1`,
-  );
-  const searchData = await searchRes.json();
-  const game = searchData.results?.[0];
-  if (!game) return EMPTY_DETAILS;
+  const results = await igdbSearch(title);
+  const match = results[0];
+  if (!match) return EMPTY_DETAILS;
 
-  const [detailRes, storesRes] = await Promise.all([
-    fetch(`https://api.rawg.io/api/games/${game.id}?key=${RAWG_KEY}`),
-    fetch(`https://api.rawg.io/api/games/${game.id}/stores?key=${RAWG_KEY}`),
-  ]);
-  const detail = await detailRes.json();
-  const storesData = await storesRes.json();
+  const detail = await igdbDetails(match.id);
+  if (!detail) return EMPTY_DETAILS;
 
-  // Build a map from store name → direct URL using RAWG's store IDs
-  const storeUrls: Record<string, string> = {};
-  for (const entry of (storesData.results ?? []) as { store_id: number; url: string }[]) {
-    const bucket = RAWG_STORE_ID_TO_BUCKET[entry.store_id];
-    const store = bucket ? GAME_STORE_BY_PLATFORM[bucket] : null;
-    if (store && entry.url) storeUrls[store.name] = entry.url;
-  }
+  const stores = detail.platforms
+    .map((bucket) => GAME_STORE_BY_PLATFORM[bucket])
+    .filter((store): store is (typeof GAME_STORE_BY_PLATFORM)[string] => !!store)
+    .map((store) => ({ ...store, url: detail.storeUrls[store.name] ?? store.url(title) }));
 
   return {
-    overview: detail.description_raw ?? '',
-    cast: [],
-    rating: detail.rating ? detail.rating.toFixed(1) : null,
-    year: detail.released ? detail.released.slice(0, 4) : null,
-    genre: detail.genres?.[0]?.name ?? null,
-    runtime: detail.playtime ? `${detail.playtime}h avg playtime` : null,
-    trailerUrl: null,
-    trailerThumbnail: null,
-    watchProviders: buildGameStores(detail.platforms, title, storeUrls),
-    mediaType: null,
-    seasons: [],
+    ...EMPTY_DETAILS,
+    overview: detail.summary ?? '',
+    cast: detail.cast ?? [],
+    rating: detail.rating ?? null,
+    year: detail.year ?? null,
+    genre: detail.genre ?? null,
+    developer: detail.developer ?? null,
+    watchProviders: stores,
   };
 }
 
-async function fetchBookDetails(title: string): Promise<ContentDetails> {
+async function fetchHardcoverBookById(id: number): Promise<ContentDetails | null> {
+  const query = `query { books(where: { id: { _eq: ${id} } }, limit: 1) { title rating description release_year contributions { author { name bio image { url } } } default_physical_edition { pages } } }`;
+  const data = await hardcoverQuery(query);
+  const book = data?.books?.[0];
+  if (!book) return null;
+  const contrib = book.contributions?.[0]?.author;
+  const author = contrib
+    ? { name: contrib.name ?? '', bio: (contrib.bio ?? '').replace(/<[^>]*>/g, '').trim(), photoUrl: contrib.image?.url ?? null }
+    : null;
+  return {
+    ...EMPTY_DETAILS,
+    overview: (book.description ?? '').replace(/<[^>]*>/g, '').trim(),
+    author,
+    rating: book.rating ? Number(book.rating).toFixed(1) : null,
+    year: book.release_year ? String(book.release_year) : null,
+    runtime: book.default_physical_edition?.pages ? `${book.default_physical_edition.pages} pages` : null,
+  };
+}
+
+async function fetchBookDetails(title: string, externalId?: string): Promise<ContentDetails> {
+  // Prefer Hardcover (richer data, better descriptions) — fall back to Google Books.
+  try {
+    // If we have the Hardcover book ID, fetch directly; otherwise search by title first.
+    let bookId = externalId ? Number(externalId) : null;
+    if (!bookId) {
+      const searchQ = `query { search(query: ${JSON.stringify(title)}, query_type: "Book", per_page: 1, page: 1) { results } }`;
+      const searchData = await hardcoverQuery(searchQ);
+      bookId = searchData?.search?.results?.hits?.[0]?.document?.id ?? null;
+    }
+    if (bookId) {
+      const result = await fetchHardcoverBookById(bookId);
+      if (result) return result;
+    }
+  } catch { /* fall through to Google Books */ }
+
+  // Google Books fallback
   const res = await fetch(
     `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=1&key=${BOOKS_KEY}`,
   );
   const data = await res.json();
   const info = data.items?.[0]?.volumeInfo;
   if (!info) return EMPTY_DETAILS;
-
   return {
+    ...EMPTY_DETAILS,
     overview: info.description ?? '',
-    cast: [],
     rating: info.averageRating ? info.averageRating.toFixed(1) : null,
     year: info.publishedDate ? info.publishedDate.slice(0, 4) : null,
     genre: info.categories?.[0] ?? null,
     runtime: info.pageCount ? `${info.pageCount} pages` : null,
-    trailerUrl: null,
-    trailerThumbnail: null,
-    watchProviders: [],
-    mediaType: null,
-    seasons: [],
   };
 }
 
-const SUPPORTED_TYPES: EntryType[] = ['watch', 'play', 'read'];
+const SUPPORTED_TYPES: EntryType[] = ['watch', 'play', 'read', 'podcast'];
 
 export interface TVEpisode {
   episodeNumber: number;
@@ -387,6 +385,108 @@ export function useTVSeasons(tmdbId: string | null | undefined) {
   });
 }
 
+
+function parseHostNamesFromDescription(desc: string): string[] {
+  const hostedBy = desc.match(/hosted by\s+([A-Z][^.!?]+)/i);
+  if (hostedBy) {
+    const names = hostedBy[1].split(/\s*[,&]\s*|\s+and\s+/i)
+      .map(s => s.trim()).filter(s => /^[A-Z][a-z]/.test(s) && s.split(' ').length <= 4);
+    if (names.length > 0) return names;
+  }
+  const presentedBy = desc.match(/presented by\s+([A-Z][^.!?]+)/i);
+  if (presentedBy) {
+    const names = presentedBy[1].split(/\s*[,&]\s*|\s+and\s+/i)
+      .map(s => s.trim()).filter(s => /^[A-Z][a-z]/.test(s) && s.split(' ').length <= 4);
+    if (names.length > 0) return names;
+  }
+  const withMatch = desc.match(/\bwith\s+((?:[A-Z][a-z]+ [A-Z][a-z]+)(?:\s*[&,]\s*(?:[A-Z][a-z]+ [A-Z][a-z]+))*)/);
+  if (withMatch) {
+    return withMatch[1].split(/\s*[,&]\s*/).map(s => s.trim()).filter(Boolean);
+  }
+  return [];
+}
+
+async function fetchWikipediaPhoto(name: string): Promise<string | null> {
+  try {
+    const slug = name.trim().replace(/ /g, '_');
+    const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    // Sanity-check: make sure it's a person page, not a disambig or unrelated article
+    if (data.type === 'disambiguation') return null;
+    return data.thumbnail?.source ?? null;
+  } catch {
+    return null;
+  }
+}
+
+async function enrichHostsWithPhotos(names: string[]): Promise<{ name: string; photoUrl: string | null }[]> {
+  return Promise.all(names.map(async (name) => ({ name, photoUrl: await fetchWikipediaPhoto(name) })));
+}
+
+
+async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, titleForItunes?: string): Promise<ContentDetails> {
+  try {
+    const cleanTitle = (titleForItunes ?? (byTitle ? externalIdOrTitle : '')).replace(/\.{2,}$/, '').trim();
+    let hostNames: string[] = [];
+    let genre: string | null = null;
+    if (cleanTitle) {
+      try {
+        const piData = await podcastIndexSearch(cleanTitle);
+        const piHit = piData?.feeds?.[0];
+        const piAuthor = piHit?.author || piHit?.ownerName;
+        if (piAuthor) hostNames = [piAuthor];
+        genre = piHit?.categories ? Object.values(piHit.categories as Record<string, string>)[0] ?? null : null;
+      } catch {
+        const itunesRes = await fetch(
+          `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&entity=podcast&limit=1`,
+        );
+        const itunesData = await itunesRes.json();
+        const itunesHit = itunesData.results?.[0];
+        if (itunesHit?.artistName) hostNames = [itunesHit.artistName];
+        genre = itunesHit?.primaryGenreName ?? null;
+      }
+    }
+
+    let show: any = null;
+    try {
+      const token = await getSpotifyToken();
+      if (byTitle) {
+        const searchRes = await fetch(
+          `https://api.spotify.com/v1/search?q=${encodeURIComponent(cleanTitle)}&type=show&limit=1`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        const searchData = await searchRes.json();
+        show = searchData.shows?.items?.[0];
+      } else {
+        const res = await fetch(`https://api.spotify.com/v1/shows/${externalIdOrTitle}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        show = await res.json();
+      }
+    } catch { /* proceed without Spotify show data */ }
+    const description = show
+      ? (show.description ?? show.html_description ?? '').replace(/<[^>]*>/g, '').trim()
+      : '';
+
+    if (description && (hostNames.length === 0 || !hostNames[0]?.includes(' '))) {
+      const parsed = parseHostNamesFromDescription(description);
+      if (parsed.length > 0) hostNames = parsed;
+    }
+
+    const hosts = await enrichHostsWithPhotos(hostNames);
+
+    return {
+      ...EMPTY_DETAILS,
+      overview: description,
+      hosts,
+      genre,
+    };
+  } catch {
+    return { ...EMPTY_DETAILS };
+  }
+}
+
 export function useContentDetails(
   title: string | undefined,
   type: EntryType | undefined,
@@ -394,7 +494,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v2', type, externalId ?? title],
+    queryKey: ['content-details-v6', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {
@@ -426,6 +526,9 @@ export function useContentDetails(
                 character: (c.character ?? c.roles?.[0]?.character ?? '') as string,
                 profilePath: c.profile_path ? `https://image.tmdb.org/t/p/w185${c.profile_path}` : null,
               })),
+              hosts: [],
+              author: null,
+              developer: null,
               rating: detail.vote_average ? detail.vote_average.toFixed(1) : null,
               year,
               genre,
@@ -441,7 +544,10 @@ export function useContentDetails(
         case 'play':
           return fetchGameDetails(title);
         case 'read':
-          return fetchBookDetails(title);
+          return fetchBookDetails(title, externalId);
+        case 'podcast':
+          if (externalId) return fetchPodcastDetails(externalId, false, title);
+          return fetchPodcastDetails(title, true);
         default:
           return null;
       }

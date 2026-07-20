@@ -1,22 +1,3 @@
-// Looks up portrait box-art for game titles via IGDB (Twitch's game database).
-// RAWG (used elsewhere for game search/metadata) only exposes landscape
-// screenshots, so this exists purely to get a 2:3 cover image to match the
-// Books/Movies grid. The Twitch client secret must never ship in the app
-// bundle, so the client-credentials exchange happens here, server-side.
-//
-// Accepts a batch of titles and resolves them all from a single client call —
-// callers like the For You games feed can need a dozen+ covers at once, and
-// IGDB's rate limit (4 req/s per client) makes unbounded fan-out a real risk.
-//
-// IGDB's `multiquery` endpoint would be the obvious way to batch these into
-// one HTTP request, but its `search` operator (the one that does real
-// relevance ranking) silently returns nothing inside a multiquery sub-block —
-// confirmed empirically, not documented. The `where name ~ *"..."*` fallback
-// that does work inside multiquery has no reliable popularity signal to sort
-// by (IGDB's `follows`/`hypes` fields are sparse), so it surfaces DLC/mod
-// entries ahead of the actual base game. Per-title `search` against the plain
-// /games endpoint is the only path that ranks correctly, so batching instead
-// happens here as bounded-concurrency fan-out, one search per title.
 const IGDB_CLIENT_ID = Deno.env.get('IGDB_CLIENT_ID')!;
 const IGDB_CLIENT_SECRET = Deno.env.get('IGDB_CLIENT_SECRET')!;
 
@@ -32,7 +13,6 @@ let cachedToken: { token: string; expiresAt: number } | null = null;
 
 async function getAccessToken(): Promise<string> {
   if (cachedToken && cachedToken.expiresAt > Date.now()) return cachedToken.token;
-
   const res = await fetch('https://id.twitch.tv/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -44,72 +24,173 @@ async function getAccessToken(): Promise<string> {
   });
   const data = await res.json();
   if (!data.access_token) throw new Error(`Twitch token exchange failed: ${JSON.stringify(data)}`);
-
-  // Refresh a little early so a request never races an expiring token.
   cachedToken = { token: data.access_token, expiresAt: Date.now() + (data.expires_in - 300) * 1000 };
   return cachedToken.token;
 }
 
-function coverUrlFromImageId(imageId: string | undefined | null): string | null {
+function igdb(token: string, endpoint: string, body: string) {
+  return fetch(`https://api.igdb.com/v4/${endpoint}`, {
+    method: 'POST',
+    headers: { 'Client-ID': IGDB_CLIENT_ID, Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
+    body,
+  }).then((r) => r.json());
+}
+
+function coverUrl(imageId: string | undefined | null): string | null {
   return imageId ? `https://images.igdb.com/igdb/image/upload/t_cover_big_2x/${imageId}.jpg` : null;
 }
 
-async function searchCover(title: string, token: string): Promise<string | null> {
-  const escaped = title.replace(/"/g, '\\"');
-  const res = await fetch('https://api.igdb.com/v4/games', {
-    method: 'POST',
-    headers: { 'Client-ID': IGDB_CLIENT_ID, Authorization: `Bearer ${token}`, 'Content-Type': 'text/plain' },
-    body: `search "${escaped}"; fields cover.image_id; limit 1;`,
-  });
-  const results = await res.json();
-  return coverUrlFromImageId(results?.[0]?.cover?.image_id);
+// Platform ID → bucket used by the client-side store list
+const PLATFORM_BUCKET: Record<number, string> = {
+  6: 'pc', 14: 'pc', 3: 'pc',           // Windows, Mac, Linux
+  48: 'playstation', 167: 'playstation', // PS4, PS5
+  49: 'xbox', 169: 'xbox',              // Xbox One, Xbox Series X/S
+  130: 'nintendo-switch',
+  39: 'ios', 34: 'android',
+};
+
+// IGDB website category → store label (for direct store URL extraction)
+const WEBSITE_STORE: Record<number, string> = {
+  13: 'Steam',
+  16: 'Epic Games',
+  17: 'GOG',
+};
+
+function mapGame(g: any) {
+  const releaseTs = g.first_release_date;
+  const year = releaseTs ? new Date(releaseTs * 1000).getFullYear().toString() : null;
+  const genre = g.genres?.[0]?.name ?? null;
+  const platforms = (g.platforms ?? []).map((p: any) => PLATFORM_BUCKET[p.id]).filter(Boolean);
+  const storeUrls: Record<string, string> = {};
+  for (const w of g.websites ?? []) {
+    const store = WEBSITE_STORE[w.category];
+    if (store && w.url) storeUrls[store] = w.url;
+  }
+  return {
+    id: g.id,
+    title: g.name,
+    cover: coverUrl(g.cover?.image_id),
+    summary: g.summary ?? null,
+    rating: g.rating ? (g.rating / 20).toFixed(1) : null, // IGDB 0-100 → 0-5
+    year,
+    genre,
+    playtime: g.game_modes?.find((m: any) => m.name === 'Single player') ? null : null,
+    platforms: [...new Set(platforms)] as string[],
+    storeUrls,
+    similarIds: (g.similar_games ?? []).map((s: any) => (typeof s === 'number' ? s : s.id)),
+  };
 }
 
-// Runs `items` through `worker` with at most `limit` in flight at once,
-// preserving input order in the returned array.
-async function mapWithConcurrency<T, R>(items: T[], limit: number, worker: (item: T) => Promise<R>): Promise<R[]> {
-  const results: R[] = new Array(items.length);
-  let next = 0;
-  async function run() {
-    while (next < items.length) {
-      const i = next++;
-      results[i] = await worker(items[i]);
+// --- action: covers (original behaviour, backward-compat) ---
+async function handleCovers(titles: string[], token: string) {
+  const unique = [...new Set(titles.filter(Boolean))].slice(0, MAX_TITLES);
+  async function run(items: string[]): Promise<(string | null)[]> {
+    const results: (string | null)[] = new Array(items.length);
+    let next = 0;
+    async function worker() {
+      while (next < items.length) {
+        const i = next++;
+        const t = items[i];
+        const escaped = t.replace(/"/g, '\\"');
+        try {
+          const data = await igdb(token, 'games', `search "${escaped}"; fields cover.image_id; limit 1;`);
+          results[i] = coverUrl(data?.[0]?.cover?.image_id);
+        } catch { results[i] = null; }
+      }
     }
+    await Promise.all(Array.from({ length: Math.min(CONCURRENCY, items.length) }, worker));
+    return results;
   }
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, run));
-  return results;
+  const urls = await run(unique);
+  const covers: Record<string, string | null> = {};
+  unique.forEach((t, i) => { covers[t] = urls[i]; });
+  return { covers };
+}
+
+// --- action: search ---
+async function handleSearch(query: string, token: string) {
+  const escaped = query.replace(/"/g, '\\"');
+  const data = await igdb(token, 'games',
+    `search "${escaped}"; fields name, cover.image_id, genres.name, first_release_date, rating, platforms.id; limit 8;`);
+  return { results: (data ?? []).map(mapGame) };
+}
+
+// --- action: details ---
+async function handleDetails(id: number, token: string) {
+  // Two independent queries: game details + voice cast (separate endpoint)
+  const [gameData, charData] = await Promise.all([
+    igdb(token, 'games',
+      `fields name, summary, rating, first_release_date, genres.name, platforms.id, websites.url, websites.category, cover.image_id, similar_games, involved_companies.developer, involved_companies.company.name, involved_companies.company.logo.image_id; where id = ${id}; limit 1;`),
+    igdb(token, 'characters',
+      `fields name, voice_actors.name, voice_actors.mug_shot.image_id; where games = ${id}; limit 10;`)
+      .catch(() => []),
+  ]);
+
+  const game = gameData?.[0];
+  if (!game) return { game: null };
+
+  const dev = (game.involved_companies ?? []).find((c: any) => c.developer);
+  const developer = dev ? {
+    name: dev.company?.name ?? null,
+    logoUrl: dev.company?.logo?.image_id
+      ? `https://images.igdb.com/igdb/image/upload/t_logo_med/${dev.company.logo.image_id}.png`
+      : null,
+  } : null;
+
+  const cast: { name: string; character: string; profilePath: string | null }[] = [];
+  for (const ch of (charData ?? []) as any[]) {
+    const actor = ch.voice_actors?.[0];
+    if (!actor?.name) continue;
+    cast.push({
+      name: actor.name,
+      character: ch.name ?? '',
+      profilePath: actor.mug_shot?.image_id
+        ? `https://images.igdb.com/igdb/image/upload/t_thumb/${actor.mug_shot.image_id}.jpg`
+        : null,
+    });
+  }
+
+  return { game: { ...mapGame(game), developer, cast } };
+}
+
+// --- action: similar ---
+async function handleSimilar(id: number, token: string) {
+  // Fetch the game's similar_games IDs first, then get full details for each
+  const seed = await igdb(token, 'games',
+    `fields similar_games; where id = ${id}; limit 1;`);
+  const similarIds: number[] = seed?.[0]?.similar_games ?? [];
+  if (similarIds.length === 0) return { results: [] };
+
+  const idList = similarIds.slice(0, 12).join(',');
+  const data = await igdb(token, 'games',
+    `fields name, cover.image_id, genres.name, first_release_date, rating; where id = (${idList}); limit 12;`);
+  return { results: (data ?? []).map(mapGame) };
 }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
 
   try {
-    const { titles } = await req.json();
-    const list: string[] = Array.isArray(titles) ? titles.filter((t) => typeof t === 'string' && t.trim()) : [];
-
-    if (list.length === 0) {
-      return new Response(JSON.stringify({ covers: {} }), {
-        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      });
-    }
-
-    const capped = list.slice(0, MAX_TITLES);
+    const body = await req.json();
     const token = await getAccessToken();
 
-    const coverUrls = await mapWithConcurrency(capped, CONCURRENCY, (title) =>
-      searchCover(title, token).catch(() => null),
-    );
+    let result: unknown;
+    if (body.action === 'search') {
+      result = await handleSearch(body.query, token);
+    } else if (body.action === 'details') {
+      result = await handleDetails(body.id, token);
+    } else if (body.action === 'similar') {
+      result = await handleSimilar(body.id, token);
+    } else {
+      // Default: cover-only batch (backward compat)
+      const titles: string[] = Array.isArray(body.titles) ? body.titles.filter((t: any) => typeof t === 'string' && t.trim()) : [];
+      result = await handleCovers(titles, token);
+    }
 
-    const covers: Record<string, string | null> = {};
-    capped.forEach((title, i) => {
-      covers[title] = coverUrls[i];
-    });
-
-    return new Response(JSON.stringify({ covers }), {
+    return new Response(JSON.stringify(result), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    // Never surface a 500 to the client — just fall back to no covers.
     console.error('igdb-cover error', err);
     return new Response(JSON.stringify({ covers: {}, error: String(err) }), {
       status: 200,
