@@ -201,14 +201,16 @@ export default function LibraryScreen() {
               item={item}
               onLogIt={() =>
                 router.push({
-                  pathname: '/log-modal',
+                  pathname: '/rate-watchlist-modal',
                   params: {
-                    prefillTitle: item.title,
-                    prefillType: item.type,
-                    prefillSub: item.sub ?? undefined,
-                    prefillPoster: item.poster ?? undefined,
-                    prefillExternalId: item.external_id ?? undefined,
-                    prefillMediaType: item.media_type ?? undefined,
+                    id: item.id,
+                    title: item.title,
+                    type: item.type,
+                    sub: item.sub ?? undefined,
+                    poster: item.poster ?? undefined,
+                    externalId: item.external_id ?? undefined,
+                    mediaType: item.media_type ?? undefined,
+                    extRating: item.ext_rating ?? undefined,
                   },
                 })
               }

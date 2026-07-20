@@ -62,6 +62,7 @@ function RootNavigator() {
       <Stack.Screen name="premiere-waiting-room" options={{ headerShown: false }} />
       <Stack.Screen name="premiere-live" options={{ headerShown: false }} />
       <Stack.Screen name="profile-stats-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="rate-watchlist-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-item-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
     </Stack>
   );
