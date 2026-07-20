@@ -368,7 +368,7 @@ async function fetchBookDetails(title: string, externalId?: string): Promise<Con
   };
 }
 
-const SUPPORTED_TYPES: EntryType[] = ['watch', 'play', 'read', 'podcast'];
+const SUPPORTED_TYPES: EntryType[] = ['watch', 'play', 'read', 'podcast', 'listen'];
 
 export interface TVEpisode {
   episodeNumber: number;
@@ -459,6 +459,132 @@ async function enrichHostsWithPhotos(names: string[]): Promise<{ name: string; p
   return Promise.all(names.map(async (name) => ({ name, photoUrl: await fetchWikipediaPhoto(name) })));
 }
 
+
+async function fetchMusicDetails(title: string, externalId?: string): Promise<ContentDetails> {
+  try {
+    const token = await getSpotifyToken();
+    let album: any = null;
+
+    if (externalId) {
+      const res = await fetch(`https://api.spotify.com/v1/albums/${externalId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) album = await res.json();
+    }
+
+    if (!album) {
+      const res = await fetch(
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(title)}&type=album&limit=1`,
+        { headers: { Authorization: `Bearer ${token}` } },
+      );
+      const data = await res.json();
+      const hit = data.albums?.items?.[0];
+      if (hit) {
+        const detailRes = await fetch(`https://api.spotify.com/v1/albums/${hit.id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (detailRes.ok) album = await detailRes.json();
+      }
+    }
+
+    if (!album) return EMPTY_DETAILS;
+
+    const artistId = album.artists?.[0]?.id;
+    const artistName = album.artists?.[0]?.name ?? '';
+    const genre = (album.genres?.length ? album.genres : null)?.slice(0, 2).join(', ') ?? null;
+    const year = (album.release_date ?? '').slice(0, 4) || null;
+    const trackCount = album.total_tracks ?? null;
+    const label = album.label ?? null;
+
+    // Fetch artist details for bio + genre fallback
+    let artistBio = '';
+    let artistGenre = genre;
+    let artistPhotoUrl: string | null = null;
+    if (artistId) {
+      try {
+        const artistRes = await fetch(`https://api.spotify.com/v1/artists/${artistId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (artistRes.ok) {
+          const artist = await artistRes.json();
+          if (!artistGenre && artist.genres?.length) {
+            artistGenre = artist.genres.slice(0, 2).join(', ');
+          }
+          artistPhotoUrl = artist.images?.[0]?.url ?? null;
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Wikipedia artist bio as overview
+    if (artistName) {
+      try {
+        const slug = encodeURIComponent(artistName.replace(/ /g, '_'));
+        const wikiRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`);
+        if (wikiRes.ok) {
+          const wikiData = await wikiRes.json();
+          if (wikiData.type !== 'disambiguation' && wikiData.extract) {
+            artistBio = wikiData.extract;
+          }
+        }
+      } catch { /* ignore */ }
+    }
+
+    // Top tracks as "cast" equivalent — try by artistId, fall back to artist name search
+    let topTracks: ContentDetails['cast'] = [];
+    let resolvedArtistId = artistId;
+    if (!resolvedArtistId && artistName) {
+      try {
+        const artistSearchRes = await fetch(
+          `https://api.spotify.com/v1/search?q=${encodeURIComponent(artistName)}&type=artist&limit=1`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (artistSearchRes.ok) {
+          const artistSearchData = await artistSearchRes.json();
+          resolvedArtistId = artistSearchData.artists?.items?.[0]?.id ?? null;
+        }
+      } catch { /* ignore */ }
+    }
+    if (resolvedArtistId) {
+      try {
+        const tracksRes = await fetch(
+          `https://api.spotify.com/v1/artists/${resolvedArtistId}/top-tracks?market=US`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (tracksRes.ok) {
+          const tracksData = await tracksRes.json();
+          topTracks = ((tracksData.tracks ?? []) as any[]).slice(0, 8).map((t: any) => ({
+            name: t.name,
+            character: t.album?.name ?? '',
+            profilePath: t.album?.images?.[0]?.url ?? null,
+          }));
+        }
+      } catch { /* ignore */ }
+    }
+
+    const metaParts = [
+      trackCount ? `${trackCount} tracks` : null,
+      label,
+    ].filter(Boolean);
+
+    return {
+      ...EMPTY_DETAILS,
+      overview: artistBio,
+      cast: topTracks,
+      rating: null,
+      year,
+      genre: artistGenre,
+      runtime: metaParts.join(' · ') || null,
+      watchProviders: [
+        { name: 'Spotify', logo: '🟢', logoUrl: 'https://www.google.com/s2/favicons?domain=spotify.com&sz=64', price: 'Stream free or premium', cta: 'Listen on Spotify', color: '#1DB954', url: album.external_urls?.spotify ?? `https://open.spotify.com/search/${encodeURIComponent(title)}` },
+        { name: 'Apple Music', logo: '🎵', logoUrl: 'https://www.google.com/s2/favicons?domain=music.apple.com&sz=64', price: 'Stream', cta: 'Listen on Apple Music', color: '#FC3C44', url: `https://music.apple.com/search?term=${encodeURIComponent(title)}` },
+        { name: 'Amazon Music', logo: '🎶', logoUrl: 'https://www.google.com/s2/favicons?domain=music.amazon.com&sz=64', price: 'Stream or buy', cta: 'Find on Amazon', color: '#FF9900', url: `https://music.amazon.com/search/${encodeURIComponent(title)}` },
+        { name: 'Tidal', logo: '💧', logoUrl: 'https://www.google.com/s2/favicons?domain=tidal.com&sz=64', price: 'Hi-fi streaming', cta: 'Listen on Tidal', color: '#000000', url: `https://tidal.com/search?q=${encodeURIComponent(title)}` },
+      ],
+    };
+  } catch {
+    return EMPTY_DETAILS;
+  }
+}
 
 async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, titleForItunes?: string): Promise<ContentDetails> {
   try {
@@ -576,6 +702,8 @@ export function useContentDetails(
             };
           }
           return fetchWatchDetails(title);
+        case 'listen':
+          return fetchMusicDetails(title, externalId);
         case 'play':
           return fetchGameDetails(title, externalId);
         case 'read':

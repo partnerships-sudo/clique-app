@@ -12,7 +12,7 @@ import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const ACTOR_SIZE = 52;
 
-function CastRow({ cast }: { cast: ContentDetails['cast'] }) {
+function CastRow({ cast, square }: { cast: ContentDetails['cast']; square?: boolean }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [containerW, setContainerW] = useState(0);
@@ -47,10 +47,10 @@ function CastRow({ cast }: { cast: ContentDetails['cast'] }) {
           {cast.map((actor) => (
             <View key={actor.name} style={styles.actorItem}>
               {actor.profilePath ? (
-                <Image source={{ uri: actor.profilePath }} style={styles.actorCircle} />
+                <Image source={{ uri: actor.profilePath }} style={[styles.actorCircle, square && styles.actorSquare]} />
               ) : (
-                <View style={[styles.actorCircle, styles.actorFallback]}>
-                  <Text style={styles.actorFallbackEmoji}>👤</Text>
+                <View style={[styles.actorCircle, square && styles.actorSquare, styles.actorFallback]}>
+                  <Text style={styles.actorFallbackEmoji}>{square ? '🎵' : '👤'}</Text>
                 </View>
               )}
               <Text style={styles.actorName} numberOfLines={2}>
@@ -191,7 +191,7 @@ export default function ContentDetailModal() {
           {/* Synopsis / About */}
           {!isLoading && details?.overview ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>{resolvedType === 'podcast' || resolvedType === 'read' ? 'About' : 'Synopsis'}</Text>
+              <Text style={styles.sectionLabel}>{resolvedType === 'podcast' || resolvedType === 'read' ? 'About' : resolvedType === 'listen' ? 'About the Artist' : 'Synopsis'}</Text>
               {/* Invisible full-height measurer: tells us whether the text
                   actually overflows 3 lines, so we only show the toggle
                   when there's really more to reveal. */}
@@ -297,8 +297,8 @@ export default function ContentDetailModal() {
           {/* Cast / Key Staff */}
           {!isLoading && details?.cast && details.cast.length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>{resolvedType === 'play' ? 'Key Staff' : 'Top cast'}</Text>
-              <CastRow cast={details.cast} />
+              <Text style={styles.sectionLabel}>{resolvedType === 'play' ? 'Key Staff' : resolvedType === 'listen' ? 'Top Tracks' : 'Top Cast'}</Text>
+              <CastRow cast={details.cast} square={resolvedType === 'listen'} />
             </View>
           ) : null}
 
@@ -448,6 +448,7 @@ function createStyles(Brand: BrandPalette) {
     borderRadius: ACTOR_SIZE / 2,
     backgroundColor: Brand.border,
   },
+  actorSquare: { borderRadius: 8 },
   actorFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: Brand.tlight },
   actorFallbackEmoji: { fontSize: 22 },
   actorName: {
