@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -16,21 +16,38 @@ const ACTOR_SIZE = 52;
 function PodcastEpisodeRow({ cast, styles }: { cast: ContentDetails['cast']; styles: ReturnType<typeof createStyles> }) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const player = useAudioPlayer(null);
+  const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    return () => { try { player.pause(); } catch { /* ignore */ } };
+    return () => {
+      if (stopTimer.current) clearTimeout(stopTimer.current);
+      try { player.pause(); } catch { /* ignore */ }
+    };
   }, []);
 
-  function handlePress(index: number) {
-    const ep = cast[index];
+  function handlePress(i: number) {
+    const ep = cast[i];
     if (!ep.previewUrl) return;
-    if (playingIndex === index) {
+    const isTrailer = ep.character === 'Trailer';
+
+    if (!isTrailer) {
+      Linking.openURL(ep.previewUrl).catch(() => {});
+      return;
+    }
+
+    if (playingIndex === i) {
       player.pause();
+      if (stopTimer.current) clearTimeout(stopTimer.current);
       setPlayingIndex(null);
     } else {
       player.replace({ uri: ep.previewUrl });
       player.play();
-      setPlayingIndex(index);
+      setPlayingIndex(i);
+      if (stopTimer.current) clearTimeout(stopTimer.current);
+      stopTimer.current = setTimeout(() => {
+        player.pause();
+        setPlayingIndex(null);
+      }, 30000);
     }
   }
 

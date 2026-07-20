@@ -638,7 +638,7 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
 
     const hosts = await enrichHostsWithPhotos(hostNames);
 
-    // Fetch episodes: prefer trailer, fall back to 5 most recent
+    // Fetch episodes: check RSS for trailer first, fall back to 5 most recent via iTunes
     let episodes: ContentDetails['cast'] = [];
     if (cleanTitle) {
       try {
@@ -646,24 +646,52 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
           `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&entity=podcast&limit=1`,
         );
         const itunesSearchData = await itunesSearchRes.json();
-        const podcastId = itunesSearchData.results?.[0]?.collectionId;
-        if (podcastId) {
+        const podcastHit = itunesSearchData.results?.[0];
+        const podcastId = podcastHit?.collectionId;
+        const feedUrl = podcastHit?.feedUrl;
+
+        // Try RSS feed for trailer episode
+        let trailerEpisode: ContentDetails['cast'][0] | null = null;
+        if (feedUrl) {
+          try {
+            const rssRes = await fetch(feedUrl);
+            if (rssRes.ok) {
+              const rssText = await rssRes.text();
+              const itemMatches = rssText.match(/<item>([\s\S]*?)<\/item>/g) ?? [];
+              for (const item of itemMatches) {
+                const epType = item.match(/<itunes:episodeType>(.*?)<\/itunes:episodeType>/)?.[1] ?? '';
+                const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/) ?? item.match(/<title>(.*?)<\/title>/);
+                const enclosureMatch = item.match(/<enclosure[^>]+url="([^"]+)"/);
+                const artMatch = item.match(/itunes:image href="([^"]+)"/);
+                if (/trailer/i.test(epType) && enclosureMatch) {
+                  trailerEpisode = {
+                    name: titleMatch?.[1] ?? 'Trailer',
+                    character: 'Trailer',
+                    profilePath: artMatch?.[1] ?? null,
+                    previewUrl: enclosureMatch[1], // direct MP3 for inline playback
+                  };
+                  break;
+                }
+              }
+            }
+          } catch { /* ignore */ }
+        }
+
+        if (trailerEpisode) {
+          episodes = [trailerEpisode];
+        } else if (podcastId) {
           const epRes = await fetch(
-            `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcastEpisode&limit=20`,
+            `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcastEpisode&limit=6`,
           );
           const epData = await epRes.json();
           const allEpisodes = ((epData.results ?? []) as any[]).filter(
             (r: any) => r.wrapperType === 'podcastEpisode' && r.episodeUrl,
           );
-          const trailer = allEpisodes.find((e: any) =>
-            /trailer/i.test(e.trackName ?? ''),
-          );
-          const picked = trailer ? [trailer] : allEpisodes.slice(0, 5);
-          episodes = picked.map((e: any) => ({
+          episodes = allEpisodes.slice(0, 5).map((e: any) => ({
             name: e.trackName ?? '',
-            character: trailer ? 'Trailer' : new Date(e.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            character: new Date(e.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             profilePath: e.artworkUrl160 ?? e.artworkUrl60 ?? null,
-            previewUrl: e.episodeUrl ?? null,
+            previewUrl: e.trackViewUrl ?? null,
           }));
         }
       } catch { /* ignore */ }
@@ -688,7 +716,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v18', type, externalId ?? title],
+    queryKey: ['content-details-v21', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {
