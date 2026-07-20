@@ -2,14 +2,14 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View, Vibration } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
 import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
-import { useMoveToLibrary, useRateLibraryItem, type LibraryItem } from '@/features/library/api';
+import { useMoveToLibrary, useRateLibraryItem, useRemoveLibraryItem, type LibraryItem } from '@/features/library/api';
 import { useUploadBanner, type Profile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { LibCard } from '@/components/library/lib-card';
@@ -122,6 +122,7 @@ export function ProfileCard({
   const [watchlistView, setWatchlistView] = useState<'mine' | 'friends'>('mine');
   const moveToLibrary = useMoveToLibrary();
   const rateItem = useRateLibraryItem();
+  const removeLibraryItem = useRemoveLibraryItem();
   const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
   const [ratingValue, setRatingValue] = useState<number | null>(null);
   const [ratingNote, setRatingNote] = useState('');
@@ -396,7 +397,18 @@ export function ProfileCard({
               <Text style={styles.emptyText}>Nothing logged yet.</Text>
             ) : (
               feedItems.map((item) => (
-                <LibCard key={item.id} item={item} />
+                <Pressable
+                  key={item.id}
+                  onLongPress={() => {
+                    Vibration.vibrate(40);
+                    Alert.alert('Remove from feed?', item.title, [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Remove', style: 'destructive', onPress: () => removeLibraryItem.mutate(item.id) },
+                    ]);
+                  }}
+                  delayLongPress={500}>
+                  <LibCard item={item} />
+                </Pressable>
               ))
             )}
           </View>
@@ -439,7 +451,17 @@ export function ProfileCard({
               return (
                 <View style={styles.wlGrid}>
                   {items.map((item) => (
-                    <View key={item.id} style={styles.wlGridItem}>
+                    <Pressable
+                      key={item.id}
+                      style={styles.wlGridItem}
+                      onLongPress={() => {
+                        Vibration.vibrate(40);
+                        Alert.alert('Remove from watchlist?', item.title, [
+                          { text: 'Cancel', style: 'cancel' },
+                          { text: 'Remove', style: 'destructive', onPress: () => removeLibraryItem.mutate(item.id) },
+                        ]);
+                      }}
+                      delayLongPress={500}>
                       <View style={styles.wlPosterWrap}>
                         {item.poster ? (
                           <Image source={{ uri: item.poster }} style={styles.wlPoster} resizeMode="cover" />
@@ -458,7 +480,7 @@ export function ProfileCard({
                         <SymbolView name="checkmark" size={10} tintColor="#fff" style={{ width: 11, height: 11 }} />
                         <Text style={styles.wlLogBtnText}>Log it</Text>
                       </Pressable>
-                    </View>
+                    </Pressable>
                   ))}
                 </View>
               );
