@@ -13,6 +13,55 @@ import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const ACTOR_SIZE = 52;
 
+function PodcastEpisodeRow({ cast, styles }: { cast: ContentDetails['cast']; styles: ReturnType<typeof createStyles> }) {
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const player = useAudioPlayer(null);
+
+  useEffect(() => {
+    return () => { try { player.pause(); } catch { /* ignore */ } };
+  }, []);
+
+  function handlePress(index: number) {
+    const ep = cast[index];
+    if (!ep.previewUrl) return;
+    if (playingIndex === index) {
+      player.pause();
+      setPlayingIndex(null);
+    } else {
+      player.replace({ uri: ep.previewUrl });
+      player.play();
+      setPlayingIndex(index);
+    }
+  }
+
+  return (
+    <View style={styles.episodeList}>
+      {cast.map((ep, i) => (
+        <Pressable key={`${i}-${ep.name}`} style={styles.episodeRow} onPress={() => handlePress(i)}>
+          <View style={styles.episodeThumbWrap}>
+            {ep.profilePath ? (
+              <Image source={{ uri: ep.profilePath }} style={styles.episodeThumb} />
+            ) : (
+              <View style={[styles.episodeThumb, styles.actorFallback]}>
+                <Text style={styles.actorFallbackEmoji}>🎙️</Text>
+              </View>
+            )}
+            {ep.previewUrl ? (
+              <View style={styles.trackPlayOverlay}>
+                <Text style={styles.trackPlayIcon}>{playingIndex === i ? '⏸' : '▶'}</Text>
+              </View>
+            ) : null}
+          </View>
+          <View style={styles.episodeInfo}>
+            <Text style={styles.episodeName} numberOfLines={2}>{ep.name}</Text>
+            {ep.character ? <Text style={styles.episodeDate}>{ep.character}</Text> : null}
+          </View>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 function MusicTrackRow({ cast, styles }: { cast: ContentDetails['cast']; styles: ReturnType<typeof createStyles> }) {
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const player = useAudioPlayer(null);
@@ -37,7 +86,7 @@ function MusicTrackRow({ cast, styles }: { cast: ContentDetails['cast']; styles:
   return (
     <View style={styles.castRowFit}>
       {cast.map((track, i) => (
-        <Pressable key={track.name} style={styles.actorItemFit} onPress={() => handlePress(i)}>
+        <Pressable key={`${i}-${track.name}`} style={styles.actorItemFit} onPress={() => handlePress(i)}>
           <View style={styles.trackThumbWrap}>
             {track.profilePath ? (
               <Image source={{ uri: track.profilePath }} style={[styles.actorCircle, styles.actorSquare]} />
@@ -348,8 +397,10 @@ export default function ContentDetailModal() {
           {/* Cast / Key Staff */}
           {!isLoading && details?.cast && details.cast.length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>{resolvedType === 'play' ? 'Key Staff' : resolvedType === 'listen' ? 'Top Tracks' : 'Top Cast'}</Text>
-              <CastRow cast={details.cast} square={resolvedType === 'listen'} fit={resolvedType === 'listen'} />
+              <Text style={styles.sectionLabel}>{resolvedType === 'play' ? 'Key Staff' : resolvedType === 'listen' ? 'Top Tracks' : resolvedType === 'podcast' ? 'Episodes' : 'Top Cast'}</Text>
+              {resolvedType === 'podcast'
+                ? <PodcastEpisodeRow cast={details.cast} styles={styles} />
+                : <CastRow cast={details.cast} square={resolvedType === 'listen'} fit={resolvedType === 'listen'} />}
             </View>
           ) : null}
 
@@ -500,6 +551,13 @@ function createStyles(Brand: BrandPalette) {
     backgroundColor: Brand.border,
   },
   actorSquare: { borderRadius: 8 },
+  episodeList: { gap: 12 },
+  episodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  episodeThumbWrap: { position: 'relative' },
+  episodeThumb: { width: 56, height: 56, borderRadius: 8, backgroundColor: Brand.border },
+  episodeInfo: { flex: 1 },
+  episodeName: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.ink, lineHeight: 18 },
+  episodeDate: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 2 },
   castRowFit: { flexDirection: 'row', justifyContent: 'space-between' },
   actorItemFit: { alignItems: 'center', flex: 1 },
   trackThumbWrap: { position: 'relative' },

@@ -638,11 +638,43 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
 
     const hosts = await enrichHostsWithPhotos(hostNames);
 
+    // Fetch episodes: prefer trailer, fall back to 5 most recent
+    let episodes: ContentDetails['cast'] = [];
+    if (cleanTitle) {
+      try {
+        const itunesSearchRes = await fetch(
+          `https://itunes.apple.com/search?term=${encodeURIComponent(cleanTitle)}&entity=podcast&limit=1`,
+        );
+        const itunesSearchData = await itunesSearchRes.json();
+        const podcastId = itunesSearchData.results?.[0]?.collectionId;
+        if (podcastId) {
+          const epRes = await fetch(
+            `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcastEpisode&limit=20`,
+          );
+          const epData = await epRes.json();
+          const allEpisodes = ((epData.results ?? []) as any[]).filter(
+            (r: any) => r.wrapperType === 'podcastEpisode' && r.episodeUrl,
+          );
+          const trailer = allEpisodes.find((e: any) =>
+            /trailer/i.test(e.trackName ?? ''),
+          );
+          const picked = trailer ? [trailer] : allEpisodes.slice(0, 5);
+          episodes = picked.map((e: any) => ({
+            name: e.trackName ?? '',
+            character: trailer ? 'Trailer' : new Date(e.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            profilePath: e.artworkUrl160 ?? e.artworkUrl60 ?? null,
+            previewUrl: e.episodeUrl ?? null,
+          }));
+        }
+      } catch { /* ignore */ }
+    }
+
     return {
       ...EMPTY_DETAILS,
       overview: description,
       hosts,
       genre,
+      cast: episodes,
     };
   } catch {
     return { ...EMPTY_DETAILS };
@@ -656,7 +688,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v17', type, externalId ?? title],
+    queryKey: ['content-details-v18', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {
