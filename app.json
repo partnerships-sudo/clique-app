@@ -13,7 +13,7 @@
       "buildNumber": "10",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "LSApplicationQueriesSchemes": ["instagram-stories", "instagram"],
+        "LSApplicationQueriesSchemes": ["instagram-stories", "instagram", "spotify"],
         "NSCalendarsUsageDescription": "Clique uses your calendar to let you save and share events with friends.",
         "NSCalendarsFullAccessUsageDescription": "Clique uses your calendar to let you save and share events with friends.",
         "NSCalendarsWriteOnlyAccessUsageDescription": "Clique uses your calendar to let you save and share events with friends.",

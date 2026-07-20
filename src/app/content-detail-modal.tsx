@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useAudioPlayer } from 'expo-audio';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withDecay } from 'react-native-reanimated';
 
@@ -12,7 +13,53 @@ import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const ACTOR_SIZE = 52;
 
-function CastRow({ cast, square }: { cast: ContentDetails['cast']; square?: boolean }) {
+function MusicTrackRow({ cast, styles }: { cast: ContentDetails['cast']; styles: ReturnType<typeof createStyles> }) {
+  const [playingIndex, setPlayingIndex] = useState<number | null>(null);
+  const player = useAudioPlayer(null);
+
+  useEffect(() => {
+    return () => { try { player.pause(); } catch { /* ignore */ } };
+  }, []);
+
+  function handlePress(index: number) {
+    const track = cast[index];
+    if (!track.previewUrl) return;
+    if (playingIndex === index) {
+      player.pause();
+      setPlayingIndex(null);
+    } else {
+      player.replace({ uri: track.previewUrl });
+      player.play();
+      setPlayingIndex(index);
+    }
+  }
+
+  return (
+    <View style={styles.castRowFit}>
+      {cast.map((track, i) => (
+        <Pressable key={track.name} style={styles.actorItemFit} onPress={() => handlePress(i)}>
+          <View style={styles.trackThumbWrap}>
+            {track.profilePath ? (
+              <Image source={{ uri: track.profilePath }} style={[styles.actorCircle, styles.actorSquare]} />
+            ) : (
+              <View style={[styles.actorCircle, styles.actorSquare, styles.actorFallback]}>
+                <Text style={styles.actorFallbackEmoji}>🎵</Text>
+              </View>
+            )}
+            {track.previewUrl ? (
+              <View style={styles.trackPlayOverlay}>
+                <Text style={styles.trackPlayIcon}>{playingIndex === i ? '⏸' : '▶'}</Text>
+              </View>
+            ) : null}
+          </View>
+          <Text style={styles.actorName} numberOfLines={2}>{track.name}</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+function CastRow({ cast, square, fit }: { cast: ContentDetails['cast']; square?: boolean; fit?: boolean }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [containerW, setContainerW] = useState(0);
@@ -37,6 +84,10 @@ function CastRow({ cast, square }: { cast: ContentDetails['cast']; square?: bool
   const rowStyle = useAnimatedStyle(() => ({
     transform: [{ translateX: translateX.value }],
   }));
+
+  if (fit) {
+    return <MusicTrackRow cast={cast} styles={styles} />;
+  }
 
   return (
     <View style={styles.castViewport} onLayout={(e) => setContainerW(e.nativeEvent.layout.width)}>
@@ -298,7 +349,7 @@ export default function ContentDetailModal() {
           {!isLoading && details?.cast && details.cast.length > 0 ? (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>{resolvedType === 'play' ? 'Key Staff' : resolvedType === 'listen' ? 'Top Tracks' : 'Top Cast'}</Text>
-              <CastRow cast={details.cast} square={resolvedType === 'listen'} />
+              <CastRow cast={details.cast} square={resolvedType === 'listen'} fit={resolvedType === 'listen'} />
             </View>
           ) : null}
 
@@ -449,6 +500,16 @@ function createStyles(Brand: BrandPalette) {
     backgroundColor: Brand.border,
   },
   actorSquare: { borderRadius: 8 },
+  castRowFit: { flexDirection: 'row', justifyContent: 'space-between' },
+  actorItemFit: { alignItems: 'center', flex: 1 },
+  trackThumbWrap: { position: 'relative' },
+  trackPlayOverlay: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: 8,
+  },
+  trackPlayIcon: { fontSize: 18, color: '#fff' },
   actorFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: Brand.tlight },
   actorFallbackEmoji: { fontSize: 22 },
   actorName: {

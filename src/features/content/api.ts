@@ -126,7 +126,7 @@ const GAME_STORE_BY_PLATFORM: Record<
 
 export interface ContentDetails {
   overview: string;
-  cast: { name: string; character: string; profilePath: string | null }[];
+  cast: { name: string; character: string; profilePath: string | null; previewUrl?: string | null }[];
   hosts: { name: string; photoUrl: string | null }[];
   author: { name: string; bio: string; photoUrl: string | null } | null;
   developer: { name: string; logoUrl: string | null } | null;
@@ -529,33 +529,34 @@ async function fetchMusicDetails(title: string, externalId?: string): Promise<Co
       } catch { /* ignore */ }
     }
 
-    // Top tracks as "cast" equivalent — try by artistId, fall back to artist name search
+    // Artist's top tracks across all albums via search
     let topTracks: ContentDetails['cast'] = [];
-    let resolvedArtistId = artistId;
-    if (!resolvedArtistId && artistName) {
-      try {
-        const artistSearchRes = await fetch(
-          `https://api.spotify.com/v1/search?q=${encodeURIComponent(artistName)}&type=artist&limit=1`,
-          { headers: { Authorization: `Bearer ${token}` } },
-        );
-        if (artistSearchRes.ok) {
-          const artistSearchData = await artistSearchRes.json();
-          resolvedArtistId = artistSearchData.artists?.items?.[0]?.id ?? null;
-        }
-      } catch { /* ignore */ }
-    }
-    if (resolvedArtistId) {
+    if (artistName) {
       try {
         const tracksRes = await fetch(
-          `https://api.spotify.com/v1/artists/${resolvedArtistId}/top-tracks?market=US`,
+          `https://api.spotify.com/v1/search?q=${encodeURIComponent(artistName)}&type=track&limit=5&market=US`,
           { headers: { Authorization: `Bearer ${token}` } },
         );
         if (tracksRes.ok) {
           const tracksData = await tracksRes.json();
-          topTracks = ((tracksData.tracks ?? []) as any[]).slice(0, 8).map((t: any) => ({
-            name: t.name,
-            character: t.album?.name ?? '',
-            profilePath: t.album?.images?.[0]?.url ?? null,
+          const spotifyTracks = (tracksData.tracks?.items ?? []) as any[];
+          topTracks = await Promise.all(spotifyTracks.map(async (t: any) => {
+            let previewUrl: string | null = null;
+            try {
+              const itunesRes = await fetch(
+                `https://itunes.apple.com/search?term=${encodeURIComponent(`${t.name} ${artistName}`)}&entity=song&limit=1`
+              );
+              if (itunesRes.ok) {
+                const itunesData = await itunesRes.json();
+                previewUrl = itunesData.results?.[0]?.previewUrl ?? null;
+              }
+            } catch { /* ignore */ }
+            return {
+              name: t.name,
+              character: t.album?.name ?? '',
+              profilePath: t.album?.images?.[0]?.url ?? null,
+              previewUrl,
+            };
           }));
         }
       } catch { /* ignore */ }
@@ -655,7 +656,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v11', type, externalId ?? title],
+    queryKey: ['content-details-v17', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {
