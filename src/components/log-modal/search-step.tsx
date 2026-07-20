@@ -15,8 +15,10 @@ import { router } from 'expo-router';
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useCloseFriendIds } from '@/features/close-friends/api';
 import { useTVSeasons } from '@/features/content/api';
+import { useProfile } from '@/features/profile/api';
 import { useTitleSearch, type SearchResult } from '@/features/search/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
+import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 
 const TODAY = new Date();
 TODAY.setHours(0, 0, 0, 0);
@@ -70,6 +72,8 @@ export function SearchStep({
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { data: profile } = useProfile();
+  const ratingIcon = (profile?.rating_icon as RatingIconStyle) ?? 'stars';
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selected, setSelected] = useState<SelectedTitle | null>(
@@ -315,17 +319,12 @@ export function SearchStep({
           {intent === 'log' ? (
             <View style={styles.ratingCard}>
               <Text style={styles.ratingLabel}>Your rating</Text>
-              <View style={styles.ratingRow}>
-                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-                  <Pressable
-                    key={n}
-                    style={[styles.ratingDot, rating === n && styles.ratingDotActive]}
-                    onPress={() => setRating(rating === n ? null : n)}
-                    hitSlop={4}>
-                    <Text style={[styles.ratingDotText, rating === n && styles.ratingDotTextActive]}>{n}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <RatingPicker
+                value={rating ?? 0}
+                iconStyle={ratingIcon}
+                onChange={(v) => setRating(v === 0 ? null : v)}
+                size={36}
+              />
             </View>
           ) : null}
           <TextInput
@@ -512,31 +511,6 @@ function createStyles(Brand: BrandPalette) {
     letterSpacing: 0.8,
     marginBottom: 10,
   },
-  ratingRow: {
-    flexDirection: 'row',
-    gap: 6,
-    flexWrap: 'wrap',
-  },
-  ratingDot: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: Brand.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: Brand.paper,
-  },
-  ratingDotActive: {
-    backgroundColor: Brand.trust,
-    borderColor: Brand.trust,
-  },
-  ratingDotText: {
-    fontFamily: BrandFonts.syneBold,
-    fontSize: 13,
-    color: Brand.ink,
-  },
-  ratingDotTextActive: { color: '#fff' },
   closeFriendsRow: {
     flexDirection: 'row',
     alignItems: 'center',

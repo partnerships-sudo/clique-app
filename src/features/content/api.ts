@@ -262,12 +262,40 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
   };
 }
 
+async function fetchWikipediaGameSummary(title: string): Promise<string> {
+  try {
+    // Try the "(video game)" disambiguation page first, then fall back to plain title
+    const candidates = [
+      `${title.replace(/ /g, '_')}_(video_game)`,
+      title.replace(/ /g, '_'),
+    ];
+    for (const slug of candidates) {
+      const res = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(slug)}`);
+      if (!res.ok) continue;
+      const data = await res.json();
+      // Skip disambiguation pages and clearly wrong articles
+      if (data.type === 'disambiguation') continue;
+      const extract: string = data.extract ?? '';
+      if (extract && (/(game|developed|published|gameplay|players?)/i).test(extract)) return extract;
+    }
+    return '';
+  } catch {
+    return '';
+  }
+}
+
 async function fetchGameDetails(title: string, externalId?: string): Promise<ContentDetails> {
   const igdbId = externalId ? Number(externalId) : null;
   const detail = igdbId
     ? await igdbDetails(igdbId)
     : await igdbSearch(title).then((r) => r[0] ? igdbDetails(r[0].id) : null);
-  if (!detail) return EMPTY_DETAILS;
+
+  const igdbSummary = detail?.summary ?? '';
+  const overview = igdbSummary || await fetchWikipediaGameSummary(detail?.title || title);
+
+  if (!detail) {
+    return { ...EMPTY_DETAILS, overview };
+  }
 
   const stores = detail.platforms
     .map((bucket) => GAME_STORE_BY_PLATFORM[bucket])
@@ -276,7 +304,7 @@ async function fetchGameDetails(title: string, externalId?: string): Promise<Con
 
   return {
     ...EMPTY_DETAILS,
-    overview: detail.summary ?? '',
+    overview,
     cast: detail.cast ?? [],
     rating: detail.rating ?? null,
     year: detail.year ?? null,
@@ -501,7 +529,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v8', type, externalId ?? title],
+    queryKey: ['content-details-v11', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {

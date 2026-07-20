@@ -109,12 +109,6 @@ export function PostCard({
               <Text style={styles.posterFallbackEmoji}>{type.icon}</Text>
             </View>
           )}
-          {post.ext_rating ? (
-            <View style={styles.ratingBadge}>
-              <Text style={styles.ratingBadgeStar}>★</Text>
-              <Text style={styles.ratingBadgeText}>{post.ext_rating}</Text>
-            </View>
-          ) : null}
           {post.type === 'read' ? <BookPageCurl /> : null}
         </Pressable>
 
@@ -147,7 +141,7 @@ export function PostCard({
           {!isSquareType && post.note ? (
             <Text style={styles.note} numberOfLines={3}>&ldquo;{post.note}&rdquo;</Text>
           ) : null}
-          {!isSquareType && post.rating ? (
+          {post.rating ? (
             <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
           ) : null}
 

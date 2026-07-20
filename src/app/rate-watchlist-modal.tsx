@@ -4,7 +4,9 @@ import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View 
 
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useRateLibraryItem } from '@/features/library/api';
+import { useProfile } from '@/features/profile/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
+import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 
 export default function RateWatchlistModal() {
   const params = useLocalSearchParams<{
@@ -22,6 +24,8 @@ export default function RateWatchlistModal() {
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const type = TypeColors[params.type as EntryType] ?? TypeColors.watch;
+  const { data: profile } = useProfile();
+  const ratingIcon = (profile?.rating_icon as RatingIconStyle) ?? 'stars';
 
   const [rating, setRating] = useState<number | null>(null);
   const [note, setNote] = useState('');
@@ -74,17 +78,12 @@ export default function RateWatchlistModal() {
 
         {/* Rating picker */}
         <Text style={styles.sectionLabel}>Your rating</Text>
-        <View style={styles.ratingRow}>
-          {[1,2,3,4,5,6,7,8,9,10].map((n) => (
-            <Pressable
-              key={n}
-              style={[styles.ratingDot, rating === n && styles.ratingDotActive]}
-              onPress={() => setRating(rating === n ? null : n)}
-              hitSlop={4}>
-              <Text style={[styles.ratingDotText, rating === n && styles.ratingDotTextActive]}>{n}</Text>
-            </Pressable>
-          ))}
-        </View>
+        <RatingPicker
+          value={rating ?? 0}
+          iconStyle={ratingIcon}
+          onChange={(v) => setRating(v === 0 ? null : v)}
+          size={36}
+        />
 
         {/* Note */}
         <TextInput
@@ -155,20 +154,6 @@ function createStyles(Brand: BrandPalette) {
       textTransform: 'uppercase',
       letterSpacing: 0.8,
     },
-    ratingRow: { flexDirection: 'row', gap: 7, flexWrap: 'wrap' },
-    ratingDot: {
-      width: 36,
-      height: 36,
-      borderRadius: 18,
-      borderWidth: 1.5,
-      borderColor: Brand.border,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: Brand.card,
-    },
-    ratingDotActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
-    ratingDotText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
-    ratingDotTextActive: { color: '#fff' },
     noteInput: {
       borderWidth: 1.5,
       borderColor: Brand.border,

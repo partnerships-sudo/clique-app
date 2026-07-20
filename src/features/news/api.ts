@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
 import type { FeedFilterValue } from '@/features/feed/api';
+import { supabase } from '@/lib/supabase';
 
 export interface NewsArticle {
   id: string;
@@ -75,17 +76,10 @@ async function fetchGuardian(filter: FeedFilterValue): Promise<NewsArticle[]> {
 
 async function fetchNewsAPI(filter: FeedFilterValue): Promise<NewsArticle[]> {
   try {
-    const params = new URLSearchParams({
-      apiKey: NEWSAPI_KEY,
-      q: NEWSAPI_QUERIES[filter],
-      language: 'en',
-      pageSize: '20',
-      sortBy: 'publishedAt',
+    const { data, error } = await supabase.functions.invoke('news-proxy', {
+      body: { q: NEWSAPI_QUERIES[filter], pageSize: 20, sortBy: 'publishedAt' },
     });
-
-    const res = await fetch(`https://newsapi.org/v2/everything?${params.toString()}`);
-    if (!res.ok) return [];
-    const data = await res.json();
+    if (error || !data) return [];
 
     return ((data.articles ?? []) as any[])
       .filter((a: any) => a.title && a.title !== '[Removed]' && a.urlToImage)
