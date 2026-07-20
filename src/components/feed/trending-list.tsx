@@ -40,6 +40,8 @@ function Top10Card({
   TypeColors: TypeColorPalette;
 }) {
   const needsContainFit = entry.type === 'listen' || entry.type === 'podcast';
+  const shownLoggers = entry.loggers.slice(0, MAX_AVATARS);
+  const overflow = entry.loggers.length - shownLoggers.length;
 
   return (
     <Pressable
@@ -55,39 +57,50 @@ function Top10Card({
         <View
           style={[
             StyleSheet.absoluteFill,
-            {
-              backgroundColor: TypeColors[entry.type].bg,
-              alignItems: 'center',
-              justifyContent: 'center',
-            },
+            { backgroundColor: TypeColors[entry.type].bg, alignItems: 'center', justifyContent: 'center' },
           ]}>
           <Text style={{ fontSize: 40 }}>{TypeColors[entry.type].icon}</Text>
         </View>
       )}
       <LinearGradient
-        colors={['transparent', 'rgba(60, 50, 180, 0.92)']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        colors={['transparent', 'rgba(8, 5, 24, 0.55)', 'rgba(8, 5, 24, 0.95)']}
+        locations={[0, 0.45, 1]}
         style={{
           position: 'absolute',
           bottom: 0,
           left: 0,
           right: 0,
-          height: CARD_H * 0.55,
-          justifyContent: 'flex-end',
-          paddingBottom: 8,
-          paddingLeft: 10,
+          paddingHorizontal: 10,
+          paddingBottom: 10,
+          paddingTop: 48,
         }}>
-        <Text
-          style={{
-            fontFamily: BrandFonts.syneExtraBold,
-            fontSize: 42,
-            color: '#fff',
-            lineHeight: 44,
-            opacity: 0.95,
-          }}>
+        <Text style={{ fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: '#fff', lineHeight: 30, opacity: 0.95 }}>
           {rank}
         </Text>
+        <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: '#fff', marginTop: 3 }} numberOfLines={2}>
+          {entry.title}
+        </Text>
+        <Text style={{ fontFamily: BrandFonts.interMedium, fontSize: 10.5, color: 'rgba(255,255,255,0.75)', marginTop: 1 }}>
+          {(TypeColors[entry.type] ?? TypeColors.watch).label}
+        </Text>
+        {shownLoggers.length > 0 && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+            {shownLoggers.map((logger, i) => (
+              <View key={logger.name + i} style={{ marginLeft: i === 0 ? 0 : -AVATAR_OVERLAP, borderRadius: 100 }}>
+                <Avatar name={logger.name} avatarUrl={logger.avatarUrl} size={AVATAR_SIZE} ring="rgba(8,5,24,0.95)" />
+              </View>
+            ))}
+            {overflow > 0 && (
+              <View style={{
+                width: AVATAR_SIZE, height: AVATAR_SIZE, borderRadius: AVATAR_SIZE / 2,
+                backgroundColor: Brand.tlight, borderWidth: 2, borderColor: 'rgba(8,5,24,0.95)',
+                alignItems: 'center', justifyContent: 'center', marginLeft: -AVATAR_OVERLAP,
+              }}>
+                <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 9, color: Brand.muted }}>+{overflow}</Text>
+              </View>
+            )}
+          </View>
+        )}
       </LinearGradient>
     </Pressable>
   );
