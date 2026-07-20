@@ -281,19 +281,17 @@ export default function ContentDetailModal() {
           ) : null}
 
           {/* Trailer */}
-          {!isLoading && details?.trailerUrl ? (
+          {!isLoading && details?.trailerUrl && details?.trailerThumbnail ? (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Trailer</Text>
-              <View style={styles.trailerContainer}>
-                <WebView
-                  source={{ uri: details.trailerUrl.replace('watch?v=', 'embed/') + '?autoplay=0&rel=0&playsinline=1' }}
-                  style={styles.trailerThumb}
-                  allowsFullscreenVideo
-                  allowsInlineMediaPlayback
-                  mediaPlaybackRequiresUserAction
-                  javaScriptEnabled
-                />
-              </View>
+              <Pressable
+                onPress={() => Linking.openURL(details.trailerUrl!).catch(() => {})}
+                style={styles.trailerContainer}>
+                <Image source={{ uri: details.trailerThumbnail }} style={styles.trailerThumb} resizeMode="cover" />
+                <View style={styles.trailerPlayBtn}>
+                  <Text style={styles.trailerPlayIcon}>▶</Text>
+                </View>
+              </Pressable>
             </View>
           ) : null}
 

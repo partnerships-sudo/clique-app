@@ -262,12 +262,11 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
   };
 }
 
-async function fetchGameDetails(title: string): Promise<ContentDetails> {
-  const results = await igdbSearch(title);
-  const match = results[0];
-  if (!match) return EMPTY_DETAILS;
-
-  const detail = await igdbDetails(match.id);
+async function fetchGameDetails(title: string, externalId?: string): Promise<ContentDetails> {
+  const igdbId = externalId ? Number(externalId) : null;
+  const detail = igdbId
+    ? await igdbDetails(igdbId)
+    : await igdbSearch(title).then((r) => r[0] ? igdbDetails(r[0].id) : null);
   if (!detail) return EMPTY_DETAILS;
 
   const stores = detail.platforms
@@ -550,7 +549,7 @@ export function useContentDetails(
           }
           return fetchWatchDetails(title);
         case 'play':
-          return fetchGameDetails(title);
+          return fetchGameDetails(title, externalId);
         case 'read':
           return fetchBookDetails(title, externalId);
         case 'podcast':
