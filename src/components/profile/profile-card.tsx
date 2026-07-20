@@ -2,13 +2,13 @@ import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
 import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
-import { useMoveToLibrary, type LibraryItem } from '@/features/library/api';
+import { useMoveToLibrary, useRateLibraryItem, type LibraryItem } from '@/features/library/api';
 import { useUploadBanner, type Profile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { LibCard } from '@/components/library/lib-card';
@@ -120,6 +120,10 @@ export function ProfileCard({
   const [feedSort, setFeedSort] = useState<'recent' | 'alpha'>('recent');
   const [watchlistView, setWatchlistView] = useState<'mine' | 'friends'>('mine');
   const moveToLibrary = useMoveToLibrary();
+  const rateItem = useRateLibraryItem();
+  const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
+  const [ratingValue, setRatingValue] = useState<number | null>(null);
+  const [ratingNote, setRatingNote] = useState('');
 
   // Collection tab state
   type CollectionView = 'read' | 'watch' | 'tv' | 'listen' | 'play' | 'podcast';
@@ -449,7 +453,7 @@ export function ProfileCard({
                           </View>
                         ) : null}
                       </View>
-                      <Pressable style={styles.wlLogBtn} onPress={() => moveToLibrary.mutate(item)}>
+                      <Pressable style={styles.wlLogBtn} onPress={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}>
                         <SymbolView name="checkmark" size={10} tintColor="#fff" style={{ width: 11, height: 11 }} />
                         <Text style={styles.wlLogBtnText}>Log it</Text>
                       </Pressable>
@@ -750,6 +754,74 @@ export function ProfileCard({
         ) : null}
 
       </View>
+
+      {/* Rate-and-log sheet */}
+      <Modal
+        visible={!!ratingItem}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRatingItem(null)}>
+        <Pressable style={styles.rateOverlay} onPress={() => setRatingItem(null)} />
+        <View style={styles.rateSheet}>
+          {ratingItem ? (
+            <>
+              <View style={styles.rateItemRow}>
+                {ratingItem.poster ? (
+                  <Image source={{ uri: ratingItem.poster }} style={styles.ratePoster} resizeMode="cover" />
+                ) : null}
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <Text style={styles.rateTitle} numberOfLines={2}>{ratingItem.title}</Text>
+                  {ratingItem.sub ? <Text style={styles.rateSub} numberOfLines={1}>{ratingItem.sub}</Text> : null}
+                </View>
+              </View>
+              <Text style={styles.rateLabel}>Your rating</Text>
+              <View style={styles.rateRow}>
+                {[1,2,3,4,5,6,7,8,9,10].map((n) => (
+                  <Pressable
+                    key={n}
+                    style={[styles.rateDot, ratingValue === n && styles.rateDotActive]}
+                    onPress={() => setRatingValue(ratingValue === n ? null : n)}
+                    hitSlop={4}>
+                    <Text style={[styles.rateDotText, ratingValue === n && styles.rateDotTextActive]}>{n}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput
+                style={styles.rateNote}
+                placeholder="Add a note (optional)"
+                placeholderTextColor={Brand.muted}
+                value={ratingNote}
+                onChangeText={setRatingNote}
+                multiline
+              />
+              <Pressable
+                style={[styles.rateLogBtn, (!ratingValue || rateItem.isPending) && styles.rateLogBtnDisabled]}
+                disabled={!ratingValue || rateItem.isPending}
+                onPress={async () => {
+                  if (!ratingValue || !ratingItem) return;
+                  await rateItem.mutateAsync({
+                    id: ratingItem.id,
+                    rating: ratingValue,
+                    title: ratingItem.title,
+                    type: ratingItem.type,
+                    sub: ratingItem.sub ?? null,
+                    poster: ratingItem.poster ?? null,
+                    externalId: ratingItem.external_id ?? null,
+                    mediaType: ratingItem.media_type ?? null,
+                    extRating: ratingItem.ext_rating ?? null,
+                  });
+                  setRatingItem(null);
+                }}>
+                {rateItem.isPending ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.rateLogBtnText}>Log it →</Text>
+                )}
+              </Pressable>
+            </>
+          ) : null}
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -1157,5 +1229,62 @@ function createStyles(Brand: BrandPalette) {
     recentThumb: { width: 44, height: 62, borderRadius: 8 },
     recentThumbFallback: { backgroundColor: Brand.tlight },
     recentTitle: { flex: 1, fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
+
+    // Inline rate-and-log modal
+    rateOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },
+    rateSheet: {
+      backgroundColor: Brand.paper,
+      borderTopLeftRadius: 24,
+      borderTopRightRadius: 24,
+      padding: 24,
+      gap: 16,
+      paddingBottom: 40,
+    },
+    rateItemRow: { flexDirection: 'row', gap: 14, alignItems: 'center' },
+    ratePoster: { width: 52, height: 72, borderRadius: 10, backgroundColor: Brand.border },
+    rateTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: Brand.ink, lineHeight: 21 },
+    rateSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginTop: 2 },
+    rateLabel: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 11,
+      color: Brand.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    rateRow: { flexDirection: 'row', gap: 7, flexWrap: 'wrap' },
+    rateDot: {
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: Brand.card,
+    },
+    rateDotActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
+    rateDotText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
+    rateDotTextActive: { color: '#fff' },
+    rateNote: {
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 12,
+      fontSize: 15,
+      fontFamily: BrandFonts.interRegular,
+      color: Brand.ink,
+      backgroundColor: Brand.card,
+      minHeight: 52,
+      textAlignVertical: 'top',
+    },
+    rateLogBtn: {
+      backgroundColor: Brand.trust,
+      borderRadius: 14,
+      paddingVertical: 15,
+      alignItems: 'center',
+    },
+    rateLogBtnDisabled: { opacity: 0.45 },
+    rateLogBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: '#fff' },
   });
 }
