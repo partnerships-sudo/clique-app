@@ -128,9 +128,9 @@ export function ProfileCard({
   const [ratingNote, setRatingNote] = useState('');
 
   // Collection tab state
-  type CollectionView = 'read' | 'watch' | 'tv' | 'listen' | 'play' | 'podcast';
+  type CollectionView = 'all' | 'read' | 'watch' | 'tv' | 'listen' | 'play' | 'podcast';
   type CollectionSort = 'recent' | 'rating' | 'alpha';
-  const [collectionView, setCollectionView] = useState<CollectionView>('watch');
+  const [collectionView, setCollectionView] = useState<CollectionView>('all');
   const [collectionSort, setCollectionSort] = useState<CollectionSort>('recent');
   const { items: collectionItems, isLoading: isCollectionLoading } = useCollectionItems();
   const removeFromCollection = useRemoveFromCollection();
@@ -138,14 +138,11 @@ export function ProfileCard({
   useEffect(() => {
     if (isCollectionLoading || hasAutoSelectedCollView.current) return;
     hasAutoSelectedCollView.current = true;
-    const order: CollectionView[] = ['watch', 'read', 'tv', 'listen', 'play', 'podcast'];
-    if (collectionItems.some((i) => i.type === collectionView)) return;
-    const first = order.find((v) => collectionItems.some((i) => i.type === v));
-    if (first) setCollectionView(first);
+    if (collectionItems.length > 0) setCollectionView('all');
   }, [isCollectionLoading, collectionItems]);
 
   const collectionFiltered = useMemo(() => {
-    const items = collectionItems.filter((i: CollectionItem) => i.type === collectionView);
+    const items = collectionView === 'all' ? collectionItems : collectionItems.filter((i: CollectionItem) => i.type === collectionView);
     const sorted = [...items];
     if (collectionSort === 'recent') sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     else if (collectionSort === 'rating') sorted.sort((a, b) => (b.user_rating ?? 0) - (a.user_rating ?? 0));
@@ -503,29 +500,46 @@ export function ProfileCard({
               </Pressable>
             </Pressable>
 
-            {/* Category chips */}
+            {/* Category chips — All first, then sorted by count */}
             <View style={styles.collCatRow}>
-              {([
-                { view: 'read',    sf: 'books.vertical', label: 'Books'    },
-                { view: 'watch',   sf: 'film',           label: 'Movies'   },
-                { view: 'tv',      sf: 'tv',             label: 'TV'       },
-                { view: 'listen',  sf: 'music.note',     label: 'Music'    },
-                { view: 'play',    sf: 'gamecontroller', label: 'Games'    },
-                { view: 'podcast', sf: 'mic',            label: 'Podcasts' },
-              ] as const).map(({ view, sf, label }) => {
-                const count = collectionItems.filter((i: CollectionItem) => i.type === view).length;
-                const active = collectionView === view;
-                return (
+              {(() => {
+                const cats = ([
+                  { view: 'read',    sf: 'books.vertical', label: 'Books'    },
+                  { view: 'watch',   sf: 'film',           label: 'Movies'   },
+                  { view: 'tv',      sf: 'tv',             label: 'TV'       },
+                  { view: 'listen',  sf: 'music.note',     label: 'Music'    },
+                  { view: 'play',    sf: 'gamecontroller', label: 'Games'    },
+                  { view: 'podcast', sf: 'mic',            label: 'Podcasts' },
+                ] as const).map((c) => ({
+                  ...c,
+                  count: collectionItems.filter((i: CollectionItem) => i.type === c.view).length,
+                })).sort((a, b) => b.count - a.count);
+
+                return [
+                  // "All" chip always first
                   <Pressable
-                    key={view}
-                    style={[styles.collCatBtn, active && styles.collCatBtnActive]}
-                    onPress={() => setCollectionView(view)}>
-                    <SymbolView name={sf as any} size={15} tintColor={active ? '#fff' : Brand.muted} style={{ width: 18, height: 18 }} />
-                    <Text style={[styles.collCatLabel, active && styles.collCatLabelActive]}>{label}</Text>
-                    <Text style={[styles.collCatCount, active && styles.collCatCountActive]}>{count}</Text>
-                  </Pressable>
-                );
-              })}
+                    key="all"
+                    style={[styles.collCatBtn, collectionView === 'all' && styles.collCatBtnActive]}
+                    onPress={() => setCollectionView('all')}>
+                    <SymbolView name="square.grid.2x2.fill" size={15} tintColor={collectionView === 'all' ? '#fff' : Brand.muted} style={{ width: 18, height: 18 }} />
+                    <Text style={[styles.collCatLabel, collectionView === 'all' && styles.collCatLabelActive]}>All</Text>
+                    <Text style={[styles.collCatCount, collectionView === 'all' && styles.collCatCountActive]}>{collectionItems.length}</Text>
+                  </Pressable>,
+                  ...cats.map(({ view, sf, label, count }) => {
+                    const active = collectionView === view;
+                    return (
+                      <Pressable
+                        key={view}
+                        style={[styles.collCatBtn, active && styles.collCatBtnActive]}
+                        onPress={() => setCollectionView(view)}>
+                        <SymbolView name={sf as any} size={15} tintColor={active ? '#fff' : Brand.muted} style={{ width: 18, height: 18 }} />
+                        <Text style={[styles.collCatLabel, active && styles.collCatLabelActive]}>{label}</Text>
+                        <Text style={[styles.collCatCount, active && styles.collCatCountActive]}>{count}</Text>
+                      </Pressable>
+                    );
+                  }),
+                ];
+              })()}
             </View>
 
             {/* Sort row */}
