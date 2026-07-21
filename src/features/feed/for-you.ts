@@ -92,18 +92,16 @@ async function fetchTMDBRecs(id: string, mediaType: 'movie' | 'tv'): Promise<Tre
 async function fetchBookRecs(title: string, hardcoverId?: string | null): Promise<TrendingEntry[]> {
   // Resolve Hardcover ID if not provided
   let bookId = hardcoverId ? Number(hardcoverId) : null;
-  console.log('[BookRecs] start', title, 'hardcoverId:', hardcoverId, 'bookId:', bookId);
   if (!bookId) {
     const searchQ = `query { search(query: ${JSON.stringify(title)}, query_type: "Book", per_page: 1, page: 1) { results } }`;
     const searchData = await hardcoverQuery(searchQ);
     bookId = searchData?.search?.results?.hits?.[0]?.document?.id ?? null;
-    console.log('[BookRecs] searched, bookId:', bookId);
   }
   if (!bookId) return [];
 
   // Get the book's genre tags (pick the most popular genre-like ones)
   const tagData = await hardcoverQuery(
-    `query { books(where: { id: { _eq: ${bookId} } }, limit: 1) { title taggings(limit: 50) { tag { tag } } } }`,
+    `query { books(where: { id: { _eq: ${bookId} } }, limit: 1) { title taggings(limit: 50) { tag { tag } } contributions { author { name } } } }`,
   );
   const sourceTitle = (tagData?.books?.[0]?.title ?? title).toLowerCase();
   const tags: string[] = (tagData?.books?.[0]?.taggings ?? [])
@@ -120,23 +118,42 @@ async function fetchBookRecs(title: string, hardcoverId?: string | null): Promis
   const genreTag = tags.find((t) => GENRE_TAGS.has(t.toLowerCase())) ?? null;
   if (!genreTag) return [];
 
-  const recData = await hardcoverQuery(
-    `query { books(where: { taggings: { tag: { tag: { _eq: ${JSON.stringify(genreTag)} } } }, order_by: { users_count: desc }, limit: 15) { title rating contributions { author { name } } image { url } } }`,
+  // 1. Same-author books
+  const authorName = tagData?.books?.[0]?.contributions?.[0]?.author?.name ?? null;
+  const authorRecs = authorName ? await hardcoverQuery(
+    `query { search(query: ${JSON.stringify(authorName)}, query_type: "Book", per_page: 10, page: 1) { results } }`,
+  ) : null;
+  const authorHits: any[] = (authorRecs?.search?.results?.hits ?? [])
+    .map((h: any) => h.document)
+    .filter((d: any) => d?.title?.toLowerCase() !== sourceTitle);
+
+  // 2. Same genre — use description keywords from the genre tag
+  const genreRecs = await hardcoverQuery(
+    `query { search(query: ${JSON.stringify(genreTag)}, query_type: "Book", per_page: 20, page: 2) { results } }`,
   );
-  return ((recData?.books ?? []) as any[]).flatMap((b: any) => {
-    const t: string = b.title ?? '';
-    if (!t || t.toLowerCase() === sourceTitle) return [];
-    return [{
+  const genreHits: any[] = (genreRecs?.search?.results?.hits ?? [])
+    .map((h: any) => h.document)
+    .filter((d: any) => d?.title?.toLowerCase() !== sourceTitle && d?.users_count > 100);
+
+  const seen = new Set<string>();
+  const toEntry = (doc: any) => {
+    const t: string = doc?.title ?? '';
+    if (!t || seen.has(t.toLowerCase())) return null;
+    seen.add(t.toLowerCase());
+    return {
       title: t,
-      sub: b.contributions?.[0]?.author?.name ?? '',
+      sub: doc.contributions?.[0]?.author?.name ?? doc.author_names?.[0] ?? '',
       type: 'read' as EntryType,
-      poster: b.image?.url ?? null,
-      count: Math.round((b.rating ?? 3) * 20),
-      score: Math.round((b.rating ?? 3) * 20),
+      poster: doc.image?.url ?? null,
+      count: Math.round((doc.rating ?? 3) * 20),
+      score: Math.round((doc.rating ?? 3) * 20),
+      externalId: doc.id ? String(doc.id) : undefined,
       users: [],
       loggers: [],
-    }];
-  });
+    };
+  };
+
+  return [...authorHits, ...genreHits].flatMap((d) => { const e = toEntry(d); return e ? [e] : []; }).slice(0, 15);
 }
 
 // ---------- Spotify: discovery ----------
@@ -295,9 +312,8 @@ async function fetchSpotifyPodcastRecs(seed: ForYouSeed | null): Promise<Trendin
  */
 export function useBecauseYouRecs(seed: ForYouSeed | null) {
   return useQuery({
-    queryKey: ['because-you-recs-v5', seed ? `${seed.type}:${seed.title}` : null],
+    queryKey: ['because-you-recs-v7', seed ? `${seed.type}:${seed.title}` : null],
     queryFn: async (): Promise<TrendingEntry[]> => {
-      console.log('[BecauseYou] queryFn called, seed:', seed?.type, seed?.title);
       if (!seed) return [];
       try {
         if (seed.type === 'watch') {
@@ -332,7 +348,7 @@ export function useBecauseYouRecs(seed: ForYouSeed | null) {
       }
     },
     enabled: !!seed,
-    staleTime: 0,
+    staleTime: 30 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
   });
 }

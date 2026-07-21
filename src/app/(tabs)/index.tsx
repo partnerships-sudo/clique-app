@@ -453,10 +453,6 @@ export default function FeedScreen() {
               <TopPicksRow entries={topPicks} />
             </View>
           )}
-          <Text style={{fontSize:10,color:'red',padding:8}}>
-            {SEED_TYPES.map(t => `${t}:${seedByType[t]?.title ?? 'none'}`).join('\n')}
-            {'\n'}readRecs:{readRecs.length}
-          </Text>
           {becauseRows.map(({ seed, entries }) => (
             <View key={`${seed!.type}:${seed!.title}`} style={styles.forYouSection}>
               <BecauseYouRow
