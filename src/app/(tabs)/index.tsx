@@ -409,24 +409,38 @@ export default function FeedScreen() {
   const withFriends = forYouTrending.filter((e) => e.loggers.length > 0);
   const withoutFriends = forYouTrending.filter((e) => e.loggers.length === 0);
   const topPicks = [...withFriends, ...withoutFriends].slice(0, 10);
-  const becauseSeed = logged[0];
-  const { data: becauseRecs = [] } = useBecauseYouRecs(
-    becauseSeed
-      ? {
-          title: becauseSeed.title,
-          type: becauseSeed.type,
-          externalId: becauseSeed.external_id,
-          mediaType: becauseSeed.media_type,
-        }
-      : null,
-  );
-  const becauseEntries = becauseRecs
-    .filter(
-      (e) =>
-        e.title.toLowerCase() !== becauseSeed?.title.toLowerCase() &&
-        !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`),
-    )
-    .slice(0, 10);
+  // One seed per content type — most recently logged item of each type
+  const SEED_TYPES = ['watch', 'play', 'read', 'listen', 'podcast'] as const;
+  const seedByType = Object.fromEntries(
+    SEED_TYPES.map((t) => [t, logged.find((item) => item.type === t) ?? null]),
+  ) as Record<typeof SEED_TYPES[number], (typeof logged)[0] | null>;
+
+  const toSeedParam = (item: (typeof logged)[0] | null) =>
+    item ? { title: item.title, type: item.type, externalId: item.external_id, mediaType: item.media_type } : null;
+
+
+  const { data: watchRecs = [] } = useBecauseYouRecs(toSeedParam(seedByType.watch));
+  const { data: playRecs = [] } = useBecauseYouRecs(toSeedParam(seedByType.play));
+  const { data: readRecs = [] } = useBecauseYouRecs(toSeedParam(seedByType.read));
+  const { data: listenRecs = [] } = useBecauseYouRecs(toSeedParam(seedByType.listen));
+  const { data: podcastRecs = [] } = useBecauseYouRecs(toSeedParam(seedByType.podcast));
+
+  const filterRecs = (recs: typeof watchRecs, seed: (typeof logged)[0] | null) =>
+    recs
+      .filter(
+        (e) =>
+          e.title.toLowerCase() !== seed?.title.toLowerCase() &&
+          !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`),
+      )
+      .slice(0, 10);
+
+  const becauseRows = [
+    { seed: seedByType.watch, entries: filterRecs(watchRecs, seedByType.watch) },
+    { seed: seedByType.play, entries: filterRecs(playRecs, seedByType.play) },
+    { seed: seedByType.read, entries: filterRecs(readRecs, seedByType.read) },
+    { seed: seedByType.listen, entries: filterRecs(listenRecs, seedByType.listen) },
+    { seed: seedByType.podcast, entries: filterRecs(podcastRecs, seedByType.podcast) },
+  ].filter(({ seed, entries }) => seed && entries.length > 0);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -439,15 +453,19 @@ export default function FeedScreen() {
               <TopPicksRow entries={topPicks} />
             </View>
           )}
-          {becauseSeed && becauseEntries.length > 0 && (
-            <View style={styles.forYouSection}>
+          <Text style={{fontSize:10,color:'red',padding:8}}>
+            {SEED_TYPES.map(t => `${t}:${seedByType[t]?.title ?? 'none'}`).join('\n')}
+            {'\n'}readRecs:{readRecs.length}
+          </Text>
+          {becauseRows.map(({ seed, entries }) => (
+            <View key={`${seed!.type}:${seed!.title}`} style={styles.forYouSection}>
               <BecauseYouRow
-                seedTitle={becauseSeed.title}
-                verb={PAST_VERBS[becauseSeed.type]}
-                entries={becauseEntries}
+                seedTitle={seed!.title}
+                verb={PAST_VERBS[seed!.type]}
+                entries={entries}
               />
             </View>
-          )}
+          ))}
         </ScrollView>
       ) : feedView !== 'feed' ? (
         <ScrollView contentContainerStyle={styles.content}>

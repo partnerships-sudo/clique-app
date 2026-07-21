@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
+import { hardcoverQuery } from '@/features/content/api';
 import { igdbSearch, igdbSimilar } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
 
@@ -47,15 +48,6 @@ async function fetchIgdbRecs(seedId: number): Promise<TrendingEntry[]> {
   }));
 }
 
-async function resolveBookId(title: string): Promise<string | null> {
-  const res = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=1&key=${GOOGLE_BOOKS_KEY}`,
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
-  return data.items?.[0]?.id ?? null;
-}
-
 // ---------- Seeded recommendation fetchers ----------
 
 async function fetchTMDBRecs(id: string, mediaType: 'movie' | 'tv'): Promise<TrendingEntry[]> {
@@ -86,34 +78,50 @@ async function fetchTMDBRecs(id: string, mediaType: 'movie' | 'tv'): Promise<Tre
 }
 
 
-async function fetchBookRecs(id: string): Promise<TrendingEntry[]> {
-  const detailRes = await fetch(
-    `https://www.googleapis.com/books/v1/volumes/${id}?key=${GOOGLE_BOOKS_KEY}`,
-  );
-  if (!detailRes.ok) return [];
-  const detail = await detailRes.json();
-  const categories: string[] = detail.volumeInfo?.categories ?? [];
-  if (!categories.length) return [];
+async function fetchBookRecs(title: string, hardcoverId?: string | null): Promise<TrendingEntry[]> {
+  // Resolve Hardcover ID if not provided
+  let bookId = hardcoverId ? Number(hardcoverId) : null;
+  console.log('[BookRecs] start', title, 'hardcoverId:', hardcoverId, 'bookId:', bookId);
+  if (!bookId) {
+    const searchQ = `query { search(query: ${JSON.stringify(title)}, query_type: "Book", per_page: 1, page: 1) { results } }`;
+    const searchData = await hardcoverQuery(searchQ);
+    bookId = searchData?.search?.results?.hits?.[0]?.document?.id ?? null;
+    console.log('[BookRecs] searched, bookId:', bookId);
+  }
+  if (!bookId) return [];
 
-  const subject = categories[0].split('/')[0].trim();
-  const searchRes = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?q=subject:${encodeURIComponent(subject)}&orderBy=relevance&maxResults=12&key=${GOOGLE_BOOKS_KEY}`,
+  // Get the book's genre tags (pick the most popular genre-like ones)
+  const tagData = await hardcoverQuery(
+    `query { books(where: { id: { _eq: ${bookId} } }, limit: 1) { title taggings(limit: 50) { tag { tag } } } }`,
   );
-  if (!searchRes.ok) return [];
-  const searchData = await searchRes.json();
-  const sourceTitle = (detail.volumeInfo?.title ?? '').toLowerCase();
+  const sourceTitle = (tagData?.books?.[0]?.title ?? title).toLowerCase();
+  const tags: string[] = (tagData?.books?.[0]?.taggings ?? [])
+    .map((t: any) => t.tag?.tag as string)
+    .filter(Boolean);
 
-  return ((searchData.items ?? []) as any[]).flatMap((item: any) => {
-    const info = item.volumeInfo ?? {};
-    const title: string = info.title ?? '';
-    if (!title || title.toLowerCase() === sourceTitle) return [];
+  // Pick the best genre tag — prefer known genre terms over mood/pace words
+  const GENRE_TAGS = new Set([
+    'science fiction', 'hard science fiction', 'fantasy', 'epic fantasy', 'mystery', 'thriller',
+    'romance', 'horror', 'historical fiction', 'crime', 'adventure', 'biography', 'memoir',
+    'nonfiction', 'non-fiction', 'self-help', 'literary fiction', 'dystopian', 'young adult',
+    'graphic novel', 'short stories', 'humor', 'satire',
+  ]);
+  const genreTag = tags.find((t) => GENRE_TAGS.has(t.toLowerCase())) ?? null;
+  if (!genreTag) return [];
+
+  const recData = await hardcoverQuery(
+    `query { books(where: { taggings: { tag: { tag: { _eq: ${JSON.stringify(genreTag)} } } }, order_by: { users_count: desc }, limit: 15) { title rating contributions { author { name } } image { url } } }`,
+  );
+  return ((recData?.books ?? []) as any[]).flatMap((b: any) => {
+    const t: string = b.title ?? '';
+    if (!t || t.toLowerCase() === sourceTitle) return [];
     return [{
-      title,
-      sub: `${info.authors?.[0] ?? 'Unknown'}${info.publishedDate ? ` · ${info.publishedDate.slice(0, 4)}` : ''}`,
+      title: t,
+      sub: b.contributions?.[0]?.author?.name ?? '',
       type: 'read' as EntryType,
-      poster: info.imageLinks?.thumbnail?.replace('http:', 'https:') ?? null,
-      count: Math.round((info.averageRating ?? 3) * 20),
-      score: Math.round((info.averageRating ?? 3) * 20),
+      poster: b.image?.url ?? null,
+      count: Math.round((b.rating ?? 3) * 20),
+      score: Math.round((b.rating ?? 3) * 20),
       users: [],
       loggers: [],
     }];
@@ -276,7 +284,7 @@ async function fetchSpotifyPodcastRecs(seed: ForYouSeed | null): Promise<Trendin
  */
 export function useBecauseYouRecs(seed: ForYouSeed | null) {
   return useQuery({
-    queryKey: ['because-you-recs', seed ? `${seed.type}:${seed.title}` : null],
+    queryKey: ['because-you-recs-v5', seed ? `${seed.type}:${seed.title}` : null],
     queryFn: async (): Promise<TrendingEntry[]> => {
       if (!seed) return [];
       try {
@@ -302,10 +310,7 @@ export function useBecauseYouRecs(seed: ForYouSeed | null) {
           return fetchIgdbRecs(igdbId);
         }
         if (seed.type === 'read') {
-          let id = seed.externalId ?? null;
-          if (!id) id = await resolveBookId(seed.title);
-          if (!id) return [];
-          return fetchBookRecs(id);
+          return fetchBookRecs(seed.title, seed.externalId);
         }
         if (seed.type === 'listen') return fetchSpotifyMusicRecs(seed);
         if (seed.type === 'podcast') return fetchSpotifyPodcastRecs(seed);
@@ -315,7 +320,7 @@ export function useBecauseYouRecs(seed: ForYouSeed | null) {
       }
     },
     enabled: !!seed,
-    staleTime: 30 * 60 * 1000,
+    staleTime: 0,
     gcTime: 60 * 60 * 1000,
   });
 }
@@ -369,10 +374,7 @@ export function useForYouRecs(seeds: ForYouSeed[]) {
               return fetchIgdbRecs(igdbId);
             }
             if (seed.type === 'read') {
-              let id = seed.externalId ?? null;
-              if (!id) id = await resolveBookId(seed.title);
-              if (!id) return [];
-              return fetchBookRecs(id);
+              return fetchBookRecs(seed.title, seed.externalId);
             }
             return [];
           } catch {
