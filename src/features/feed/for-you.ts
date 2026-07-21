@@ -1,7 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
-import { hardcoverQuery } from '@/features/content/api';
+const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN ?? '';
+
+async function hardcoverQuery(query: string): Promise<any> {
+  const res = await fetch('https://api.hardcover.app/v1/graphql', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HARDCOVER_TOKEN}` },
+    body: JSON.stringify({ query }),
+  });
+  const json = await res.json();
+  if (json.errors) console.warn('[Hardcover for-you]', json.errors[0]?.message);
+  return json.data ?? null;
+}
 import { igdbSearch, igdbSimilar } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
 
@@ -286,6 +297,7 @@ export function useBecauseYouRecs(seed: ForYouSeed | null) {
   return useQuery({
     queryKey: ['because-you-recs-v5', seed ? `${seed.type}:${seed.title}` : null],
     queryFn: async (): Promise<TrendingEntry[]> => {
+      console.log('[BecauseYou] queryFn called, seed:', seed?.type, seed?.title);
       if (!seed) return [];
       try {
         if (seed.type === 'watch') {

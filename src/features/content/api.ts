@@ -11,7 +11,7 @@ const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 const BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
 
-export async function hardcoverQuery(query: string): Promise<any> {
+async function hardcoverQuery(query: string): Promise<any> {
   const res = await fetch('https://api.hardcover.app/v1/graphql', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HARDCOVER_TOKEN}` },
