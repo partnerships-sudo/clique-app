@@ -10,7 +10,7 @@ async function hardcoverQuery(query: string): Promise<any> {
     body: JSON.stringify({ query }),
   });
   const json = await res.json();
-  if (json.errors) console.warn('[Hardcover for-you]', json.errors[0]?.message);
+  if (json.errors) console.warn('[Hardcover for-you]', json.errors[0]?.message, '\nQuery:', query.slice(0, 120));
   return json.data ?? null;
 }
 import { igdbSearch, igdbSimilar } from '@/features/games/igdb';
