@@ -312,7 +312,7 @@ async function fetchSpotifyPodcastRecs(seed: ForYouSeed | null): Promise<Trendin
  */
 export function useBecauseYouRecs(seed: ForYouSeed | null) {
   return useQuery({
-    queryKey: ['because-you-recs-v7', seed ? `${seed.type}:${seed.title}` : null],
+    queryKey: ['because-you-recs-v8', seed ? `${seed.type}:${seed.title}` : null],
     queryFn: async (): Promise<TrendingEntry[]> => {
       if (!seed) return [];
       try {
@@ -329,11 +329,10 @@ export function useBecauseYouRecs(seed: ForYouSeed | null) {
           return fetchTMDBRecs(id, mType);
         }
         if (seed.type === 'play') {
-          let igdbId = seed.externalId ? Number(seed.externalId) : null;
-          if (!igdbId) {
-            const results = await igdbSearch(seed.title);
-            igdbId = results[0]?.id ?? null;
-          }
+          // Always resolve via title search — stored external_id may be a pre-migration
+          // RAWG ID which is a different namespace from IGDB IDs.
+          const results = await igdbSearch(seed.title);
+          const igdbId = results[0]?.id ?? null;
           if (!igdbId) return [];
           return fetchIgdbRecs(igdbId);
         }

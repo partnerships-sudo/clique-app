@@ -143,13 +143,15 @@ export default function FeedScreen() {
   for (const item of collectionItems) {
     const type = item.type as EntryType;
     const bucket = candidatesByType.get(type) ?? [];
-    const rating = (item.user_rating ?? 0) + 10;
+    // Scale collection rating (0–5) to 0–100 so it dominates; recency is a small tie-breaker
+    const rating = (item.user_rating ?? 0) * 20;
     bucket.push({ title: item.title, type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
     candidatesByType.set(type, bucket);
   }
   for (const item of logged) {
     const bucket = candidatesByType.get(item.type) ?? [];
-    const rating = item.rating ?? 0;
+    // Scale feed rating (0–10) to 0–100 so it dominates; recency is a small tie-breaker
+    const rating = (item.rating ?? 0) * 10;
     bucket.push({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
     candidatesByType.set(item.type, bucket);
   }
@@ -406,16 +408,33 @@ export default function FeedScreen() {
 
   const entries = feedView === 'circle' ? circleTrending : globalTrending;
 
-  const withFriends = forYouTrending.filter((e) => e.loggers.length > 0);
-  const withoutFriends = forYouTrending.filter((e) => e.loggers.length === 0);
-  const topPicks = [...withFriends, ...withoutFriends].slice(0, 10);
-  // One seed per content type — most recently logged item of each type
+  // One seed per content type — prefer highest-rated logged item, fall back to
+  // collection items so all 5 category rows can appear even if the user hasn't
+  // posted to the feed for that type yet.
   const SEED_TYPES = ['watch', 'play', 'read', 'listen', 'podcast'] as const;
-  const seedByType = Object.fromEntries(
-    SEED_TYPES.map((t) => [t, logged.find((item) => item.type === t) ?? null]),
-  ) as Record<typeof SEED_TYPES[number], (typeof logged)[0] | null>;
 
-  const toSeedParam = (item: (typeof logged)[0] | null) =>
+  function bestSeedForType(t: typeof SEED_TYPES[number]) {
+    // Gather candidates from both feed logs and collection, preferring items with
+    // a known external ID (IGDB/TMDB/etc) since those have richer rec data.
+    const feedCandidates = logged
+      .filter((item) => item.type === t)
+      .map((item) => ({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, rating: item.rating ?? 0, hasId: !!item.external_id }));
+    const collCandidates = collectionItems
+      .filter((item) => item.type === t)
+      .map((item) => ({ title: item.title, type: item.type as typeof t, external_id: item.external_id, media_type: item.media_type, rating: (item.user_rating ?? 0) * 2, hasId: !!item.external_id }));
+    const all = [...feedCandidates, ...collCandidates];
+    if (!all.length) return null;
+    // Sort: has external ID first, then by rating descending
+    all.sort((a, b) => (b.hasId ? 1 : 0) - (a.hasId ? 1 : 0) || b.rating - a.rating);
+    const best = all[0];
+    return { title: best.title, type: best.type, external_id: best.external_id, media_type: best.media_type };
+  }
+
+  const seedByType = Object.fromEntries(
+    SEED_TYPES.map((t) => [t, bestSeedForType(t)]),
+  ) as Record<typeof SEED_TYPES[number], ReturnType<typeof bestSeedForType>>;
+
+  const toSeedParam = (item: ReturnType<typeof bestSeedForType>) =>
     item ? { title: item.title, type: item.type, externalId: item.external_id, mediaType: item.media_type } : null;
 
 
@@ -436,11 +455,37 @@ export default function FeedScreen() {
 
   const becauseRows = [
     { seed: seedByType.watch, entries: filterRecs(watchRecs, seedByType.watch) },
-    { seed: seedByType.play, entries: filterRecs(playRecs, seedByType.play) },
     { seed: seedByType.read, entries: filterRecs(readRecs, seedByType.read) },
-    { seed: seedByType.listen, entries: filterRecs(listenRecs, seedByType.listen) },
+    { seed: seedByType.play, entries: filterRecs(playRecs, seedByType.play) },
     { seed: seedByType.podcast, entries: filterRecs(podcastRecs, seedByType.podcast) },
+    { seed: seedByType.listen, entries: filterRecs(listenRecs, seedByType.listen) },
   ].filter(({ seed, entries }) => seed && entries.length > 0);
+
+  // Merge "Because you..." seeded recs into the Top Picks pool at a base score
+  // of 55 — real personalization signal, but below friend-backed picks.
+  const becauseRecs = [...watchRecs, ...playRecs, ...readRecs, ...listenRecs, ...podcastRecs]
+    .map((e) => ({ ...e, score: Math.max(e.score ?? 55, 55) }));
+
+  const allForYou = [...forYouTrending, ...becauseRecs]
+    .filter((e, i, arr) => arr.findIndex((x) => x.type === e.type && x.title.toLowerCase() === e.title.toLowerCase()) === i)
+    .filter((e) => !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`))
+    .sort((a, b) => {
+      const aFriend = a.loggers.length > 0 ? 1 : 0;
+      const bFriend = b.loggers.length > 0 ? 1 : 0;
+      if (bFriend !== aFriend) return bFriend - aFriend;
+      return (b.score ?? 55) - (a.score ?? 55);
+    });
+
+  // Diversity cap: at most 3 picks per content type so one type doesn't dominate
+  const typeCount = new Map<string, number>();
+  const topPicks: TrendingEntry[] = [];
+  for (const e of allForYou) {
+    const n = typeCount.get(e.type) ?? 0;
+    if (n >= 3) continue;
+    typeCount.set(e.type, n + 1);
+    topPicks.push(e);
+    if (topPicks.length === 10) break;
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

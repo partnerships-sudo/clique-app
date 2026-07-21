@@ -8,8 +8,8 @@ import type { TrendingEntry } from '@/features/feed/trending';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { Avatar } from '@/components/avatar';
 
-const CARD_W = 140;
-const POSTER_H = Math.round(CARD_W * 1.55);
+const CARD_W = 90;
+const POSTER_H = Math.round(CARD_W * 1.5);
 const AVATAR_SIZE = 20;
 const AVATAR_OVERLAP = 8;
 const MAX_AVATARS = 3;

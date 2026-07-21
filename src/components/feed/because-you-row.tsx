@@ -6,8 +6,8 @@ import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import type { TrendingEntry } from '@/features/feed/trending';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
-const CARD_W = 108;
-const CARD_H = Math.round(CARD_W * 1.45);
+const CARD_W = 90;
+const CARD_H = Math.round(CARD_W * 1.5);
 
 function openEntry(entry: TrendingEntry) {
   router.push({

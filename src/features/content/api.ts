@@ -7,6 +7,16 @@ import { igdbSearch, igdbDetails } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
 import { supabase } from '@/lib/supabase';
 
+function decodeHtmlEntities(str: string): string {
+  return str
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'");
+}
+
 const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 const BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
@@ -713,7 +723,7 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
                 const artMatch = item.match(/itunes:image href="([^"]+)"/);
                 if (/trailer/i.test(epType) && enclosureMatch) {
                   trailerEpisode = {
-                    name: titleMatch?.[1] ?? 'Trailer',
+                    name: decodeHtmlEntities(titleMatch?.[1] ?? 'Trailer'),
                     character: 'Trailer',
                     profilePath: artMatch?.[1] ?? null,
                     previewUrl: enclosureMatch[1], // direct MP3 for inline playback
@@ -736,7 +746,7 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
             (r: any) => r.wrapperType === 'podcastEpisode' && r.episodeUrl,
           );
           episodes = allEpisodes.slice(0, 5).map((e: any) => ({
-            name: e.trackName ?? '',
+            name: decodeHtmlEntities(e.trackName ?? ''),
             character: new Date(e.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             profilePath: e.artworkUrl160 ?? e.artworkUrl60 ?? null,
             previewUrl: e.trackViewUrl ?? null,
@@ -764,7 +774,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v24', type, externalId ?? title],
+    queryKey: ['content-details-v25', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {
