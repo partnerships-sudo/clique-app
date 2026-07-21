@@ -139,6 +139,7 @@ export interface ContentDetails {
   watchProviders: StoreLink[];
   mediaType: 'movie' | 'tv' | null;
   seasons: { seasonNumber: number; episodeCount: number }[];
+  awards: string[];
 }
 
 const EMPTY_DETAILS: ContentDetails = {
@@ -156,6 +157,7 @@ const EMPTY_DETAILS: ContentDetails = {
   watchProviders: [],
   mediaType: null,
   seasons: [],
+  awards: [],
 };
 
 function pickYouTubeTrailer(videos: any[]): { url: string; thumbnail: string } | null {
@@ -262,6 +264,49 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
   };
 }
 
+const BOOK_AWARD_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /new york times.{0,30}best.?sell/i, label: 'NYT Bestseller' },
+  { pattern: /pulitzer prize/i, label: 'Pulitzer Prize' },
+  { pattern: /man booker prize|booker prize/i, label: 'Booker Prize' },
+  { pattern: /national book award/i, label: 'National Book Award' },
+  { pattern: /hugo award/i, label: 'Hugo Award' },
+  { pattern: /nebula award/i, label: 'Nebula Award' },
+  { pattern: /costa book award|costa novel award/i, label: 'Costa Award' },
+  { pattern: /women['']s prize for fiction/i, label: "Women's Prize" },
+  { pattern: /edgar award/i, label: 'Edgar Award' },
+  { pattern: /audie award/i, label: 'Audie Award' },
+  { pattern: /#1 new york times|number one new york times/i, label: '#1 NYT Bestseller' },
+];
+
+async function fetchBookAwards(title: string): Promise<string[]> {
+  try {
+    const candidates = [`${title} novel`, `${title} book`, title];
+    for (const term of candidates) {
+      const res = await fetch(
+        `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(term.replace(/ /g, '_'))}&prop=extracts&exintro=true&format=json`,
+      );
+      if (!res.ok) continue;
+      const data = await res.json();
+      const pages = data?.query?.pages ?? {};
+      const page = Object.values(pages)[0] as any;
+      if (!page || page.missing) continue;
+      const text: string = (page?.extract ?? '').replace(/<[^>]+>/g, ' ');
+      if (!text.trim()) continue;
+      // Deduplicate: #1 NYT supersedes plain NYT Bestseller
+      const found = BOOK_AWARD_PATTERNS
+        .filter(({ pattern }) => pattern.test(text))
+        .map(({ label }) => label);
+      if (found.includes('#1 NYT Bestseller')) {
+        return found.filter((l) => l !== 'NYT Bestseller');
+      }
+      return found;
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
+
 async function fetchWikipediaGameSummary(title: string): Promise<string> {
   try {
     // Try the "(video game)" disambiguation page first, then fall back to plain title
@@ -337,6 +382,8 @@ async function fetchHardcoverBookById(id: number): Promise<ContentDetails | null
 
 async function fetchBookDetails(title: string, externalId?: string): Promise<ContentDetails> {
   // Prefer Hardcover (richer data, better descriptions) — fall back to Google Books.
+  const awards = await fetchBookAwards(title);
+
   try {
     // If we have the Hardcover book ID, fetch directly; otherwise search by title first.
     let bookId = externalId ? Number(externalId) : null;
@@ -347,7 +394,7 @@ async function fetchBookDetails(title: string, externalId?: string): Promise<Con
     }
     if (bookId) {
       const result = await fetchHardcoverBookById(bookId);
-      if (result) return result;
+      if (result) return { ...result, awards };
     }
   } catch { /* fall through to Google Books */ }
 
@@ -357,7 +404,7 @@ async function fetchBookDetails(title: string, externalId?: string): Promise<Con
   );
   const data = await res.json();
   const info = data.items?.[0]?.volumeInfo;
-  if (!info) return EMPTY_DETAILS;
+  if (!info) return { ...EMPTY_DETAILS, awards };
   return {
     ...EMPTY_DETAILS,
     overview: info.description ?? '',
@@ -365,6 +412,7 @@ async function fetchBookDetails(title: string, externalId?: string): Promise<Con
     year: info.publishedDate ? info.publishedDate.slice(0, 4) : null,
     genre: info.categories?.[0] ?? null,
     runtime: info.pageCount ? `${info.pageCount} pages` : null,
+    awards,
   };
 }
 
@@ -716,7 +764,7 @@ export function useContentDetails(
   mediaType?: string,
 ) {
   return useQuery({
-    queryKey: ['content-details-v21', type, externalId ?? title],
+    queryKey: ['content-details-v24', type, externalId ?? title],
     queryFn: async (): Promise<ContentDetails | null> => {
       if (!title || !type) return null;
       switch (type) {

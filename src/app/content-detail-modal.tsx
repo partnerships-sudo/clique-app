@@ -198,6 +198,8 @@ export default function ContentDetailModal() {
 
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [synopsisTruncated, setSynopsisTruncated] = useState(false);
+  const [authorBioExpanded, setAuthorBioExpanded] = useState(false);
+  const [authorBioTruncated, setAuthorBioTruncated] = useState(false);
 
   // Some entries (especially from friend collections) store 'tv' or 'movie'
   // as the type instead of the app's EntryType 'watch'. Normalise here.
@@ -302,6 +304,15 @@ export default function ContentDetailModal() {
                   })()}
                 </View>
               ) : null}
+              {!isLoading && resolvedType === 'read' && (details?.awards?.length ?? 0) > 0 ? (
+                <View style={styles.awardsRow}>
+                  {details!.awards.map((award) => (
+                    <View key={award} style={styles.awardBadge}>
+                      <Text style={styles.awardBadgeText}>{award}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
             </View>
           </View>
 
@@ -370,7 +381,25 @@ export default function ContentDetailModal() {
                 <View style={styles.authorInfo}>
                   <Text style={styles.authorName}>{details.author.name}</Text>
                   {details.author.bio ? (
-                    <Text style={styles.authorBio} numberOfLines={3}>{details.author.bio}</Text>
+                    <>
+                      <Text
+                        style={[styles.authorBio, styles.synopsisMeasure]}
+                        onTextLayout={(e) => setAuthorBioTruncated(e.nativeEvent.lines.length > 3)}>
+                        {details.author.bio}
+                      </Text>
+                      <Text
+                        style={styles.authorBio}
+                        numberOfLines={authorBioExpanded ? undefined : 3}>
+                        {details.author.bio}
+                      </Text>
+                      {authorBioTruncated ? (
+                        <Text
+                          style={styles.synopsisToggle}
+                          onPress={() => setAuthorBioExpanded((v) => !v)}>
+                          {authorBioExpanded ? 'See less...' : 'See more...'}
+                        </Text>
+                      ) : null}
+                    </>
                   ) : null}
                 </View>
               </View>
@@ -506,6 +535,27 @@ function createStyles(Brand: BrandPalette) {
     gap: 5,
     flexWrap: 'wrap',
     marginTop: 2,
+  },
+  awardsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 8,
+  },
+  awardBadge: {
+    backgroundColor: 'rgba(184,154,0,0.12)',
+    borderWidth: 1,
+    borderColor: '#B89A00',
+    borderRadius: 6,
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+  },
+  awardBadgeText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 10,
+    color: '#8B7500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.7,
   },
   ratingPill: {
     backgroundColor: 'rgba(255,215,0,0.15)',
