@@ -139,11 +139,14 @@ export interface ContentDetails {
   cast: { name: string; character: string; profilePath: string | null; previewUrl?: string | null; duration?: string | null }[];
   hosts: { name: string; photoUrl: string | null }[];
   author: { name: string; bio: string; photoUrl: string | null } | null;
+  coAuthors: string[];
   developer: { name: string; logoUrl: string | null } | null;
   rating: string | null;
   year: string | null;
   genre: string | null;
   runtime: string | null;
+  series: string | null;
+  publisher: string | null;
   trailerUrl: string | null;
   trailerThumbnail: string | null;
   watchProviders: StoreLink[];
@@ -157,11 +160,14 @@ const EMPTY_DETAILS: ContentDetails = {
   cast: [],
   hosts: [],
   author: null,
+  coAuthors: [],
   developer: null,
   rating: null,
   year: null,
   genre: null,
   runtime: null,
+  series: null,
+  publisher: null,
   trailerUrl: null,
   trailerThumbnail: null,
   watchProviders: [],
@@ -261,16 +267,20 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
     })),
     hosts: [],
     author: null,
+    coAuthors: [],
     developer: null,
     rating: detail.vote_average ? detail.vote_average.toFixed(1) : null,
     year,
     genre,
     runtime,
+    series: null,
+    publisher: null,
     trailerUrl: trailer?.url ?? null,
     trailerThumbnail: trailer?.thumbnail ?? null,
     watchProviders,
     mediaType: hit.media_type as 'movie' | 'tv',
     seasons,
+    awards: [],
   };
 }
 
@@ -406,21 +416,49 @@ async function fetchGameDetails(title: string, externalId?: string): Promise<Con
 }
 
 async function fetchHardcoverBookById(id: number): Promise<ContentDetails | null> {
-  const query = `query { books(where: { id: { _eq: ${id} } }, limit: 1) { title rating description release_year contributions { author { name bio image { url } } } default_physical_edition { pages } } }`;
+  const query = `query { books(where: { id: { _eq: ${id} } }, limit: 1) {
+    title rating description release_year
+    contributions { author { name bio image { url } } }
+    book_series { position series { name books_count } }
+    default_physical_edition { pages isbn_10 isbn_13 publisher { name } }
+  } }`;
   const data = await hardcoverQuery(query);
   const book = data?.books?.[0];
   if (!book) return null;
-  const contrib = book.contributions?.[0]?.author;
-  const author = contrib
-    ? { name: contrib.name ?? '', bio: (contrib.bio ?? '').replace(/<[^>]*>/g, '').trim(), photoUrl: contrib.image?.url ?? null }
+
+  const contribs: any[] = book.contributions ?? [];
+  const primaryContrib = contribs[0]?.author;
+  const author = primaryContrib
+    ? { name: primaryContrib.name ?? '', bio: (primaryContrib.bio ?? '').replace(/<[^>]*>/g, '').trim(), photoUrl: primaryContrib.image?.url ?? null }
     : null;
+  const coAuthors: string[] = contribs.slice(1).map((c: any) => c.author?.name).filter(Boolean);
+
+  const seriesEntry = book.book_series?.[0];
+  let series: string | null = null;
+  if (seriesEntry?.series?.name) {
+    const pos = seriesEntry.position;
+    const count = seriesEntry.series.books_count;
+    const name = seriesEntry.series.name;
+    series = pos && count && count > 1
+      ? `Book ${pos} of ${count} in ${name}`
+      : pos
+      ? `Book ${pos} in ${name}`
+      : name;
+  }
+
+  const edition = book.default_physical_edition;
+  const publisher: string | null = edition?.publisher?.name ?? null;
+
   return {
     ...EMPTY_DETAILS,
     overview: (book.description ?? '').replace(/<[^>]*>/g, '').trim(),
     author,
+    coAuthors,
+    series,
+    publisher,
     rating: book.rating ? Number(book.rating).toFixed(1) : null,
     year: book.release_year ? String(book.release_year) : null,
-    runtime: book.default_physical_edition?.pages ? `${book.default_physical_edition.pages} pages` : null,
+    runtime: edition?.pages ? `${edition.pages} pages` : null,
   };
 }
 
@@ -852,16 +890,20 @@ export function useContentDetails(
               })),
               hosts: [],
               author: null,
+              coAuthors: [],
               developer: null,
               rating: detail.vote_average ? detail.vote_average.toFixed(1) : null,
               year,
               genre,
               runtime,
+              series: null,
+              publisher: null,
               trailerUrl: trailer?.url ?? null,
               trailerThumbnail: trailer?.thumbnail ?? null,
               watchProviders,
               mediaType: (endpoint as 'movie' | 'tv'),
               seasons,
+              awards: [],
             };
           }
           return fetchWatchDetails(title);

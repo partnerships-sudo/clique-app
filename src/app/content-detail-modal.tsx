@@ -318,6 +318,7 @@ export default function ContentDetailModal() {
                       podcastHost ? { key: 'host', isPill: false, value: podcastHost } : null,
                       details?.year && !yearInSub ? { key: 'year', isPill: false, value: details.year } : null,
                       details?.genre ? { key: 'genre', isPill: false, value: details.genre } : null,
+                      details?.publisher && resolvedType === 'read' ? { key: 'publisher', isPill: false, value: details.publisher } : null,
                       details?.runtime ? { key: 'runtime', isPill: false, value: details.runtime } : null,
                     ].filter(Boolean) as { key: string; isPill: boolean; value: string }[];
                     return items.map((item, i) => (
@@ -346,6 +347,15 @@ export default function ContentDetailModal() {
               ) : null}
             </View>
           </View>
+
+          {/* Series (books) */}
+          {!isLoading && resolvedType === 'read' && details?.series ? (
+            <View style={styles.seriesBadgeRow}>
+              <View style={styles.seriesBadge}>
+                <Text style={styles.seriesBadgeText}>📚 {details.series}</Text>
+              </View>
+            </View>
+          ) : null}
 
           {/* Synopsis / About */}
           {!isLoading && details?.overview ? (
@@ -400,7 +410,7 @@ export default function ContentDetailModal() {
           {/* Author (books) */}
           {!isLoading && resolvedType === 'read' && details?.author ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Author</Text>
+              <Text style={styles.sectionLabel}>{(details.coAuthors?.length ?? 0) > 0 ? 'Authors' : 'Author'}</Text>
               <View style={styles.authorRow}>
                 {details.author.photoUrl ? (
                   <Image source={{ uri: details.author.photoUrl }} style={styles.authorPhoto} />
@@ -411,6 +421,9 @@ export default function ContentDetailModal() {
                 )}
                 <View style={styles.authorInfo}>
                   <Text style={styles.authorName}>{details.author.name}</Text>
+                  {(details.coAuthors?.length ?? 0) > 0 ? (
+                    <Text style={styles.coAuthorsText}>{details.coAuthors!.join(', ')}</Text>
+                  ) : null}
                   {details.author.bio ? (
                     <>
                       <Text
@@ -798,6 +811,25 @@ function createStyles(Brand: BrandPalette) {
     fontSize: 12.5,
     color: Brand.muted,
     lineHeight: 18,
+  },
+  coAuthorsText: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12.5,
+    color: Brand.muted,
+    marginBottom: 4,
+  },
+  seriesBadgeRow: { marginBottom: 16 },
+  seriesBadge: {
+    alignSelf: 'flex-start',
+    backgroundColor: Brand.tlight,
+    borderRadius: 8,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+  },
+  seriesBadgeText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 12,
+    color: Brand.trust,
   },
 
   // Store links
