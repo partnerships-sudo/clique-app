@@ -343,16 +343,6 @@ export default function ContentDetailModal() {
             </View>
           </View>
 
-          {/* Watchlist / Log buttons — always visible below the header */}
-          <View style={styles.actionBar}>
-            <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
-              <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
-            </Pressable>
-            <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
-              <Text style={styles.logBtnText}>Log it</Text>
-            </Pressable>
-          </View>
-
           {/* Synopsis / About */}
           {!isLoading && details?.overview ? (
             <View style={styles.section}>
@@ -512,6 +502,16 @@ export default function ContentDetailModal() {
                 </View>
               </Pressable>
             ))}
+          </View>
+
+          {/* Watchlist / Log buttons */}
+          <View style={styles.actionBar}>
+            <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
+              <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
+            </Pressable>
+            <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
+              <Text style={styles.logBtnText}>Log it</Text>
+            </Pressable>
           </View>
         </View>
       </ScrollView>
