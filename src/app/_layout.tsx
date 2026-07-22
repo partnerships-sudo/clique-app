@@ -60,6 +60,7 @@ function RootNavigator() {
       <Stack.Screen name="news-share-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.85], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="account-info" options={{ headerShown: false }} />
       <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
+      <Stack.Screen name="episode-progress-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.45], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="premiere-modal" options={{ headerShown: false }} />
       <Stack.Screen name="premiere-waiting-room" options={{ headerShown: false }} />
       <Stack.Screen name="premiere-live" options={{ headerShown: false }} />

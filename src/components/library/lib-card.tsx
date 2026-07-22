@@ -62,6 +62,26 @@ export function LibCard({ item }: { item: LibraryItem }) {
           <View style={[styles.badge, { backgroundColor: statusMeta.bg }]}>
             <Text style={[styles.badgeText, { color: statusMeta.color }]}>{statusMeta.label}</Text>
           </View>
+          {item.type === 'watch' && item.media_type === 'tv' && item.status === 'watching' ? (
+            <Pressable
+              style={styles.epBadge}
+              hitSlop={8}
+              onPress={() => router.push({
+                pathname: '/episode-progress-modal',
+                params: {
+                  itemId: item.id,
+                  title: item.title,
+                  poster: item.poster ?? undefined,
+                  externalId: item.external_id ?? undefined,
+                  currentSeason: item.ep_season?.toString() ?? '1',
+                  currentEpisode: item.ep_episode?.toString() ?? '1',
+                },
+              })}>
+              <Text style={styles.epBadgeText}>
+                {item.ep_season != null ? `S${item.ep_season} E${item.ep_episode}` : '▶ Set progress'}
+              </Text>
+            </Pressable>
+          ) : null}
           {item.rating ? (
             <RatingIcons rating={item.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
           ) : null}
@@ -154,6 +174,8 @@ function createStyles(Brand: BrandPalette, TypeColors: TypeColorPalette) {
       textTransform: 'uppercase',
       letterSpacing: 0.5,
     },
+    epBadge: { backgroundColor: Brand.tlight, borderRadius: 20, paddingVertical: 3, paddingHorizontal: 9 },
+    epBadgeText: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.trust, textTransform: 'uppercase', letterSpacing: 0.4 },
     stars: { color: Brand.warm, fontSize: 13.6 },
     date: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
     shareBtn: { marginLeft: 'auto', padding: 2 },
