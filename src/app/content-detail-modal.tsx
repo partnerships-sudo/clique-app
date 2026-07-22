@@ -275,13 +275,13 @@ export default function ContentDetailModal() {
           headerShown: false,
         }}
       />
-      <View style={[styles.sheet, styles.body]}>
-      <View style={styles.modalHeader} collapsable={false}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }} activeOpacity={0.6}>
-          <Text style={styles.modalDoneBtn}>Done</Text>
-        </TouchableOpacity>
-      </View>
-      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
+      <View style={[styles.sheet, styles.body]} collapsable={false}>
+        <View style={styles.modalHeader} collapsable={false}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }} activeOpacity={0.6}>
+            <Text style={styles.modalDoneBtn}>Done</Text>
+          </TouchableOpacity>
+        </View>
+        <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
         <View style={styles.bodyContent}>
           {/* Poster on the left (kept in its natural aspect ratio, never
               stretched), title + meta on the right. */}
@@ -501,17 +501,16 @@ export default function ContentDetailModal() {
             ))}
           </View>
         </View>
-      </ScrollView>
-
-      {/* Sticky action bar */}
-      <View style={[styles.actionBar, { paddingBottom: (insets.bottom || 16) }]}>
-        <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
-          <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
-        </Pressable>
-        <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
-          <Text style={styles.logBtnText}>Log it</Text>
-        </Pressable>
-      </View>
+          {/* Action buttons — inside scroll so the sheet root has only 2 native children */}
+          <View style={[styles.actionBar, { paddingBottom: (insets.bottom || 16) }]}>
+            <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
+              <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
+            </Pressable>
+            <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
+              <Text style={styles.logBtnText}>Log it</Text>
+            </Pressable>
+          </View>
+        </ScrollView>
       </View>
     </>
   );
