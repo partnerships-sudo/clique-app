@@ -167,6 +167,23 @@ async function fetchBookRecs(title: string, hardcoverId?: string | null): Promis
 // using the logged show's own name — Spotify's search relevance turns out to
 // surface genuinely topic-similar shows this way (verified: searching
 // "Crime Junkie" surfaces Morbid, CounterClock, Dark Downeast, etc).
+//
+// For short/generic titles (≤2 words) we also fetch the show's primary genre
+// from iTunes and append it to the query so "Crime" becomes "Crime" True Crime
+// rather than matching everything Spotify thinks is crime-adjacent.
+
+async function getPodcastGenreFromItunes(title: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://itunes.apple.com/search?term=${encodeURIComponent(title)}&entity=podcast&limit=1`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return (data.results?.[0]?.primaryGenreName as string) ?? null;
+  } catch {
+    return null;
+  }
+}
 
 async function fetchSpotifyDiscoveryAlbums(token: string): Promise<TrendingEntry[]> {
   const year = new Date().getFullYear();
@@ -264,8 +281,14 @@ async function fetchSpotifyPodcastRecs(seed: ForYouSeed | null): Promise<Trendin
     const token = await getSpotifyToken();
 
     if (seed?.title) {
+      const words = seed.title.trim().split(/\s+/);
+      let query = seed.title;
+      if (words.length <= 2) {
+        const genre = await getPodcastGenreFromItunes(seed.title);
+        query = genre ? `"${seed.title}" ${genre}` : `"${seed.title}"`;
+      }
       const searchRes = await fetch(
-        `https://api.spotify.com/v1/search?q=${encodeURIComponent(seed.title)}&type=show&market=US&limit=15`,
+        `https://api.spotify.com/v1/search?q=${encodeURIComponent(query)}&type=show&market=US&limit=15`,
         { headers: { Authorization: `Bearer ${token}` } },
       );
       if (searchRes.ok) {
