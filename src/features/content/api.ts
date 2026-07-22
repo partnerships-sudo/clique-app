@@ -378,9 +378,13 @@ const EXTRA_GAME_STORES: Record<string, Omit<StoreLink, 'url'>> = {
 
 async function fetchGameDetails(title: string, externalId?: string): Promise<ContentDetails> {
   const igdbId = externalId ? Number(externalId) : null;
-  const detail = igdbId
-    ? await igdbDetails(igdbId)
-    : await igdbSearch(title).then((r) => r[0] ? igdbDetails(r[0].id) : null);
+  let detail = igdbId ? await igdbDetails(igdbId) : null;
+  // If we had a stored ID but it didn't resolve (edge function down + RAWG ID
+  // mismatch), fall back to a title search so the detail screen still populates.
+  if (!detail) {
+    const results = await igdbSearch(title);
+    detail = results[0] ? await igdbDetails(results[0].id) : null;
+  }
 
   const igdbSummary = detail?.summary ?? '';
   const overview = igdbSummary || await fetchWikipediaGameSummary(detail?.title || title);
