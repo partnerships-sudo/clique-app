@@ -267,6 +267,28 @@ export function useTitleSearch(type: EntryType | 'tv' | null, query: string) {
   });
 }
 
+export interface UniversalSearchResult extends SearchResult {
+  entryType: EntryType;
+}
+
+export function useUniversalSearch(query: string) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ['universal-search', trimmed],
+    queryFn: async (): Promise<UniversalSearchResult[]> => {
+      const types: EntryType[] = ['watch', 'read', 'play', 'listen', 'podcast'];
+      const settled = await Promise.allSettled(types.map((t) => searchByType(t, trimmed)));
+      return settled.flatMap((res, i) =>
+        res.status === 'fulfilled'
+          ? res.value.slice(0, 3).map((r) => ({ ...r, entryType: types[i] }))
+          : [],
+      );
+    },
+    enabled: trimmed.length >= 2,
+    staleTime: 30_000,
+  });
+}
+
 export interface TvSeason {
   seasonNumber: number;
   name: string;

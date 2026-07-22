@@ -8,6 +8,7 @@ import { TypePickerStep } from '@/components/log-modal/type-picker-step';
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useCreatePost } from '@/features/feed/api';
 import { useAddLibraryItem } from '@/features/library/api';
+import type { SearchResult } from '@/features/search/api';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function LogModal() {
@@ -23,6 +24,12 @@ export default function LogModal() {
   const hasPrefill = !!params.prefillTitle && !!params.prefillType;
   const [type, setType] = useState<EntryType | null>(hasPrefill ? (params.prefillType ?? null) : null);
   const [intent, setIntent] = useState<LogIntent>(params.intent === 'watchlist' ? 'watchlist' : 'log');
+  const [universalPrefill, setUniversalPrefill] = useState<{ title: string; sub: string; poster: string | null; externalId: string | null; mediaType: string | null; extRating: string | null; square: boolean } | null>(null);
+
+  function handleUniversalPick(pickedType: EntryType, result: SearchResult) {
+    setType(pickedType);
+    setUniversalPrefill({ title: result.title, sub: result.sub, poster: result.img, externalId: result.externalId, mediaType: result.mediaType, extRating: result.rating, square: result.square });
+  }
   const createPost = useCreatePost();
   const addLibraryItem = useAddLibraryItem();
   const Brand = useBrand();
@@ -67,7 +74,7 @@ export default function LogModal() {
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
         {!hasPrefill && <Text style={styles.heading}>What are you into right now?</Text>}
-        {!hasPrefill && <TypePickerStep value={type} onSelect={setType} />}
+        {!hasPrefill && <TypePickerStep value={type} onSelect={(t) => { setUniversalPrefill(null); setType(t); }} onUniversalPick={handleUniversalPick} />}
         {type ? (
           <View style={hasPrefill ? undefined : styles.entrySection}>
             {!hasPrefill && <IntentToggle value={intent} onChange={setIntent} />}
@@ -82,7 +89,7 @@ export default function LogModal() {
                 poster: params.prefillPoster ?? null,
                 externalId: params.prefillExternalId ?? null,
                 mediaType: params.prefillMediaType ?? null,
-              } : undefined}
+              } : universalPrefill ?? undefined}
             />
           </View>
         ) : null}
