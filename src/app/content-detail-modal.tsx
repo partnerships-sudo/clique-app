@@ -501,16 +501,15 @@ export default function ContentDetailModal() {
             ))}
           </View>
         </View>
-          {/* Action buttons — inside scroll so the sheet root has only 2 native children */}
-          <View style={[styles.actionBar, { paddingBottom: (insets.bottom || 16) }]}>
-            <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
-              <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
-            </Pressable>
-            <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
-              <Text style={styles.logBtnText}>Log it</Text>
-            </Pressable>
-          </View>
         </ScrollView>
+        <View style={[styles.actionBar, { paddingBottom: (insets.bottom || 16) }]}>
+          <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
+            <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
+          </Pressable>
+          <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
+            <Text style={styles.logBtnText}>Log it</Text>
+          </Pressable>
+        </View>
       </View>
     </>
   );
