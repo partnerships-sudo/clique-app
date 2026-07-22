@@ -207,30 +207,19 @@ export function useRateLibraryItem() {
       mediaType?: string | null;
       extRating?: string | null;
     }) => {
-      const [collectionResult, deleteResult, postsResult] = await Promise.all([
-        supabase.from('collection_items').insert({
-          user_id: user!.id,
-          type: input.type,
-          format: null,
-          title: input.title,
-          sub: input.sub ?? null,
-          poster: input.poster ?? null,
-          external_id: input.externalId ?? null,
-          media_type: input.mediaType ?? null,
-          ext_rating: input.extRating ?? null,
-          user_rating: input.rating,
-        }),
-        supabase.from('library').delete().eq('id', input.id),
-        supabase
-          .from('posts')
-          .update({ rating: input.rating })
-          .eq('user_id', user!.id)
-          .eq('title', input.title)
-          .eq('type', input.type),
-      ]);
-      if (collectionResult.error) throw collectionResult.error;
-      if (deleteResult.error) throw deleteResult.error;
-      if (postsResult.error) throw postsResult.error;
+      const { error } = await supabase.rpc('rate_and_move_to_collection', {
+        p_library_id:  input.id,
+        p_user_id:     user!.id,
+        p_type:        input.type,
+        p_title:       input.title,
+        p_sub:         input.sub ?? null,
+        p_poster:      input.poster ?? null,
+        p_external_id: input.externalId ?? null,
+        p_media_type:  input.mediaType ?? null,
+        p_ext_rating:  input.extRating ?? null,
+        p_rating:      input.rating,
+      });
+      if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: libraryQueryKey(user?.id) });
