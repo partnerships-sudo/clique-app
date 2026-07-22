@@ -41,3 +41,13 @@ example
 
 # generated native folders
 /android
+
+# Xcode duplicate files (safe to keep on disk, not tracked)
+ios/* 2
+ios/* 2.*
+ios/*\ 2/
+ios/*\ 2.*/
+
+# Vim swap files
+*.swp
+*.swo
