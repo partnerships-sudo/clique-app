@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
 import { extractArtistName } from '@/features/artist/api';
@@ -75,7 +75,14 @@ export function WatchlistCard({
         </View>
         <View style={styles.bottomRow}>
           {item.date ? <Text style={styles.date}>Added {item.date}</Text> : null}
-          <Pressable style={styles.removeBtn} onPress={onRemove}>
+          <Pressable
+            style={styles.removeBtn}
+            onPress={() =>
+              Alert.alert(item.title, undefined, [
+                { text: 'Remove', style: 'destructive', onPress: onRemove },
+                { text: 'Cancel', style: 'cancel' },
+              ])
+            }>
             <Text style={styles.removeBtnText}>✕ Remove</Text>
           </Pressable>
         </View>
