@@ -136,7 +136,7 @@ const GAME_STORE_BY_PLATFORM: Record<
 
 export interface ContentDetails {
   overview: string;
-  cast: { name: string; character: string; profilePath: string | null; previewUrl?: string | null }[];
+  cast: { name: string; character: string; profilePath: string | null; previewUrl?: string | null; duration?: string | null }[];
   hosts: { name: string; photoUrl: string | null }[];
   author: { name: string; bio: string; photoUrl: string | null } | null;
   developer: { name: string; logoUrl: string | null } | null;
@@ -679,6 +679,14 @@ async function fetchMusicDetails(title: string, externalId?: string): Promise<Co
   }
 }
 
+function formatEpisodeDuration(ms: number): string {
+  const mins = Math.round(ms / 60000);
+  if (mins < 60) return `${mins} min`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m ? `${h} h ${m} min` : `${h} h`;
+}
+
 async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, titleForItunes?: string): Promise<ContentDetails> {
   try {
     const cleanTitle = (titleForItunes ?? (byTitle ? externalIdOrTitle : '')).replace(/\.{2,}$/, '').trim();
@@ -773,17 +781,18 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
           episodes = [trailerEpisode];
         } else if (podcastId) {
           const epRes = await fetch(
-            `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcastEpisode&limit=6`,
+            `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcastEpisode&limit=51`,
           );
           const epData = await epRes.json();
           const allEpisodes = ((epData.results ?? []) as any[]).filter(
             (r: any) => r.wrapperType === 'podcastEpisode' && r.episodeUrl,
           );
-          episodes = allEpisodes.slice(0, 5).map((e: any) => ({
+          episodes = allEpisodes.slice(0, 50).map((e: any) => ({
             name: decodeHtmlEntities(e.trackName ?? ''),
             character: new Date(e.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             profilePath: e.artworkUrl160 ?? e.artworkUrl60 ?? null,
             previewUrl: e.trackViewUrl ?? null,
+            duration: e.trackTimeMillis ? formatEpisodeDuration(e.trackTimeMillis) : null,
           }));
         }
       } catch { /* ignore */ }

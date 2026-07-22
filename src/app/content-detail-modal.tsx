@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { useAudioPlayer } from 'expo-audio';
@@ -73,7 +73,10 @@ function PodcastEpisodeRow({ cast, styles }: { cast: ContentDetails['cast']; sty
           </View>
           <View style={styles.episodeInfo}>
             <Text style={styles.episodeName} numberOfLines={2}>{ep.name}</Text>
-            {ep.character ? <Text style={styles.episodeDate}>{ep.character}</Text> : null}
+            <View style={styles.episodeMeta}>
+              {ep.character ? <Text style={styles.episodeDate}>{ep.character}</Text> : null}
+              {ep.duration ? <Text style={styles.episodeDate}>{ep.duration}</Text> : null}
+            </View>
           </View>
         </Pressable>
       ))}
@@ -202,6 +205,7 @@ export default function ContentDetailModal() {
   const [synopsisTruncated, setSynopsisTruncated] = useState(false);
   const [authorBioExpanded, setAuthorBioExpanded] = useState(false);
   const [authorBioTruncated, setAuthorBioTruncated] = useState(false);
+  const [episodeSearch, setEpisodeSearch] = useState('');
 
   // Some entries (especially from friend collections) store 'tv' or 'movie'
   // as the type instead of the app's EntryType 'watch'. Normalise here.
@@ -471,9 +475,29 @@ export default function ContentDetailModal() {
           {!isLoading && details?.cast && details.cast.length > 0 ? (
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>{resolvedType === 'play' ? 'Key Staff' : resolvedType === 'listen' ? 'Top Tracks' : resolvedType === 'podcast' ? 'Episodes' : 'Top Cast'}</Text>
-              {resolvedType === 'podcast'
-                ? <PodcastEpisodeRow cast={details.cast} styles={styles} />
-                : <CastRow cast={details.cast} square={resolvedType === 'listen'} fit={resolvedType === 'listen'} />}
+              {resolvedType === 'podcast' ? (
+                <>
+                  {details.cast.length > 5 ? (
+                    <TextInput
+                      style={styles.episodeSearch}
+                      placeholder="Search episodes…"
+                      placeholderTextColor={Brand.muted}
+                      value={episodeSearch}
+                      onChangeText={setEpisodeSearch}
+                      returnKeyType="search"
+                      clearButtonMode="while-editing"
+                    />
+                  ) : null}
+                  <PodcastEpisodeRow
+                    cast={episodeSearch.trim()
+                      ? details.cast.filter((ep) => ep.name.toLowerCase().includes(episodeSearch.toLowerCase()))
+                      : details.cast}
+                    styles={styles}
+                  />
+                </>
+              ) : (
+                <CastRow cast={details.cast} square={resolvedType === 'listen'} fit={resolvedType === 'listen'} />
+              )}
             </View>
           ) : null}
 
@@ -701,13 +725,26 @@ function createStyles(Brand: BrandPalette) {
     backgroundColor: Brand.border,
   },
   actorSquare: { borderRadius: 8 },
+  episodeSearch: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 14,
+    color: Brand.ink,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 12,
+    backgroundColor: Brand.paper,
+  },
   episodeList: { gap: 12 },
   episodeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   episodeThumbWrap: { position: 'relative' },
   episodeThumb: { width: 56, height: 56, borderRadius: 8, backgroundColor: Brand.border },
   episodeInfo: { flex: 1 },
   episodeName: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.ink, lineHeight: 18 },
-  episodeDate: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 2 },
+  episodeMeta: { flexDirection: 'row', gap: 8, marginTop: 2 },
+  episodeDate: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted },
   castRowFit: { flexDirection: 'row', justifyContent: 'space-between' },
   actorItemFit: { alignItems: 'center', flex: 1 },
   trackThumbWrap: { position: 'relative' },
