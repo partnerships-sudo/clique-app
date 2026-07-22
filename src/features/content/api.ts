@@ -777,9 +777,7 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
           } catch { /* ignore */ }
         }
 
-        if (trailerEpisode) {
-          episodes = [trailerEpisode];
-        } else if (podcastId) {
+        if (podcastId) {
           const epRes = await fetch(
             `https://itunes.apple.com/lookup?id=${podcastId}&entity=podcastEpisode&limit=51`,
           );
@@ -787,13 +785,16 @@ async function fetchPodcastDetails(externalIdOrTitle: string, byTitle = false, t
           const allEpisodes = ((epData.results ?? []) as any[]).filter(
             (r: any) => r.wrapperType === 'podcastEpisode' && r.episodeUrl,
           );
-          episodes = allEpisodes.slice(0, 50).map((e: any) => ({
+          const itunesEpisodes = allEpisodes.slice(0, 50).map((e: any) => ({
             name: decodeHtmlEntities(e.trackName ?? ''),
             character: new Date(e.releaseDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
             profilePath: e.artworkUrl160 ?? e.artworkUrl60 ?? null,
             previewUrl: e.trackViewUrl ?? null,
             duration: e.trackTimeMillis ? formatEpisodeDuration(e.trackTimeMillis) : null,
           }));
+          episodes = trailerEpisode ? [trailerEpisode, ...itunesEpisodes] : itunesEpisodes;
+        } else if (trailerEpisode) {
+          episodes = [trailerEpisode];
         }
       } catch { /* ignore */ }
     }
