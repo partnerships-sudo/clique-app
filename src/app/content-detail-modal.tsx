@@ -343,6 +343,16 @@ export default function ContentDetailModal() {
             </View>
           </View>
 
+          {/* Watchlist / Log buttons — always visible below the header */}
+          <View style={styles.actionBar}>
+            <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
+              <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
+            </Pressable>
+            <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
+              <Text style={styles.logBtnText}>Log it</Text>
+            </Pressable>
+          </View>
+
           {/* Synopsis / About */}
           {!isLoading && details?.overview ? (
             <View style={styles.section}>
@@ -505,14 +515,6 @@ export default function ContentDetailModal() {
           </View>
         </View>
       </ScrollView>
-      <View style={[styles.actionBar, { position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: (insets.bottom || 16) }]}>
-        <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
-          <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
-        </Pressable>
-        <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
-          <Text style={styles.logBtnText}>Log it</Text>
-        </Pressable>
-      </View>
     </>
   );
 }
@@ -543,11 +545,8 @@ function createStyles(Brand: BrandPalette) {
   actionBar: {
     flexDirection: 'row',
     gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: Brand.border,
-    backgroundColor: Brand.paper,
+    marginTop: 16,
+    marginBottom: 4,
   },
   watchlistBtn: {
     flex: 1,
