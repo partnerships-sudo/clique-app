@@ -10,6 +10,8 @@ import Animated, { useAnimatedStyle, useSharedValue, withDecay } from 'react-nat
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useContentDetails, type ContentDetails } from '@/features/content/api';
+import { BecauseYouRow } from '@/components/feed/because-you-row';
+import { useBecauseYouRecs } from '@/features/feed/for-you';
 import { getWhereToFindConfig } from '@/features/where-to-find/links';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
@@ -215,6 +217,17 @@ export default function ContentDetailModal() {
     params.type === 'tv' ? 'tv' : params.type === 'movie' ? 'movie' : params.mediaType;
 
   const { data: details, isLoading } = useContentDetails(params.title, resolvedType, params.externalId, resolvedMediaType);
+
+  const { data: similarTitles = [] } = useBecauseYouRecs({
+    title: params.title,
+    type: resolvedType,
+    externalId: params.externalId ?? null,
+    mediaType: resolvedMediaType ?? null,
+  });
+  const recVerb = resolvedType === 'read' ? 'read'
+    : resolvedType === 'play' ? 'played'
+    : resolvedType === 'listen' || resolvedType === 'podcast' ? 'listened to'
+    : 'watched';
 
   // For podcasts, show first host name in meta row as a preview
   const podcastHost = resolvedType === 'podcast'
@@ -540,6 +553,13 @@ export default function ContentDetailModal() {
               </Pressable>
             ))}
           </View>
+
+          {/* Similar titles */}
+          {similarTitles.length > 0 ? (
+            <View style={styles.section}>
+              <BecauseYouRow seedTitle={params.title} verb={recVerb} entries={similarTitles} />
+            </View>
+          ) : null}
 
           {/* Watchlist / Log buttons */}
           <View style={styles.actionBar}>
