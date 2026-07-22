@@ -7,7 +7,7 @@ import { ActivityIndicator, Alert, Image, Modal, Pressable, ScrollView, StyleShe
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
-import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
+import { useCollectionItems, useCollectionItemsByUser, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
 import { useMoveToLibrary, useRateLibraryItem, useRemoveLibraryItem, type LibraryItem } from '@/features/library/api';
 import { isOnline } from '@/features/presence/api';
@@ -133,7 +133,9 @@ export function ProfileCard({
   type CollectionSort = 'recent' | 'rating' | 'alpha';
   const [collectionView, setCollectionView] = useState<CollectionView>('all');
   const [collectionSort, setCollectionSort] = useState<CollectionSort>('recent');
-  const { items: collectionItems, isLoading: isCollectionLoading } = useCollectionItems();
+  const ownCollectionData = useCollectionItems();
+  const friendCollectionData = useCollectionItemsByUser(isOwnProfile ? undefined : profile?.id);
+  const { items: collectionItems, isLoading: isCollectionLoading } = isOwnProfile ? ownCollectionData : friendCollectionData;
   const removeFromCollection = useRemoveFromCollection();
   const hasAutoSelectedCollView = useRef(false);
   useEffect(() => {
@@ -153,6 +155,7 @@ export function ProfileCard({
 
   const logged = library.filter((i) => i.status !== 'watchlist');
   const watchlist = library.filter((i) => i.status === 'watchlist');
+  const unratedLogged = logged.filter((i) => !i.rating);
 
   const feedItems = useMemo(() => {
     const items = catFilter === 'all' ? logged : logged.filter((i) => i.type === catFilter);
@@ -461,6 +464,36 @@ export function ProfileCard({
               </Pressable>
             ) : null}
 
+            {/* Unrated logged items — rate to move to Collection */}
+            {isOwnProfile && watchlistView === 'mine' && unratedLogged.length > 0 ? (
+              <View style={styles.unratedSection}>
+                <View style={styles.unratedHeader}>
+                  <Text style={styles.unratedHeaderTitle}>Rate to add to Collection</Text>
+                  <Text style={styles.unratedHeaderSub}>You finished these but haven't rated them yet</Text>
+                </View>
+                <View style={styles.wlGrid}>
+                  {unratedLogged.map((item) => (
+                    <View key={item.id} style={styles.wlGridItem}>
+                      <View style={[styles.wlPosterWrap, styles.unratedPosterWrap]}>
+                        {item.poster ? (
+                          <Image source={{ uri: item.poster }} style={[styles.wlPoster, styles.unratedPoster]} resizeMode="cover" />
+                        ) : (
+                          <View style={[styles.wlPoster, styles.wlPosterFallback, styles.unratedPoster]}>
+                            <Text style={styles.wlPosterFallbackText} numberOfLines={2}>{item.title}</Text>
+                          </View>
+                        )}
+                      </View>
+                      <Pressable
+                        style={styles.wlRateBtn}
+                        onPress={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}>
+                        <Text style={styles.wlRateBtnText}>★ Rate it</Text>
+                      </Pressable>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             {/* Poster grid */}
             {(() => {
               const items = watchlistView === 'mine'
@@ -512,17 +545,19 @@ export function ProfileCard({
         {/* COLLECTION TAB */}
         {profileTab === 'collection' ? (
           <View style={styles.tabContent}>
-            {/* Search bar */}
-            <Pressable style={styles.collSearchRow} onPress={() => router.push('/collection-add-modal')}>
-              <SymbolView name="magnifyingglass" size={14} tintColor={Brand.muted} style={{ width: 16, height: 16, marginRight: 7 }} />
-              <Text style={styles.collSearchPlaceholder}>Search & add to your collection…</Text>
-              <Pressable
-                style={styles.collScanBtn}
-                hitSlop={8}
-                onPress={() => router.push('/collection-scan-modal')}>
-                <SymbolView name="barcode.viewfinder" size={16} tintColor="#fff" style={{ width: 18, height: 18 }} />
+            {/* Search bar — own profile only */}
+            {isOwnProfile ? (
+              <Pressable style={styles.collSearchRow} onPress={() => router.push('/collection-add-modal')}>
+                <SymbolView name="magnifyingglass" size={14} tintColor={Brand.muted} style={{ width: 16, height: 16, marginRight: 7 }} />
+                <Text style={styles.collSearchPlaceholder}>Search & add to your collection…</Text>
+                <Pressable
+                  style={styles.collScanBtn}
+                  hitSlop={8}
+                  onPress={() => router.push('/collection-scan-modal')}>
+                  <SymbolView name="barcode.viewfinder" size={16} tintColor="#fff" style={{ width: 18, height: 18 }} />
+                </Pressable>
               </Pressable>
-            </Pressable>
+            ) : null}
 
             {/* Category chips — All first, then sorted by count */}
             <View style={styles.collCatRow}>
@@ -880,7 +915,7 @@ export function ProfileCard({
                 {rateItem.isPending ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.rateLogBtnText}>Log it →</Text>
+                  <Text style={styles.rateLogBtnText}>{unratedLogged.some(i => i.id === ratingItem?.id) ? 'Add to Collection →' : 'Log it →'}</Text>
                 )}
               </Pressable>
             </>
@@ -1141,6 +1176,14 @@ function createStyles(Brand: BrandPalette) {
     wlAvatarText: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: '#fff' },
     wlLogBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 6, paddingHorizontal: 12 },
     wlLogBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#fff' },
+    unratedSection: { marginBottom: 20 },
+    unratedHeader: { marginBottom: 12 },
+    unratedHeaderTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink, marginBottom: 2 },
+    unratedHeaderSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted },
+    unratedPosterWrap: { borderRadius: 12, borderWidth: 2, borderColor: Brand.trust },
+    unratedPoster: { borderRadius: 10 },
+    wlRateBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 6, paddingHorizontal: 12, alignItems: 'center' },
+    wlRateBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#fff' },
 
     // Collection tab
     collSearchRow: {
