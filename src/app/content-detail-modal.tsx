@@ -222,10 +222,10 @@ export default function ContentDetailModal() {
 
   const isTvShow = resolvedType === 'watch' && (resolvedMediaType === 'tv' || details?.mediaType === 'tv');
   const tvSeasons = details?.seasons ?? [];
-  const activeSeason = selectedSeason ?? tvSeasons[0]?.seasonNumber ?? null;
+  const activeSeason = selectedSeason; // null = all collapsed
   const { data: tvEpisodes = [], isFetching: episodesFetching } = useTVEpisodes(
-    isTvShow ? (params.externalId ?? null) : null,
-    isTvShow ? activeSeason : null,
+    isTvShow && activeSeason !== null ? (params.externalId ?? null) : null,
+    activeSeason,
   );
 
   const { data: similarTitles = [] } = useBecauseYouRecs({
@@ -418,7 +418,7 @@ export default function ContentDetailModal() {
                   <Pressable
                     key={s.seasonNumber}
                     style={[styles.seasonPill, activeSeason === s.seasonNumber && styles.seasonPillActive]}
-                    onPress={() => setSelectedSeason(s.seasonNumber)}>
+                    onPress={() => setSelectedSeason(activeSeason === s.seasonNumber ? null : s.seasonNumber)}>
                     <Text style={[styles.seasonPillText, activeSeason === s.seasonNumber && styles.seasonPillTextActive]}>
                       S{s.seasonNumber}
                     </Text>
@@ -428,25 +428,27 @@ export default function ContentDetailModal() {
                   </Pressable>
                 ))}
               </ScrollView>
-              {episodesFetching ? (
-                <ActivityIndicator color={Brand.trust} style={{ marginTop: 8 }} />
-              ) : (
-                <View style={styles.tvEpisodeList}>
-                  {tvEpisodes.map((ep) => (
-                    <View key={ep.episodeNumber} style={styles.tvEpisodeRow}>
-                      <Text style={styles.tvEpisodeNum}>E{ep.episodeNumber}</Text>
-                      <View style={styles.tvEpisodeInfo}>
-                        <Text style={styles.tvEpisodeName} numberOfLines={1}>{ep.name}</Text>
-                        {ep.airDate ? (
-                          <Text style={styles.tvEpisodeDate}>
-                            {new Date(ep.airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                          </Text>
-                        ) : null}
+              {activeSeason !== null ? (
+                episodesFetching ? (
+                  <ActivityIndicator color={Brand.trust} style={{ marginTop: 8 }} />
+                ) : (
+                  <View style={styles.tvEpisodeList}>
+                    {tvEpisodes.map((ep) => (
+                      <View key={ep.episodeNumber} style={styles.tvEpisodeRow}>
+                        <Text style={styles.tvEpisodeNum}>E{ep.episodeNumber}</Text>
+                        <View style={styles.tvEpisodeInfo}>
+                          <Text style={styles.tvEpisodeName} numberOfLines={1}>{ep.name}</Text>
+                          {ep.airDate ? (
+                            <Text style={styles.tvEpisodeDate}>
+                              {new Date(ep.airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            </Text>
+                          ) : null}
+                        </View>
                       </View>
-                    </View>
-                  ))}
-                </View>
-              )}
+                    ))}
+                  </View>
+                )
+              ) : null}
             </View>
           ) : null}
 
