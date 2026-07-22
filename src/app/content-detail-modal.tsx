@@ -281,7 +281,6 @@ export default function ContentDetailModal() {
             <Text style={styles.modalDoneBtn}>Done</Text>
           </TouchableOpacity>
         </View>
-        <View style={styles.scrollContainer} collapsable={false}>
         <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 88 }}>
         <View style={styles.bodyContent}>
           {/* Poster on the left (kept in its natural aspect ratio, never
@@ -503,15 +502,14 @@ export default function ContentDetailModal() {
           </View>
         </View>
         </ScrollView>
-        <View style={[styles.actionBar, { position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: (insets.bottom || 16) }]}>
-          <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
-            <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
-          </Pressable>
-          <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
-            <Text style={styles.logBtnText}>Log it</Text>
-          </Pressable>
-        </View>
-        </View>
+      </View>
+      <View style={[styles.actionBar, { position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: (insets.bottom || 16) }]}>
+        <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
+          <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
+        </Pressable>
+        <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
+          <Text style={styles.logBtnText}>Log it</Text>
+        </Pressable>
       </View>
     </>
   );
@@ -538,7 +536,6 @@ function createStyles(Brand: BrandPalette) {
 
   // Body
   body: { flex: 1 },
-  scrollContainer: { flex: 1 },
   scrollArea: { flex: 1 },
   bodyContent: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
 
