@@ -279,26 +279,6 @@ export function ProfileCard({
 
   return (
     <View style={styles.card}>
-      {/* Banner */}
-      <Pressable
-        style={styles.bannerWrap}
-        onPress={isOwnProfile ? handleChangeBanner : undefined}
-        disabled={!isOwnProfile}>
-        {profile?.banner_url ? (
-          <Image source={{ uri: profile.banner_url }} style={styles.bannerImg} resizeMode="cover" />
-        ) : (
-          <View style={styles.bannerPlaceholder} />
-        )}
-        {isOwnProfile ? (
-          <View style={styles.bannerEditBadge}>
-            {uploadBanner.isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <SymbolView name="camera" size={13} tintColor="#fff" type="monochrome" />
-            )}
-          </View>
-        ) : null}
-      </Pressable>
 
       <View style={styles.contentPad}>
         {/* Avatar left + name/buttons right */}
