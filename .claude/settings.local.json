@@ -41,7 +41,11 @@
       "Bash(rsvg-convert -w 512 -h 512 /private/tmp/claude-501/-Users-adrian-Desktop-Repository/9064ec0b-212d-4b2e-810f-b1994df6ffdc/scratchpad/icon_transparent.svg -o /private/tmp/claude-501/-Users-adrian-Desktop-Repository/9064ec0b-212d-4b2e-810f-b1994df6ffdc/scratchpad/icon_transparent_512.png)",
       "Bash(sips -g pixelWidth -g pixelHeight -g hasAlpha /private/tmp/claude-501/-Users-adrian-Desktop-Repository/9064ec0b-212d-4b2e-810f-b1994df6ffdc/scratchpad/icon_transparent_512.png)",
       "Bash(xargs -I{} basename {})",
-      "Bash(supabase db *)"
+      "Bash(supabase db *)",
+      "Bash(git push *)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(xxd)"
     ]
   }
 }
