@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -266,7 +266,16 @@ export default function ContentDetailModal() {
   const isSquareCover = params.type === 'listen' || params.type === 'podcast';
 
   return (
-    <View style={[styles.sheet, styles.body]}>
+    <>
+      <Stack.Screen
+        options={{
+          presentation: 'formSheet',
+          sheetAllowedDetents: [0.92],
+          sheetGrabberVisible: true,
+          headerShown: false,
+        }}
+      />
+      <View style={[styles.sheet, styles.body]}>
       <View style={styles.modalHeader} collapsable={false}>
         <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }} activeOpacity={0.6}>
           <Text style={styles.modalDoneBtn}>Done</Text>
@@ -503,7 +512,8 @@ export default function ContentDetailModal() {
           <Text style={styles.logBtnText}>Log it</Text>
         </Pressable>
       </View>
-    </View>
+      </View>
+    </>
   );
 }
 
