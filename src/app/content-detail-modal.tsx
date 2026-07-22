@@ -275,13 +275,16 @@ export default function ContentDetailModal() {
           headerShown: false,
         }}
       />
-      <View style={[styles.sheet, styles.body]} collapsable={false}>
-        <View style={styles.modalHeader} collapsable={false}>
+      <ScrollView
+        style={styles.sheet}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 88 }}
+        stickyHeaderIndices={[0]}>
+        <View style={[styles.modalHeader, { backgroundColor: Brand.paper }]} collapsable={false}>
           <TouchableOpacity onPress={() => router.back()} hitSlop={{ top: 8, bottom: 8, left: 16, right: 8 }} activeOpacity={0.6}>
             <Text style={styles.modalDoneBtn}>Done</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 88 }}>
         <View style={styles.bodyContent}>
           {/* Poster on the left (kept in its natural aspect ratio, never
               stretched), title + meta on the right. */}
@@ -501,8 +504,7 @@ export default function ContentDetailModal() {
             ))}
           </View>
         </View>
-        </ScrollView>
-      </View>
+      </ScrollView>
       <View style={[styles.actionBar, { position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: (insets.bottom || 16) }]}>
         <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
           <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
@@ -535,8 +537,6 @@ function createStyles(Brand: BrandPalette) {
   },
 
   // Body
-  body: { flex: 1 },
-  scrollArea: { flex: 1 },
   bodyContent: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
 
   // Action bar
