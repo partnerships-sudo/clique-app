@@ -1,7 +1,8 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Post } from '@/features/feed/api';
-import { computeCompatibility } from '@/features/friends/compatibility';
+import { computeCompatibility, type CompatItem } from '@/features/friends/compatibility';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
@@ -129,6 +130,39 @@ export function useFollowers() {
       return (profiles ?? []) as Profile[];
     },
     enabled: !!user,
+  });
+}
+
+/** Full collection history for the signed-in user + everyone they follow.
+ *  Returns a Map<userId, CompatItem[]> suitable for computeCompatibility. */
+export function useCompatItems() {
+  const { user } = useSession();
+  const { data: following = [] } = useFollowing();
+
+  const allIds = useMemo(
+    () => (user ? [user.id, ...following.map((f) => f.id)] : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [user?.id, following.map((f) => f.id).join(',')],
+  );
+
+  return useQuery({
+    queryKey: ['compat-items', allIds.slice().sort().join(',')],
+    queryFn: async (): Promise<Map<string, CompatItem[]>> => {
+      const { data, error } = await supabase
+        .from('collection_items')
+        .select('user_id, title, type, sub, user_rating')
+        .in('user_id', allIds);
+      if (error) throw error;
+      const map = new Map<string, CompatItem[]>();
+      for (const row of (data ?? [])) {
+        const list = map.get(row.user_id) ?? [];
+        list.push({ title: row.title, type: row.type, rating: row.user_rating, sub: row.sub });
+        map.set(row.user_id, list);
+      }
+      return map;
+    },
+    enabled: !!user && allIds.length > 0,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

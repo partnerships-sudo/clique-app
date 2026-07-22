@@ -14,6 +14,7 @@ import { useDmThreads } from '@/features/dms/api';
 import { useFeedPosts } from '@/features/feed/api';
 import {
   useAcceptFollowRequest,
+  useCompatItems,
   useDeclineFollowRequest,
   useFollow,
   useFollowRequests,
@@ -49,6 +50,7 @@ export default function FriendsScreen() {
   const { data: requests } = useFollowRequests();
   const { data: suggestions } = useSuggestedFollows();
   const { allPosts } = useFeedPosts('all');
+  const { data: compatItemsMap } = useCompatItems();
   const { threads: dmThreads } = useDmThreads();
   const acceptRequest = useAcceptFollowRequest();
   const declineRequest = useDeclineFollowRequest();
@@ -64,7 +66,6 @@ export default function FriendsScreen() {
   const isFetching = tab === 'following' ? followingFetching : followersFetching;
   const refetch = tab === 'following' ? refetchFollowing : refetchFollowers;
 
-  const myPosts = allPosts.filter((p) => p.user_id === user?.id);
   const visibleSuggestions = (suggestions ?? []).filter((s) => !dismissedIds.has(s.id));
   const unreadFriendIds = new Set((dmThreads ?? []).filter((t) => t.isUnread).map((t) => t.friendId));
 
@@ -162,8 +163,10 @@ export default function FriendsScreen() {
           </View>
         }
         renderItem={({ item, index }: { item: Profile; index: number }) => {
+          const myItems = compatItemsMap?.get(user!.id) ?? [];
+          const friendItems = compatItemsMap?.get(item.id) ?? [];
+          const compat = computeCompatibility(myItems, friendItems);
           const friendPosts = allPosts.filter((p) => p.user_id === item.id);
-          const compat = computeCompatibility(myPosts, friendPosts);
           const activePost = [...friendPosts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null;
           return (
             <FriendCard

@@ -13,7 +13,7 @@ import {
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useSendDm } from '@/features/dms/api';
-import { useFeedPosts } from '@/features/feed/api';
+import { useCompatItems } from '@/features/follows/api';
 import { computeCompatibility } from '@/features/friends/compatibility';
 import { useFriends } from '@/features/friends/api';
 import { useBrand } from '@/hooks/use-brand';
@@ -36,24 +36,18 @@ export default function RecommendModal() {
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: friends } = useFriends();
   const sendDm = useSendDm();
-  const { allPosts } = useFeedPosts('all');
+  const { data: compatItemsMap } = useCompatItems();
 
   const compatScores = useMemo(() => {
     const map = new Map<string, number>();
-    if (!user?.id) return map;
-    const myPosts = allPosts.filter((p) => p.user_id === user.id);
-    const byUser = new Map<string, typeof allPosts>();
-    for (const p of allPosts) {
-      if (p.user_id === user.id) continue;
-      const bucket = byUser.get(p.user_id) ?? [];
-      bucket.push(p);
-      byUser.set(p.user_id, bucket);
-    }
-    for (const [uid, uPosts] of byUser) {
-      map.set(uid, computeCompatibility(myPosts, uPosts));
+    if (!user?.id || !compatItemsMap) return map;
+    const myItems = compatItemsMap.get(user.id) ?? [];
+    for (const [uid, items] of compatItemsMap) {
+      if (uid === user.id) continue;
+      map.set(uid, computeCompatibility(myItems, items));
     }
     return map;
-  }, [allPosts, user?.id]);
+  }, [compatItemsMap, user?.id]);
 
   const [note, setNote] = useState('');
   const [sent, setSent] = useState(new Set<string>());

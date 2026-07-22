@@ -33,7 +33,7 @@ import { applyGameCovers, useGameCoverOverrides } from '@/features/games/igdb';
 import { useReactions, useToggleReaction } from '@/features/feed/reactions';
 import { useLibraryItems } from '@/features/library/api';
 import { useCollectionItems, useFollowingCollections } from '@/features/collection/api';
-import { useFollowing } from '@/features/follows/api';
+import { useCompatItems, useFollowing } from '@/features/follows/api';
 import { useProfile } from '@/features/profile/api';
 import { useCloseFriendsPosts } from '@/features/close-friends/posts';
 import { useUnreadCount } from '@/features/notifications/inbox';
@@ -86,6 +86,7 @@ export default function FeedScreen() {
   const { items: collectionItems } = useCollectionItems();
   const { data: followingCollections = [] } = useFollowingCollections();
   const { data: followingProfiles = [] } = useFollowing();
+  const { data: compatItemsMap } = useCompatItems();
   const followingProfileMap = useMemo(
     () => Object.fromEntries(followingProfiles.map((p) => [p.id, p])),
     [followingProfiles],
@@ -113,20 +114,14 @@ export default function FeedScreen() {
 
   const compatScores = useMemo(() => {
     const map = new Map<string, number>();
-    if (!user?.id) return map;
-    const myPosts = allPosts.filter((p) => p.user_id === user.id);
-    const byUser = new Map<string, Post[]>();
-    for (const p of allPosts) {
-      if (p.user_id === user.id) continue;
-      const bucket = byUser.get(p.user_id) ?? [];
-      bucket.push(p);
-      byUser.set(p.user_id, bucket);
-    }
-    for (const [uid, uPosts] of byUser) {
-      map.set(uid, computeCompatibility(myPosts, uPosts));
+    if (!user?.id || !compatItemsMap) return map;
+    const myItems = compatItemsMap.get(user.id) ?? [];
+    for (const [uid, items] of compatItemsMap) {
+      if (uid === user.id) continue;
+      map.set(uid, computeCompatibility(myItems, items));
     }
     return map;
-  }, [allPosts, user?.id]);
+  }, [compatItemsMap, user?.id]);
 
   // ── Seed building ──────────────────────────────────────────────────────────
   // Seeds drive the API recommendation calls. Score = rating + recency bonus

@@ -1,6 +1,11 @@
-import type { Post } from '@/features/feed/api';
+export interface CompatItem {
+  title: string;
+  type: string;
+  rating: number | null;
+  sub: string | null;
+}
 
-export function computeCompatibility(myPosts: Post[], friendPosts: Post[]): number {
+export function computeCompatibility(myPosts: CompatItem[], friendPosts: CompatItem[]): number {
   if (!myPosts.length || !friendPosts.length) return Math.floor(Math.random() * 20) + 55;
 
   let score = 40;
