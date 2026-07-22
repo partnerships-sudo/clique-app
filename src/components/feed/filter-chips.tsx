@@ -22,6 +22,7 @@ export function FilterChips({
   hiddenTypes,
   onHide,
   onShow,
+  compact,
 }: {
   value: FeedFilterValue;
   onChange: (value: FeedFilterValue) => void;
@@ -29,6 +30,8 @@ export function FilterChips({
   hiddenTypes?: Set<EntryType>;
   onHide?: (type: EntryType) => void;
   onShow?: (type: EntryType) => void;
+  /** Render slim pill chips (icon + label inline) instead of large square tiles. */
+  compact?: boolean;
 }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -65,10 +68,27 @@ export function FilterChips({
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        style={styles.row}
-        contentContainerStyle={styles.content}>
+        style={compact ? styles.compactRow : styles.row}
+        contentContainerStyle={compact ? styles.compactContent : styles.content}>
         {visibleFilters.map((filter) => {
           const active = filter.value === value;
+          if (compact) {
+            return (
+              <Pressable
+                key={filter.value}
+                onPress={() => onChange(filter.value)}
+                style={[styles.pill, active && styles.pillActive]}>
+                <SymbolView
+                  name={filter.symbol as any}
+                  size={13}
+                  tintColor={active ? '#fff' : Brand.muted}
+                  type="monochrome"
+                  style={{ width: 14, height: 14 }}
+                />
+                <Text style={[styles.pillLabel, active && styles.pillLabelActive]}>{filter.label}</Text>
+              </Pressable>
+            );
+          }
           return (
             <Pressable
               key={filter.value}
@@ -89,11 +109,15 @@ export function FilterChips({
           );
         })}
         {customizable && hiddenFilters.length > 0 && (
-          <Pressable onPress={() => setRestoreSheetVisible(true)} style={styles.item}>
-            <View style={styles.tile}>
-              <SymbolView name="plus" size={26} tintColor={Brand.muted} type="monochrome" />
-            </View>
-            <Text style={styles.label}>Add back</Text>
+          <Pressable onPress={() => setRestoreSheetVisible(true)} style={compact ? styles.pill : styles.item}>
+            {compact ? (
+              <SymbolView name="plus" size={13} tintColor={Brand.muted} type="monochrome" style={{ width: 14, height: 14 }} />
+            ) : (
+              <View style={styles.tile}>
+                <SymbolView name="plus" size={26} tintColor={Brand.muted} type="monochrome" />
+              </View>
+            )}
+            <Text style={compact ? styles.pillLabel : styles.label}>Add back</Text>
           </Pressable>
         )}
       </ScrollView>
@@ -161,6 +185,34 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     row: { marginBottom: 14 },
     content: { gap: 10, paddingRight: 16 },
+
+    // Compact pill variant
+    compactRow: { marginBottom: 14 },
+    compactContent: { gap: 7, paddingRight: 16 },
+    pill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+      paddingHorizontal: 12,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.border,
+    },
+    pillActive: {
+      backgroundColor: Brand.trust,
+      borderColor: Brand.trust,
+    },
+    pillLabel: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 13,
+      color: Brand.muted,
+    },
+    pillLabelActive: {
+      fontFamily: BrandFonts.syneBold,
+      color: '#fff',
+    },
     item: { alignItems: 'center', gap: 7 },
     tile: {
       width: 61,

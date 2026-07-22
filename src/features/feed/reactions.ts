@@ -67,13 +67,15 @@ export function useSendStoryLike() {
       // Notify post author (skip if reacting to own post)
       if (postAuthorId !== user!.id) {
         await supabase.from('notifications').insert({
-          recipient_id: postAuthorId,
-          actor_id: user!.id,
-          kind: 'story_like',
+          user_id: postAuthorId,
+          from_user_id: user!.id,
+          from_user_name: userName,
+          type: 'story_like',
           post_id: postId,
           post_title: postTitle,
           post_type: postType,
           post_poster: postPoster ?? null,
+          read: false,
         });
       }
     },

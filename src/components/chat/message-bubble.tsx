@@ -5,10 +5,12 @@ import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import type { Message } from '@/features/chats/api';
+import { parseChatImage } from '@/features/chat-media/upload';
 import { parseRec } from '@/features/dms/rec';
 import { parseStoryReply } from '@/features/dms/story-reply';
 import { timeAgo } from '@/features/feed/time-ago';
 import { compatColor, compatEmoji } from '@/features/friends/compatibility';
+import { useAddLibraryItem } from '@/features/library/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 export function MessageBubble({
@@ -29,12 +31,36 @@ export function MessageBubble({
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [revealed, setRevealed] = useState(false);
   const blurred = isSpoiler && !revealed;
+  const addLibraryItem = useAddLibraryItem();
+  const [savedToWatchlist, setSavedToWatchlist] = useState(false);
+
+  async function handleSaveToWatchlist() {
+    if (!rec || savedToWatchlist || addLibraryItem.isPending) return;
+    await addLibraryItem.mutateAsync({
+      type: rec.type as EntryType,
+      title: rec.title,
+      sub: rec.sub ?? undefined,
+      poster: rec.poster ?? undefined,
+      extRating: rec.extRating ?? undefined,
+      intent: 'watchlist',
+      recFromUserName: message.user_name,
+      recCompatScore: rec.compatScore,
+    });
+    setSavedToWatchlist(true);
+  }
 
   const storyReply = parseStoryReply(message.content);
   const rec = storyReply ? null : parseRec(message.content);
-  const gifUrl = (!storyReply && !rec && message.content.startsWith('__gif:'))
-    ? message.content.slice(6, -2)
-    : null;
+  const chatImage = (!storyReply && !rec) ? parseChatImage(message.content) : null;
+  const gifUrl = (() => {
+    if (storyReply || rec || chatImage) return null;
+    if (message.content.startsWith('__gif:')) return message.content.slice(6, -2);
+    try {
+      const parsed = JSON.parse(message.content);
+      if (parsed.__chatGif && parsed.url) return parsed.url;
+    } catch {}
+    return null;
+  })();
 
   return (
     <View style={[styles.group, isMine && styles.groupMine]}>
@@ -160,11 +186,34 @@ export function MessageBubble({
               </View>
             ) : null}
 
-            {/* Footer: tap hint */}
+            {/* Footer: tap hint + watchlist button for received recs */}
             <View style={styles.recFooter}>
               <Text style={styles.recTapHintText}>Synopsis & cast →</Text>
+              {!isMine ? (
+                <Pressable
+                  style={[styles.recWatchlistBtn, savedToWatchlist && styles.recWatchlistBtnSaved]}
+                  onPress={handleSaveToWatchlist}
+                  disabled={savedToWatchlist || addLibraryItem.isPending}
+                  hitSlop={8}>
+                  <Text style={[styles.recWatchlistBtnText, savedToWatchlist && styles.recWatchlistBtnTextSaved]}>
+                    {addLibraryItem.isPending ? '…' : savedToWatchlist ? '✓ Saved' : '+ Watchlist'}
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
           </Pressable>
+        ) : chatImage ? (
+          /* ── Photo bubble ── */
+          <Image
+            source={{ uri: chatImage.url }}
+            style={[
+              styles.photoImage,
+              chatImage.width > 0 && chatImage.height > 0
+                ? { aspectRatio: chatImage.width / chatImage.height }
+                : undefined,
+            ]}
+            resizeMode="cover"
+          />
         ) : gifUrl ? (
           /* ── GIF bubble ── */
           <Image source={{ uri: gifUrl }} style={styles.gifImage} resizeMode="cover" />
@@ -392,6 +441,7 @@ function createStyles(Brand: BrandPalette) {
     recFooter: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       gap: 8,
       paddingHorizontal: 11,
       paddingVertical: 8,
@@ -403,6 +453,30 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interMedium,
       fontSize: 11,
       color: Brand.trust,
+    },
+    recWatchlistBtn: {
+      backgroundColor: Brand.tlight,
+      borderRadius: 20,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+    },
+    recWatchlistBtnSaved: {
+      backgroundColor: '#E8F7EE',
+    },
+    recWatchlistBtnText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 11,
+      color: Brand.trust,
+    },
+    recWatchlistBtnTextSaved: {
+      color: '#2E9E5B',
+    },
+
+    // Photo bubble
+    photoImage: {
+      width: 240,
+      borderRadius: 14,
+      backgroundColor: Brand.border,
     },
 
     // GIF bubble

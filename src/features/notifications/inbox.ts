@@ -31,14 +31,22 @@ export function useInbox() {
   return useQuery({
     queryKey: inboxKey(user?.id),
     queryFn: async (): Promise<ActivityItem[]> => {
-      // 1. Fetch in-app notifications (follows)
-      const { data: notifs, error: notifErr } = await supabase
-        .from('notifications')
-        .select('*')
-        .eq('user_id', user!.id)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      // 1. Fetch in-app notifications (follows) + profile read cursor in parallel
+      const [{ data: notifs, error: notifErr }, { data: profileData }] = await Promise.all([
+        supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', user!.id)
+          .order('created_at', { ascending: false })
+          .limit(50),
+        supabase
+          .from('profiles')
+          .select('reactions_read_at')
+          .eq('id', user!.id)
+          .maybeSingle(),
+      ]);
       if (notifErr) throw notifErr;
+      const reactionsReadAt: string | null = profileData?.reactions_read_at ?? null;
 
       // 2. Fetch my posts so we can find reactions on them
       const { data: myPosts, error: postErr } = await supabase
@@ -83,7 +91,7 @@ export function useInbox() {
           fromUserName: r.user_name,
           fromAvatarUrl: avatarMap[r.user_id] ?? null,
           message: `${r.user_name} reacted "Me too!" to your post`,
-          read: true,
+          read: reactionsReadAt !== null && r.created_at <= reactionsReadAt,
           createdAt: r.created_at,
           postId: r.post_id,
           postTitle: postById[r.post_id]?.title,
@@ -141,12 +149,13 @@ export function useMarkAllRead() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
-        .from('notifications')
-        .update({ read: true })
-        .eq('user_id', user!.id)
-        .eq('read', false);
-      if (error) throw error;
+      const now = new Date().toISOString();
+      const [{ error: notifErr }, { error: profileErr }] = await Promise.all([
+        supabase.from('notifications').update({ read: true }).eq('user_id', user!.id).eq('read', false),
+        supabase.from('profiles').update({ reactions_read_at: now }).eq('id', user!.id),
+      ]);
+      if (notifErr) throw notifErr;
+      if (profileErr) throw profileErr;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: inboxKey(user?.id) });

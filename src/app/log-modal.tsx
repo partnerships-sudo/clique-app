@@ -93,14 +93,14 @@ export default function LogModal() {
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
-  scroll: { flex: 1, backgroundColor: Brand.card },
-  content: { padding: Spacing.four, paddingBottom: Spacing.four },
-  heading: {
-    fontFamily: BrandFonts.syneExtraBold,
-    fontSize: 19,
-    color: Brand.ink,
-    marginBottom: 18,
-  },
-  entrySection: { marginTop: 20 },
+    scroll: { flex: 1, backgroundColor: Brand.card },
+    content: { padding: Spacing.four, paddingBottom: Spacing.four },
+    heading: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 19,
+      color: Brand.ink,
+      marginBottom: 18,
+    },
+    entrySection: { marginTop: 20 },
   });
 }

@@ -3,6 +3,49 @@ import { useSession } from '@/hooks/use-session';
 import { useProfile } from '@/features/profile/api';
 import { supabase } from '@/lib/supabase';
 
+export function useSendPremiereMessage() {
+  const { user } = useSession();
+  const { data: profile } = useProfile();
+  return useMutation({
+    mutationFn: async ({
+      premiereId,
+      content,
+      relativeMs,
+    }: {
+      premiereId: string;
+      content: string;
+      relativeMs: number | null;
+    }) => {
+      const { error } = await supabase.from('premiere_messages').insert({
+        premiere_id: premiereId,
+        user_id: user!.id,
+        user_name: profile?.full_name ?? profile?.username ?? 'Someone',
+        user_avatar_url: profile?.avatar_url ?? null,
+        content,
+        relative_ms: relativeMs,
+      });
+      if (error) throw error;
+    },
+  });
+}
+
+export function useEndPremiere() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (premiereId: string) => {
+      const { error } = await supabase
+        .from('premieres')
+        .update({ status: 'ended' })
+        .eq('id', premiereId);
+      if (error) throw error;
+    },
+    onSuccess: (_data, premiereId) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere', premiereId] });
+      queryClient.invalidateQueries({ queryKey: ['premieres'] });
+    },
+  });
+}
+
 export type PremiereStatus = 'waiting' | 'live' | 'ended' | 'replay';
 
 export interface Premiere {
@@ -141,5 +184,38 @@ export function usePremiereMessages(premiereId: string | null) {
       return data as PremiereMessage[];
     },
     enabled: !!premiereId,
+  });
+}
+
+export function useWaitingRoomMessages(premiereId: string | null) {
+  return useQuery({
+    queryKey: ['waiting-room-messages', premiereId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premiere_messages')
+        .select('*')
+        .eq('premiere_id', premiereId!)
+        .is('relative_ms', null)
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      return data as PremiereMessage[];
+    },
+    enabled: !!premiereId,
+  });
+}
+
+export function usePremiereViewerCount(premiereId: string | null) {
+  return useQuery({
+    queryKey: ['premiere-viewers', premiereId],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('premiere_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('premiere_id', premiereId!);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    enabled: !!premiereId,
+    refetchInterval: 10_000,
   });
 }

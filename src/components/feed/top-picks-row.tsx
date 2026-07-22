@@ -64,11 +64,12 @@ function TopPickCard({
         </View>
       )}
 
+      <Text style={styles.rankText}>{rank}</Text>
+
       <LinearGradient
         colors={['transparent', 'rgba(8, 5, 24, 0.55)', 'rgba(8, 5, 24, 0.95)']}
         locations={[0, 0.45, 1]}
         style={styles.infoGradient}>
-        <Text style={styles.rankText}>{rank}</Text>
         <Text style={styles.title} numberOfLines={2}>
           {entry.title}
         </Text>
@@ -140,10 +141,17 @@ function createStyles(Brand: BrandPalette) {
       paddingTop: 60,
     },
     rankText: {
+      position: 'absolute',
+      top: 8,
+      left: 10,
       fontFamily: BrandFonts.syneExtraBold,
-      fontSize: 32,
-      lineHeight: 34,
+      fontSize: 28,
+      lineHeight: 30,
       color: '#fff',
+      zIndex: 1,
+      textShadowColor: 'rgba(0,0,0,0.4)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 4,
     },
     title: {
       fontFamily: BrandFonts.syneBold,

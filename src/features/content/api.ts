@@ -339,6 +339,33 @@ async function fetchWikipediaGameSummary(title: string): Promise<string> {
   }
 }
 
+const EXTRA_GAME_STORES: Record<string, Omit<StoreLink, 'url'>> = {
+  'Epic Games': {
+    name: 'Epic Games',
+    logo: '🎮',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=epicgames.com&sz=64',
+    price: 'PC',
+    cta: 'Find on Epic',
+    color: '#2D2D2D',
+  },
+  'GOG': {
+    name: 'GOG',
+    logo: '🔮',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=gog.com&sz=64',
+    price: 'PC — DRM-free',
+    cta: 'Find on GOG',
+    color: '#86328A',
+  },
+  'itch.io': {
+    name: 'itch.io',
+    logo: '🕹',
+    logoUrl: 'https://www.google.com/s2/favicons?domain=itch.io&sz=64',
+    price: 'PC / Mac / Linux',
+    cta: 'Find on itch.io',
+    color: '#FA5C5C',
+  },
+};
+
 async function fetchGameDetails(title: string, externalId?: string): Promise<ContentDetails> {
   const igdbId = externalId ? Number(externalId) : null;
   const detail = igdbId
@@ -352,10 +379,17 @@ async function fetchGameDetails(title: string, externalId?: string): Promise<Con
     return { ...EMPTY_DETAILS, overview };
   }
 
-  const stores = detail.platforms
+  const platformStores = detail.platforms
     .map((bucket) => GAME_STORE_BY_PLATFORM[bucket])
     .filter((store): store is (typeof GAME_STORE_BY_PLATFORM)[string] => !!store)
     .map((store) => ({ ...store, url: detail.storeUrls[store.name] ?? store.url(title) }));
+
+  // Append any IGDB-sourced store URLs (Epic Games, GOG) not covered by platform buckets
+  const platformNames = new Set(platformStores.map((s) => s.name));
+  const extraStores = (Object.entries(detail.storeUrls) as [string, string][])
+    .filter(([name]) => !platformNames.has(name) && EXTRA_GAME_STORES[name])
+    .map(([name, url]) => ({ ...EXTRA_GAME_STORES[name]!, url }));
+  const stores = [...platformStores, ...extraStores];
 
   return {
     ...EMPTY_DETAILS,

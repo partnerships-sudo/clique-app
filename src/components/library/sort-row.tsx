@@ -41,7 +41,7 @@ export function SortRow({
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+    row: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10, marginBottom: 16 },
     label: { fontSize: 12.5, color: Brand.muted, fontFamily: BrandFonts.interRegular, marginRight: 2 },
     btn: {
       borderWidth: 1.5,

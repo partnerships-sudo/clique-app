@@ -55,7 +55,7 @@ export function ShareSheet({ visible, onClose, post, isMine, onWatchlist }: Prop
 
   function handleLogIt() {
     close();
-    router.push({ pathname: '/log-modal', params: { title: post.title, type: post.type, sub: post.sub, poster: post.poster } });
+    router.push({ pathname: '/log-modal', params: { intent: 'log', prefillTitle: post.title, prefillType: post.type, prefillSub: post.sub, prefillPoster: post.poster } });
   }
 
   function handleWatchlist() {

@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Alert,
   FlatList,
@@ -15,35 +15,35 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { usePremiere, useJoinPremiere } from '@/features/premieres/api';
+import {
+  usePremiere,
+  useJoinPremiere,
+  useSendPremiereMessage,
+  useWaitingRoomMessages,
+  type PremiereMessage,
+} from '@/features/premieres/api';
 import { addPremiereToCalendar } from '@/features/premieres/use-add-to-calendar';
-import { useProfile } from '@/features/profile/api';
 import { useSession } from '@/hooks/use-session';
 import { useBrand } from '@/hooks/use-brand';
 import { supabase } from '@/lib/supabase';
-
-interface WaitingMessage {
-  id: string;
-  user_name: string;
-  user_avatar_url: string | null;
-  content: string;
-  created_at: string;
-}
 
 export default function PremiereWaitingRoom() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { user } = useSession();
-  const { data: profile } = useProfile();
   const params = useLocalSearchParams<{ id: string }>();
 
   const { data: premiere } = usePremiere(params.id ?? null);
   const joinPremiere = useJoinPremiere();
+  const sendMsg = useSendPremiereMessage();
+  const { data: dbMessages = [], isSuccess: messagesLoaded } = useWaitingRoomMessages(params.id ?? null);
 
-  const [messages, setMessages] = useState<WaitingMessage[]>([]);
+  const [messages, setMessages] = useState<PremiereMessage[]>([]);
   const [text, setText] = useState('');
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
+  const initializedRef = useRef(false);
+  const redirectedRef = useRef(false);
   const isHost = premiere?.host_user_id === user?.id;
 
   // Join on mount
@@ -51,59 +51,109 @@ export default function PremiereWaitingRoom() {
     if (params.id) joinPremiere.mutate(params.id);
   }, [params.id]);
 
+  // Seed messages from DB once on first load
+  useEffect(() => {
+    if (messagesLoaded && !initializedRef.current) {
+      initializedRef.current = true;
+      setMessages(dbMessages);
+      if (dbMessages.length > 0) {
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 50);
+      }
+    }
+  }, [messagesLoaded]);
+
+  // Realtime: new waiting room messages written to DB
+  useEffect(() => {
+    if (!params.id) return;
+    const channel = supabase
+      .channel(`waiting-msgs-${params.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'premiere_messages',
+          filter: `premiere_id=eq.${params.id}`,
+        },
+        (payload) => {
+          const msg = payload.new as PremiereMessage;
+          if (msg.relative_ms === null) {
+            setMessages((prev) => {
+              if (prev.some((m) => m.id === msg.id)) return prev;
+              return [...prev, msg];
+            });
+            setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+          }
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [params.id]);
+
+  // Realtime: redirect participants when host starts premiere
+  useEffect(() => {
+    if (!params.id) return;
+    const channel = supabase
+      .channel(`premiere-status-${params.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'premieres',
+          filter: `id=eq.${params.id}`,
+        },
+        (payload) => {
+          if (payload.new.status === 'live' && !redirectedRef.current) {
+            redirectedRef.current = true;
+            router.replace({ pathname: '/premiere-live', params: { id: params.id } });
+          }
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [params.id]);
+
   // Countdown to air time
   useEffect(() => {
     if (!premiere?.air_date) return;
-    const airTime = new Date(premiere.air_date + 'T20:00:00').getTime();
+    const timeSuffix = (() => {
+      const raw = premiere.air_time;
+      if (!raw) return 'T20:00:00';
+      const m = raw.match(/^(\d+):(\d+)\s*(AM|PM)/i);
+      if (!m) return 'T20:00:00';
+      let h = parseInt(m[1], 10);
+      const min = m[2];
+      const period = m[3].toUpperCase();
+      if (period === 'PM' && h !== 12) h += 12;
+      if (period === 'AM' && h === 12) h = 0;
+      return `T${String(h).padStart(2, '0')}:${min}:00`;
+    })();
+    const target = new Date(premiere.air_date + timeSuffix).getTime();
     const tick = () => {
-      const diff = Math.max(0, Math.floor((airTime - Date.now()) / 1000));
+      const diff = Math.max(0, Math.floor((target - Date.now()) / 1000));
       setSecondsLeft(diff);
     };
     tick();
     const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
-  }, [premiere?.air_date]);
+  }, [premiere?.air_date, premiere?.air_time]);
 
-  // Realtime waiting room chat
-  useEffect(() => {
-    if (!params.id) return;
-    const channel = supabase
-      .channel(`waiting-${params.id}`)
-      .on('broadcast', { event: 'waiting_message' }, ({ payload }) => {
-        setMessages((prev) => [...prev, payload as WaitingMessage]);
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-      })
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [params.id]);
-
-  async function sendMessage() {
+  function sendMessage() {
     if (!text.trim() || !params.id) return;
-    const msg: WaitingMessage = {
-      id: Math.random().toString(),
-      user_name: profile?.full_name ?? profile?.username ?? 'You',
-      user_avatar_url: profile?.avatar_url ?? null,
-      content: text.trim(),
-      created_at: new Date().toISOString(),
-    };
+    const content = text.trim();
     setText('');
-    setMessages((prev) => [...prev, msg]);
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-
-    await supabase.channel(`waiting-${params.id}`).send({
-      type: 'broadcast',
-      event: 'waiting_message',
-      payload: msg,
-    });
+    sendMsg.mutate({ premiereId: params.id, content, relativeMs: null });
   }
 
   async function goLive() {
     if (!params.id) return;
-    Alert.alert('Start Premiere?', 'This will wipe the waiting room chat and open the live chat.', [
+    Alert.alert('Start Premiere?', 'This will open the live chat for everyone in the room.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Start!',
         onPress: async () => {
+          redirectedRef.current = true;
           await supabase
             .from('premieres')
             .update({ status: 'live', live_started_at: new Date().toISOString() })

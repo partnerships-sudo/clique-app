@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useGroupReadState } from '@/features/chats/read-state';
@@ -34,6 +35,7 @@ export interface GroupMessage {
 export function useGroupThreads() {
   const { user } = useSession();
   const { loaded: readLoaded, isUnread, markRead } = useGroupReadState();
+
   const query = useQuery({
     queryKey: ['group-threads', user?.id],
     queryFn: async () => {
@@ -44,54 +46,74 @@ export function useGroupThreads() {
       if (mErr) throw mErr;
 
       const chatIds = (memberRows ?? []).map((r) => r.chat_id);
-      if (!chatIds.length) return [] as GroupThread[];
+      if (!chatIds.length) return { groups: [], memberCounts: {} as Record<string, number>, messages: [] as { chat_id: string; user_id: string; text: string; created_at: string }[] };
 
-      const { data: groups, error: gErr } = await supabase
-        .from('group_chats')
-        .select('id, name, created_at')
-        .in('id', chatIds)
-        .order('created_at', { ascending: false });
-      if (gErr) throw gErr;
+      const [groupsRes, allMembersRes, messagesRes] = await Promise.all([
+        supabase
+          .from('group_chats')
+          .select('id, name, created_at')
+          .in('id', chatIds)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('group_chat_members')
+          .select('chat_id')
+          .in('chat_id', chatIds),
+        supabase
+          .from('group_chat_messages')
+          .select('chat_id, user_id, text, created_at')
+          .in('chat_id', chatIds)
+          .order('created_at', { ascending: false })
+          .limit(200),
+      ]);
 
-      const threads: GroupThread[] = await Promise.all(
-        (groups ?? []).map(async (g) => {
-          const { count } = await supabase
-            .from('group_chat_members')
-            .select('*', { count: 'exact', head: true })
-            .eq('chat_id', g.id);
+      if (groupsRes.error) throw groupsRes.error;
 
-          const { data: last } = await supabase
-            .from('group_chat_messages')
-            .select('text, created_at')
-            .eq('chat_id', g.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .maybeSingle();
+      const memberCounts: Record<string, number> = {};
+      for (const row of allMembersRes.data ?? []) {
+        memberCounts[row.chat_id] = (memberCounts[row.chat_id] ?? 0) + 1;
+      }
 
-          return {
-            id: g.id,
-            name: g.name,
-            memberCount: count ?? 0,
-            lastText: last?.text ?? null,
-            lastTime: last?.created_at ?? g.created_at,
-            isUnread: false,
-            unreadCount: 0, // both filled below after read state loads
-          };
-        }),
-      );
-
-      return threads;
+      return {
+        groups: groupsRes.data ?? [],
+        memberCounts,
+        messages: (messagesRes.data ?? []) as { chat_id: string; user_id: string; text: string; created_at: string }[],
+      };
     },
     enabled: !!user,
-    staleTime: 0,
-    refetchOnMount: 'always' as const,
-    refetchInterval: 15_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
-  const threads = (query.data ?? []).map((t) => {
-    const unread = readLoaded && !!t.lastText && isUnread(t.id, t.lastTime);
-    return { ...t, isUnread: unread, unreadCount: unread ? 1 : 0 };
-  });
+  const { groups = [], memberCounts = {}, messages = [] } = query.data ?? {};
+
+  const messagesByChatId = useMemo(() => {
+    const map = new Map<string, typeof messages>();
+    for (const m of messages) {
+      const bucket = map.get(m.chat_id) ?? [];
+      bucket.push(m);
+      map.set(m.chat_id, bucket);
+    }
+    return map;
+  }, [messages]);
+
+  const threads: GroupThread[] = useMemo(() => {
+    return groups.map((g) => {
+      const chatMessages = messagesByChatId.get(g.id) ?? [];
+      const lastMsg = chatMessages[0]; // sorted desc from query
+      const unreadCount = readLoaded
+        ? chatMessages.filter((m) => m.user_id !== user?.id && isUnread(g.id, m.created_at)).length
+        : 0;
+      return {
+        id: g.id,
+        name: g.name,
+        memberCount: memberCounts[g.id] ?? 0,
+        lastText: lastMsg?.text ?? null,
+        lastTime: lastMsg?.created_at ?? g.created_at,
+        isUnread: unreadCount > 0,
+        unreadCount,
+      };
+    });
+  }, [groups, memberCounts, messagesByChatId, readLoaded, isUnread, user?.id]);
 
   return { ...query, threads, markRead };
 }
@@ -172,8 +194,8 @@ export function useGroupMessages(groupId: string | null) {
       })) as GroupMessage[];
     },
     enabled: !!groupId,
-    staleTime: 0,
-    refetchInterval: 5_000,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
   });
 }
 

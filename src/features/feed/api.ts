@@ -1,6 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
 import type { EntryType } from '@/constants/theme';
+import { useBlockedMutedIds } from '@/features/blocks/api';
 import { useFollowing } from '@/features/follows/api';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
@@ -26,28 +28,31 @@ export interface Post {
 
 export type FeedFilterValue = EntryType | 'all';
 
-function postsQueryKey(userId: string | undefined, followingIds: string[]) {
-  return ['posts', userId, ...followingIds.sort()] as const;
-}
+const FEED_PAGE_SIZE = 30;
 
-/** All posts for the signed-in user plus everyone they follow. */
-function useAllPosts() {
+function useInfiniteFeedPosts() {
   const { user } = useSession();
   const { data: following } = useFollowing();
-  const followingIds = (following ?? []).map((f) => f.id);
+  const { blockedIds, mutedIds } = useBlockedMutedIds();
+  const followingIds = (following ?? [])
+    .map((f) => f.id)
+    .filter((id) => !blockedIds.has(id) && !mutedIds.has(id));
+  const ids = user ? [user.id, ...followingIds] : [];
 
-  return useQuery({
-    queryKey: postsQueryKey(user?.id, followingIds),
-    queryFn: async () => {
-      const ids = [user!.id, ...followingIds];
+  return useInfiniteQuery({
+    queryKey: ['posts-feed', user?.id, followingIds.slice().sort().join(',')],
+    queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
+      let postsQuery = supabase
+        .from('posts')
+        .select('*')
+        .in('user_id', ids)
+        .order('created_at', { ascending: false })
+        .limit(FEED_PAGE_SIZE);
+
+      if (pageParam) postsQuery = postsQuery.lt('created_at', pageParam);
 
       const [postsResult, profilesResult] = await Promise.all([
-        supabase
-          .from('posts')
-          .select('*')
-          .in('user_id', ids)
-          .order('created_at', { ascending: false })
-          .limit(50),
+        postsQuery,
         supabase.from('profiles').select('id, avatar_url, rating_icon').in('id', ids),
       ]);
 
@@ -57,26 +62,37 @@ function useAllPosts() {
         (profilesResult.data ?? []).map((p) => [p.id, p as { avatar_url: string | null; rating_icon: string | null }]),
       );
 
-      return (postsResult.data as any[]).map((post) => ({
+      const posts = (postsResult.data as any[]).map((post) => ({
         ...post,
         user_avatar_url: profileMap[post.user_id]?.avatar_url ?? null,
         user_rating_icon: profileMap[post.user_id]?.rating_icon ?? null,
       })) as Post[];
+
+      return {
+        posts,
+        nextCursor: posts.length === FEED_PAGE_SIZE ? posts[posts.length - 1].created_at : undefined,
+      };
     },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
     enabled: !!user,
   });
 }
 
 export function useFeedPosts(filterType: FeedFilterValue) {
-  const query = useAllPosts();
-  const posts = query.data ?? [];
-  const filtered = filterType === 'all' ? posts : posts.filter((p) => p.type === filterType);
-  return { ...query, posts: filtered, allPosts: posts };
+  const query = useInfiniteFeedPosts();
+  const allPosts = useMemo(
+    () => query.data?.pages.flatMap((p) => p.posts) ?? [],
+    [query.data],
+  );
+  const filtered = filterType === 'all' ? allPosts : allPosts.filter((p) => p.type === filterType);
+  return { ...query, posts: filtered, allPosts };
 }
 
 /** Trending source for the "Global" feed view: recent posts from every user, not just friends. */
 export function useGlobalPosts() {
-  return useQuery({
+  const { blockedIds, mutedIds } = useBlockedMutedIds();
+  const query = useQuery({
     queryKey: ['posts', 'global'],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -85,8 +101,85 @@ export function useGlobalPosts() {
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
-      return data as Post[];
+      const posts = data as Post[];
+      const uniqueUserIds = [...new Set(posts.map((p) => p.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, avatar_url')
+        .in('id', uniqueUserIds);
+      const avatarMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.avatar_url]));
+      return posts.map((p) => ({ ...p, user_avatar_url: avatarMap[p.user_id] ?? null })) as Post[];
     },
+  });
+  const data = useMemo(
+    () => (query.data ?? []).filter((p) => !blockedIds.has(p.user_id) && !mutedIds.has(p.user_id)),
+    [query.data, blockedIds, mutedIds],
+  );
+  return { ...query, data };
+}
+
+/** All logged items (not watchlist) from the user + people they follow.
+ *  Used for circle trending — gives a full history view vs the paginated feed. */
+export function useCircleLogActivity() {
+  const { user } = useSession();
+  const { data: following } = useFollowing();
+  const { blockedIds, mutedIds } = useBlockedMutedIds();
+
+  const followingIds = useMemo(
+    () =>
+      (following ?? [])
+        .map((f: { id: string }) => f.id)
+        .filter((id: string) => !blockedIds.has(id) && !mutedIds.has(id)),
+    [following, blockedIds, mutedIds],
+  );
+
+  return useQuery({
+    queryKey: ['circle-log-activity', user?.id, followingIds.slice().sort().join(',')],
+    queryFn: async () => {
+      const ids = [user!.id, ...followingIds];
+      const { data, error } = await supabase
+        .from('library')
+        .select('user_id, type, title, sub, poster, rating, external_id, media_type')
+        .in('user_id', ids)
+        .neq('status', 'watchlist')
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (error) throw error;
+
+      const rows = (data ?? []) as {
+        user_id: string; type: EntryType; title: string; sub: string | null;
+        poster: string | null; rating: number | null; external_id: string | null; media_type: string | null;
+      }[];
+
+      const uniqueUserIds = [...new Set(rows.map((r) => r.user_id))];
+      if (!uniqueUserIds.length) return [];
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_url')
+        .in('id', uniqueUserIds);
+      const profileMap = Object.fromEntries(
+        (profiles ?? []).map((p: any) => [
+          p.id,
+          { name: p.full_name ?? p.username ?? 'Someone', avatarUrl: p.avatar_url ?? null },
+        ]),
+      );
+
+      return rows.map((r) => ({
+        user_name: profileMap[r.user_id]?.name ?? 'Someone',
+        user_avatar_url: profileMap[r.user_id]?.avatarUrl ?? null,
+        title: r.title,
+        sub: r.sub,
+        type: r.type,
+        poster: r.poster,
+        rating: r.rating,
+        external_id: r.external_id,
+        media_type: r.media_type,
+      }));
+    },
+    enabled: !!user && !!following,
+    staleTime: 60_000,
+    refetchInterval: 120_000,
   });
 }
 
@@ -131,7 +224,25 @@ export function useCreatePost() {
       return data as Post;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });
+    },
+  });
+}
+
+export function useUpdatePost() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { postId: string; note: string | null; rating: number | null; visibility: 'everyone' | 'close_friends' }) => {
+      const { error } = await supabase
+        .from('posts')
+        .update({ note: input.note, rating: input.rating, visibility: input.visibility })
+        .eq('id', input.postId)
+        .eq('user_id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });
     },
   });
 }
@@ -145,7 +256,7 @@ export function useDeletePost() {
       if (error) throw error;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['posts', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });
     },
   });
 }

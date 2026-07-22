@@ -512,6 +512,7 @@ export function useFollow() {
       queryClient.invalidateQueries({ queryKey: ['followers-count', targetUserId] });
       queryClient.invalidateQueries({ queryKey: ['suggested-follows', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['mutual-follows', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });
     },
   });
 }
@@ -531,6 +532,7 @@ export function useUnfollow() {
     onSuccess: (_data, targetUserId) => {
       queryClient.invalidateQueries({ queryKey: followingQueryKey(user?.id) });
       queryClient.invalidateQueries({ queryKey: followStatusQueryKey(user?.id, targetUserId) });
+      queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });
       queryClient.invalidateQueries({ queryKey: ['followers-count', targetUserId] });
       queryClient.invalidateQueries({ queryKey: ['mutual-follows', user?.id] });
     },

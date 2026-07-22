@@ -10,6 +10,7 @@ import { TIER_COLORS, type BadgeDef } from '@/features/badges/catalog';
 import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
 import { useMoveToLibrary, useRateLibraryItem, useRemoveLibraryItem, type LibraryItem } from '@/features/library/api';
+import { isOnline } from '@/features/presence/api';
 import { useUploadBanner, type Profile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { LibCard } from '@/components/library/lib-card';
@@ -179,6 +180,28 @@ export function ProfileCard({
     if (loggedDates.has(key)) streakDays++;
     else if (offset > 0) break;
   }
+
+  // Longest streak: scan all unique log dates in chronological order
+  let longestStreak = streakDays;
+  if (logged.length > 0) {
+    const sortedDays = [...loggedDates]
+      .map((key) => {
+        const [y, m, day] = key.split('-').map(Number);
+        const d = new Date(y, m, day);
+        return d.getTime();
+      })
+      .sort((a, b) => a - b);
+    let run = 1;
+    const MS_PER_DAY = 86_400_000;
+    for (let i = 1; i < sortedDays.length; i++) {
+      if (sortedDays[i] - sortedDays[i - 1] === MS_PER_DAY) {
+        run++;
+        if (run > longestStreak) longestStreak = run;
+      } else {
+        run = 1;
+      }
+    }
+  }
   const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const d = new Date(today);
@@ -266,7 +289,7 @@ export function ProfileCard({
                 </View>
               )}
             </View>
-            <View style={styles.onlineDot} />
+            {isOnline(profile?.last_seen_at) && <View style={styles.onlineDot} />}
           </View>
 
           <View style={styles.headerInfo}>
@@ -595,7 +618,7 @@ export function ProfileCard({
             <View style={styles.statsBox}>
               <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
                 <View style={styles.statNumRow}>
-                  <SymbolView name="archivebox.fill" size={14} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
+                  <SymbolView name="archivebox.fill" size={18} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
                   <Text style={[styles.statNum, styles.statNumAccent]}>{logged.length}</Text>
                 </View>
                 <Text style={styles.statLbl}>LOGGED</Text>
@@ -604,7 +627,7 @@ export function ProfileCard({
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowersPress} disabled={!onFollowersPress} hitSlop={4}>
                 <View style={styles.statNumRow}>
-                  <SymbolView name="person.2.fill" size={14} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
+                  <SymbolView name="person.2.fill" size={18} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
                   <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
                 </View>
                 <Text style={styles.statLbl}>FOLLOWERS</Text>
@@ -613,7 +636,7 @@ export function ProfileCard({
               <View style={styles.statDiv} />
               <Pressable style={styles.stat} onPress={onFollowingPress} disabled={!onFollowingPress} hitSlop={4}>
                 <View style={styles.statNumRow}>
-                  <SymbolView name="person.fill" size={14} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
+                  <SymbolView name="person.fill" size={18} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
                   <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
                 </View>
                 <Text style={styles.statLbl}>FOLLOWING</Text>
@@ -650,7 +673,7 @@ export function ProfileCard({
               <View style={styles.streakDivider} />
               <View style={styles.streakRight}>
                 <Text style={styles.longestLabel}>Longest Streak</Text>
-                <Text style={styles.longestDays}>{streakDays}</Text>
+                <Text style={styles.longestDays}>{longestStreak}</Text>
                 <Text style={styles.longestUnit}>days</Text>
               </View>
             </View>
@@ -985,11 +1008,11 @@ function createStyles(Brand: BrandPalette) {
     tabRow: {
       flexDirection: 'row',
       width: '100%',
-      marginBottom: 11,
+      marginBottom: 7,
       borderBottomWidth: 1,
       borderBottomColor: Brand.border,
     },
-    tab: { flex: 1, alignItems: 'center', paddingBottom: 12 },
+    tab: { flex: 1, alignItems: 'center', paddingBottom: 8 },
     tabActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
     tabLabel: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted },
     tabLabelActive: { color: Brand.ink, fontFamily: BrandFonts.syneBold },
@@ -1007,7 +1030,7 @@ function createStyles(Brand: BrandPalette) {
     },
     stat: { flex: 1, alignItems: 'flex-start', paddingHorizontal: 14 },
     statNumRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 6, marginBottom: 2 },
-    statNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: Brand.ink },
+    statNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, color: Brand.ink },
     statNumAccent: { color: Brand.trust },
     statLbl: {
       fontFamily: BrandFonts.syneBold,
@@ -1083,7 +1106,7 @@ function createStyles(Brand: BrandPalette) {
     chipIcon: { width: 17, height: 17 },
     chipText: { fontFamily: BrandFonts.syneBold, fontSize: 8.5, color: Brand.muted, textAlign: 'center' },
     chipTextActive: { color: '#fff' },
-    feedSortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
+    feedSortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 14 },
     feedSortLabel: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginRight: 2 },
     feedSortBtn: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 14 },
     feedSortBtnActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },

@@ -1,6 +1,8 @@
+import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
+import { useBlockedMutedIds } from '@/features/blocks/api';
 import { useChatReadState } from '@/features/chats/read-state';
 import { useDmThreads } from '@/features/dms/api';
 import { useExtendedNetwork } from '@/features/follows/api';
@@ -43,6 +45,7 @@ export function useChatThreads() {
   const { user } = useSession();
   const { data: extendedNetwork } = useExtendedNetwork();
   const { loaded: readStateLoaded, isUnread, markRead } = useChatReadState();
+  const { blockedIds } = useBlockedMutedIds();
 
   const allIds = extendedNetwork ?? (user ? [user.id] : []);
 
@@ -73,15 +76,17 @@ export function useChatThreads() {
 
       return { messages: msgs, posterByTitle };
     },
-    // Wait for the extended network to load so the social-graph query is complete
-    enabled: !!user && extendedNetwork !== undefined,
-    staleTime: 0,
-    refetchOnMount: 'always' as const,
-    refetchInterval: 15_000,
+    enabled: !!user,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
-  const messages = query.data?.messages ?? [];
+  const allMessages = query.data?.messages ?? [];
   const posterByTitle = query.data?.posterByTitle ?? new Map<string, string | null>();
+
+  // Hide messages from blocked users entirely — both from the thread preview
+  // and the unread count, so blocking someone in a content chat fully silences them.
+  const messages = allMessages.filter((m) => m.user_id === user?.id || !blockedIds.has(m.user_id));
 
   // Count unread messages per title
   const unreadCountMap = new Map<string, number>();
@@ -115,7 +120,9 @@ export function useChatThreads() {
 }
 
 export function useThreadMessages(title: string | null) {
-  return useQuery({
+  const { user } = useSession();
+  const { blockedIds } = useBlockedMutedIds();
+  const query = useQuery({
     queryKey: ['messages', title],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -128,9 +135,14 @@ export function useThreadMessages(title: string | null) {
       return data as Message[];
     },
     enabled: !!title,
-    staleTime: 0,
-    refetchInterval: 5_000,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
   });
+  const data = useMemo(
+    () => (query.data ?? []).filter((m) => m.user_id === user?.id || !blockedIds.has(m.user_id)),
+    [query.data, user?.id, blockedIds],
+  );
+  return { ...query, data };
 }
 
 export function useSendMessage() {

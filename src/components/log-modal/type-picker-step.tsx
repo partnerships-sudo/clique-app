@@ -1,16 +1,19 @@
+import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
-import { useBrand, useTypeColors } from '@/hooks/use-brand';
+import { useBrand } from '@/hooks/use-brand';
 
-const TYPES: { value: EntryType; label: string }[] = [
-  { value: 'watch', label: 'TV & Film' },
-  { value: 'read', label: 'Books' },
-  { value: 'play', label: 'Games' },
-  { value: 'listen', label: 'Music' },
-  { value: 'podcast', label: 'Podcast' },
+const TYPES: { value: EntryType; label: string; symbol: string }[] = [
+  { value: 'watch', label: 'TV & Film', symbol: 'tv' },
+  { value: 'read', label: 'Books', symbol: 'book' },
+  { value: 'play', label: 'Games', symbol: 'gamecontroller' },
+  { value: 'listen', label: 'Music', symbol: 'headphones' },
+  { value: 'podcast', label: 'Podcasts', symbol: 'mic' },
 ];
+
+const CIRCLE = 90;
 
 export function TypePickerStep({
   value,
@@ -20,46 +23,64 @@ export function TypePickerStep({
   onSelect: (type: EntryType) => void;
 }) {
   const Brand = useBrand();
-  const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+
+  const row1 = TYPES.slice(0, 3);
+  const row2 = TYPES.slice(3);
+
+  function renderItem(t: typeof TYPES[number]) {
+    const selected = t.value === value;
+    return (
+      <Pressable key={t.value} style={styles.item} onPress={() => onSelect(t.value)}>
+        <View style={[styles.circle, selected && styles.circleSelected]}>
+          <SymbolView
+            name={t.symbol as any}
+            size={32}
+            tintColor={selected ? Brand.trust : Brand.muted}
+            type="monochrome"
+          />
+        </View>
+        <Text style={[styles.label, selected && styles.labelSelected]}>{t.label}</Text>
+      </Pressable>
+    );
+  }
+
   return (
-    <View style={styles.grid}>
-      {TYPES.map((t) => {
-        const selected = t.value === value;
-        return (
-          <Pressable
-            key={t.value}
-            onPress={() => onSelect(t.value)}
-            style={[styles.card, selected && styles.cardSelected]}>
-            <Text style={styles.icon}>{TypeColors[t.value].icon}</Text>
-            <Text style={styles.label}>{t.label}</Text>
-          </Pressable>
-        );
-      })}
+    <View style={styles.wrap}>
+      <View style={styles.row}>{row1.map(renderItem)}</View>
+      <View style={[styles.row, styles.rowCenter]}>{row2.map(renderItem)}</View>
     </View>
   );
 }
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    card: {
-      width: '47%',
+    wrap: { gap: 24 },
+    row: { flexDirection: 'row', justifyContent: 'space-around' },
+    rowCenter: { justifyContent: 'center', gap: 40 },
+    item: { alignItems: 'center', gap: 6, width: CIRCLE },
+    circle: {
+      width: CIRCLE,
+      height: CIRCLE,
+      borderRadius: CIRCLE / 2,
+      backgroundColor: Brand.card,
       borderWidth: 2,
       borderColor: Brand.border,
-      borderRadius: 14,
-      paddingVertical: 14,
       alignItems: 'center',
+      justifyContent: 'center',
     },
-    cardSelected: {
-      borderColor: Brand.trust,
+    circleSelected: {
       backgroundColor: Brand.tlight,
+      borderColor: Brand.trust,
     },
-    icon: { fontSize: 26, marginBottom: 6 },
     label: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 13,
-      color: Brand.ink,
+      color: Brand.muted,
+      textAlign: 'center',
+    },
+    labelSelected: {
+      color: Brand.trust,
     },
   });
 }

@@ -1,7 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SymbolView } from 'expo-symbols';
 import { useAudioPlayer } from 'expo-audio';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withDecay } from 'react-native-reanimated';
@@ -65,7 +67,7 @@ function PodcastEpisodeRow({ cast, styles }: { cast: ContentDetails['cast']; sty
             )}
             {ep.previewUrl ? (
               <View style={styles.trackPlayOverlay}>
-                <Text style={styles.trackPlayIcon}>{playingIndex === i ? '⏸' : '▶'}</Text>
+                <SymbolView name={playingIndex === i ? 'pause.fill' : 'play.fill'} size={14} tintColor="#fff" type="monochrome" />
               </View>
             ) : null}
           </View>
@@ -114,7 +116,7 @@ function MusicTrackRow({ cast, styles }: { cast: ContentDetails['cast']; styles:
             )}
             {track.previewUrl ? (
               <View style={styles.trackPlayOverlay}>
-                <Text style={styles.trackPlayIcon}>{playingIndex === i ? '⏸' : '▶'}</Text>
+                <SymbolView name={playingIndex === i ? 'pause.fill' : 'play.fill'} size={14} tintColor="#fff" type="monochrome" />
               </View>
             ) : null}
           </View>
@@ -220,9 +222,25 @@ export default function ContentDetailModal() {
           : raw;
       })()
     : null;
+  const insets = useSafeAreaInsets();
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+
+  function navigateToLog(intent: 'log' | 'watchlist') {
+    router.push({
+      pathname: '/log-modal',
+      params: {
+        intent,
+        prefillTitle: params.title ?? '',
+        prefillType: resolvedType,
+        prefillSub: params.sub ?? '',
+        prefillPoster: params.poster ?? '',
+        prefillExternalId: params.externalId ?? '',
+        prefillMediaType: resolvedMediaType ?? '',
+      },
+    });
+  }
   const typeConfig = TypeColors[resolvedType ?? 'watch'];
   const whereConfig = getWhereToFindConfig(resolvedType ?? 'watch', params.title ?? '', params.externalId);
   const usingRealProviders =
@@ -257,7 +275,13 @@ export default function ContentDetailModal() {
           headerShown: false,
         }}
       />
-      <ScrollView style={[styles.sheet, styles.body]} showsVerticalScrollIndicator={false}>
+      <View style={[styles.sheet, styles.body]}>
+      <View style={styles.modalHeader}>
+        <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Text style={styles.modalDoneBtn}>Done</Text>
+        </Pressable>
+      </View>
+      <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={styles.bodyContent}>
           {/* Poster on the left (kept in its natural aspect ratio, never
               stretched), title + meta on the right. */}
@@ -434,7 +458,7 @@ export default function ContentDetailModal() {
                 style={styles.trailerContainer}>
                 <Image source={{ uri: details.trailerThumbnail }} style={styles.trailerThumb} resizeMode="cover" />
                 <View style={styles.trailerPlayBtn}>
-                  <Text style={styles.trailerPlayIcon}>▶</Text>
+                  <SymbolView name="play.fill" size={20} tintColor="#fff" type="monochrome" />
                 </View>
               </Pressable>
             </View>
@@ -478,6 +502,17 @@ export default function ContentDetailModal() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Sticky action bar */}
+      <View style={[styles.actionBar, { paddingBottom: (insets.bottom || 16) }]}>
+        <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
+          <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
+        </Pressable>
+        <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
+          <Text style={styles.logBtnText}>Log it</Text>
+        </Pressable>
+      </View>
+      </View>
     </>
   );
 }
@@ -486,9 +521,60 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
   sheet: { flex: 1, backgroundColor: Brand.paper },
 
+  // Done button strip
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 20,
+    paddingTop: 10,
+    paddingBottom: 2,
+  },
+  modalDoneBtn: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 16,
+    color: Brand.trust,
+  },
+
   // Body
   body: { flex: 1 },
-  bodyContent: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 16 },
+  scrollArea: { flex: 1 },
+  bodyContent: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
+
+  // Action bar
+  actionBar: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: Brand.border,
+    backgroundColor: Brand.paper,
+  },
+  watchlistBtn: {
+    flex: 1,
+    borderWidth: 1.5,
+    borderColor: Brand.trust,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  watchlistBtnText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 14.5,
+    color: Brand.trust,
+  },
+  logBtn: {
+    flex: 1,
+    backgroundColor: Brand.trust,
+    borderRadius: 14,
+    paddingVertical: 13,
+    alignItems: 'center',
+  },
+  logBtnText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 14.5,
+    color: '#fff',
+  },
 
   // Header: poster (kept in its natural aspect ratio) + title/meta side by side
   headerRow: { flexDirection: 'row', gap: 14, marginBottom: 22 },
@@ -526,7 +612,6 @@ function createStyles(Brand: BrandPalette) {
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.3)',
   },
-  trailerPlayIcon: { fontSize: 36, color: '#fff' },
 
   // Rating + meta row
   metaRow: {
@@ -634,7 +719,6 @@ function createStyles(Brand: BrandPalette) {
     backgroundColor: 'rgba(0,0,0,0.35)',
     borderRadius: 8,
   },
-  trackPlayIcon: { fontSize: 18, color: '#fff' },
   actorFallback: { alignItems: 'center', justifyContent: 'center', backgroundColor: Brand.tlight },
   actorFallbackEmoji: { fontSize: 22 },
   actorName: {

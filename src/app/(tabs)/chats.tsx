@@ -143,7 +143,7 @@ export default function ChatsScreen() {
           {mode === 'private' && <View style={styles.modeTabUnderline} />}
         </Pressable>
         <View style={styles.modeTabSpacer} />
-        <Pressable style={styles.modeTab} onPress={() => setMode('requests')}>
+        <Pressable style={[styles.modeTab, { marginRight: 0 }]} onPress={() => setMode('requests')}>
           <Text style={[styles.modeTabText, mode === 'requests' && styles.modeTabTextActive]}>
             Requests
           </Text>
@@ -171,7 +171,7 @@ export default function ChatsScreen() {
           </Pressable>
         ) : null}
       </View>
-      {mode === 'content' && <FilterChips value={filter} onChange={setFilter} />}
+      {mode === 'content' && <FilterChips value={filter} onChange={setFilter} compact />}
     </View>
   );
 

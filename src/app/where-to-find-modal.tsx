@@ -22,7 +22,7 @@ export default function WhereToFindModal() {
   const config = getWhereToFindConfig(params.type ?? 'watch', params.title ?? '');
   const providerType = params.type === 'watch' || params.type === 'play' ? params.type : undefined;
   const podcastType = params.type === 'podcast' ? 'podcast' as EntryType : undefined;
-  const { data: details } = useContentDetails(providerType ? params.title : undefined, providerType);
+  const { data: details } = useContentDetails(providerType ? params.title : undefined, providerType, params.externalId);
   const { data: podcastDetails } = useContentDetails(podcastType ? params.title : undefined, podcastType, params.externalId);
   // Real per-title availability (TMDB for movies/TV, RAWG platforms for
   // games) when we have it — falls back to the generic storefront list

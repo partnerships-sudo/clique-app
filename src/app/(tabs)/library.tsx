@@ -155,11 +155,12 @@ export default function LibraryScreen() {
           ListHeaderComponent={
             <View>
               <FilterChips value={filter} onChange={setFilter} />
+              <View style={{ height: 12 }} />
               <SortRow value={sort} onChange={setSort} />
             </View>
           }
           renderItem={({ item }) => <LibCard item={item} />}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
           ListEmptyComponent={
             !isLoading ? <Text style={styles.empty}>Nothing logged here yet.</Text> : null
           }
@@ -211,7 +212,7 @@ export default function LibraryScreen() {
               onRemove={() => removeItem.mutate(item.id)}
             />
           )}
-          ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
+          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
           ListEmptyComponent={
             !isLoading ? (
               <Text style={styles.empty}>
@@ -398,7 +399,7 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Brand.paper },
   header: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two },
-  content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six, paddingTop: Spacing.three },
+  content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six, paddingTop: 7 },
   tabRow: {
     flexDirection: 'row',
     gap: 6,

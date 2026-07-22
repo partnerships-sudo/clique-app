@@ -28,8 +28,10 @@ function RootNavigator() {
       <Stack.Screen name="push-notifications-settings" options={{ headerShown: false }} />
       <Stack.Screen name="collection-sharing-settings" options={{ headerShown: false }} />
       <Stack.Screen name="blocked-muted-accounts" options={{ headerShown: false }} />
+      <Stack.Screen name="privacy-settings" options={{ headerShown: false }} />
       <Stack.Screen name="close-friends-settings" options={{ headerShown: false }} />
       <Stack.Screen name="log-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="edit-post-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="chat-modal" options={{ headerShown: false }} />
       <Stack.Screen name="where-to-find-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="artist-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />

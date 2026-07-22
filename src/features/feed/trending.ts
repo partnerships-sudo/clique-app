@@ -1,5 +1,4 @@
 import type { EntryType } from '@/constants/theme';
-import type { Post } from './api';
 
 export interface TrendingLogger {
   name: string;
@@ -26,7 +25,21 @@ export interface TrendingEntry {
   score?: number;
 }
 
-export function computeTrendingInCircle(posts: Post[], limit = 5): TrendingEntry[] {
+// Minimal shape required to compute trending — satisfied by both Post
+// (feed activity) and the library-derived log activity rows.
+export interface LogActivityItem {
+  user_name: string;
+  user_avatar_url: string | null;
+  title: string;
+  sub: string | null;
+  type: EntryType;
+  poster: string | null;
+  rating: number | null;
+  external_id: string | null;
+  media_type: string | null;
+}
+
+export function computeTrendingInCircle(posts: LogActivityItem[], limit = 5): TrendingEntry[] {
   const counts = new Map<string, TrendingEntry>();
   for (const post of posts) {
     const key = post.title.toLowerCase();

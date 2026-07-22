@@ -19,6 +19,10 @@ export interface Profile {
   collection_share_podcasts: boolean;
   featured_badges: string[];
   is_private: boolean;
+  content_types: string[];
+  last_seen_at: string | null;
+  show_online_status: boolean;
+  show_read_receipts: boolean;
 }
 
 function profileQueryKey(userId: string | undefined) {
@@ -101,6 +105,23 @@ export function useUpdateProfile() {
   });
 }
 
+export function useUpdateContentTypes() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (types: string[]) => {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ content_types: types })
+        .eq('id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}
+
 export function useUpdateRatingIcon() {
   const { user } = useSession();
   const queryClient = useQueryClient();
@@ -150,6 +171,20 @@ export function useUpdatePrivacy() {
   return useMutation({
     mutationFn: async (isPrivate: boolean) => {
       const { error } = await supabase.from('profiles').update({ is_private: isPrivate }).eq('id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: profileQueryKey(user?.id) });
+    },
+  });
+}
+
+export function useUpdatePresenceSettings() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { show_online_status?: boolean; show_read_receipts?: boolean }) => {
+      const { error } = await supabase.from('profiles').update(input).eq('id', user!.id);
       if (error) throw error;
     },
     onSuccess: () => {

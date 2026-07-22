@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { useBlockedMutedIds } from '@/features/blocks/api';
 import { useDmReadState } from '@/features/chats/read-state';
 import { useMutualFollows } from '@/features/follows/api';
 import { useSession } from '@/hooks/use-session';
@@ -17,6 +18,7 @@ export interface DmThread {
   friendId: string;
   name: string;
   avatarUrl: string | null;
+  lastSeenAt: string | null;
   lastText: string;
   lastTime: string;
   lastIsMine: boolean;
@@ -42,6 +44,7 @@ export function useDmThreads() {
   const { user } = useSession();
   const { data: mutuals } = useMutualFollows();
   const { loaded: readLoaded, isUnread, markRead } = useDmReadState();
+  const { blockedIds } = useBlockedMutedIds();
 
   const messagesQuery = useQuery({
     queryKey: ['dm-threads', user?.id],
@@ -56,8 +59,8 @@ export function useDmThreads() {
       return data as DirectMessage[];
     },
     enabled: !!user,
-    staleTime: 0,
-    refetchInterval: 15_000,
+    staleTime: 30_000,
+    refetchInterval: 60_000,
   });
 
   const requestsQuery = useQuery({
@@ -80,9 +83,9 @@ export function useDmThreads() {
     queryKey: ['dm-counterpart-profiles', counterpartIds.slice().sort().join(',')],
     queryFn: async () => {
       if (!counterpartIds.length) return [];
-      const { data, error } = await supabase.from('profiles').select('*').in('id', counterpartIds);
+      const { data, error } = await supabase.from('profiles').select('id,full_name,username,avatar_url,last_seen_at').in('id', counterpartIds);
       if (error) throw error;
-      return data as { id: string; full_name: string | null; username: string | null; avatar_url: string | null }[];
+      return data as { id: string; full_name: string | null; username: string | null; avatar_url: string | null; last_seen_at: string | null }[];
     },
     enabled: counterpartIds.length > 0,
   });
@@ -100,6 +103,7 @@ export function useDmThreads() {
 
   const nameById = new Map((profilesQuery.data ?? []).map((p) => [p.id, p.full_name || p.username || 'Someone']));
   const avatarById = new Map((profilesQuery.data ?? []).map((p) => [p.id, p.avatar_url]));
+  const lastSeenAtById = new Map((profilesQuery.data ?? []).map((p) => [p.id, p.last_seen_at]));
 
   const unreadCountMap = new Map<string, number>();
   if (readLoaded) {
@@ -125,6 +129,7 @@ export function useDmThreads() {
       friendId: counterpartId,
       name: nameById.get(counterpartId) ?? 'Someone',
       avatarUrl: avatarById.get(counterpartId) ?? null,
+      lastSeenAt: lastSeenAtById.get(counterpartId) ?? null,
       lastText: isRequest ? '' : m.content,
       lastTime: m.created_at,
       lastIsMine: m.sender_id === user?.id,
@@ -137,8 +142,8 @@ export function useDmThreads() {
   return {
     ...messagesQuery,
     isLoading: messagesQuery.isLoading || profilesQuery.isLoading,
-    threads: threads.filter((t) => !t.isRequest),
-    requestThreads: threads.filter((t) => t.isRequest),
+    threads: threads.filter((t) => !t.isRequest && !blockedIds.has(t.friendId)),
+    requestThreads: threads.filter((t) => t.isRequest && !blockedIds.has(t.friendId)),
     markRead,
   };
 }
@@ -197,8 +202,8 @@ export function useDmMessages(friendId: string | null) {
       return data as DirectMessage[];
     },
     enabled: !!friendId && !!user,
-    staleTime: 0,
-    refetchInterval: 5_000,
+    staleTime: 10_000,
+    refetchInterval: 15_000,
   });
 }
 

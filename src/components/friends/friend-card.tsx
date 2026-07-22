@@ -116,7 +116,7 @@ function createStyles(Brand: BrandPalette) {
       textTransform: 'uppercase',
     },
     cardBody: {
-      padding: 16,
+      padding: 12,
     },
     row: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
     avatarWrap: { alignItems: 'center', position: 'relative', marginBottom: 4 },

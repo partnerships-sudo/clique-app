@@ -1,4 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   FlatList,
@@ -12,7 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { MessageBubble } from '@/components/chat/message-bubble';
@@ -31,6 +32,9 @@ import {
 import { useExtendedNetworkProfiles } from '@/features/follows/api';
 import { useGroupMessages, useSendGroupMessage } from '@/features/groups/api';
 import { searchGifs, type GiphyResult } from '@/features/chat-media/giphy';
+import { pickAndUploadImage } from '@/features/chat-media/upload';
+import { formatLastSeen, useMarkDmReadReceipt, useDmReadReceipt } from '@/features/presence/api';
+import { useProfileById } from '@/features/profile/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -67,6 +71,7 @@ export default function ChatModal() {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { bottom: bottomInset } = useSafeAreaInsets();
   const isGroup = !!params.groupId;
   const isDm = !isGroup && !!params.friendId;
 
@@ -94,6 +99,12 @@ export default function ChatModal() {
     [friends],
   );
 
+  // Presence: show "Active now / X ago" in DM header, and "Read" under last sent message.
+  const { data: friendProfile } = useProfileById(isDm ? params.friendId : undefined);
+  const markDmReadReceipt = useMarkDmReadReceipt();
+  const { data: counterpartReadAt } = useDmReadReceipt(isDm ? params.friendId : undefined);
+  const friendLastSeenLabel = formatLastSeen(friendProfile?.last_seen_at);
+
   const sendMessage = useSendMessage();
   const sendDm = useSendDm();
   const sendGroupMessage = useSendGroupMessage(isGroup ? params.groupId! : null);
@@ -103,6 +114,7 @@ export default function ChatModal() {
   const [gifQuery, setGifQuery] = useState('');
   const [gifs, setGifs] = useState<GiphyResult[]>([]);
   const [gifsLoading, setGifsLoading] = useState(false);
+  const [photoUploading, setPhotoUploading] = useState(false);
   const listRef = useRef<FlatList>(null);
   const isContentChat = !isDm && !isGroup;
   const isBookChat = isContentChat && params.type === 'read';
@@ -189,7 +201,10 @@ export default function ChatModal() {
 
   useEffect(() => {
     if (isGroup && params.groupId) markGroupRead(params.groupId);
-    else if (isDm && params.friendId) markDmRead(params.friendId);
+    else if (isDm && params.friendId) {
+      markDmRead(params.friendId);
+      markDmReadReceipt(params.friendId);
+    }
     else if (params.title) markChatRead(params.title);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
@@ -216,11 +231,39 @@ export default function ChatModal() {
       : []),
   ];
 
+  // ID of the last message I sent in this DM (for the "Read" receipt indicator).
+  const lastSentId = isDm
+    ? [...messages].reverse().find((m) => m.user_id === user?.id)?.id ?? null
+    : null;
+  const lastSentReadByFriend =
+    lastSentId !== null &&
+    counterpartReadAt != null &&
+    (() => {
+      const sentMsg = messages.find((m) => m.id === lastSentId);
+      return sentMsg ? counterpartReadAt >= sentMsg.created_at : false;
+    })();
+
   function saveCheckpoint(cp: EpisodeCheckpoint) {
     if (!params.title) return;
     setCheckpoint(params.title, cp);
     setForceShowGate(false);
     setCautionExpanded(false);
+  }
+
+  async function handlePickPhoto() {
+    if (!user) return;
+    setMediaExpanded(false);
+    setPhotoUploading(true);
+    try {
+      const content = await pickAndUploadImage(user.id);
+      if (!content) return;
+      if (isGroup) { sendGroupMessage.mutate(content); return; }
+      if (isDm) { sendDm.mutate({ friendId: params.friendId!, content }); return; }
+      if (!params.title) return;
+      sendMessage.mutate({ title: params.title, type: params.type as EntryType, content });
+    } finally {
+      setPhotoUploading(false);
+    }
   }
 
   function openGifPicker() {
@@ -308,7 +351,7 @@ export default function ChatModal() {
               {isGroup
                 ? 'Tap to see members ›'
                 : isDm
-                ? 'Private chat'
+                ? (friendLastSeenLabel || 'Private chat')
                 : needsSpoilerGuard && checkpoint
                 ? checkpoint.finished
                   ? 'Fully caught up · tap to update ›'
@@ -457,20 +500,26 @@ export default function ChatModal() {
                   />
                 );
               }
+              const showRead = isDm && item.data.id === lastSentId && lastSentReadByFriend;
               return (
-                <MessageBubble
-                  message={item.data}
-                  isMine={item.data.user_id === user?.id}
-                  avatarUrl={item.data.avatar_url}
-                  userHandle={item.data.user_handle}
-                  isSpoiler={
-                    needsSpoilerGuard &&
-                    item.data.user_id !== user?.id &&
-                    !!checkpoint &&
-                    !checkpoint.finished &&
-                    isAhead(item.data, checkpoint)
-                  }
-                />
+                <View>
+                  <MessageBubble
+                    message={item.data}
+                    isMine={item.data.user_id === user?.id}
+                    avatarUrl={item.data.avatar_url}
+                    userHandle={item.data.user_handle}
+                    isSpoiler={
+                      needsSpoilerGuard &&
+                      item.data.user_id !== user?.id &&
+                      !!checkpoint &&
+                      !checkpoint.finished &&
+                      isAhead(item.data, checkpoint)
+                    }
+                  />
+                  {showRead && (
+                    <Text style={styles.readReceipt}>Read</Text>
+                  )}
+                </View>
               );
             }}
             ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
@@ -482,7 +531,7 @@ export default function ChatModal() {
         )}
 
         {!isDmLocked ? (
-          <View style={styles.inputWrap}>
+          <View style={[styles.inputWrap, { paddingBottom: 10 + bottomInset }]}>
             <View style={styles.inputRow}>
               <Pressable
                 style={[styles.plusBtn, mediaExpanded && styles.plusBtnActive]}
@@ -505,13 +554,23 @@ export default function ChatModal() {
             </View>
             {mediaExpanded ? (
               <View style={styles.mediaTiles}>
-                <Pressable style={[styles.mediaTile, { backgroundColor: '#5B8DEF' }]}>
-                  <Text style={styles.mediaTileIcon}>🖼</Text>
-                  <Text style={styles.mediaTileLabel}>Photo</Text>
+                <Pressable
+                  style={[styles.mediaPill, styles.mediaPillPhoto, { opacity: photoUploading ? 0.55 : 1 }]}
+                  onPress={handlePickPhoto}
+                  disabled={photoUploading}>
+                  <SymbolView
+                    name={photoUploading ? 'arrow.up.circle' : 'photo'}
+                    size={15}
+                    tintColor="#5B8DEF"
+                    type="monochrome"
+                    style={{ width: 16, height: 16 }}
+                  />
+                  <Text style={[styles.mediaPillLabel, { color: '#5B8DEF' }]}>
+                    {photoUploading ? 'Uploading…' : 'Photo'}
+                  </Text>
                 </Pressable>
-                <Pressable style={[styles.mediaTile, { backgroundColor: Brand.trust }]} onPress={openGifPicker}>
-                  <Text style={[styles.mediaTileIcon, { fontFamily: BrandFonts.syneBold, fontSize: 22, color: '#fff' }]}>GIF</Text>
-                  <Text style={styles.mediaTileLabel}>GIF</Text>
+                <Pressable style={[styles.mediaPill, styles.mediaPillGif]} onPress={openGifPicker}>
+                  <Text style={styles.mediaPillGifText}>GIF</Text>
                 </Pressable>
               </View>
             ) : null}
@@ -713,6 +772,14 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.trust,
       textDecorationLine: 'underline',
     },
+    readReceipt: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 11,
+      color: Brand.muted,
+      textAlign: 'right',
+      marginTop: 3,
+      marginRight: 4,
+    },
     headerInfo: { flex: 1, minWidth: 0 },
     headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
     headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 1 },
@@ -751,14 +818,14 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: Brand.paper,
     },
     sendBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       backgroundColor: Brand.trust,
       alignItems: 'center',
       justifyContent: 'center',
     },
-    sendText: { color: '#fff', fontSize: 16 },
+    sendText: { color: '#fff', fontSize: 13 },
 
     // Plus / media expand
     inputWrap: {
@@ -766,38 +833,51 @@ function createStyles(Brand: BrandPalette) {
       borderTopWidth: 1,
       borderTopColor: Brand.border,
       paddingHorizontal: Spacing.three,
-      paddingTop: Spacing.three,
-      paddingBottom: Spacing.three,
+      paddingTop: 10,
+      paddingBottom: 10,
     },
     plusBtn: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       backgroundColor: Brand.trust,
       alignItems: 'center',
       justifyContent: 'center',
     },
     plusBtnActive: { backgroundColor: Brand.muted },
-    plusText: { color: '#fff', fontSize: 22, lineHeight: 26 },
+    plusText: { color: '#fff', fontSize: 17, lineHeight: 20 },
     mediaTiles: {
       flexDirection: 'row',
-      gap: 12,
-      paddingTop: 14,
+      gap: 8,
+      paddingTop: 12,
+      paddingBottom: 2,
     },
-    mediaTile: {
-      width: 80,
-      height: 80,
-      borderRadius: 16,
+    mediaPill: {
+      flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 4,
+      gap: 6,
+      height: 34,
+      borderRadius: 17,
+      paddingHorizontal: 14,
+      borderWidth: 1.5,
     },
-    mediaTileIcon: { fontSize: 28 },
-    mediaTileLabel: {
+    mediaPillPhoto: {
+      backgroundColor: 'rgba(91,141,239,0.08)',
+      borderColor: 'rgba(91,141,239,0.28)',
+    },
+    mediaPillGif: {
+      backgroundColor: Brand.tlight,
+      borderColor: Brand.trust + '44',
+    },
+    mediaPillLabel: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 11,
-      color: '#fff',
-      letterSpacing: 0.3,
+      fontSize: 13,
+    },
+    mediaPillGifText: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 13,
+      color: Brand.trust,
+      letterSpacing: 0.5,
     },
 
     // GIF picker modal

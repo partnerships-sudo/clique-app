@@ -52,6 +52,7 @@ const PLATFORM_BUCKET: Record<number, string> = {
 // IGDB website category → store label (for direct store URL extraction)
 const WEBSITE_STORE: Record<number, string> = {
   13: 'Steam',
+  15: 'itch.io',
   16: 'Epic Games',
   17: 'GOG',
 };

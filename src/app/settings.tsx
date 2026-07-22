@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RATING_ICON_OPTIONS, type RatingIconStyle } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useProfile, useUpdatePrivacy, useUpdateRatingIcon } from '@/features/profile/api';
+import { useProfile, useUpdateRatingIcon } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 import { useAppearance, type AppearancePref } from '@/providers/appearance-provider';
@@ -22,7 +22,6 @@ export default function SettingsScreen() {
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { signOut } = useSession();
   const { data: profile } = useProfile();
-  const updatePrivacy = useUpdatePrivacy();
   const updateRatingIcon = useUpdateRatingIcon();
   const { pref: appearancePref, setPref: setAppearancePref } = useAppearance();
   const [ratingIcon, setRatingIcon] = useState<RatingIconStyle>(
@@ -73,6 +72,16 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
+          <Pressable style={[styles.row, styles.rowDivider]} onPress={() => router.push('/privacy-settings')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="lock.shield" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Privacy</Text>
+              <Text style={styles.rowSub}>Account visibility, online status, and read receipts</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
         </View>
 
         {/* SOCIAL */}
@@ -108,25 +117,6 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
-          <View style={[styles.row, styles.rowDivider]}>
-            <View style={styles.rowIcon}>
-              <SymbolView name="lock" size={18} tintColor={Brand.muted} type="monochrome" />
-            </View>
-            <View style={styles.rowBody}>
-              <Text style={styles.rowLabel}>Private account</Text>
-              <Text style={styles.rowSub}>
-                {profile?.is_private
-                  ? 'Only approved followers can see your posts'
-                  : 'Anyone can see your posts and follow you instantly'}
-              </Text>
-            </View>
-            <Switch
-              value={profile?.is_private ?? false}
-              onValueChange={(v) => updatePrivacy.mutate(v)}
-              disabled={updatePrivacy.isPending}
-              trackColor={{ false: Brand.tlight, true: Brand.trust }}
-            />
-          </View>
         </View>
 
         {/* PREFERENCES */}

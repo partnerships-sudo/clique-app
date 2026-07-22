@@ -17,7 +17,7 @@ function myBlocksQueryKey(userId: string | undefined) {
 
 /** The signed-in user's own block/mute rows, keyed by target id. Private to
  * the signed-in user by RLS — nobody can see who blocked/muted them. */
-function useMyBlocks() {
+export function useMyBlocks() {
   const { user } = useSession();
   return useQuery({
     queryKey: myBlocksQueryKey(user?.id),
@@ -33,6 +33,21 @@ function useMyBlocks() {
     },
     enabled: !!user,
   });
+}
+
+/** Returns stable Set objects for blocked and muted user IDs.
+ * Re-evaluates only when the underlying block rows change. */
+export function useBlockedMutedIds(): { blockedIds: Set<string>; mutedIds: Set<string> } {
+  const { data } = useMyBlocks();
+  return useMemo(() => {
+    const blockedIds = new Set<string>();
+    const mutedIds = new Set<string>();
+    for (const [id, status] of (data ?? new Map())) {
+      if (status.isBlocked) blockedIds.add(id);
+      if (status.isMuted) mutedIds.add(id);
+    }
+    return { blockedIds, mutedIds };
+  }, [data]);
 }
 
 // Same bounded-pool-sorted-in-app idiom as useDiscoverPeople — "who's a

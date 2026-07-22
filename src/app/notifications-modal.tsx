@@ -41,14 +41,15 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
       router.push({
         pathname: '/log-modal',
         params: {
-          title: item.postTitle,
-          type: item.postType ?? 'watch',
-          poster: item.postPoster ?? undefined,
+          intent: 'log',
+          prefillTitle: item.postTitle,
+          prefillType: item.postType ?? 'watch',
+          prefillPoster: item.postPoster ?? undefined,
         },
       });
     } else if (item.kind === 'message') {
       router.back();
-      router.push({ pathname: '/chat-modal', params: { friendId: item.fromUserId } });
+      router.push({ pathname: '/chat-modal', params: { friendId: item.fromUserId, friendName: item.fromUserName, friendAvatar: item.fromAvatarUrl ?? undefined } });
     } else if ((item.kind === 'reaction' || item.kind === 'story_like') && item.postTitle) {
       router.back();
       router.push({

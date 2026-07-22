@@ -48,6 +48,7 @@ export function PostCard({
   compatScore,
   onToggleReaction,
   onDelete,
+  onEdit,
 }: {
   post: Post;
   isMine: boolean;
@@ -56,6 +57,7 @@ export function PostCard({
   compatScore?: number;
   onToggleReaction: () => void;
   onDelete: () => void;
+  onEdit?: () => void;
 }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
@@ -72,9 +74,10 @@ export function PostCard({
     .slice(0, 3);
 
   function confirmDelete() {
-    Alert.alert('Delete post?', `Delete "${post.title}" from the feed?`, [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: onDelete },
+    Alert.alert(post.title, undefined, [
+      ...(onEdit ? [{ text: 'Edit post', onPress: onEdit }] : []),
+      { text: 'Delete', style: 'destructive' as const, onPress: onDelete },
+      { text: 'Cancel', style: 'cancel' as const },
     ]);
   }
 
@@ -103,9 +106,9 @@ export function PostCard({
           }
           style={[styles.posterPress, isSquareType && styles.posterPressSquare]}>
           {post.poster ? (
-            <Image source={{ uri: post.poster }} style={styles.poster} resizeMode="cover" />
+            <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} resizeMode="cover" />
           ) : (
-            <View style={[styles.poster, styles.posterFallback, { backgroundColor: type.bg }]}>
+            <View style={[styles.poster, isSquareType && styles.posterSquare, styles.posterFallback, { backgroundColor: type.bg }]}>
               <Text style={styles.posterFallbackEmoji}>{type.icon}</Text>
             </View>
           )}
@@ -261,6 +264,7 @@ function createStyles(Brand: BrandPalette) {
       alignSelf: 'flex-start',
       backgroundColor: Brand.border,
     },
+    posterSquare: { height: POSTER_W },
     posterFallback: {
       alignItems: 'center',
       justifyContent: 'center',
@@ -282,8 +286,8 @@ function createStyles(Brand: BrandPalette) {
     ratingBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
 
     // Body
-    body: { flex: 1, minWidth: 0, padding: 12, paddingBottom: 10 },
-    bodyCompact: { padding: 8, paddingBottom: 6 },
+    body: { flex: 1, minWidth: 0, padding: 12, paddingTop: 8, paddingBottom: 10 },
+    bodyCompact: { padding: 8, paddingTop: 8, paddingBottom: 6 },
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -408,17 +412,18 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.trust,
     },
     emojiAddBtn: {
-      width: 30,
-      height: 30,
-      borderRadius: 15,
+      width: 18,
+      height: 18,
+      borderRadius: 9,
       backgroundColor: Brand.border,
       alignItems: 'center',
       justifyContent: 'center',
     },
     emojiAddText: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 16,
+      fontSize: 11,
       color: Brand.muted,
+      lineHeight: 18,
     },
     actionsRow: {
       flexDirection: 'row',
@@ -431,8 +436,8 @@ function createStyles(Brand: BrandPalette) {
       alignSelf: 'flex-start',
       backgroundColor: Brand.tlight,
       borderRadius: 20,
-      paddingVertical: 6,
-      paddingHorizontal: 14,
+      paddingVertical: 3,
+      paddingHorizontal: 10,
     },
     reactBtnActive: { backgroundColor: Brand.trust },
     reactText: {
@@ -445,7 +450,7 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      marginLeft: 10,
+      marginLeft: 'auto',
     },
     shareDivider: {
       width: 1,

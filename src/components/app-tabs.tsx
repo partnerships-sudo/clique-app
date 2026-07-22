@@ -1,11 +1,15 @@
 import { Badge, Icon, Label, NativeTabs } from 'expo-router/unstable-native-tabs';
 
 import { useUnreadChatsCount } from '@/features/chats/api';
+import { useUnreadCount } from '@/features/notifications/inbox';
+import { useMyPresence } from '@/features/presence/api';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function AppTabs() {
   const Brand = useBrand();
   const unreadChats = useUnreadChatsCount();
+  const unreadNotifs = useUnreadCount();
+  useMyPresence();
 
   return (
     <NativeTabs
@@ -16,6 +20,7 @@ export default function AppTabs() {
       <NativeTabs.Trigger name="index">
         <Label>Feed</Label>
         <Icon sf="house.fill" />
+        <Badge hidden={unreadNotifs === 0}>{unreadNotifs > 0 ? String(unreadNotifs) : undefined}</Badge>
       </NativeTabs.Trigger>
 
       <NativeTabs.Trigger name="chats">

@@ -46,7 +46,7 @@ function Top10Card({
   return (
     <Pressable
       onPress={() => openTrending(entry)}
-      style={{ width: CARD_W, height: CARD_H, borderRadius: 14, overflow: 'hidden', backgroundColor: Brand.card }}>
+      style={{ width: CARD_W, height: CARD_H, borderRadius: 18, overflow: 'hidden', backgroundColor: Brand.card }}>
       {entry.poster ? (
         <Image
           source={{ uri: entry.poster }}
@@ -62,6 +62,14 @@ function Top10Card({
           <Text style={{ fontSize: 40 }}>{TypeColors[entry.type].icon}</Text>
         </View>
       )}
+      <Text style={{
+        position: 'absolute', top: 8, left: 10, zIndex: 1,
+        fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: '#fff', lineHeight: 30,
+        textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 4,
+      }}>
+        {rank}
+      </Text>
+
       <LinearGradient
         colors={['transparent', 'rgba(8, 5, 24, 0.55)', 'rgba(8, 5, 24, 0.95)']}
         locations={[0, 0.45, 1]}
@@ -74,9 +82,6 @@ function Top10Card({
           paddingBottom: 10,
           paddingTop: 48,
         }}>
-        <Text style={{ fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: '#fff', lineHeight: 30, opacity: 0.95 }}>
-          {rank}
-        </Text>
         <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: '#fff', marginTop: 3 }} numberOfLines={2}>
           {entry.title}
         </Text>
@@ -221,7 +226,7 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interRegular,
       fontSize: 13.6,
     },
-    list: { gap: 10 },
+    list: { gap: 6 },
     bannerSection: { marginBottom: 6 },
     bannerTitle: {
       fontFamily: BrandFonts.syneExtraBold,
@@ -241,7 +246,7 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: Brand.card,
       borderWidth: 1,
       borderColor: Brand.border,
-      borderRadius: 14,
+      borderRadius: 16,
       padding: 12,
       flexDirection: 'row',
       alignItems: 'center',

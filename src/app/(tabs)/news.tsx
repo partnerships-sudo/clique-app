@@ -228,9 +228,7 @@ export default function NewsScreen() {
                           <Text style={styles.trendingImgFallbackEmoji}>📰</Text>
                         </View>
                       )}
-                      <View style={styles.trendingNumBadge}>
-                        <Text style={styles.trendingNum}>{i + 1}</Text>
-                      </View>
+                      <Text style={styles.trendingNum}>{i + 1}</Text>
                     </View>
                     {/* Text below image */}
                     <Text style={styles.trendingTitle} numberOfLines={3}>{article.title}</Text>
@@ -340,9 +338,9 @@ function createStyles(Brand: BrandPalette) {
       gap: 24,
       borderBottomWidth: 1,
       borderBottomColor: Brand.border,
-      marginBottom: 14,
+      marginBottom: 7,
     },
-    modeTab: { paddingBottom: 10 },
+    modeTab: { paddingBottom: 8 },
     modeTabText: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 15,
@@ -393,33 +391,34 @@ function createStyles(Brand: BrandPalette) {
     },
 
     // Trending row
-    trendingRow: { paddingHorizontal: Spacing.three, gap: 14, paddingBottom: 4 },
+    trendingRow: { paddingHorizontal: Spacing.three, gap: 11, paddingBottom: 4 },
     trendingCard: {
-      width: 160,
+      width: 132,
     },
     trendingImgWrap: {
       width: '100%',
-      height: 210,
-      borderRadius: 16,
+      height: 171,
+      borderRadius: 14,
       overflow: 'hidden',
-      marginBottom: 10,
+      marginBottom: 8,
       backgroundColor: Brand.tlight,
     },
     trendingImg: { width: '100%', height: '100%' },
     trendingImgFallback: { backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
     trendingImgFallbackEmoji: { fontSize: 40 },
-    trendingNumBadge: {
+    trendingNum: {
       position: 'absolute',
-      top: 12,
-      left: 12,
-      width: 34,
-      height: 34,
-      borderRadius: 17,
-      backgroundColor: Brand.trust,
-      alignItems: 'center',
-      justifyContent: 'center',
+      top: 8,
+      left: 10,
+      zIndex: 1,
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 28,
+      lineHeight: 30,
+      color: '#fff',
+      textShadowColor: 'rgba(0,0,0,0.4)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 4,
     },
-    trendingNum: { fontFamily: BrandFonts.syneExtraBold, fontSize: 16, color: '#fff' },
     trendingTitle: {
       fontFamily: BrandFonts.syneExtraBold,
       fontSize: 14,

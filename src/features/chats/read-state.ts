@@ -1,39 +1,62 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
-// Using React Query's cache as the shared in-memory store so that all hook
-// instances (chats list, tab badge, unread count) update together instantly
-// when any one of them calls markRead.
+import { useSession } from '@/hooks/use-session';
+import { supabase } from '@/lib/supabase';
 
-const CHAT_STORAGE_KEY = 'tm_chats_read';
-const GROUP_STORAGE_KEY = 'tm_groups_read';
-const DM_STORAGE_KEY = 'tm_dms_read';
+// React Query's cache is the shared in-memory store so every hook instance
+// (chats list, tab badge, thread screen) updates instantly when any one of
+// them calls markRead — same guarantee as before, now backed by Supabase
+// instead of AsyncStorage so state survives reinstalls and new devices.
 
-export function useChatReadState() {
+type ThreadType = 'chat' | 'group' | 'dm';
+
+function readStateQueryKey(type: ThreadType) {
+  return ['read-state', type] as const;
+}
+
+function useReadState(type: ThreadType) {
+  const { user } = useSession();
   const queryClient = useQueryClient();
+
   const { data: readMap = {}, isLoading } = useQuery({
-    queryKey: ['read-state-chat'],
-    queryFn: async () => {
-      const raw = await AsyncStorage.getItem(CHAT_STORAGE_KEY);
-      return (raw ? JSON.parse(raw) : {}) as Record<string, string>;
+    queryKey: readStateQueryKey(type),
+    queryFn: async (): Promise<Record<string, string>> => {
+      const { data, error } = await supabase
+        .from('chat_read_state')
+        .select('thread_key, last_read_at')
+        .eq('user_id', user!.id)
+        .eq('thread_type', type);
+      if (error) throw error;
+      return Object.fromEntries((data ?? []).map((r) => [r.thread_key, r.last_read_at as string]));
     },
+    enabled: !!user,
     staleTime: Infinity,
     gcTime: Infinity,
   });
 
   const markRead = useCallback(
-    (title: string) => {
-      const next = { ...readMap, [title]: new Date().toISOString() };
-      AsyncStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-      queryClient.setQueryData(['read-state-chat'], next);
+    (threadKey: string) => {
+      const now = new Date().toISOString();
+      // Optimistic in-memory update — instant badge clear
+      queryClient.setQueryData(readStateQueryKey(type), { ...readMap, [threadKey]: now });
+      // Persist to Supabase fire-and-forget
+      if (user) {
+        supabase
+          .from('chat_read_state')
+          .upsert(
+            { user_id: user.id, thread_key: threadKey, thread_type: type, last_read_at: now },
+            { onConflict: 'user_id,thread_key,thread_type' },
+          )
+          .then(() => {});
+      }
     },
-    [readMap, queryClient],
+    [readMap, queryClient, type, user],
   );
 
   const isUnread = useCallback(
-    (title: string, messageTime: string) => {
-      const lastRead = readMap[title];
+    (threadKey: string, messageTime: string) => {
+      const lastRead = readMap[threadKey];
       if (!lastRead) return true;
       return new Date(messageTime) > new Date(lastRead);
     },
@@ -43,68 +66,6 @@ export function useChatReadState() {
   return { loaded: !isLoading, markRead, isUnread };
 }
 
-export function useGroupReadState() {
-  const queryClient = useQueryClient();
-  const { data: readMap = {}, isLoading } = useQuery({
-    queryKey: ['read-state-group'],
-    queryFn: async () => {
-      const raw = await AsyncStorage.getItem(GROUP_STORAGE_KEY);
-      return (raw ? JSON.parse(raw) : {}) as Record<string, string>;
-    },
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-
-  const markRead = useCallback(
-    (groupId: string) => {
-      const next = { ...readMap, [groupId]: new Date().toISOString() };
-      AsyncStorage.setItem(GROUP_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-      queryClient.setQueryData(['read-state-group'], next);
-    },
-    [readMap, queryClient],
-  );
-
-  const isUnread = useCallback(
-    (groupId: string, messageTime: string) => {
-      const lastRead = readMap[groupId];
-      if (!lastRead) return true;
-      return new Date(messageTime) > new Date(lastRead);
-    },
-    [readMap],
-  );
-
-  return { loaded: !isLoading, markRead, isUnread };
-}
-
-export function useDmReadState() {
-  const queryClient = useQueryClient();
-  const { data: readMap = {}, isLoading } = useQuery({
-    queryKey: ['read-state-dm'],
-    queryFn: async () => {
-      const raw = await AsyncStorage.getItem(DM_STORAGE_KEY);
-      return (raw ? JSON.parse(raw) : {}) as Record<string, string>;
-    },
-    staleTime: Infinity,
-    gcTime: Infinity,
-  });
-
-  const markRead = useCallback(
-    (friendId: string) => {
-      const next = { ...readMap, [friendId]: new Date().toISOString() };
-      AsyncStorage.setItem(DM_STORAGE_KEY, JSON.stringify(next)).catch(() => {});
-      queryClient.setQueryData(['read-state-dm'], next);
-    },
-    [readMap, queryClient],
-  );
-
-  const isUnread = useCallback(
-    (friendId: string, messageTime: string) => {
-      const lastRead = readMap[friendId];
-      if (!lastRead) return true;
-      return new Date(messageTime) > new Date(lastRead);
-    },
-    [readMap],
-  );
-
-  return { loaded: !isLoading, markRead, isUnread };
-}
+export function useChatReadState() { return useReadState('chat'); }
+export function useGroupReadState() { return useReadState('group'); }
+export function useDmReadState() { return useReadState('dm'); }

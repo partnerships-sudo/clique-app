@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -18,6 +19,7 @@ import { TrendingList } from '@/components/feed/trending-list';
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import {
   useFeedPosts,
+  useCircleLogActivity,
   useDeletePost,
   useGlobalPosts,
   type FeedFilterValue,
@@ -25,18 +27,18 @@ import {
 } from '@/features/feed/api';
 import { useHiddenCategories } from '@/features/feed/category-prefs';
 import { useBecauseYouRecs, useForYouRecs, type ForYouSeed } from '@/features/feed/for-you';
-import { computeTrendingInCircle } from '@/features/feed/trending';
+import { computeTrendingInCircle, type TrendingEntry } from '@/features/feed/trending';
 import { computeCompatibility } from '@/features/friends/compatibility';
 import { applyGameCovers, useGameCoverOverrides } from '@/features/games/igdb';
 import { useReactions, useToggleReaction } from '@/features/feed/reactions';
 import { useLibraryItems } from '@/features/library/api';
 import { useCollectionItems, useFollowingCollections } from '@/features/collection/api';
+import { useFollowing } from '@/features/follows/api';
 import { useProfile } from '@/features/profile/api';
 import { useCloseFriendsPosts } from '@/features/close-friends/posts';
 import { useUnreadCount } from '@/features/notifications/inbox';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
-import { SymbolView } from 'expo-symbols';
 
 const SECTION_TITLES: Record<FeedView, string> = {
   feed: 'Friend Activity',
@@ -72,8 +74,9 @@ export default function FeedScreen() {
   const [feedView, setFeedView] = useState<FeedView>('feed');
   const [filter, setFilter] = useState<FeedFilterValue>('all');
   const [showMenu, setShowMenu] = useState(false);
-  const { hidden: hiddenCategories, hideCategory, showCategory } = useHiddenCategories();
-  const { posts: rawPosts, allPosts, isLoading, isFetching, refetch } = useFeedPosts(filter);
+  const { hidden: hiddenCategories, hideCategory, showCategory } = useHiddenCategories(profile?.content_types);
+  const { posts: rawPosts, allPosts, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeedPosts(filter);
+  const { data: circleActivity = [] } = useCircleLogActivity();
   // Long-press-removed categories (see filter-chips.tsx) drop out of the feed
   // entirely, not just the chip row — same treatment as the active filter.
   const posts = rawPosts.filter((p) => !hiddenCategories.has(p.type));
@@ -82,6 +85,11 @@ export default function FeedScreen() {
   const { logged } = useLibraryItems();
   const { items: collectionItems } = useCollectionItems();
   const { data: followingCollections = [] } = useFollowingCollections();
+  const { data: followingProfiles = [] } = useFollowing();
+  const followingProfileMap = useMemo(
+    () => Object.fromEntries(followingProfiles.map((p) => [p.id, p])),
+    [followingProfiles],
+  );
   const { byPost: reactionsByPost } = useReactions(posts.map((p) => p.id));
   const myLatestCFPost = useMemo(() => {
     if (!user?.id) return null;
@@ -100,7 +108,7 @@ export default function FeedScreen() {
   ]);
   const matchesFilter = (type: Post['type']) => (filter === 'all' || type === filter) && !hiddenCategories.has(type);
 
-  const circleTrendingRaw = computeTrendingInCircle(allPosts, 20).filter((e) => matchesFilter(e.type));
+  const circleTrendingRaw = computeTrendingInCircle(circleActivity, 20).filter((e) => matchesFilter(e.type));
   const globalTrendingRaw = computeTrendingInCircle(globalPosts ?? [], 20).filter((e) => matchesFilter(e.type));
 
   const compatScores = useMemo(() => {
@@ -196,13 +204,13 @@ export default function FeedScreen() {
     if (!existing || score > existing.score!) {
       friendPickMap.set(key, {
         title: item.title,
-        sub: item.sub ?? undefined,
+        sub: item.sub ?? null,
         type: item.type as EntryType,
         poster: item.poster ?? null,
         count: 1,
         score,
         users: [],
-        loggers: [item.user_id],
+        loggers: [{ name: followingProfileMap[item.user_id]?.username ?? 'Friend', avatarUrl: followingProfileMap[item.user_id]?.avatar_url ?? null }],
         externalId: item.external_id ?? undefined,
         mediaType: item.media_type ?? undefined,
       });
@@ -223,13 +231,13 @@ export default function FeedScreen() {
     if (!existing || score > existing.score!) {
       friendPickMap.set(key, {
         title: p.title,
-        sub: p.sub ?? undefined,
+        sub: p.sub ?? null,
         type: p.type as EntryType,
         poster: p.poster ?? null,
         count: 1,
         score,
         users: [],
-        loggers: [p.user_name],
+        loggers: [{ name: p.user_name, avatarUrl: p.user_avatar_url ?? null }],
         externalId: p.external_id ?? undefined,
         mediaType: p.media_type ?? undefined,
       });
@@ -272,12 +280,12 @@ export default function FeedScreen() {
       const maxCompat = Math.max(...friendPosts.map((p) => compatScores.get(p.user_id) ?? 50));
       return {
         ...e,
-        loggers: friendPosts.map((p) => p.user_name),
+        loggers: friendPosts.map((p) => ({ name: p.user_name, avatarUrl: p.user_avatar_url ?? null })),
         score: Math.min(100, (e.score ?? 50) * 0.3 + maxCompat * 0.7),
       };
     });
 
-  const circleFallbackEntriesRaw = computeTrendingInCircle(allPosts, 30).filter(
+  const circleFallbackEntriesRaw = computeTrendingInCircle(circleActivity, 30).filter(
     (e) =>
       !apiTypes.has(e.type) &&
       matchesFilter(e.type) &&
@@ -535,17 +543,34 @@ export default function FeedScreen() {
                 compatScore={item.user_id === user?.id ? undefined : compatScores.get(item.user_id)}
                 onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
                 onDelete={() => deletePost.mutate(item.id)}
+                onEdit={item.user_id === user?.id ? () => router.push({
+                  pathname: '/edit-post-modal',
+                  params: {
+                    postId: item.id,
+                    postTitle: item.title,
+                    currentNote: item.note ?? '',
+                    currentRating: String(item.rating ?? 0),
+                    currentVisibility: item.visibility ?? 'everyone',
+                  },
+                }) : undefined}
               />
             );
           }}
           ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          onEndReachedThreshold={0.4}
+          onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
+          ListFooterComponent={
+            isFetchingNextPage
+              ? <ActivityIndicator size="small" color={Brand.trust} style={{ paddingVertical: 20 }} />
+              : null
+          }
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.empty}>
-                <Text style={styles.emptyEmoji}>👋</Text>
-                <Text style={styles.emptyTitle}>Your feed is empty</Text>
+                <Text style={styles.emptyEmoji}>🏐</Text>
+                <Text style={styles.emptyTitle}>I'm sorry, Wilson.</Text>
                 <Text style={styles.emptyBody}>
-                  Log something to see it show up here. Friend activity is coming in Phase 3.
+                  Follow some friends to see what they're watching, reading, and playing.
                 </Text>
               </View>
             ) : null
@@ -559,15 +584,18 @@ export default function FeedScreen() {
           <Pressable style={styles.menuBackdrop} onPress={() => setShowMenu(false)} />
           <View style={styles.menuCard}>
             <Pressable style={styles.menuItem} onPress={openProfile}>
-              <Text style={styles.menuItemText}>👤  Profile</Text>
+              <SymbolView name="person.fill" size={16} tintColor={Brand.trust} type="monochrome" style={styles.menuIcon} />
+              <Text style={styles.menuItemText}>Profile</Text>
             </Pressable>
             <View style={styles.menuDivider} />
             <Pressable style={styles.menuItem} onPress={openWatchParty}>
-              <Text style={styles.menuItemText}>📺  Host a Watch Party</Text>
+              <SymbolView name="tv.fill" size={16} tintColor={Brand.trust} type="monochrome" style={styles.menuIcon} />
+              <Text style={styles.menuItemText}>Host a Watch Party</Text>
             </Pressable>
             <View style={styles.menuDivider} />
             <Pressable style={styles.menuItem} onPress={openSettings}>
-              <Text style={styles.menuItemText}>⚙️  Settings</Text>
+              <SymbolView name="gearshape.fill" size={16} tintColor={Brand.trust} type="monochrome" style={styles.menuIcon} />
+              <Text style={styles.menuItemText}>Settings</Text>
             </Pressable>
           </View>
         </>
@@ -658,22 +686,24 @@ function createStyles(Brand: BrandPalette) {
     menuBackdrop: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 },
     menuCard: {
       position: 'absolute',
-      top: 48,
+      top: 52,
       right: Spacing.three,
-      backgroundColor: Brand.card,
       borderRadius: 16,
-      borderWidth: 1,
-      borderColor: Brand.border,
-      minWidth: 180,
+      overflow: 'hidden',
+      minWidth: 200,
+      backgroundColor: 'rgba(255,255,255,0.96)',
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: 'rgba(0,0,0,0.08)',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.12,
-      shadowRadius: 12,
-      elevation: 8,
+      shadowOffset: { width: 0, height: 8 },
+      shadowOpacity: 0.18,
+      shadowRadius: 24,
+      elevation: 10,
       zIndex: 100,
     },
-    menuItem: { paddingVertical: 14, paddingHorizontal: 18 },
-    menuItemText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
-    menuDivider: { height: 1, backgroundColor: Brand.border, marginHorizontal: 14 },
+    menuItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 14, paddingHorizontal: 18, gap: 12 },
+    menuIcon: { width: 18, height: 18 },
+    menuItemText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.ink },
+    menuDivider: { height: StyleSheet.hairlineWidth, backgroundColor: Brand.border, marginHorizontal: 14 },
   });
 }

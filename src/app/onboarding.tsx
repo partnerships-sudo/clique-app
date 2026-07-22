@@ -21,7 +21,7 @@ import { Avatar } from '@/components/avatar';
 import { RATING_ICON_OPTIONS, type RatingIconStyle } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useDiscoverPeople, useFollow, useSearchUsers, type Profile } from '@/features/follows/api';
-import { useUpdateRatingIcon, useUploadAvatar } from '@/features/profile/api';
+import { useUpdateContentTypes, useUpdateRatingIcon, useUploadAvatar } from '@/features/profile/api';
 import { registerForPushNotificationsAsync } from '@/lib/push-notifications';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -54,6 +54,7 @@ export default function OnboardingScreen() {
   const [selectedRatingIcon, setSelectedRatingIcon] = useState<RatingIconStyle>('stars');
   const uploadAvatar = useUploadAvatar();
   const updateRatingIcon = useUpdateRatingIcon();
+  const updateContentTypes = useUpdateContentTypes();
   const follow = useFollow();
   const { data: suggested = [] } = useDiscoverPeople('mutual', '');
   const { data: searchResults = [] } = useSearchUsers(friendQuery);
@@ -95,10 +96,19 @@ export default function OnboardingScreen() {
 
   async function complete() {
     if (user) {
-      await AsyncStorage.setItem(`clique:taste:${user.id}`, JSON.stringify([...selectedTypes]));
       await AsyncStorage.setItem(`clique:onboarding:${user.id}`, 'done');
     }
-    await updateRatingIcon.mutateAsync(selectedRatingIcon);
+    // Normalize onboarding picks to valid EntryType slugs ('tv' → 'watch')
+    // and persist to the profile so the feed can seed hidden categories.
+    const normalizedTypes = [...new Set(
+      [...selectedTypes].map((t) => (t === 'tv' ? 'watch' : t))
+    )];
+    await Promise.all([
+      updateRatingIcon.mutateAsync(selectedRatingIcon),
+      selectedTypes.size > 0
+        ? updateContentTypes.mutateAsync(normalizedTypes)
+        : Promise.resolve(),
+    ]);
     router.replace('/(tabs)');
   }
 

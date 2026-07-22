@@ -91,9 +91,9 @@ function createStyles(Brand: BrandPalette, TypeColors: TypeColorPalette) {
       borderWidth: 1,
       borderColor: Brand.border,
       borderRadius: 16,
-      padding: 14,
+      padding: 12,
       flexDirection: 'row',
-      gap: 13,
+      gap: 12,
       alignItems: 'flex-start',
     },
     typeIcon: {

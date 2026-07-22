@@ -16,10 +16,8 @@ import { useSendDm } from '@/features/dms/api';
 import { useFeedPosts } from '@/features/feed/api';
 import { computeCompatibility } from '@/features/friends/compatibility';
 import { useFriends } from '@/features/friends/api';
-import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
-import { supabase } from '@/lib/supabase';
 
 const TYPE_EMOJI: Record<string, string> = {
   watch: '🎬',
@@ -34,7 +32,6 @@ export default function RecommendModal() {
     title?: string; sub?: string; type?: string; poster?: string; extRating?: string;
   }>();
   const { user } = useSession();
-  const { data: profile } = useProfile();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: friends } = useFriends();
@@ -69,8 +66,6 @@ export default function RecommendModal() {
     setSending(friendId);
 
     const compatScore = compatScores.get(friendId);
-    const senderName = profile?.full_name ?? profile?.username ?? 'A friend';
-    const dateLabel = new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 
     const payload = JSON.stringify({
       __rec: 1,
@@ -85,24 +80,6 @@ export default function RecommendModal() {
 
     try {
       await sendDm.mutateAsync({ friendId, content: payload });
-
-      const { error: libError } = await supabase.from('library').insert({
-        user_id: friendId,
-        type: params.type,
-        title: params.title,
-        sub: params.sub || null,
-        poster: params.poster || null,
-        ext_rating: params.extRating || null,
-        note: note.trim() || null,
-        status: 'watchlist',
-        rec_from_user_name: senderName,
-        rec_compat_score: compatScore ?? null,
-        date: dateLabel,
-      });
-      if (libError) {
-        console.error('[rec] library insert failed:', libError.code, libError.message, libError.details);
-      }
-
       setSent((prev) => new Set([...prev, friendId]));
     } finally {
       setSending(null);
