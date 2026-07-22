@@ -50,6 +50,8 @@ export default function StoriesModal() {
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
   const pausedAt = useRef(0);
 
+  const viewedIds = useRef(new Set<string>());
+
   const sendStoryLike = useSendStoryLike();
   const toggleReaction = useToggleReaction();
   const recordView = useRecordStoryView();
@@ -138,7 +140,8 @@ export default function StoriesModal() {
   useEffect(() => {
     if (posts.length === 0) return;
     startProgress(0);
-    if (post) {
+    if (post && !viewedIds.current.has(post.id)) {
+      viewedIds.current.add(post.id);
       recordView.mutate({ postId: post.id, postAuthorId: post.user_id });
     }
     setMessage('');
