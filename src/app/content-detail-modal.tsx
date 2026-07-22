@@ -281,7 +281,7 @@ export default function ContentDetailModal() {
             <Text style={styles.modalDoneBtn}>Done</Text>
           </TouchableOpacity>
         </View>
-        <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 88 }}>
         <View style={styles.bodyContent}>
           {/* Poster on the left (kept in its natural aspect ratio, never
               stretched), title + meta on the right. */}
@@ -502,7 +502,7 @@ export default function ContentDetailModal() {
           </View>
         </View>
         </ScrollView>
-        <View style={[styles.actionBar, { paddingBottom: (insets.bottom || 16) }]}>
+        <View style={[styles.actionBar, { position: 'absolute', bottom: 0, left: 0, right: 0, paddingBottom: (insets.bottom || 16) }]}>
           <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
             <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
           </Pressable>
