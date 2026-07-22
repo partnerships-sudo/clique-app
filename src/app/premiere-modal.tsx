@@ -392,20 +392,6 @@ export default function PremiereModal() {
       {/* Footer */}
       <View style={styles.footer}>
         <Pressable
-          style={styles.calendarBtn}
-          onPress={() => addPremiereToCalendar({
-            showTitle,
-            episodeName,
-            episodeNumber,
-            seasonNumber,
-            airDate,
-            airTime: airTime.trim() || null,
-            hostName,
-            premiereId: 'pending',
-          })}>
-          <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
-        </Pressable>
-        <Pressable
           style={[styles.createBtn, createPremiere.isPending && styles.createBtnDisabled]}
           disabled={createPremiere.isPending || isSharing}
           onPress={handleCreate}>
@@ -452,6 +438,20 @@ export default function PremiereModal() {
                 </Pressable>
               ))}
             </ScrollView>
+            <Pressable
+              style={styles.calendarBtn}
+              onPress={() => addPremiereToCalendar({
+                showTitle,
+                episodeName,
+                episodeNumber,
+                seasonNumber,
+                airDate,
+                airTime: airTime.trim() || null,
+                hostName,
+                premiereId: createdPremiereId!,
+              })}>
+              <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
+            </Pressable>
             <Pressable style={styles.shareCancelBtn} onPress={() => {
               setShareSheetVisible(false);
               router.replace({ pathname: '/premiere-waiting-room', params: { id: createdPremiereId! } });
