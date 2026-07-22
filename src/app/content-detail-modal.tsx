@@ -281,6 +281,7 @@ export default function ContentDetailModal() {
             <Text style={styles.modalDoneBtn}>Done</Text>
           </TouchableOpacity>
         </View>
+        <View style={styles.scrollContainer} collapsable={false}>
         <ScrollView style={styles.scrollArea} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 88 }}>
         <View style={styles.bodyContent}>
           {/* Poster on the left (kept in its natural aspect ratio, never
@@ -510,6 +511,7 @@ export default function ContentDetailModal() {
             <Text style={styles.logBtnText}>Log it</Text>
           </Pressable>
         </View>
+        </View>
       </View>
     </>
   );
@@ -536,6 +538,7 @@ function createStyles(Brand: BrandPalette) {
 
   // Body
   body: { flex: 1 },
+  scrollContainer: { flex: 1 },
   scrollArea: { flex: 1 },
   bodyContent: { paddingHorizontal: 20, paddingTop: 14, paddingBottom: 16 },
 
