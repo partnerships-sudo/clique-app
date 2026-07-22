@@ -109,6 +109,9 @@ export default function ChatModal() {
   const sendDm = useSendDm();
   const sendGroupMessage = useSendGroupMessage(isGroup ? params.groupId! : null);
   const [input, setInput] = useState('');
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<TextInput>(null);
   const [mediaExpanded, setMediaExpanded] = useState(false);
   const [gifPickerOpen, setGifPickerOpen] = useState(false);
   const [gifQuery, setGifQuery] = useState('');
@@ -163,7 +166,7 @@ export default function ChatModal() {
   const type = TypeColors[params.type as EntryType] ?? TypeColors.watch;
 
   // Gate visible on first visit (no checkpoint yet) OR when user taps to update
-  const isGateVisible = needsSpoilerGuard && checkpointLoaded && (!checkpoint || forceShowGate);
+  const isGateVisible = needsSpoilerGuard && checkpointLoaded && (!checkpoint || forceShowGate) && !searchVisible;
 
   const messages: RawMessage[] = isGroup
     ? (groupMessages.data ?? []).map((m) => ({
@@ -230,6 +233,21 @@ export default function ChatModal() {
       ? cautionMessages.map((m) => ({ kind: 'message' as const, data: m }))
       : []),
   ];
+
+  const searchActive = searchVisible && searchQuery.trim().length > 0;
+  const filteredMessages = searchActive
+    ? messages.filter((m) => m.content.toLowerCase().includes(searchQuery.trim().toLowerCase()))
+    : null;
+  const displayItems: ListItem[] = searchActive
+    ? (filteredMessages ?? []).map((m) => ({ kind: 'message' as const, data: m }))
+    : listItems;
+
+  function toggleSearch() {
+    const next = !searchVisible;
+    setSearchVisible(next);
+    setSearchQuery('');
+    if (next) setTimeout(() => searchInputRef.current?.focus(), 80);
+  }
 
   // ID of the last message I sent in this DM (for the "Read" receipt indicator).
   const lastSentId = isDm
@@ -361,6 +379,15 @@ export default function ChatModal() {
                 : `Chatting about this ${type.label.toLowerCase()}`}
             </Text>
           </Pressable>
+          <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
+            <SymbolView
+              name={searchVisible ? 'xmark' : 'magnifyingglass'}
+              size={16}
+              tintColor={searchVisible ? Brand.trust : Brand.muted}
+              type="monochrome"
+              style={{ width: 18, height: 18 }}
+            />
+          </Pressable>
           {isGroup ? (
             <View style={[styles.headerIconBox, { backgroundColor: Brand.tlight }]}>
               <Text style={styles.headerIcon}>👥</Text>
@@ -381,6 +408,35 @@ export default function ChatModal() {
             </View>
           )}
         </View>
+
+        {searchVisible && (
+          <View style={styles.searchBar}>
+            <SymbolView
+              name="magnifyingglass"
+              size={14}
+              tintColor={Brand.muted}
+              type="monochrome"
+              style={{ width: 16, height: 16 }}
+            />
+            <TextInput
+              ref={searchInputRef}
+              style={styles.searchInput}
+              placeholder="Search messages…"
+              placeholderTextColor={Brand.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              clearButtonMode="while-editing"
+            />
+            {searchQuery.length > 0 && (
+              <Text style={styles.searchCount}>
+                {filteredMessages?.length === 0
+                  ? 'No results'
+                  : `${filteredMessages?.length} result${filteredMessages?.length === 1 ? '' : 's'}`}
+              </Text>
+            )}
+          </View>
+        )}
 
         {isDmLocked ? (
           <View style={styles.gate}>
@@ -483,7 +539,7 @@ export default function ChatModal() {
             ref={listRef}
             style={styles.messages}
             contentContainerStyle={styles.messagesContent}
-            data={listItems}
+            data={displayItems}
             keyExtractor={(item) => (item.kind === 'divider' ? '__spoiler_divider__' : item.data.id)}
             renderItem={({ item }) => {
               if (item.kind === 'divider') {
@@ -523,7 +579,7 @@ export default function ChatModal() {
               );
             }}
             ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
-            onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: false })}
+            onContentSizeChange={() => { if (!searchActive) listRef.current?.scrollToEnd({ animated: false }); }}
             ListEmptyComponent={
               !isLoading ? <Text style={styles.empty}>Say something to kick off the chat.</Text> : null
             }
@@ -916,5 +972,35 @@ function createStyles(Brand: BrandPalette) {
     gifCell: { flex: 1, borderRadius: 8, overflow: 'hidden', backgroundColor: Brand.border },
     gifThumb: { width: '100%', aspectRatio: 1 },
     gifLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+
+    searchToggleBtn: {
+      width: 30,
+      height: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    searchBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+      backgroundColor: Brand.card,
+    },
+    searchInput: {
+      flex: 1,
+      fontSize: 14.5,
+      fontFamily: BrandFonts.interRegular,
+      color: Brand.ink,
+      paddingVertical: 0,
+    },
+    searchCount: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12,
+      color: Brand.muted,
+      flexShrink: 0,
+    },
   });
 }
