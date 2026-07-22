@@ -163,7 +163,7 @@ export default function FriendsScreen() {
           </View>
         }
         renderItem={({ item, index }: { item: Profile; index: number }) => {
-          const myItems = compatItemsMap?.get(user!.id) ?? [];
+          const myItems = compatItemsMap?.get(user?.id ?? '') ?? [];
           const friendItems = compatItemsMap?.get(item.id) ?? [];
           const compat = computeCompatibility(myItems, friendItems);
           const friendPosts = allPosts.filter((p) => p.user_id === item.id);
