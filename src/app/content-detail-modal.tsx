@@ -11,6 +11,7 @@ import Animated, { useAnimatedStyle, useSharedValue, withDecay } from 'react-nat
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useContentDetails, type ContentDetails } from '@/features/content/api';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
+import { ShareSheet } from '@/components/feed/share-sheet';
 import { useBecauseYouRecs } from '@/features/feed/for-you';
 import { useTVEpisodes } from '@/features/search/api';
 import { getWhereToFindConfig } from '@/features/where-to-find/links';
@@ -217,6 +218,7 @@ export default function ContentDetailModal() {
     mediaType?: string;
   }>();
 
+  const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const [synopsisTruncated, setSynopsisTruncated] = useState(false);
   const [authorBioExpanded, setAuthorBioExpanded] = useState(false);
@@ -636,25 +638,19 @@ export default function ContentDetailModal() {
             <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
               <Text style={styles.logBtnText}>Log it</Text>
             </Pressable>
-            <Pressable
-              style={styles.shareIconBtn}
-              hitSlop={6}
-              onPress={() =>
-                router.push({
-                  pathname: '/share-card-modal',
-                  params: {
-                    title: params.title,
-                    type: resolvedType,
-                    poster: params.poster ?? '',
-                    sub: params.sub ?? '',
-                  },
-                })
-              }>
+            <Pressable style={styles.shareIconBtn} hitSlop={6} onPress={() => setShareSheetVisible(true)}>
               <SymbolView name="square.and.arrow.up" size={17} tintColor={Brand.trust} type="monochrome" style={{ width: 18, height: 18 }} />
             </Pressable>
           </View>
         </View>
       </ScrollView>
+
+      <ShareSheet
+        visible={shareSheetVisible}
+        onClose={() => setShareSheetVisible(false)}
+        post={{ title: params.title, type: resolvedType, sub: params.sub, poster: params.poster }}
+        onWatchlist={() => navigateToLog('watchlist')}
+      />
     </>
   );
 }
