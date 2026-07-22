@@ -18,10 +18,16 @@ import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const ACTOR_SIZE = 52;
 
-function PodcastEpisodeRow({ cast, styles }: { cast: ContentDetails['cast']; styles: ReturnType<typeof createStyles> }) {
+const EPISODE_PAGE = 5;
+
+function PodcastEpisodeRow({ cast, styles, isSearchActive }: { cast: ContentDetails['cast']; styles: ReturnType<typeof createStyles>; isSearchActive: boolean }) {
+  const [showAll, setShowAll] = useState(false);
   const [playingIndex, setPlayingIndex] = useState<number | null>(null);
   const player = useAudioPlayer(null);
   const stopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const visible = isSearchActive || showAll ? cast : cast.slice(0, EPISODE_PAGE);
+  const hiddenCount = cast.length - EPISODE_PAGE;
 
   useEffect(() => {
     return () => {
@@ -58,7 +64,7 @@ function PodcastEpisodeRow({ cast, styles }: { cast: ContentDetails['cast']; sty
 
   return (
     <View style={styles.episodeList}>
-      {cast.map((ep, i) => (
+      {visible.map((ep, i) => (
         <Pressable key={`${i}-${ep.name}`} style={styles.episodeRow} onPress={() => handlePress(i)}>
           <View style={styles.episodeThumbWrap}>
             {ep.profilePath ? (
@@ -83,6 +89,13 @@ function PodcastEpisodeRow({ cast, styles }: { cast: ContentDetails['cast']; sty
           </View>
         </Pressable>
       ))}
+      {!isSearchActive && hiddenCount > 0 ? (
+        <Pressable onPress={() => setShowAll((v) => !v)} hitSlop={8}>
+          <Text style={styles.episodeSeeMore}>
+            {showAll ? 'See less' : `See ${hiddenCount} more episodes`}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -572,6 +585,7 @@ export default function ContentDetailModal() {
                       ? details.cast.filter((ep) => ep.name.toLowerCase().includes(episodeSearch.toLowerCase()))
                       : details.cast}
                     styles={styles}
+                    isSearchActive={episodeSearch.trim().length > 0}
                   />
                 </>
               ) : (
@@ -831,6 +845,7 @@ function createStyles(Brand: BrandPalette) {
   episodeName: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.ink, lineHeight: 18 },
   episodeMeta: { flexDirection: 'row', gap: 8, marginTop: 2 },
   episodeDate: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted },
+  episodeSeeMore: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust, marginTop: 4 },
   castRowFit: { flexDirection: 'row', justifyContent: 'space-between' },
   actorItemFit: { alignItems: 'center', flex: 1 },
   trackThumbWrap: { position: 'relative' },
