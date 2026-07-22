@@ -277,7 +277,7 @@ export default function ContentDetailModal() {
       />
       <View style={[styles.sheet, styles.body]}>
       <View style={styles.modalHeader}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.dismiss()} hitSlop={12}>
           <Text style={styles.modalDoneBtn}>Done</Text>
         </Pressable>
       </View>
