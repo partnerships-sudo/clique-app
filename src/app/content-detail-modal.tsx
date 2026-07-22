@@ -628,13 +628,29 @@ export default function ContentDetailModal() {
             </View>
           ) : null}
 
-          {/* Watchlist / Log buttons */}
+          {/* Watchlist / Log / Share buttons */}
           <View style={styles.actionBar}>
             <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
               <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
             </Pressable>
             <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
               <Text style={styles.logBtnText}>Log it</Text>
+            </Pressable>
+            <Pressable
+              style={styles.shareIconBtn}
+              hitSlop={6}
+              onPress={() =>
+                router.push({
+                  pathname: '/share-card-modal',
+                  params: {
+                    title: params.title,
+                    type: resolvedType,
+                    poster: params.poster ?? '',
+                    sub: params.sub ?? '',
+                  },
+                })
+              }>
+              <SymbolView name="square.and.arrow.up" size={17} tintColor={Brand.trust} type="monochrome" style={{ width: 18, height: 18 }} />
             </Pressable>
           </View>
         </View>
@@ -696,6 +712,14 @@ function createStyles(Brand: BrandPalette) {
     fontFamily: BrandFonts.syneBold,
     fontSize: 14.5,
     color: '#fff',
+  },
+  shareIconBtn: {
+    width: 46,
+    borderWidth: 1.5,
+    borderColor: Brand.trust,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Header: poster (kept in its natural aspect ratio) + title/meta side by side
