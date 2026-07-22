@@ -42,7 +42,9 @@ export interface LogActivityItem {
 export function computeTrendingInCircle(posts: LogActivityItem[], limit = 5): TrendingEntry[] {
   const counts = new Map<string, TrendingEntry>();
   for (const post of posts) {
-    const key = post.title.toLowerCase();
+    const key = post.external_id
+      ? `${post.type}:${post.external_id}`
+      : `${post.type}:${post.title.toLowerCase()}`;
     const existing = counts.get(key);
     if (existing) {
       existing.count += 1;
