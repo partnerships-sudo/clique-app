@@ -12,6 +12,7 @@ import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme
 import { useContentDetails, type ContentDetails } from '@/features/content/api';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
 import { useBecauseYouRecs } from '@/features/feed/for-you';
+import { useTVEpisodes } from '@/features/search/api';
 import { getWhereToFindConfig } from '@/features/where-to-find/links';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
@@ -208,6 +209,7 @@ export default function ContentDetailModal() {
   const [authorBioExpanded, setAuthorBioExpanded] = useState(false);
   const [authorBioTruncated, setAuthorBioTruncated] = useState(false);
   const [episodeSearch, setEpisodeSearch] = useState('');
+  const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
 
   // Some entries (especially from friend collections) store 'tv' or 'movie'
   // as the type instead of the app's EntryType 'watch'. Normalise here.
@@ -217,6 +219,14 @@ export default function ContentDetailModal() {
     params.type === 'tv' ? 'tv' : params.type === 'movie' ? 'movie' : params.mediaType;
 
   const { data: details, isLoading } = useContentDetails(params.title, resolvedType, params.externalId, resolvedMediaType);
+
+  const isTvShow = resolvedType === 'watch' && (resolvedMediaType === 'tv' || details?.mediaType === 'tv');
+  const tvSeasons = details?.seasons ?? [];
+  const activeSeason = selectedSeason ?? tvSeasons[0]?.seasonNumber ?? null;
+  const { data: tvEpisodes = [], isFetching: episodesFetching } = useTVEpisodes(
+    isTvShow ? (params.externalId ?? null) : null,
+    isTvShow ? activeSeason : null,
+  );
 
   const { data: similarTitles = [] } = useBecauseYouRecs({
     title: params.title,
@@ -396,6 +406,47 @@ export default function ContentDetailModal() {
                   </Text>
                 </Pressable>
               ) : null}
+            </View>
+          ) : null}
+
+          {/* TV seasons & episodes */}
+          {!isLoading && isTvShow && tvSeasons.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Seasons</Text>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.seasonPillRow}>
+                {tvSeasons.map((s) => (
+                  <Pressable
+                    key={s.seasonNumber}
+                    style={[styles.seasonPill, activeSeason === s.seasonNumber && styles.seasonPillActive]}
+                    onPress={() => setSelectedSeason(s.seasonNumber)}>
+                    <Text style={[styles.seasonPillText, activeSeason === s.seasonNumber && styles.seasonPillTextActive]}>
+                      S{s.seasonNumber}
+                    </Text>
+                    <Text style={[styles.seasonPillEpCount, activeSeason === s.seasonNumber && styles.seasonPillTextActive]}>
+                      {s.episodeCount} ep
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+              {episodesFetching ? (
+                <ActivityIndicator color={Brand.trust} style={{ marginTop: 8 }} />
+              ) : (
+                <View style={styles.tvEpisodeList}>
+                  {tvEpisodes.map((ep) => (
+                    <View key={ep.episodeNumber} style={styles.tvEpisodeRow}>
+                      <Text style={styles.tvEpisodeNum}>E{ep.episodeNumber}</Text>
+                      <View style={styles.tvEpisodeInfo}>
+                        <Text style={styles.tvEpisodeName} numberOfLines={1}>{ep.name}</Text>
+                        {ep.airDate ? (
+                          <Text style={styles.tvEpisodeDate}>
+                            {new Date(ep.airDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </Text>
+                        ) : null}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
             </View>
           ) : null}
 
@@ -832,6 +883,26 @@ function createStyles(Brand: BrandPalette) {
     color: Brand.muted,
     lineHeight: 18,
   },
+  seasonPillRow: { paddingBottom: 12, gap: 8 },
+  seasonPill: {
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    borderWidth: 1.5,
+    borderColor: Brand.border,
+    backgroundColor: Brand.card,
+  },
+  seasonPillActive: { borderColor: Brand.trust, backgroundColor: Brand.tlight },
+  seasonPillText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
+  seasonPillEpCount: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: Brand.muted, marginTop: 1 },
+  seasonPillTextActive: { color: Brand.trust },
+  tvEpisodeList: { gap: 10 },
+  tvEpisodeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  tvEpisodeNum: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted, width: 28, paddingTop: 1 },
+  tvEpisodeInfo: { flex: 1 },
+  tvEpisodeName: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.ink },
+  tvEpisodeDate: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 2 },
   coAuthorsText: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 12.5,
