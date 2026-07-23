@@ -61,18 +61,6 @@ target 'Clique' do
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
 
-    # Prebuilt React Native frameworks are compiled with inline Sealable (production mode).
-    # Force all pods to match so the Sealable() constructor isn't expected as an extern symbol.
-    installer.pods_project.targets.each do |target|
-      target.build_configurations.each do |config|
-        defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
-        defs = [defs] if defs.is_a?(String)
-        unless defs.include?('REACT_NATIVE_PRODUCTION=1')
-          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs + ['REACT_NATIVE_PRODUCTION=1']
-        end
-      end
-    end
-
     # Hermes xcframework ships the new CDP inspector API; the old inspector_modern
     # chrome::enableDebugging no longer exists. Disable the old debugger path.
     rnworklets_xcconfig = File.join(installer.sandbox.root, 'Target Support Files/RNWorklets/RNWorklets.debug.xcconfig')
