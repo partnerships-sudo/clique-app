@@ -391,7 +391,7 @@ export default function FeedScreen() {
             style={styles.cfBanner}
             onPress={() => router.push({ pathname: '/stories-modal', params: { postId: myLatestCFPost.id } })}>
             <Text style={styles.cfBannerText}>
-              💚 Your close friends can see this
+              💚 {myLatestCFPost.title} · close friends only
               {hearts.length > 0 ? ` · ${hearts.length} ❤️` : ''}
             </Text>
             <Text style={styles.cfBannerChevron}>›</Text>

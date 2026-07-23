@@ -756,7 +756,7 @@ export function ProfileCard({
                 <View style={styles.myTasteHeader}>
                   <Text style={styles.myTasteTitle}>MyTaste Top 4</Text>
                   <Text style={styles.myTasteSub}>your most compatible friends</Text>
-                  <Pressable style={styles.myTasteViewAll} hitSlop={8} onPress={() => Alert.alert('MyTaste', 'Full compatibility rankings coming soon.')}>
+                  <Pressable style={styles.myTasteViewAll} hitSlop={8} onPress={() => router.push('/discover-people-modal')}>
                     <Text style={styles.myTasteViewAllText}>View all</Text>
                   </Pressable>
                 </View>
@@ -789,7 +789,6 @@ export function ProfileCard({
               <View style={[styles.goalCard, styles.statsCard]}>
                 <View style={styles.cardHeaderRow}>
                   <Text style={styles.statsCardTitle}>TOP GENRES</Text>
-                  <Pressable hitSlop={8} onPress={() => Alert.alert('Top Genres', 'Full genre breakdown coming soon.')}><Text style={styles.myTasteViewAllText}>View all</Text></Pressable>
                 </View>
                 {topGenres.length === 0 ? (
                   <Text style={styles.goalSub}>No data yet.</Text>
@@ -815,7 +814,6 @@ export function ProfileCard({
               <View style={[styles.goalCard, styles.statsCard]}>
                 <View style={styles.cardHeaderRow}>
                   <Text style={styles.statsCardTitle}>TOP CATEGORIES</Text>
-                  <Pressable hitSlop={8} onPress={() => Alert.alert('Top Categories', 'Full category breakdown coming soon.')}><Text style={styles.myTasteViewAllText}>View all</Text></Pressable>
                 </View>
                 {STAT_CATEGORIES.map((cat) => (
                   <View key={cat.label} style={styles.catRow}>

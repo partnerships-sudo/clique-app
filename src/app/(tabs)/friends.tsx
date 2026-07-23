@@ -166,7 +166,7 @@ export default function FriendsScreen() {
               <View style={styles.section}>
                 <View style={styles.sectionHeaderRow}>
                   <Text style={styles.sectionLabelInline}>People you may know</Text>
-                  <Pressable hitSlop={8} onPress={() => Alert.alert('People you may know', 'More suggestions coming soon.')}>
+                  <Pressable hitSlop={8} onPress={() => router.push('/discover-people-modal')}>
                     <Text style={styles.seeAll}>See all</Text>
                   </Pressable>
                 </View>
