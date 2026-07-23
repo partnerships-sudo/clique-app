@@ -743,7 +743,6 @@ export function ProfileCard({
                         <Text style={styles.activeLabel}>{cat.label}</Text>
                         <Text style={[styles.activeSub, { color: cat.color }]}>{cat.sub}</Text>
                       </View>
-                      <SymbolView name="chevron.right" size={12} tintColor={Brand.muted} type="monochrome" />
                     </View>
                   ))
                 )}
