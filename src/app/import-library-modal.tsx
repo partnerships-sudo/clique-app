@@ -237,6 +237,7 @@ export default function ImportLibraryModal() {
 
     const rows = newRows;
     let imported = 0;
+    let skippedById = 0;
     let unmatched = 0;
     const inserts: object[] = [];
 
@@ -250,7 +251,7 @@ export default function ImportLibraryModal() {
         : await lookupHardcover(row.title, row.author);
 
       // Skip if we resolved an external_id that's already in the library
-      if (lookup && existingExternalIds.has(lookup.externalId)) continue;
+      if (lookup && existingExternalIds.has(lookup.externalId)) { skippedById++; continue; }
 
       if (!lookup) unmatched++;
 
@@ -285,7 +286,7 @@ export default function ImportLibraryModal() {
       }
     }
 
-    setResult({ imported, skipped: alreadyOwned, unmatched });
+    setResult({ imported, skipped: alreadyOwned + skippedById, unmatched });
     setProgress(1);
     setStep('done');
   }
