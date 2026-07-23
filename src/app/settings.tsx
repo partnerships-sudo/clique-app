@@ -181,6 +181,16 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
+          <Pressable style={[styles.row, styles.rowDivider]} onPress={() => router.push('/import-library-modal')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="square.and.arrow.down" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Import library</Text>
+              <Text style={styles.rowSub}>Bring in your Letterboxd or Goodreads history</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
         </View>
 
         {/* DEV TOOLS */}

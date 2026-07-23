@@ -415,19 +415,33 @@ export default function PremiereModal() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareRow}>
               {[
                 { label: 'Messages', icon: scheme === 'dark' ? require('@/assets/logos/messages_dark.png') : require('@/assets/logos/messages_light.png'),
-                  onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!` }); } },
+                  onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}` }); } },
                 { label: 'WhatsApp', icon: scheme === 'dark' ? require('@/assets/logos/whatsapp_App_Icon_Dark_2026.png') : require('@/assets/logos/whatsapp_App_Icon_Light_2026.png'),
                   onPress: async () => {
-                    const text = encodeURIComponent(`Join my ${showTitle} watch party on Clique!`);
-                    const url = `whatsapp://send?text=${text}`;
-                    const ok = await Linking.canOpenURL(url);
-                    if (ok) Linking.openURL(url); else Alert.alert('WhatsApp not installed');
+                    if (capturedUri) {
+                      await Share.share({
+                        url: capturedUri,
+                        message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`,
+                      });
+                    } else {
+                      const msg = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
+                      const ok = await Linking.canOpenURL('whatsapp://send');
+                      if (ok) Linking.openURL(`whatsapp://send?text=${msg}`); else Alert.alert('WhatsApp not installed');
+                    }
                   } },
                 { label: 'Mail', icon: scheme === 'dark' ? require('@/assets/logos/mail_dark.png') : require('@/assets/logos/mail_light.png'),
-                  onPress: () => {
-                    const subject = encodeURIComponent(`Join my ${showTitle} watch party on Clique`);
-                    const body = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
-                    Linking.openURL(`mailto:?subject=${subject}&body=${body}`);
+                  onPress: async () => {
+                    if (capturedUri) {
+                      await Share.share({
+                        url: capturedUri,
+                        message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`,
+                        title: `Join my ${showTitle} watch party on Clique`,
+                      });
+                    } else {
+                      const subject = encodeURIComponent(`Join my ${showTitle} watch party on Clique`);
+                      const body = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
+                      Linking.openURL(`mailto:?subject=${subject}&body=${body}`);
+                    }
                   } },
                 { label: 'AirDrop', icon: scheme === 'dark' ? require('@/assets/logos/airdrop_dark.png') : require('@/assets/logos/airdrop_light.png'),
                   onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri }); } },

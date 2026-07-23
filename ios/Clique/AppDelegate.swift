@@ -21,6 +21,10 @@ public class AppDelegate: ExpoAppDelegate {
     reactNativeFactory = factory
     bindReactNativeFactory(factory)
 
+    // Override fuseboxEnabledRelease=true so InspectorFlags bypasses the
+    // legacy DecoratedRuntime path that crashes in debugJavaScript on iOS 26.
+    FuseboxFlagPatch.apply()
+
 #if os(iOS) || os(tvOS)
     window = UIWindow(frame: UIScreen.main.bounds)
     factory.startReactNative(

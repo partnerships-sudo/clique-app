@@ -13,6 +13,7 @@
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
 		CD63518F1E43217F995FCADC /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = E0D496D72AF15CFD1BFFD23E /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
+		F11748502D0307B40044C1D9 /* FeatureFlagsOverride.mm in Sources */ = {isa = PBXBuildFile; fileRef = F11748512D0307B40044C1D9 /* FeatureFlagsOverride.mm */; };
 		F4CBDD21DF0B72A370B9763B /* libPods-Clique.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 6C7B8A3482337C3ACBE6A9E1 /* libPods-Clique.a */; };
 /* End PBXBuildFile section */
 
@@ -30,6 +31,8 @@
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Clique/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Clique-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Clique-Bridging-Header.h"; path = "Clique/Clique-Bridging-Header.h"; sourceTree = "<group>"; };
+		F11748512D0307B40044C1D9 /* FeatureFlagsOverride.mm */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.objcpp; name = FeatureFlagsOverride.mm; path = Clique/FeatureFlagsOverride.mm; sourceTree = "<group>"; };
+		F11748532D0307B40044C1D9 /* FeatureFlagsOverride.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = FeatureFlagsOverride.h; path = Clique/FeatureFlagsOverride.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -58,6 +61,8 @@
 			children = (
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* Clique-Bridging-Header.h */,
+				F11748532D0307B40044C1D9 /* FeatureFlagsOverride.h */,
+				F11748512D0307B40044C1D9 /* FeatureFlagsOverride.mm */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
@@ -146,6 +151,7 @@
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				3AEC664A4C40683387362D3E /* [CP] Embed Pods Frameworks */,
+				B5D8912570D24487ACF79122 /* Patch React.framework (Debug) */,
 			);
 			buildRules = (
 			);
@@ -329,6 +335,21 @@
 			shellPath = /bin/sh;
 			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-Clique/expo-configure-project.sh\"\n";
 		};
+		B5D8912570D24487ACF79122 /* Patch React.framework (Debug) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+			);
+			name = "Patch React.framework (Debug)";
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "# Patch React.framework to NOP out the null-sourceURL debugJavaScript call\n# that crashes in Debug builds (Expo SDK 54 / RN 0.81.5 prebuilt).\nif [[ \"$CONFIGURATION\" = *Debug* ]]; then\n  REACT=\"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework/React\"\n  if [[ -f \"$REACT\" ]]; then\n    python3 \"${SRCROOT}/patch_react_framework.py\" \"$REACT\"\n  fi\nfi\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -337,6 +358,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
+				F11748502D0307B40044C1D9 /* FeatureFlagsOverride.mm in Sources */,
 				CD63518F1E43217F995FCADC /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

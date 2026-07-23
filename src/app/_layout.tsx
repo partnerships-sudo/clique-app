@@ -68,6 +68,7 @@ function RootNavigator() {
       <Stack.Screen name="rate-watchlist-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-item-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="export-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.55], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false }} />
     </Stack>
   );
 }
