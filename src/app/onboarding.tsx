@@ -26,7 +26,7 @@ import { registerForPushNotificationsAsync } from '@/lib/push-notifications';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
-const TOTAL_STEPS = 7; // 0 = welcome … 7 = all set
+const TOTAL_STEPS = 8; // 0 = welcome … 8 = all set
 
 const CONTENT_TYPES = [
   { value: 'watch',   label: 'Movies'   },
@@ -50,6 +50,7 @@ export default function OnboardingScreen() {
   const [friendQuery, setFriendQuery] = useState('');
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [notifDone, setNotifDone] = useState(false);
+  const [importDone, setImportDone] = useState(false);
 
   const [selectedRatingIcon, setSelectedRatingIcon] = useState<RatingIconStyle>('stars');
   const uploadAvatar = useUploadAvatar();
@@ -114,9 +115,9 @@ export default function OnboardingScreen() {
 
   const progress = step / TOTAL_STEPS;
 
-  // Step 5: full-screen interactive tour — render outside SafeAreaView so the
+  // Step 7: full-screen interactive tour — render outside SafeAreaView so the
   // spotlight overlay can cover the entire screen including safe areas.
-  if (step === 6) {
+  if (step === 7) {
     return (
       <View style={{ flex: 1 }}>
         <TourScreen onComplete={next} onSkip={next} />
@@ -339,9 +340,41 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* Step 6 is the interactive tour — rendered above the SafeAreaView */}
+      {/* ── Step 6: Import library ── */}
+      {step === 6 && (
+        <View style={styles.centered}>
+          <View style={styles.importIconWrap}>
+            <SymbolView name="square.and.arrow.down.fill" size={40} tintColor={Brand.trust} type="monochrome" />
+          </View>
+          <Text style={styles.stepTitle}>Bring your history</Text>
+          <Text style={[styles.stepSub, { textAlign: 'center' }]}>
+            Already logging on Letterboxd or Goodreads? Import your library and keep everything in one place.
+          </Text>
+          <View style={styles.importSources}>
+            <View style={styles.importSource}>
+              <Text style={styles.importSourceEmoji}>🎬</Text>
+              <Text style={styles.importSourceLabel}>Letterboxd</Text>
+            </View>
+            <View style={styles.importSourceDivider} />
+            <View style={styles.importSource}>
+              <Text style={styles.importSourceEmoji}>📚</Text>
+              <Text style={styles.importSourceLabel}>Goodreads</Text>
+            </View>
+          </View>
+          <Pressable
+            style={[styles.primaryBtn, importDone && styles.primaryBtnDone]}
+            onPress={importDone ? next : () => { setImportDone(true); router.push('/import-library-modal'); }}>
+            <Text style={styles.primaryBtnText}>{importDone ? 'Continue →' : 'Import library'}</Text>
+          </Pressable>
+          <Pressable style={styles.skipBtn} onPress={next} hitSlop={8}>
+            <Text style={styles.skipBtnText}>I'll do it later</Text>
+          </Pressable>
+        </View>
+      )}
 
-      {/* ── Step 6: All set ── */}
+      {/* Step 7 is the interactive tour — rendered above the SafeAreaView */}
+
+      {/* ── Step 8: All set ── */}
       {step === TOTAL_STEPS && (
         <View style={styles.centered}>
           <SymbolView name="checkmark.circle.fill" size={64} tintColor="#34D399" type="monochrome" />
@@ -608,6 +641,37 @@ function createStyles(Brand: BrandPalette) {
     followBtnDone: { backgroundColor: Brand.tlight },
     followBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: '#fff' },
     followBtnTextDone: { color: Brand.muted },
+    // Import library step
+    importIconWrap: {
+      width: 88,
+      height: 88,
+      borderRadius: 26,
+      backgroundColor: Brand.tlight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 24,
+    },
+    importSources: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      borderRadius: 18,
+      paddingVertical: 18,
+      paddingHorizontal: 32,
+      gap: 0,
+      marginBottom: 28,
+      alignSelf: 'stretch',
+    },
+    importSource: { flex: 1, alignItems: 'center', gap: 6 },
+    importSourceEmoji: { fontSize: 32 },
+    importSourceLabel: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 13,
+      color: Brand.ink,
+    },
+    importSourceDivider: { width: 1, height: 40, backgroundColor: Brand.border },
     // Notifications step
     notifIconWrap: {
       width: 96,
