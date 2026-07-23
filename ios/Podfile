@@ -17,6 +17,7 @@ ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NET
 ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
 ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
 platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+project 'Clique'
 
 prepare_react_native_project!
 
@@ -35,7 +36,7 @@ target 'Clique' do
       'react-native-config',
       '--json',
       '--platform',
-      'ios'
+      'ios',
     ]
   end
 
@@ -59,5 +60,26 @@ target 'Clique' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # Prebuilt React Native frameworks are compiled with inline Sealable (production mode).
+    # Force all pods to match so the Sealable() constructor isn't expected as an extern symbol.
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        defs = config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] || ['$(inherited)']
+        defs = [defs] if defs.is_a?(String)
+        unless defs.include?('REACT_NATIVE_PRODUCTION=1')
+          config.build_settings['GCC_PREPROCESSOR_DEFINITIONS'] = defs + ['REACT_NATIVE_PRODUCTION=1']
+        end
+      end
+    end
+
+    # Hermes xcframework ships the new CDP inspector API; the old inspector_modern
+    # chrome::enableDebugging no longer exists. Disable the old debugger path.
+    rnworklets_xcconfig = File.join(installer.sandbox.root, 'Target Support Files/RNWorklets/RNWorklets.debug.xcconfig')
+    if File.exist?(rnworklets_xcconfig)
+      content = File.read(rnworklets_xcconfig)
+      content = content.gsub('HERMES_ENABLE_DEBUGGER=1', 'HERMES_ENABLE_DEBUGGER=0')
+      File.write(rnworklets_xcconfig, content)
+    end
   end
 end

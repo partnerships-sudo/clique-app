@@ -168,6 +168,21 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* DATA */}
+        <Text style={styles.sectionLabel}>Data</Text>
+        <View style={styles.card}>
+          <Pressable style={styles.row} onPress={() => router.push('/export-library-modal')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="square.and.arrow.up" size={18} tintColor={Brand.muted} type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>Export library</Text>
+              <Text style={styles.rowSub}>Download your logged items as CSV, Letterboxd, or JSON</Text>
+            </View>
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </View>
+
         {/* DEV TOOLS */}
         {__DEV__ && (
           <>

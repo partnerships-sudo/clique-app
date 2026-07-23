@@ -66,8 +66,37 @@ export default function FriendsScreen() {
   const isFetching = tab === 'following' ? followingFetching : followersFetching;
   const refetch = tab === 'following' ? refetchFollowing : refetchFollowers;
 
-  const visibleSuggestions = (suggestions ?? []).filter((s) => !dismissedIds.has(s.id));
-  const unreadFriendIds = new Set((dmThreads ?? []).filter((t) => t.isUnread).map((t) => t.friendId));
+  const compatScores = useMemo(() => {
+    const map = new Map<string, number>();
+    if (!user?.id || !compatItemsMap) return map;
+    const myItems = compatItemsMap.get(user.id) ?? [];
+    for (const [uid, items] of compatItemsMap) {
+      if (uid === user.id) continue;
+      map.set(uid, computeCompatibility(myItems, items));
+    }
+    return map;
+  }, [compatItemsMap, user?.id]);
+
+  const activePostByUser = useMemo(() => {
+    const map = new Map<string, (typeof allPosts)[number]>();
+    for (const post of allPosts) {
+      const existing = map.get(post.user_id);
+      if (!existing || new Date(post.created_at) > new Date(existing.created_at)) {
+        map.set(post.user_id, post);
+      }
+    }
+    return map;
+  }, [allPosts]);
+
+  const unreadFriendIds = useMemo(
+    () => new Set((dmThreads ?? []).filter((t) => t.isUnread).map((t) => t.friendId)),
+    [dmThreads],
+  );
+
+  const visibleSuggestions = useMemo(
+    () => (suggestions ?? []).filter((s) => !dismissedIds.has(s.id)),
+    [suggestions, dismissedIds],
+  );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -163,11 +192,8 @@ export default function FriendsScreen() {
           </View>
         }
         renderItem={({ item, index }: { item: Profile; index: number }) => {
-          const myItems = compatItemsMap?.get(user?.id ?? '') ?? [];
-          const friendItems = compatItemsMap?.get(item.id) ?? [];
-          const compat = computeCompatibility(myItems, friendItems);
-          const friendPosts = allPosts.filter((p) => p.user_id === item.id);
-          const activePost = [...friendPosts].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null;
+          const compat = compatScores.get(item.id) ?? 0;
+          const activePost = activePostByUser.get(item.id) ?? null;
           return (
             <FriendCard
               profile={item}

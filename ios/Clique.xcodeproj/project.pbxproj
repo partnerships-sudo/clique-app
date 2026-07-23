@@ -360,6 +360,7 @@
 				);
 				INFOPLIST_FILE = Clique/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_CLIENT_NAME = SwiftUI;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -392,6 +393,7 @@
 				DEVELOPMENT_TEAM = M943AW25Y8;
 				INFOPLIST_FILE = Clique/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_CLIENT_NAME = SwiftUI;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
