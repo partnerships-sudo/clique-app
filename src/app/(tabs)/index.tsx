@@ -133,48 +133,48 @@ export default function FeedScreen() {
   // so something you rated 5★ last week outranks something you rated 5★ two
   // years ago. Collection items get a +10 bonus (they carry a deliberate rating).
   // Top 5 per type so we explore your taste more broadly.
-  const MAX_SEEDS_PER_TYPE = 5;
-  const now = Date.now();
+  const forYouSeeds = useMemo<ForYouSeed[]>(() => {
+    const MAX_SEEDS_PER_TYPE = 5;
+    const now = Date.now();
 
-  function recencyBonus(createdAt: string): number {
-    const ageMs = now - new Date(createdAt).getTime();
-    const ageDays = ageMs / (1000 * 60 * 60 * 24);
-    if (ageDays <= 14) return 6;
-    if (ageDays <= 30) return 4;
-    if (ageDays <= 90) return 2;
-    return 0;
-  }
+    function recencyBonus(createdAt: string): number {
+      const ageMs = now - new Date(createdAt).getTime();
+      const ageDays = ageMs / (1000 * 60 * 60 * 24);
+      if (ageDays <= 14) return 6;
+      if (ageDays <= 30) return 4;
+      if (ageDays <= 90) return 2;
+      return 0;
+    }
 
-  type SeedCandidate = { title: string; type: EntryType; external_id: string | null; media_type: string | null; seedScore: number };
-  const candidatesByType = new Map<EntryType, SeedCandidate[]>();
+    type SeedCandidate = { title: string; type: EntryType; external_id: string | null; media_type: string | null; seedScore: number };
+    const candidatesByType = new Map<EntryType, SeedCandidate[]>();
 
-  for (const item of collectionItems) {
-    const type = item.type as EntryType;
-    const bucket = candidatesByType.get(type) ?? [];
-    // Scale collection rating (0–5) to 0–100 so it dominates; recency is a small tie-breaker
-    const rating = (item.user_rating ?? 0) * 20;
-    bucket.push({ title: item.title, type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
-    candidatesByType.set(type, bucket);
-  }
-  for (const item of logged) {
-    const bucket = candidatesByType.get(item.type) ?? [];
-    // Scale feed rating (0–10) to 0–100 so it dominates; recency is a small tie-breaker
-    const rating = (item.rating ?? 0) * 10;
-    bucket.push({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
-    candidatesByType.set(item.type, bucket);
-  }
+    for (const item of collectionItems) {
+      const type = item.type as EntryType;
+      const bucket = candidatesByType.get(type) ?? [];
+      const rating = (item.user_rating ?? 0) * 20;
+      bucket.push({ title: item.title, type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
+      candidatesByType.set(type, bucket);
+    }
+    for (const item of logged) {
+      const bucket = candidatesByType.get(item.type) ?? [];
+      const rating = (item.rating ?? 0) * 10;
+      bucket.push({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, seedScore: rating + recencyBonus(item.created_at) });
+      candidatesByType.set(item.type, bucket);
+    }
 
-  const forYouSeeds: ForYouSeed[] = [...candidatesByType.values()].flatMap((items) =>
-    [...items]
-      .sort((a, b) => b.seedScore - a.seedScore)
-      .slice(0, MAX_SEEDS_PER_TYPE)
-      .map((item) => ({
-        title: item.title,
-        type: item.type,
-        externalId: item.external_id,
-        mediaType: item.media_type,
-      })),
-  );
+    return [...candidatesByType.values()].flatMap((items) =>
+      [...items]
+        .sort((a, b) => b.seedScore - a.seedScore)
+        .slice(0, MAX_SEEDS_PER_TYPE)
+        .map((item) => ({
+          title: item.title,
+          type: item.type,
+          externalId: item.external_id,
+          mediaType: item.media_type,
+        })),
+    );
+  }, [collectionItems, logged]);
 
   const { data: rawApiRecs = [], isFetching: forYouLoading } = useForYouRecs(forYouSeeds);
 
@@ -362,7 +362,7 @@ export default function FeedScreen() {
 
         {/* Right: bell + avatar */}
         <View style={styles.headerRight}>
-          <Pressable hitSlop={8} onPress={() => router.push('/notifications-modal')} style={styles.bellWrap}>
+          <Pressable hitSlop={16} onPress={() => router.push('/notifications-modal')} style={styles.bellWrap}>
             <SymbolView name="bell" size={22} tintColor={Brand.ink} style={{ width: 24, height: 24 }} />
             {unreadCount > 0 && (
               <View style={styles.bellBadge}>
@@ -370,7 +370,7 @@ export default function FeedScreen() {
               </View>
             )}
           </Pressable>
-          <Pressable onPress={() => setShowMenu((v) => !v)} hitSlop={8}>
+          <Pressable onPress={() => setShowMenu((v) => !v)} hitSlop={16}>
             <Avatar
               name={profile?.full_name ?? user?.email ?? 'You'}
               size={36}

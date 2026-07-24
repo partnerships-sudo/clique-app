@@ -78,7 +78,7 @@ export function MessageBubble({
           onPress={() =>
             router.push({ pathname: '/friend-profile-modal', params: { userId: message.user_id } })
           }
-          hitSlop={8}>
+          hitSlop={16}>
           <Avatar name={message.user_name} size={30} avatarUrl={avatarUrl} />
         </Pressable>
       ) : null}
@@ -203,7 +203,7 @@ export function MessageBubble({
                   style={[styles.recWatchlistBtn, savedToWatchlist && styles.recWatchlistBtnSaved]}
                   onPress={handleSaveToWatchlist}
                   disabled={savedToWatchlist || addLibraryItem.isPending}
-                  hitSlop={8}>
+                  hitSlop={16}>
                   <Text style={[styles.recWatchlistBtnText, savedToWatchlist && styles.recWatchlistBtnTextSaved]}>
                     {addLibraryItem.isPending ? '…' : savedToWatchlist ? '✓ Saved' : '+ Watchlist'}
                   </Text>

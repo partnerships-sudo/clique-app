@@ -128,7 +128,7 @@ export default function LoginScreen() {
             )}
           </Pressable>
 
-          <Pressable onPress={handleForgotPassword} disabled={isSendingReset} hitSlop={8} style={styles.forgotBtn}>
+          <Pressable onPress={handleForgotPassword} disabled={isSendingReset} hitSlop={16} style={styles.forgotBtn}>
             <Text style={styles.forgotText}>
               {isSendingReset ? 'Sending…' : 'Forgot password?'}
             </Text>

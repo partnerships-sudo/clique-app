@@ -42,14 +42,14 @@ export default function NewGroupModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>New Group</Text>
         <Pressable
           onPress={handleCreate}
           disabled={selected.size === 0 || createGroup.isPending}
-          hitSlop={8}>
+          hitSlop={16}>
           <Text style={[styles.create, selected.size === 0 && styles.createDisabled]}>
             {createGroup.isPending ? 'Creating…' : 'Create'}
           </Text>

@@ -105,7 +105,7 @@ export default function CollectionScanModal() {
           <Pressable style={styles.permissionBtn} onPress={requestPermission}>
             <Text style={styles.permissionBtnText}>Allow Camera</Text>
           </Pressable>
-          <Pressable onPress={() => router.back()} hitSlop={8} style={{ marginTop: 14 }}>
+          <Pressable onPress={() => router.back()} hitSlop={16} style={{ marginTop: 14 }}>
             <Text style={styles.cancelText}>Cancel</Text>
           </Pressable>
         </View>
@@ -123,7 +123,7 @@ export default function CollectionScanModal() {
       />
 
       <SafeAreaView style={styles.overlaySafeArea} edges={['top']}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.closeBtn}>
+        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.closeBtn}>
           <Text style={styles.closeBtnText}>✕</Text>
         </Pressable>
 

@@ -175,7 +175,7 @@ export default function PremiereModal() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Pressable onPress={() => router.back()} hitSlop={16}>
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <Text style={styles.heading}>Host a Watch Party</Text>
@@ -238,7 +238,7 @@ export default function PremiereModal() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
-          <Pressable onPress={() => setStep('search')} hitSlop={8}>
+          <Pressable onPress={() => setStep('search')} hitSlop={16}>
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <Text style={styles.heading} numberOfLines={1}>{selectedShow?.title}</Text>
@@ -282,7 +282,7 @@ export default function PremiereModal() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
-          <Pressable onPress={() => setStep('seasons')} hitSlop={8}>
+          <Pressable onPress={() => setStep('seasons')} hitSlop={16}>
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <Text style={styles.heading} numberOfLines={1}>Season {selectedSeason}</Text>
@@ -331,7 +331,7 @@ export default function PremiereModal() {
         keyboardDismissMode="on-drag">
 
         <View style={styles.header}>
-          <Pressable onPress={() => hasParams ? router.back() : setStep(selectedShow?.mediaType === 'movie' ? 'search' : 'episodes')} hitSlop={8}>
+          <Pressable onPress={() => hasParams ? router.back() : setStep(selectedShow?.mediaType === 'movie' ? 'search' : 'episodes')} hitSlop={16}>
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <Text style={styles.heading}>Create Premiere</Text>

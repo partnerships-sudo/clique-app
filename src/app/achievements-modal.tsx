@@ -51,7 +51,7 @@ export default function AchievementsModal() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header} collapsable={false}>
         <View style={styles.headerTopRow}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Pressable onPress={() => router.back()} hitSlop={16}>
             <Text style={styles.backBtn}>‹ Back</Text>
           </Pressable>
           <Text style={styles.title}>{isOwnProfile ? 'Achievements' : `${params.name ?? 'Their'} Achievements`}</Text>
@@ -128,7 +128,7 @@ export default function AchievementsModal() {
               </Pressable>
             ) : null}
 
-            <Pressable style={styles.closeBtn} onPress={() => setSelected(null)} hitSlop={8}>
+            <Pressable style={styles.closeBtn} onPress={() => setSelected(null)} hitSlop={16}>
               <Text style={styles.closeBtnText}>Close</Text>
             </Pressable>
           </Pressable>

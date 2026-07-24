@@ -171,11 +171,11 @@ export default function PremiereLive() {
             )}
           </View>
           {isHost ? (
-            <Pressable onPress={handleEnd} hitSlop={8}>
+            <Pressable onPress={handleEnd} hitSlop={16}>
               <Text style={styles.endText}>End</Text>
             </Pressable>
           ) : (
-            <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Pressable onPress={() => router.back()} hitSlop={16}>
               <Text style={styles.leaveText}>Leave</Text>
             </Pressable>
           )}

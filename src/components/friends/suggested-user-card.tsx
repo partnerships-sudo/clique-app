@@ -29,7 +29,7 @@ export function SuggestedUserCard({
 
   return (
     <View style={styles.card}>
-      <Pressable style={styles.dismissBtn} hitSlop={8} onPress={onDismiss}>
+      <Pressable style={styles.dismissBtn} hitSlop={16} onPress={onDismiss}>
         <Text style={styles.dismissText}>✕</Text>
       </Pressable>
       <Pressable

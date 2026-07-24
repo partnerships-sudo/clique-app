@@ -42,14 +42,14 @@ export default function AddGroupMembersModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>{groupName ?? 'Group Chat'}</Text>
         <Pressable
           onPress={handleAdd}
           disabled={selected.size === 0 || addMembers.isPending}
-          hitSlop={8}>
+          hitSlop={16}>
           <Text style={[styles.addBtn, selected.size === 0 && styles.addBtnDisabled]}>
             {addMembers.isPending ? 'Adding…' : addLabel}
           </Text>

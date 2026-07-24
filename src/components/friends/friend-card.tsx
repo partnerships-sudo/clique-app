@@ -78,7 +78,7 @@ export function FriendCard({
           ) : null}
           <Pressable
             style={styles.chatBtn}
-            hitSlop={8}
+            hitSlop={16}
             onPress={() =>
               router.push({
                 pathname: '/chat-modal',

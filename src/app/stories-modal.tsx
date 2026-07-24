@@ -241,7 +241,7 @@ export default function StoriesModal() {
         </View>
 
         <View style={styles.header}>
-          <Pressable onPress={(e) => { e.stopPropagation(); isOwnStory ? router.push('/profile') : router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } }); }} hitSlop={8}>
+          <Pressable onPress={(e) => { e.stopPropagation(); isOwnStory ? router.push('/profile') : router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } }); }} hitSlop={16}>
             <Avatar name={post.user_name} avatarUrl={post.user_avatar_url} size={34} ring="#34D399" />
           </Pressable>
           <View style={styles.headerMeta}>
@@ -268,7 +268,7 @@ export default function StoriesModal() {
             <Pressable
               style={styles.activityWrap}
               onPress={(e) => { e.stopPropagation(); setActivitySheetVisible((v) => !v); }}
-              hitSlop={8}>
+              hitSlop={16}>
               {/* Viewer avatar stack */}
               {(activity?.viewers ?? []).length > 0 && (
                 <View style={styles.activityAvatarRow}>
@@ -326,7 +326,7 @@ export default function StoriesModal() {
                   });
                 }
               }}
-              hitSlop={8}>
+              hitSlop={16}>
               <SymbolView name={meReacted ? 'heart.fill' : 'heart'} size={22} tintColor={meReacted ? '#E84F4F' : '#fff'} type="monochrome" />
             </Pressable>
           )}
@@ -348,7 +348,7 @@ export default function StoriesModal() {
                 onBlur={() => { if (!sent) startProgress(pausedAt.current); }}
               />
               {message.length > 0 && !sent && (
-                <Pressable onPress={handleSendMessage} hitSlop={8} style={styles.sendBtn}>
+                <Pressable onPress={handleSendMessage} hitSlop={16} style={styles.sendBtn}>
                   <SymbolView name="arrow.up.circle.fill" size={30} tintColor="#fff" type="monochrome" />
                 </Pressable>
               )}

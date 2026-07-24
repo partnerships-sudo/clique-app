@@ -12,7 +12,7 @@ export function SectionHeader({ title, onViewAll }: { title: string; onViewAll?:
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
       {onViewAll ? (
-        <Pressable onPress={onViewAll} hitSlop={8}>
+        <Pressable onPress={onViewAll} hitSlop={16}>
           <Text style={styles.viewAll}>View all ›</Text>
         </Pressable>
       ) : null}

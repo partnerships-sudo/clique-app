@@ -77,7 +77,7 @@ export function ShareProfileModal({
             </Pressable>
           </View>
 
-          <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={8}>
+          <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={16}>
             <Text style={styles.closeBtnText}>Close</Text>
           </Pressable>
         </Pressable>

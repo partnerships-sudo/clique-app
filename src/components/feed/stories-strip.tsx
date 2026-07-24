@@ -41,7 +41,7 @@ export function CloseFriendsButton({
 
   return (
     <View style={styles.container}>
-      <Pressable onPress={handlePress} hitSlop={8} style={styles.wrap}>
+      <Pressable onPress={handlePress} hitSlop={16} style={styles.wrap}>
         <View style={[styles.ring, !hasNew && styles.ringSeen]}>
           <View style={styles.inner}>
             <Text style={[styles.star, !hasNew && styles.starSeen]}>

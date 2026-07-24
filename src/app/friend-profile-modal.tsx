@@ -82,7 +82,7 @@ export default function FriendProfileModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backRow}>
+        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backRow}>
           <Text style={styles.backBtn}>‹ Back</Text>
         </Pressable>
 

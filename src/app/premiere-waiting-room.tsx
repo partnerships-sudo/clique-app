@@ -191,7 +191,7 @@ export default function PremiereWaitingRoom() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={8}>
+          <Pressable onPress={() => router.back()} hitSlop={16}>
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <View style={styles.headerCenter}>
@@ -246,7 +246,7 @@ export default function PremiereWaitingRoom() {
         {channelError ? (
           <View style={styles.channelErrorBanner}>
             <Text style={styles.channelErrorText}>⚠️ Chat disconnected</Text>
-            <Pressable onPress={() => setRetryKey((k) => k + 1)} style={styles.retryBtn} hitSlop={8}>
+            <Pressable onPress={() => setRetryKey((k) => k + 1)} style={styles.retryBtn} hitSlop={16}>
               <Text style={styles.retryBtnText}>Retry</Text>
             </Pressable>
           </View>

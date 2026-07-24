@@ -158,11 +158,11 @@ export default function WatchPartiesModal() {
 
         {isHost && item.status !== 'ended' ? (
           <View style={styles.cardActions}>
-            <Pressable style={styles.actionBtn} onPress={() => openEdit(item)} hitSlop={8}>
+            <Pressable style={styles.actionBtn} onPress={() => openEdit(item)} hitSlop={16}>
               <SymbolView name="pencil" size={15} tintColor={Brand.trust} type="monochrome" />
               <Text style={styles.actionBtnText}>Edit</Text>
             </Pressable>
-            <Pressable style={[styles.actionBtn, styles.actionBtnDelete]} onPress={() => handleDelete(item)} hitSlop={8}>
+            <Pressable style={[styles.actionBtn, styles.actionBtnDelete]} onPress={() => handleDelete(item)} hitSlop={16}>
               <SymbolView name="trash" size={15} tintColor="#E84F4F" type="monochrome" />
               <Text style={[styles.actionBtnText, styles.actionBtnTextDelete]}>Delete</Text>
             </Pressable>
@@ -176,11 +176,11 @@ export default function WatchPartiesModal() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>Watch Parties</Text>
-        <Pressable onPress={() => router.push('/premiere-modal')} hitSlop={8}>
+        <Pressable onPress={() => router.push('/premiere-modal')} hitSlop={16}>
           <SymbolView name="plus" size={20} tintColor={Brand.trust} type="monochrome" />
         </Pressable>
       </View>

@@ -52,7 +52,7 @@ export default function DiscoverPeopleModal() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.topSection} collapsable={false}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} hitSlop={8}>
+            <Pressable onPress={() => router.back()} hitSlop={16}>
               <Text style={styles.backBtn}>‹ Back</Text>
             </Pressable>
             <Text style={styles.title}>Discover People</Text>

@@ -148,7 +148,7 @@ export function ProfileCard({
                   <Pressable
                     onPress={friendAction.onPress}
                     disabled={!friendAction.onPress}
-                    hitSlop={8}
+                    hitSlop={16}
                     style={[styles.friendActionBtn, friendAction.variant === 'muted' && styles.friendActionBtnMuted]}>
                     <Text style={[styles.friendActionBtnText, friendAction.variant === 'muted' && styles.friendActionBtnTextMuted]}>
                       {friendAction.label}
@@ -158,7 +158,7 @@ export function ProfileCard({
                 {closeFriendAction ? (
                   <Pressable
                     onPress={closeFriendAction.onPress}
-                    hitSlop={8}
+                    hitSlop={16}
                     style={[styles.friendActionBtn, closeFriendAction.isCloseFriend ? styles.closeFriendBtnActive : styles.friendActionBtnMuted]}>
                     <Text style={[styles.friendActionBtnText, closeFriendAction.isCloseFriend ? styles.closeFriendBtnTextActive : styles.friendActionBtnTextMuted]}>
                       {closeFriendAction.isCloseFriend ? '💚 Close Friend' : '+ Close Friend'}

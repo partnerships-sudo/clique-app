@@ -40,7 +40,7 @@ export default function PostReactionsModal() {
           </View>
           {postTitle ? <Text style={styles.sub} numberOfLines={1}>{postTitle}</Text> : null}
         </View>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.done}>Done</Text>
         </Pressable>
       </View>

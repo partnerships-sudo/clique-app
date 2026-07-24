@@ -49,7 +49,7 @@ export default function DmRequestsModal() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <Stack.Screen options={{ headerShown: false }} />
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Message Requests</Text>

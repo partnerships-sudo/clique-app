@@ -61,7 +61,7 @@ export default function TrendingUsersModal() {
           ))}
         </View>
 
-        <Pressable style={styles.closeBtn} onPress={() => router.back()} hitSlop={8}>
+        <Pressable style={styles.closeBtn} onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.closeBtnText}>Done</Text>
         </Pressable>
       </View>

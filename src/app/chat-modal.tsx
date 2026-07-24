@@ -343,7 +343,7 @@ export default function ChatModal() {
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingWrapper style={styles.sheet}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={16}>
             <Text style={styles.backText}>←</Text>
           </Pressable>
           <Pressable
@@ -395,7 +395,7 @@ export default function ChatModal() {
               onPress={() =>
                 router.push({ pathname: '/friend-profile-modal', params: { userId: params.friendId! } })
               }
-              hitSlop={8}>
+              hitSlop={16}>
               <Avatar name={params.friendName ?? 'Friend'} size={38} avatarUrl={params.friendAvatar} />
             </Pressable>
           ) : params.poster ? (
@@ -475,11 +475,11 @@ export default function ChatModal() {
                     <Pressable
                       style={styles.stepBtn}
                       onPress={() => setEpisode((e) => Math.max(1, e - 1))}
-                      hitSlop={8}>
+                      hitSlop={16}>
                       <Text style={styles.stepBtnText}>−</Text>
                     </Pressable>
                     <Text style={styles.stepValue}>{episode}</Text>
-                    <Pressable style={styles.stepBtn} onPress={() => setEpisode((e) => e + 1)} hitSlop={8}>
+                    <Pressable style={styles.stepBtn} onPress={() => setEpisode((e) => e + 1)} hitSlop={16}>
                       <Text style={styles.stepBtnText}>+</Text>
                     </Pressable>
                   </View>
@@ -489,11 +489,11 @@ export default function ChatModal() {
                   <View style={styles.gateField}>
                     <Text style={styles.gateLabel}>Season{maxSeason ? ` (of ${maxSeason})` : ''}</Text>
                     <View style={styles.stepper}>
-                      <Pressable style={styles.stepBtn} onPress={() => stepSeason(-1)} hitSlop={8}>
+                      <Pressable style={styles.stepBtn} onPress={() => stepSeason(-1)} hitSlop={16}>
                         <Text style={styles.stepBtnText}>−</Text>
                       </Pressable>
                       <Text style={styles.stepValue}>{season}</Text>
-                      <Pressable style={styles.stepBtn} onPress={() => stepSeason(1)} hitSlop={8}>
+                      <Pressable style={styles.stepBtn} onPress={() => stepSeason(1)} hitSlop={16}>
                         <Text style={styles.stepBtnText}>+</Text>
                       </Pressable>
                     </View>
@@ -501,11 +501,11 @@ export default function ChatModal() {
                   <View style={styles.gateField}>
                     <Text style={styles.gateLabel}>Episode{maxEpisode ? ` (of ${maxEpisode})` : ''}</Text>
                     <View style={styles.stepper}>
-                      <Pressable style={styles.stepBtn} onPress={() => stepEpisode(-1)} hitSlop={8}>
+                      <Pressable style={styles.stepBtn} onPress={() => stepEpisode(-1)} hitSlop={16}>
                         <Text style={styles.stepBtnText}>−</Text>
                       </Pressable>
                       <Text style={styles.stepValue}>{episode}</Text>
-                      <Pressable style={styles.stepBtn} onPress={() => stepEpisode(1)} hitSlop={8}>
+                      <Pressable style={styles.stepBtn} onPress={() => stepEpisode(1)} hitSlop={16}>
                         <Text style={styles.stepBtnText}>+</Text>
                       </Pressable>
                     </View>
@@ -590,7 +590,7 @@ export default function ChatModal() {
               <Pressable
                 style={[styles.plusBtn, mediaExpanded && styles.plusBtnActive]}
                 onPress={() => setMediaExpanded((v) => !v)}
-                hitSlop={8}>
+                hitSlop={16}>
                 <Text style={styles.plusText}>{mediaExpanded ? '✕' : '+'}</Text>
               </Pressable>
               <TextInput
@@ -602,7 +602,7 @@ export default function ChatModal() {
                 onSubmitEditing={handleSend}
                 returnKeyType="send"
               />
-              <Pressable style={styles.sendBtn} onPress={handleSend} hitSlop={8}>
+              <Pressable style={styles.sendBtn} onPress={handleSend} hitSlop={16}>
                 <Text style={styles.sendText}>➤</Text>
               </Pressable>
             </View>
@@ -643,7 +643,7 @@ export default function ChatModal() {
                 autoFocus
                 returnKeyType="search"
               />
-              <Pressable onPress={() => setGifPickerOpen(false)} hitSlop={8} style={styles.gifCloseBtn}>
+              <Pressable onPress={() => setGifPickerOpen(false)} hitSlop={16} style={styles.gifCloseBtn}>
                 <Text style={styles.gifCloseText}>✕</Text>
               </Pressable>
             </View>

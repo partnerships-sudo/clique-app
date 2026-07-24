@@ -237,7 +237,7 @@ export default function OnboardingScreen() {
               {uploadAvatar.isSuccess ? 'Looking good →' : 'Continue'}
             </Text>
           </Pressable>
-          <Pressable style={styles.skipBtn} onPress={next} hitSlop={8}>
+          <Pressable style={styles.skipBtn} onPress={next} hitSlop={16}>
             <Text style={styles.skipBtnText}>Skip for now</Text>
           </Pressable>
         </View>
@@ -446,7 +446,7 @@ export default function OnboardingScreen() {
               {notifDone ? 'Continue →' : 'Enable notifications'}
             </Text>
           </Pressable>
-          <Pressable style={styles.skipBtn} onPress={next} hitSlop={8}>
+          <Pressable style={styles.skipBtn} onPress={next} hitSlop={16}>
             <Text style={styles.skipBtnText}>Not now</Text>
           </Pressable>
           <Text style={styles.settingsNote}>You can adjust these anytime in Settings.</Text>
@@ -479,7 +479,7 @@ export default function OnboardingScreen() {
             onPress={importDone ? next : () => { setImportDone(true); router.push('/import-library-modal'); }}>
             <Text style={styles.primaryBtnText}>{importDone ? 'Continue →' : 'Import library'}</Text>
           </Pressable>
-          <Pressable style={styles.skipBtn} onPress={next} hitSlop={8}>
+          <Pressable style={styles.skipBtn} onPress={next} hitSlop={16}>
             <Text style={styles.skipBtnText}>I'll do it later</Text>
           </Pressable>
         </View>

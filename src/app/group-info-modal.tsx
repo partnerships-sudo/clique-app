@@ -27,7 +27,7 @@ export default function GroupInfoModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Group Info</Text>

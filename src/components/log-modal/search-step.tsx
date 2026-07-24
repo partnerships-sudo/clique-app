@@ -167,7 +167,7 @@ export function SearchStep({
               {selected.sub}
             </Text>
           </View>
-          <Pressable onPress={clearSelection} hitSlop={8}>
+          <Pressable onPress={clearSelection} hitSlop={16}>
             <Text style={styles.changeText}>Change</Text>
           </Pressable>
         </View>
@@ -186,7 +186,7 @@ export function SearchStep({
               setManualMode(false);
               setManualTitle('');
             }}
-            hitSlop={8}>
+            hitSlop={16}>
             <Text style={styles.linkText}>Search instead</Text>
           </Pressable>
         </View>
@@ -231,7 +231,7 @@ export function SearchStep({
               ))}
             </View>
           ) : null}
-          <Pressable onPress={() => setManualMode(true)} hitSlop={8} style={styles.manualLink}>
+          <Pressable onPress={() => setManualMode(true)} hitSlop={16} style={styles.manualLink}>
             <Text style={styles.linkText}>Can&apos;t find it? Enter manually</Text>
           </Pressable>
         </View>

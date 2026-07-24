@@ -111,10 +111,10 @@ export default function ChatsScreen() {
           <Text style={styles.screenSub}>Your conversations</Text>
         </View>
         <View style={styles.headerActions}>
-          <Pressable onPress={() => router.push('/archived-chats-modal')} hitSlop={8} style={styles.archivedBtn}>
+          <Pressable onPress={() => router.push('/archived-chats-modal')} hitSlop={16} style={styles.archivedBtn}>
             <Text style={styles.archivedBtnText}>Archived</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/new-chat-modal')} hitSlop={8}>
+          <Pressable onPress={() => router.push('/new-chat-modal')} hitSlop={16}>
             <SymbolView name="square.and.pencil" size={22} tintColor={Brand.ink} style={{ width: 24, height: 24 }} />
           </Pressable>
         </View>
@@ -166,7 +166,7 @@ export default function ChatsScreen() {
           autoCapitalize="none"
         />
         {query.length > 0 ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={8}>
+          <Pressable onPress={() => setQuery('')} hitSlop={16}>
             <Text style={styles.searchClear}>✕</Text>
           </Pressable>
         ) : null}

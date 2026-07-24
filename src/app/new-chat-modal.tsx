@@ -16,7 +16,7 @@ export default function NewChatModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.cancel}>Cancel</Text>
         </Pressable>
         <Text style={styles.title}>New Chat</Text>

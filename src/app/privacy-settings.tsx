@@ -18,7 +18,7 @@ export default function PrivacySettingsScreen() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView contentContainerStyle={styles.scroll}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backRow}>
+        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backRow}>
           <Text style={styles.backBtn}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>Privacy</Text>

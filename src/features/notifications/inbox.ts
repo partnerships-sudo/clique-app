@@ -134,7 +134,7 @@ export function useInbox() {
       return all;
     },
     enabled: !!user,
-    staleTime: 30_000,
+    staleTime: 120_000,
     
   });
 }

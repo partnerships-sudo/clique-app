@@ -35,7 +35,7 @@ export default function FriendCollectionModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8} style={styles.backBtnWrap}>
+        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backBtnWrap}>
           <Text style={styles.backBtn}>‹ Back</Text>
         </Pressable>
         <Text style={styles.headerTitle}>{params.name ?? 'Friend'}&apos;s Collection</Text>

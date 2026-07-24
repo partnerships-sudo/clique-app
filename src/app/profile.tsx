@@ -39,7 +39,7 @@ export default function ProfileScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         <Pressable
           onPress={view === 'edit' ? () => setView('card') : () => router.back()}
-          hitSlop={8}
+          hitSlop={16}
           style={styles.backRow}>
           <Text style={styles.backBtn}>{view === 'edit' ? '‹ Profile' : '‹ Back'}</Text>
         </Pressable>

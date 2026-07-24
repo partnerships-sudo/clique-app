@@ -338,7 +338,7 @@ export default function LibraryScreen() {
                 <Text style={styles.collectionSearchPlaceholder}>Search & add to your collection…</Text>
                 <Pressable
                   style={styles.collectionScanBtn}
-                  hitSlop={8}
+                  hitSlop={16}
                   onPress={() => router.push('/collection-scan-modal')}>
                   <Text style={styles.collectionScanBtnIcon}>📷</Text>
                 </Pressable>
@@ -427,14 +427,14 @@ export default function LibraryScreen() {
       {selectMode ? (
         <View style={styles.selectBar}>
           <View style={styles.selectBarTop}>
-            <Pressable onPress={exitSelectMode} hitSlop={8} style={styles.selectBarCancel}>
+            <Pressable onPress={exitSelectMode} hitSlop={16} style={styles.selectBarCancel}>
               <Text style={styles.selectBarCancelText}>Cancel</Text>
             </Pressable>
             <Text style={styles.selectBarCount}>
               {selectedIds.size} selected
             </Text>
             <Pressable
-              hitSlop={8}
+              hitSlop={16}
               onPress={() =>
                 setSelectedIds(allSelected ? new Set() : new Set(activeList.map((i) => i.id)))
               }>

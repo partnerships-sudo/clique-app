@@ -91,7 +91,7 @@ function PodcastEpisodeRow({ cast, styles, isSearchActive }: { cast: ContentDeta
         </Pressable>
       ))}
       {!isSearchActive && hiddenCount > 0 ? (
-        <Pressable onPress={() => setShowAll((v) => !v)} hitSlop={8}>
+        <Pressable onPress={() => setShowAll((v) => !v)} hitSlop={16}>
           <Text style={styles.episodeSeeMore}>
             {showAll ? 'See less' : `See ${hiddenCount} more episodes`}
           </Text>
@@ -415,7 +415,7 @@ export default function ContentDetailModal() {
               {synopsisTruncated ? (
                 <Pressable
                   onPress={() => setSynopsisExpanded((v) => !v)}
-                  hitSlop={8}>
+                  hitSlop={16}>
                   <Text style={styles.synopsisToggle}>
                     {synopsisExpanded ? 'See less' : 'See more...'}
                   </Text>

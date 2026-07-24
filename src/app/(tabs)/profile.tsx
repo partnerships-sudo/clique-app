@@ -39,7 +39,7 @@ export default function ProfileTab() {
 <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {view === 'edit' ? (
           <View style={styles.editWrap}>
-            <Pressable onPress={() => setView('card')} style={styles.editBack} hitSlop={8}>
+            <Pressable onPress={() => setView('card')} style={styles.editBack} hitSlop={16}>
               <Text style={styles.editBackText}>‹ Back</Text>
             </Pressable>
             <EditProfile

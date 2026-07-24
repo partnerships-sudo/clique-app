@@ -188,7 +188,7 @@ export function PostCard({
               <Pressable
                 style={styles.emojiAddBtn}
                 onPress={() => setShowEmojiPicker((v) => !v)}
-                hitSlop={8}>
+                hitSlop={16}>
                 <Text style={styles.emojiAddText}>+</Text>
               </Pressable>
             )}
@@ -206,13 +206,11 @@ export function PostCard({
                 </Text>
               </Pressable>
             ) : (
-              reactions.length > 0 ? (
-                <Pressable
-                  onPress={() => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}
-                  style={styles.reactBtn}>
-                  <Text style={styles.reactText}>✦ {reactions.length}</Text>
-                </Pressable>
-              ) : null
+              <Pressable
+                onPress={reactions.length > 0 ? () => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } }) : undefined}
+                style={styles.reactBtn}>
+                <Text style={styles.reactText}>✦ {reactions.length > 0 ? reactions.length : 'Me too!'}</Text>
+              </Pressable>
             )}
             <View style={styles.shareChatRow}>
               <Pressable
@@ -229,13 +227,13 @@ export function PostCard({
                     },
                   })
                 }
-                hitSlop={8}>
+                hitSlop={16}>
                 <SymbolView name="paperplane" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
               </Pressable>
               <View style={styles.shareDivider} />
               <Pressable
                 onPress={() => router.push({ pathname: '/chat-modal', params: { title: post.title, type: post.type } })}
-                hitSlop={8}>
+                hitSlop={16}>
                 <SymbolView name="bubble.left" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
               </Pressable>
             </View>

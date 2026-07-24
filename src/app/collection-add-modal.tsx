@@ -81,7 +81,7 @@ export default function CollectionAddModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.backBtn}>‹ Cancel</Text>
         </Pressable>
         <Text style={styles.headerTitle}>Add to Collection</Text>
@@ -129,7 +129,7 @@ export default function CollectionAddModal() {
                 setSelected(null);
                 setRating(0);
               }}
-              hitSlop={8}>
+              hitSlop={16}>
               <Text style={styles.changeText}>Change</Text>
             </Pressable>
           </View>

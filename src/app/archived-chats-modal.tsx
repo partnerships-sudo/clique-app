@@ -48,7 +48,7 @@ export default function ArchivedChatsModal() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Archived</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.done}>Done</Text>
         </Pressable>
       </View>

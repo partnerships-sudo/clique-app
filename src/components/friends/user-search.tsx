@@ -68,7 +68,7 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
         />
         <Pressable
           style={styles.filterBtn}
-          hitSlop={8}
+          hitSlop={16}
           onPress={() => router.push('/discover-people-modal')}>
           <SlidersIcon color={Brand.trust} />
         </Pressable>

@@ -122,7 +122,7 @@ export default function NotificationsModal() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Activity</Text>
-        <Pressable onPress={() => router.back()} hitSlop={8}>
+        <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.closeBtn}>Done</Text>
         </Pressable>
       </View>

@@ -63,7 +63,7 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
         <Pressable style={styles.collSearchRow} onPress={() => router.push('/collection-add-modal')}>
           <SymbolView name="magnifyingglass" size={14} tintColor={Brand.muted} style={{ width: 16, height: 16, marginRight: 7 }} />
           <Text style={styles.collSearchPlaceholder}>Search & add to your collection…</Text>
-          <Pressable style={styles.collScanBtn} hitSlop={8} onPress={() => router.push('/collection-scan-modal')}>
+          <Pressable style={styles.collScanBtn} hitSlop={16} onPress={() => router.push('/collection-scan-modal')}>
             <SymbolView name="barcode.viewfinder" size={16} tintColor="#fff" style={{ width: 18, height: 18 }} />
           </Pressable>
         </Pressable>

@@ -65,7 +65,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
           {item.type === 'watch' && item.media_type === 'tv' && item.status === 'watching' ? (
             <Pressable
               style={styles.epBadge}
-              hitSlop={8}
+              hitSlop={16}
               onPress={() => router.push({
                 pathname: '/episode-progress-modal',
                 params: {
@@ -94,7 +94,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
                 params: { title: item.title, type: item.type, sub: item.sub ?? undefined, poster: item.poster ?? undefined, extRating: item.ext_rating ?? undefined, mediaType: item.media_type ?? undefined },
               })
             }
-            hitSlop={8}>
+            hitSlop={16}>
             <Text style={styles.shareBtnText}>↗</Text>
           </Pressable>
           <Pressable
@@ -113,7 +113,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
                 },
               })
             }
-            hitSlop={8}>
+            hitSlop={16}>
             <InstagramIcon size={16} />
           </Pressable>
         </View>

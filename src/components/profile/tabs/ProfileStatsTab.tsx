@@ -206,7 +206,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
       {/* Weekly Goal + Currently Active */}
       <View style={styles.goalRow}>
         <View style={[styles.goalCard, styles.statsCard]}>
-          <Pressable onPress={editWeeklyGoal} hitSlop={8}>
+          <Pressable onPress={editWeeklyGoal} hitSlop={16}>
             <Text style={styles.statsCardTitle}>WEEKLY GOAL ✎</Text>
           </Pressable>
           <Text style={styles.goalNum}>{weeklyCount}<Text style={styles.goalTarget}> / {weeklyTarget}</Text></Text>
@@ -246,7 +246,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
           <View style={styles.myTasteHeader}>
             <Text style={styles.myTasteTitle}>MyTaste Top 4</Text>
             <Text style={styles.myTasteSub}>your most compatible friends</Text>
-            <Pressable style={styles.myTasteViewAll} hitSlop={8} onPress={() => router.push('/discover-people-modal')}>
+            <Pressable style={styles.myTasteViewAll} hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
               <Text style={styles.myTasteViewAllText}>View all</Text>
             </Pressable>
           </View>

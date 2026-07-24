@@ -45,7 +45,7 @@ export function SwipeableRow({
   return (
     <View style={styles.container}>
       <View style={styles.deleteAction}>
-        <Pressable style={styles.deleteBtn} onPress={handleDelete} hitSlop={8}>
+        <Pressable style={styles.deleteBtn} onPress={handleDelete} hitSlop={16}>
           <Text style={styles.deleteBtnText}>Delete</Text>
         </Pressable>
       </View>

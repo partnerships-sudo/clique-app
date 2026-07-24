@@ -7,18 +7,23 @@ export const VERIFIED_ENTITLEMENT = 'Verified';
 let configured = false;
 
 export function configureRevenueCat(userId?: string) {
-  if (!configured) {
-    Purchases.setLogLevel(LOG_LEVEL.ERROR);
-    Purchases.configure({ apiKey: RC_API_KEY, appUserID: userId });
-    configured = true;
-  } else if (userId) {
-    Purchases.logIn(userId).catch(() => {});
-  } else {
-    Purchases.logOut().catch(() => {});
+  try {
+    if (!configured) {
+      Purchases.setLogLevel(LOG_LEVEL.ERROR);
+      Purchases.configure({ apiKey: RC_API_KEY, appUserID: userId });
+      configured = true;
+    } else if (userId) {
+      Purchases.logIn(userId).catch(() => {});
+    } else {
+      Purchases.logOut().catch(() => {});
+    }
+  } catch {
+    // Native module not linked (Expo Go) — ignore
   }
 }
 
 export async function getCustomerInfo(): Promise<CustomerInfo> {
+  if (!Purchases) throw new Error('RevenueCat not available');
   return Purchases.getCustomerInfo();
 }
 
@@ -27,6 +32,7 @@ export function isVerifiedEntitled(customerInfo: CustomerInfo): boolean {
 }
 
 export async function purchaseVerified(): Promise<CustomerInfo> {
+  if (!Purchases) throw new Error('RevenueCat not available');
   const offerings = await Purchases.getOfferings();
   const monthly = offerings.current?.monthly;
   if (!monthly) throw new Error('No monthly package available');
@@ -35,5 +41,6 @@ export async function purchaseVerified(): Promise<CustomerInfo> {
 }
 
 export async function restorePurchases(): Promise<CustomerInfo> {
+  if (!Purchases) throw new Error('RevenueCat not available');
   return Purchases.restorePurchases();
 }

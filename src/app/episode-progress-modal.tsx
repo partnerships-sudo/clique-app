@@ -63,11 +63,11 @@ export default function EpisodeProgressModal() {
         <View style={styles.stepperField}>
           <Text style={styles.stepperLabel}>Season{maxSeason ? ` (of ${maxSeason})` : ''}</Text>
           <View style={styles.stepper}>
-            <Pressable style={styles.stepBtn} onPress={() => stepSeason(-1)} hitSlop={8}>
+            <Pressable style={styles.stepBtn} onPress={() => stepSeason(-1)} hitSlop={16}>
               <Text style={styles.stepBtnText}>−</Text>
             </Pressable>
             <Text style={styles.stepValue}>{season}</Text>
-            <Pressable style={styles.stepBtn} onPress={() => stepSeason(1)} hitSlop={8}>
+            <Pressable style={styles.stepBtn} onPress={() => stepSeason(1)} hitSlop={16}>
               <Text style={styles.stepBtnText}>+</Text>
             </Pressable>
           </View>
@@ -76,11 +76,11 @@ export default function EpisodeProgressModal() {
         <View style={styles.stepperField}>
           <Text style={styles.stepperLabel}>Episode{maxEpisode ? ` (of ${maxEpisode})` : ''}</Text>
           <View style={styles.stepper}>
-            <Pressable style={styles.stepBtn} onPress={() => stepEpisode(-1)} hitSlop={8}>
+            <Pressable style={styles.stepBtn} onPress={() => stepEpisode(-1)} hitSlop={16}>
               <Text style={styles.stepBtnText}>−</Text>
             </Pressable>
             <Text style={styles.stepValue}>{episode}</Text>
-            <Pressable style={styles.stepBtn} onPress={() => stepEpisode(1)} hitSlop={8}>
+            <Pressable style={styles.stepBtn} onPress={() => stepEpisode(1)} hitSlop={16}>
               <Text style={styles.stepBtnText}>+</Text>
             </Pressable>
           </View>
