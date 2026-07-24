@@ -24,6 +24,8 @@ export interface Profile {
   show_online_status: boolean;
   show_read_receipts: boolean;
   verified_tier: number;
+  age_range: string | null;
+  gender: string | null;
 }
 
 function profileQueryKey(userId: string | undefined) {

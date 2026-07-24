@@ -45,7 +45,31 @@
       "Bash(git push *)",
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
-      "Bash(xxd)"
+      "Bash(xxd)",
+      "Bash(git check-ignore *)",
+      "Bash(npm uninstall *)",
+      "Bash(cat \"/Applications/Xcode.app/Contents/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator.sdk/System/Library/Frameworks/SwiftUICore.framework/SwiftUICore.tbd\" 2>/dev/null | head -30)",
+      "Bash(node --print \"require.resolve\\('expo/package.json'\\)\")",
+      "Bash(xargs dirname)",
+      "Bash(xargs -I{} find {} -name \"autolinking.rb\")",
+      "Bash(LANG=en_US.UTF-8 RUBYOPT=\"-E utf-8\" pod install)",
+      "Bash(python3 -)",
+      "Bash(chmod +x \"/Users/laura/Desktop/Repository/ios/patch_react_framework.py\")",
+      "Bash(python3 -c \"import uuid; print\\(str\\(uuid.uuid4\\(\\)\\).replace\\('-',''\\).upper\\(\\)[:24]\\)\")",
+      "Bash(python3 /Users/laura/Desktop/Repository/ios/patch_react_framework.py /Users/laura/Desktop/Repository/ios/Pods/React-Core-prebuilt/React.xcframework/ios-arm64_x86_64-simulator/React.framework/React /Users/laura/Library/Developer/Xcode/DerivedData/Clique-diiwqypinvinfcandqerkfqidbnn/Build/Products/Debug-iphonesimulator/Clique.app/Frameworks/React.framework/React)",
+      "Bash(xcodebuild -workspace Clique.xcworkspace -scheme Clique -configuration Debug -destination 'platform=iOS Simulator,id=D9C83E3C-5480-4FE2-8346-FA3B5205F8D3' -derivedDataPath /Users/laura/Library/Developer/Xcode/DerivedData clean build)",
+      "Bash(codesign --force --sign - --timestamp=none /Users/laura/Library/Developer/Xcode/DerivedData/Clique-diiwqypinvinfcandqerkfqidbnn/Build/Products/Debug-iphonesimulator/Clique.app/Frameworks/React.framework)",
+      "Bash(echo \"codesign exit: $?\")",
+      "Bash(codesign --verify /Users/laura/Library/Developer/Xcode/DerivedData/Clique-diiwqypinvinfcandqerkfqidbnn/Build/Products/Debug-iphonesimulator/Clique.app/Frameworks/React.framework)",
+      "Bash(echo \"verify exit: $?\")",
+      "Bash(echo \"Install exit: $?\")",
+      "Bash(echo \"Launch exit: $?\")",
+      "Bash(ls -lt ~/Library/Logs/DiagnosticReports/Clique*.ips 2>/dev/null | head -3 *)",
+      "Bash(codesign --display --entitlements - /Users/laura/Library/Developer/Xcode/DerivedData/Clique-diiwqypinvinfcandqerkfqidbnn/Build/Products/Debug-iphonesimulator/Clique.app/Clique)",
+      "Bash(git -C /Users/laura/Desktop/Repository status)",
+      "Bash(git -C /Users/laura/Desktop/Repository diff HEAD)",
+      "Bash(git -C /Users/laura/Desktop/Repository log --oneline -5)",
+      "Bash(git -C /Users/laura/Desktop/Repository commit -m ' *)"
     ]
   }
 }

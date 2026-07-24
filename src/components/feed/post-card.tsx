@@ -150,8 +150,8 @@ export function PostCard({
             <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
           ) : null}
 
-          {/* Emoji picker popover */}
-          {showEmojiPicker && (
+          {/* Emoji picker popover — hidden on own posts */}
+          {showEmojiPicker && !isMine && (
             <View style={styles.emojiPickerWrap}>
               {EMOJI_OPTIONS.map((e) => (
                 <Pressable
@@ -173,17 +173,24 @@ export function PostCard({
               <Pressable
                 key={emoji}
                 style={[styles.emojiPill, emojiSummary.mine.has(emoji) && styles.emojiPillActive]}
-                onPress={() => toggleEmoji.mutate({ postId: post.id, emoji, reacted: emojiSummary.mine.has(emoji) })}
+                onPress={() => {
+                  if (!isMine) toggleEmoji.mutate({ postId: post.id, emoji, reacted: emojiSummary.mine.has(emoji) });
+                }}
+                onLongPress={() =>
+                  router.push({ pathname: '/post-reactions-modal', params: { postId: post.id, emoji } })
+                }
                 hitSlop={4}>
                 <Text style={styles.emojiPillText}>{emoji} {count}</Text>
               </Pressable>
             ))}
-            <Pressable
-              style={styles.emojiAddBtn}
-              onPress={() => setShowEmojiPicker((v) => !v)}
-              hitSlop={8}>
-              <Text style={styles.emojiAddText}>+</Text>
-            </Pressable>
+            {!isMine && (
+              <Pressable
+                style={styles.emojiAddBtn}
+                onPress={() => setShowEmojiPicker((v) => !v)}
+                hitSlop={8}>
+                <Text style={styles.emojiAddText}>+</Text>
+              </Pressable>
+            )}
           </View>
 
           {/* Me too + share + comment row */}
@@ -360,7 +367,7 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interRegular,
       fontStyle: 'italic',
       fontSize: 12,
-      color: '#555',
+      color: Brand.muted,
       marginTop: 5,
       lineHeight: 17,
     },

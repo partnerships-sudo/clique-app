@@ -29,13 +29,23 @@ Deno.serve(async (req) => {
     });
   }
 
-  const session = await stripe.identity.verificationSessions.create({
-    type: 'document',
-    metadata: { supabase_user_id: user.id },
-    options: { document: { allowed_types: ['passport', 'driving_license', 'id_card'] } },
-  });
+  let session;
+  try {
+    session = await stripe.identity.verificationSessions.create({
+      type: 'document',
+      return_url: 'https://clique.app/verified',
+      metadata: { supabase_user_id: user.id },
+      options: { document: { allowed_types: ['passport', 'driving_license', 'id_card'] } },
+    });
+  } catch (stripeErr: any) {
+    console.error('Stripe error:', JSON.stringify(stripeErr));
+    return new Response(JSON.stringify({ error: stripeErr?.message ?? 'Stripe error', raw: stripeErr }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
 
-  return new Response(JSON.stringify({ clientSecret: session.client_secret }), {
+  return new Response(JSON.stringify({ clientSecret: session.client_secret, url: session.url }), {
     headers: { 'Content-Type': 'application/json' },
   });
 });

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useFollowersByUser, useFollowingByUser, type Profile } from '@/features/follows/api';
+import { useFollowersByUser, useFollowingByUser, useFollowing, type Profile } from '@/features/follows/api';
 import { useLibraryItemsByUser, type LibraryItem } from '@/features/library/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -32,9 +32,17 @@ export default function ProfileStatsModal() {
   const [query, setQuery] = useState('');
   const q = query.toLowerCase().trim();
 
+  const isOwnProfile = userId === user?.id;
+
   const { logged, isLoading: loggedLoading } = useLibraryItemsByUser(tab === 'logged' ? userId : undefined);
   const { data: followers, isLoading: followersLoading } = useFollowersByUser(tab === 'followers' ? userId : undefined);
   const { data: following, isLoading: followingLoading } = useFollowingByUser(tab === 'following' ? userId : undefined);
+  // Only fetch on other people's profiles — used to float mutuals to the top.
+  const { data: myFollowing } = useFollowing();
+  const myFollowingSet = useMemo(
+    () => (isOwnProfile ? null : new Set((myFollowing ?? []).map((p) => p.id))),
+    [isOwnProfile, myFollowing],
+  );
 
   const isLoading = loggedLoading || followersLoading || followingLoading;
 
@@ -42,28 +50,37 @@ export default function ProfileStatsModal() {
     () => (q ? logged.filter((i) => i.title.toLowerCase().includes(q) || (i.sub ?? '').toLowerCase().includes(q)) : logged),
     [logged, q]
   );
-  const filteredFollowers = useMemo(
-    () =>
-      q
-        ? (followers ?? []).filter(
-            (p) =>
-              (p.full_name ?? '').toLowerCase().includes(q) ||
-              (p.username ?? '').toLowerCase().includes(q)
-          )
-        : (followers ?? []),
-    [followers, q]
-  );
-  const filteredFollowing = useMemo(
-    () =>
-      q
-        ? (following ?? []).filter(
-            (p) =>
-              (p.full_name ?? '').toLowerCase().includes(q) ||
-              (p.username ?? '').toLowerCase().includes(q)
-          )
-        : (following ?? []),
-    [following, q]
-  );
+  const filteredFollowers = useMemo(() => {
+    const list = q
+      ? (followers ?? []).filter(
+          (p) =>
+            (p.full_name ?? '').toLowerCase().includes(q) ||
+            (p.username ?? '').toLowerCase().includes(q),
+        )
+      : (followers ?? []);
+    if (!myFollowingSet) return list;
+    return [...list].sort((a, b) => {
+      const aKnown = myFollowingSet.has(a.id) ? 0 : 1;
+      const bKnown = myFollowingSet.has(b.id) ? 0 : 1;
+      return aKnown - bKnown;
+    });
+  }, [followers, q, myFollowingSet]);
+
+  const filteredFollowing = useMemo(() => {
+    const list = q
+      ? (following ?? []).filter(
+          (p) =>
+            (p.full_name ?? '').toLowerCase().includes(q) ||
+            (p.username ?? '').toLowerCase().includes(q),
+        )
+      : (following ?? []);
+    if (!myFollowingSet) return list;
+    return [...list].sort((a, b) => {
+      const aKnown = myFollowingSet.has(a.id) ? 0 : 1;
+      const bKnown = myFollowingSet.has(b.id) ? 0 : 1;
+      return aKnown - bKnown;
+    });
+  }, [following, q, myFollowingSet]);
 
   const title = tab === 'logged' ? 'Logged' : tab === 'followers' ? 'Followers' : 'Following';
   const count =
@@ -97,7 +114,8 @@ export default function ProfileStatsModal() {
     );
   }
 
-  function renderProfileItem({ item }: { item: Profile }) {
+  const renderProfileItem = useCallback(({ item }: { item: Profile }) => {
+    const isMutual = myFollowingSet?.has(item.id) ?? false;
     return (
       <Pressable style={styles.row} onPress={() => openProfile(item.id)}>
         {item.avatar_url ? (
@@ -117,10 +135,16 @@ export default function ProfileStatsModal() {
             <Text style={styles.rowSub} numberOfLines={1}>@{item.username}</Text>
           ) : null}
         </View>
-        <Text style={styles.chevron}>›</Text>
+        {isMutual ? (
+          <View style={styles.youFollowBadge}>
+            <Text style={styles.youFollowText}>You follow</Text>
+          </View>
+        ) : (
+          <Text style={styles.chevron}>›</Text>
+        )}
       </Pressable>
     );
-  }
+  }, [myFollowingSet, styles]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -243,6 +267,17 @@ function createStyles(Brand: BrandPalette) {
     rowSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginTop: 2 },
     rowRating: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#F4A340' },
     chevron: { fontFamily: BrandFonts.syneBold, fontSize: 20, color: Brand.muted },
+    youFollowBadge: {
+      borderRadius: 6,
+      paddingVertical: 3,
+      paddingHorizontal: 8,
+      backgroundColor: Brand.tlight,
+    },
+    youFollowText: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 11.5,
+      color: Brand.trust,
+    },
     empty: {
       textAlign: 'center',
       paddingVertical: 40,

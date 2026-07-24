@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
@@ -212,20 +213,23 @@ export default function SettingsScreen() {
         </View>
 
         {/* DEV TOOLS */}
-        {__DEV__ && (
-          <>
-            <Text style={styles.sectionLabel}>Dev Tools</Text>
-            <View style={styles.card}>
-              <Pressable style={styles.row} onPress={() => router.push('/onboarding')}>
-                <View style={styles.rowBody}>
-                  <Text style={styles.rowLabel}>🚀 Preview Onboarding</Text>
-                  <Text style={styles.rowSub}>Walk through the full new user experience</Text>
-                </View>
-                <Text style={styles.chevron}>›</Text>
-              </Pressable>
+        <Text style={styles.sectionLabel}>Dev Tools</Text>
+        <View style={styles.card}>
+          <Pressable
+            style={styles.row}
+            onPress={async () => {
+              if (profile?.id) {
+                await AsyncStorage.removeItem(`clique:onboarding:${profile.id}`);
+              }
+              router.push('/onboarding');
+            }}>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>🚀 Preview Onboarding</Text>
+              <Text style={styles.rowSub}>Resets and walks through the full new-user flow</Text>
             </View>
-          </>
-        )}
+            <Text style={styles.chevron}>›</Text>
+          </Pressable>
+        </View>
 
         {/* Sign out */}
         <Pressable style={styles.signOutBtn} onPress={handleSignOut}>

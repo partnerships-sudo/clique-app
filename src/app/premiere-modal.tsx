@@ -24,6 +24,8 @@ import { useCreatePremiere } from '@/features/premieres/api';
 import { addPremiereToCalendar } from '@/features/premieres/use-add-to-calendar';
 import { useProfile } from '@/features/profile/api';
 import { useTitleSearch, useTVSeasons, useTVEpisodes, type SearchResult, type TvSeason, type TvEpisode } from '@/features/search/api';
+import { useDmThreads, useSendDm } from '@/features/dms/api';
+import { Avatar } from '@/components/avatar';
 import { useBrand } from '@/hooks/use-brand';
 import { useShareIcons } from '@/hooks/use-share-icons';
 
@@ -76,6 +78,17 @@ export default function PremiereModal() {
   const seasonNumber = hasParams ? params.seasonNumber : String(selectedEpisode?.seasonNumber ?? selectedSeason ?? '');
   const airDate = hasParams ? params.airDate : (selectedEpisode?.airDate ?? '');
 
+  // Party date: pre-fill from airDate only if it's upcoming (in the future)
+  const isUpcoming = airDate ? new Date(airDate + 'T12:00:00') > new Date() : false;
+  const [partyDate, setPartyDate] = useState('');
+
+  // Sync partyDate when episode selection changes
+  const prevAirDate = useRef('');
+  if (airDate !== prevAirDate.current) {
+    prevAirDate.current = airDate;
+    setPartyDate(isUpcoming ? airDate : '');
+  }
+
   // Form state
   const [tagline, setTagline] = useState('');
   const [airTime, setAirTime] = useState('');
@@ -83,6 +96,10 @@ export default function PremiereModal() {
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [createdPremiereId, setCreatedPremiereId] = useState<string | null>(null);
+  const [cliquePicker, setCliquePicker] = useState(false);
+  const [sentToIds, setSentToIds] = useState<Set<string>>(new Set());
+  const { threads: dmThreads } = useDmThreads();
+  const sendDm = useSendDm();
 
   const tzAbbr = useMemo(() => {
     try {
@@ -93,8 +110,8 @@ export default function PremiereModal() {
 
   const cardRef = useRef<ViewShot>(null);
   const hostName = profile?.full_name ?? profile?.username ?? 'You';
-  const airDateFormatted = airDate
-    ? new Date(airDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+  const airDateFormatted = partyDate
+    ? new Date(partyDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
     : '';
 
   function handleSelectShow(result: SearchResult) {
@@ -128,7 +145,7 @@ export default function PremiereModal() {
         episodeName,
         episodeNumber: Number(episodeNumber),
         seasonNumber: Number(seasonNumber),
-        airDate,
+        airDate: partyDate,
         airTime: airTime.trim() || null,
         tagline: tagline.trim() || null,
       });
@@ -348,6 +365,18 @@ export default function PremiereModal() {
           multiline
         />
 
+        {/* Watch party date */}
+        <Text style={styles.sectionLabel}>Watch party date</Text>
+        <TextInput
+          style={styles.taglineInput}
+          placeholder="YYYY-MM-DD  e.g. 2025-08-10"
+          placeholderTextColor={Brand.muted}
+          value={partyDate}
+          onChangeText={setPartyDate}
+          keyboardType="numbers-and-punctuation"
+          autoCorrect={false}
+        />
+
         {/* Start time */}
         <View style={styles.sectionLabelRow}>
           <Text style={styles.sectionLabel}>Start time</Text>
@@ -411,63 +440,100 @@ export default function PremiereModal() {
         }}>
           <Pressable style={styles.shareSheet} onPress={() => {}}>
             <View style={styles.shareGrabber} />
-            <Text style={styles.shareTitle}>Share your watch party invite</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareRow}>
-              {[
-                { label: 'Messages', icon: ic.messages,
-                  onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}` }); } },
-                { label: 'WhatsApp', icon: ic.whatsapp,
-                  onPress: async () => {
-                    if (capturedUri) {
-                      await Share.share({
-                        url: capturedUri,
-                        message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`,
-                      });
-                    } else {
-                      const msg = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
-                      const ok = await Linking.canOpenURL('whatsapp://send');
-                      if (ok) Linking.openURL(`whatsapp://send?text=${msg}`); else Alert.alert('WhatsApp not installed');
-                    }
-                  } },
-                { label: 'Mail', icon: ic.mail,
-                  onPress: async () => {
-                    if (capturedUri) {
-                      await Share.share({
-                        url: capturedUri,
-                        message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`,
-                        title: `Join my ${showTitle} watch party on Clique`,
-                      });
-                    } else {
-                      const subject = encodeURIComponent(`Join my ${showTitle} watch party on Clique`);
-                      const body = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
-                      Linking.openURL(`mailto:?subject=${subject}&body=${body}`);
-                    }
-                  } },
-                { label: 'AirDrop', icon: ic.airdrop,
-                  onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri }); } },
-              ].map(({ label, icon, onPress }) => (
-                <Pressable key={label} style={styles.shareItem} onPress={async () => { await onPress(); }}>
-                  <Image source={icon} style={styles.shareIcon} />
-                  <Text style={styles.shareLabel}>{label}</Text>
+            {cliquePicker ? (
+              /* ── Clique DM friend picker ── */
+              <>
+                <View style={styles.sharePickerHeader}>
+                  <Pressable onPress={() => setCliquePicker(false)} hitSlop={10}>
+                    <Text style={styles.sharePickerBack}>← Back</Text>
+                  </Pressable>
+                  <Text style={styles.shareTitle}>Send in Clique</Text>
+                  <View style={{ width: 50 }} />
+                </View>
+                <FlatList
+                  data={dmThreads}
+                  keyExtractor={(t) => t.friendId}
+                  style={styles.sharePickerList}
+                  renderItem={({ item: thread }) => {
+                    const sent = sentToIds.has(thread.friendId);
+                    return (
+                      <Pressable
+                        style={styles.sharePickerRow}
+                        onPress={async () => {
+                          if (sent) return;
+                          const inviteText = `Join my ${showTitle} watch party on Clique! 🎬\n\nthecliqueapp://premiere/${createdPremiereId}`;
+                          await sendDm.mutateAsync({ friendId: thread.friendId, content: inviteText });
+                          setSentToIds((prev) => new Set([...prev, thread.friendId]));
+                        }}>
+                        <Avatar name={thread.name} size={36} avatarUrl={thread.avatarUrl} />
+                        <Text style={styles.sharePickerName}>{thread.name}</Text>
+                        <Text style={[styles.sharePickerSend, sent && styles.sharePickerSent]}>
+                          {sent ? '✓ Sent' : 'Send'}
+                        </Text>
+                      </Pressable>
+                    );
+                  }}
+                  ListEmptyComponent={<Text style={styles.sharePickerEmpty}>No DMs yet — follow someone and start a conversation first.</Text>}
+                />
+              </>
+            ) : (
+              /* ── Default share options ── */
+              <>
+                <Text style={styles.shareTitle}>Share your watch party invite</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareRow}>
+                  <Pressable style={styles.shareItem} onPress={() => setCliquePicker(true)}>
+                    <View style={styles.cliqueShareIcon}>
+                      <Text style={styles.cliqueShareIconText}>C</Text>
+                    </View>
+                    <Text style={styles.shareLabel}>Clique</Text>
+                  </Pressable>
+                  {[
+                    { label: 'Messages', icon: ic.messages,
+                      onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}` }); } },
+                    { label: 'WhatsApp', icon: ic.whatsapp,
+                      onPress: async () => {
+                        if (capturedUri) {
+                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}` });
+                        } else {
+                          const msg = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
+                          const ok = await Linking.canOpenURL('whatsapp://send');
+                          if (ok) Linking.openURL(`whatsapp://send?text=${msg}`); else Alert.alert('WhatsApp not installed');
+                        }
+                      } },
+                    { label: 'Mail', icon: ic.mail,
+                      onPress: async () => {
+                        if (capturedUri) {
+                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`, title: `Join my ${showTitle} watch party on Clique` });
+                        } else {
+                          const subject = encodeURIComponent(`Join my ${showTitle} watch party on Clique`);
+                          const body = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
+                          Linking.openURL(`mailto:?subject=${subject}&body=${body}`);
+                        }
+                      } },
+                    { label: 'AirDrop', icon: ic.airdrop,
+                      onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri }); } },
+                  ].map(({ label, icon, onPress }) => (
+                    <Pressable key={label} style={styles.shareItem} onPress={async () => { await onPress(); }}>
+                      <Image source={icon} style={styles.shareIcon} />
+                      <Text style={styles.shareLabel}>{label}</Text>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+                <Pressable
+                  style={styles.calendarBtn}
+                  onPress={() => addPremiereToCalendar({
+                    showTitle, episodeName, episodeNumber, seasonNumber,
+                    airDate: partyDate, airTime: airTime.trim() || null,
+                    hostName, premiereId: createdPremiereId!,
+                  })}>
+                  <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
                 </Pressable>
-              ))}
-            </ScrollView>
-            <Pressable
-              style={styles.calendarBtn}
-              onPress={() => addPremiereToCalendar({
-                showTitle,
-                episodeName,
-                episodeNumber,
-                seasonNumber,
-                airDate,
-                airTime: airTime.trim() || null,
-                hostName,
-                premiereId: createdPremiereId!,
-              })}>
-              <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
-            </Pressable>
+              </>
+            )}
             <Pressable style={styles.shareCancelBtn} onPress={() => {
               setShareSheetVisible(false);
+              setCliquePicker(false);
+              setSentToIds(new Set());
               router.replace({ pathname: '/premiere-waiting-room', params: { id: createdPremiereId! } });
             }}>
               <Text style={styles.shareCancelText}>Done</Text>
@@ -613,5 +679,15 @@ function createStyles(Brand: BrandPalette) {
     shareLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11, color: Brand.ink, textAlign: 'center' },
     shareCancelBtn: { paddingVertical: 13, borderRadius: 16, backgroundColor: Brand.card, alignItems: 'center' },
     shareCancelText: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.trust },
+    cliqueShareIcon: { width: 58, height: 58, borderRadius: 16, marginBottom: 7, backgroundColor: Brand.trust, alignItems: 'center', justifyContent: 'center' },
+    cliqueShareIconText: { fontFamily: BrandFonts.syneExtraBold, fontSize: 26, color: '#fff' },
+    sharePickerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+    sharePickerBack: { fontFamily: BrandFonts.interMedium, fontSize: 14, color: Brand.trust, width: 50 },
+    sharePickerList: { maxHeight: 280, marginBottom: 16 },
+    sharePickerRow: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: Brand.border },
+    sharePickerName: { fontFamily: BrandFonts.interMedium, fontSize: 14, color: Brand.ink, flex: 1 },
+    sharePickerSend: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
+    sharePickerSent: { color: '#22C55E' },
+    sharePickerEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, textAlign: 'center', paddingVertical: 20 },
   });
 }

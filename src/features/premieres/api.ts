@@ -158,6 +158,84 @@ export function useMyPremieres() {
   });
 }
 
+export function useAttendingPremieres() {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['premieres-attending', user?.id],
+    queryFn: async () => {
+      const { data: members, error: membErr } = await supabase
+        .from('premiere_members')
+        .select('premiere_id')
+        .eq('user_id', user!.id);
+      if (membErr) throw membErr;
+      const ids = (members ?? []).map((m: any) => m.premiere_id);
+      if (ids.length === 0) return [];
+      const { data, error } = await supabase
+        .from('premieres')
+        .select('*')
+        .in('id', ids)
+        .neq('host_user_id', user!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data as Premiere[];
+    },
+    enabled: !!user,
+  });
+}
+
+export function useUpdatePremiere() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      airDate,
+      airTime,
+      tagline,
+    }: {
+      id: string;
+      airDate: string;
+      airTime: string | null;
+      tagline: string | null;
+    }) => {
+      const { error } = await supabase
+        .from('premieres')
+        .update({ air_date: airDate, air_time: airTime, tagline })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere', id] });
+      queryClient.invalidateQueries({ queryKey: ['premieres'] });
+    },
+  });
+}
+
+export function useDeletePremiere() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      // Clear child rows first to avoid FK constraint violations
+      const { error: msgError } = await supabase
+        .from('premiere_messages')
+        .delete()
+        .eq('premiere_id', id);
+      if (msgError) throw msgError;
+
+      const { error: membersError } = await supabase
+        .from('premiere_members')
+        .delete()
+        .eq('premiere_id', id);
+      if (membersError) throw membersError;
+
+      const { error } = await supabase.from('premieres').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['premieres'] });
+    },
+  });
+}
+
 export function useJoinPremiere() {
   const { user } = useSession();
   return useMutation({

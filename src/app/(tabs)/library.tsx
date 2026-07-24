@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FilterChips } from '@/components/feed/filter-chips';
@@ -14,6 +14,7 @@ import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
 import type { FeedFilterValue } from '@/features/feed/api';
 import {
+  useBulkRemoveLibraryItems,
   useLibraryItems,
   useMoveToLibrary,
   useRateLibraryItem,
@@ -68,6 +69,53 @@ export default function LibraryScreen() {
   const moveToLibrary = useMoveToLibrary();
   const removeItem = useRemoveLibraryItem();
   const rateItem = useRateLibraryItem();
+  const bulkRemoveItems = useBulkRemoveLibraryItems();
+
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  function enterSelectMode(id: string) {
+    Vibration.vibrate(40);
+    setSelectMode(true);
+    setSelectedIds(new Set([id]));
+  }
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+  function exitSelectMode() {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  }
+  function handleTabChange(next: LibTab) {
+    exitSelectMode();
+    setTab(next);
+  }
+
+  function handleBulkDelete() {
+    const count = selectedIds.size;
+    Alert.alert(
+      `Remove ${count} ${count === 1 ? 'item' : 'items'}?`,
+      'This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Remove', style: 'destructive', onPress: async () => {
+            try {
+              await bulkRemoveItems.mutateAsync([...selectedIds]);
+              exitSelectMode();
+            } catch {
+              Alert.alert('Error', 'Could not remove items. Please try again.');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
   const [ratingValue, setRatingValue] = useState<number | null>(null);
   const [ratingNote, setRatingNote] = useState('');
@@ -111,27 +159,30 @@ export default function LibraryScreen() {
     return sorted;
   }, [logged, filter, sort]);
 
+  const activeList = tab === 'watchlist' ? watchlist : loggedFiltered;
+  const allSelected = selectMode && selectedIds.size > 0 && selectedIds.size === activeList.length;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
         <View style={styles.tabRow}>
           <Pressable
             style={[styles.tab, tab === 'logged' && styles.tabActive]}
-            onPress={() => setTab('logged')}>
+            onPress={() => handleTabChange('logged')}>
             <Text style={[styles.tabText, tab === 'logged' && styles.tabTextActive]}>
               📚 Logged
             </Text>
           </Pressable>
           <Pressable
             style={[styles.tab, tab === 'watchlist' && styles.tabActive]}
-            onPress={() => setTab('watchlist')}>
+            onPress={() => handleTabChange('watchlist')}>
             <Text style={[styles.tabText, tab === 'watchlist' && styles.tabTextActive]}>
               🔖 Watchlist
             </Text>
           </Pressable>
           <Pressable
             style={[styles.tab, tab === 'collection' && styles.tabActive]}
-            onPress={() => setTab('collection')}>
+            onPress={() => handleTabChange('collection')}>
             <Text style={[styles.tabText, tab === 'collection' && styles.tabTextActive]}>
               📦 Collection
             </Text>
@@ -159,7 +210,24 @@ export default function LibraryScreen() {
               <SortRow value={sort} onChange={setSort} />
             </View>
           }
-          renderItem={({ item }) => <LibCard item={item} />}
+          renderItem={({ item }) => (
+            <Pressable
+              onLongPress={() => { if (!selectMode) enterSelectMode(item.id); }}
+              delayLongPress={400}>
+              <View>
+                <LibCard item={item} />
+                {selectMode ? (
+                  <Pressable
+                    style={[StyleSheet.absoluteFill, styles.selectOverlay, selectedIds.has(item.id) && styles.selectOverlayActive]}
+                    onPress={() => toggleSelect(item.id)}>
+                    <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxChecked]}>
+                      {selectedIds.has(item.id) ? <Text style={styles.checkmark}>✓</Text> : null}
+                    </View>
+                  </Pressable>
+                ) : null}
+              </View>
+            </Pressable>
+          )}
           ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
           ListEmptyComponent={
             !isLoading ? <Text style={styles.empty}>Nothing logged here yet.</Text> : null
@@ -206,11 +274,26 @@ export default function LibraryScreen() {
             </View>
           }
           renderItem={({ item }: { item: LibraryItem }) => (
-            <WatchlistCard
-              item={item}
-              onLogIt={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}
-              onRemove={() => removeItem.mutate(item.id)}
-            />
+            <Pressable
+              onLongPress={() => { if (!selectMode && watchlistView === 'mine') enterSelectMode(item.id); }}
+              delayLongPress={400}>
+              <View>
+                <WatchlistCard
+                  item={item}
+                  onLogIt={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}
+                  onRemove={() => removeItem.mutate(item.id)}
+                />
+                {selectMode && watchlistView === 'mine' ? (
+                  <Pressable
+                    style={[StyleSheet.absoluteFill, styles.selectOverlay, selectedIds.has(item.id) && styles.selectOverlayActive]}
+                    onPress={() => toggleSelect(item.id)}>
+                    <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxChecked]}>
+                      {selectedIds.has(item.id) ? <Text style={styles.checkmark}>✓</Text> : null}
+                    </View>
+                  </Pressable>
+                ) : null}
+              </View>
+            </Pressable>
           )}
           ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
           ListEmptyComponent={
@@ -315,6 +398,7 @@ export default function LibraryScreen() {
                     format: item.format ?? undefined,
                     userRating: item.user_rating?.toString() ?? undefined,
                     externalId: item.external_id ?? undefined,
+                    mediaType: item.media_type ?? undefined,
                     isOwner: '1',
                   },
                 })
@@ -329,6 +413,37 @@ export default function LibraryScreen() {
           }
         />
       )}
+      {/* Multi-select action bar */}
+      {selectMode ? (
+        <View style={styles.selectBar}>
+          <View style={styles.selectBarTop}>
+            <Pressable onPress={exitSelectMode} hitSlop={8} style={styles.selectBarCancel}>
+              <Text style={styles.selectBarCancelText}>Cancel</Text>
+            </Pressable>
+            <Text style={styles.selectBarCount}>
+              {selectedIds.size} selected
+            </Text>
+            <Pressable
+              hitSlop={8}
+              onPress={() =>
+                setSelectedIds(allSelected ? new Set() : new Set(activeList.map((i) => i.id)))
+              }>
+              <Text style={styles.selectBarAll}>
+                {allSelected ? 'Deselect All' : 'Select All'}
+              </Text>
+            </Pressable>
+          </View>
+          <Pressable
+            style={[styles.selectDeleteBtn, selectedIds.size === 0 && styles.selectDeleteBtnDisabled]}
+            disabled={selectedIds.size === 0 || bulkRemoveItems.isPending}
+            onPress={handleBulkDelete}>
+            <Text style={styles.selectDeleteText}>
+              {bulkRemoveItems.isPending ? 'Removing…' : `Remove ${selectedIds.size} ${selectedIds.size === 1 ? 'item' : 'items'}`}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* Inline rate-and-log sheet */}
       <Modal
         visible={!!ratingItem}
@@ -504,6 +619,54 @@ function createStyles(Brand: BrandPalette) {
     fontFamily: BrandFonts.interRegular,
     fontSize: 13.6,
   },
+
+  // Multi-select
+  selectOverlay: {
+    borderRadius: 16,
+    backgroundColor: 'rgba(0,0,0,0.04)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    padding: 8,
+  },
+  selectOverlayActive: { backgroundColor: 'rgba(99,102,241,0.12)' },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: Brand.muted,
+    backgroundColor: Brand.paper,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  checkmark: { color: '#fff', fontSize: 13, fontFamily: BrandFonts.syneBold, lineHeight: 16 },
+  selectBar: {
+    backgroundColor: Brand.card,
+    borderTopWidth: 1,
+    borderTopColor: Brand.border,
+    paddingHorizontal: Spacing.three,
+    paddingTop: 12,
+    paddingBottom: 20,
+    gap: 10,
+  },
+  selectBarTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  selectBarCancel: { paddingVertical: 4 },
+  selectBarCancelText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
+  selectBarCount: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14, color: Brand.ink },
+  selectBarAll: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
+  selectDeleteBtn: {
+    backgroundColor: '#DC2626',
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  selectDeleteBtnDisabled: { opacity: 0.4 },
+  selectDeleteText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#fff' },
 
   // Inline rate-and-log modal
   rateOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' },

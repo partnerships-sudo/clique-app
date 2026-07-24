@@ -1,38 +1,79 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useState } from 'react';
+import * as WebBrowser from 'expo-web-browser';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useStripeIdentity } from '@stripe/stripe-react-native';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { useBrand } from '@/hooks/use-brand';
 import { useProfile } from '@/features/profile/api';
 import { supabase } from '@/lib/supabase';
-
-async function fetchClientSecret(): Promise<{ clientSecret: string }> {
-  const { data: { session } } = await supabase.auth.getSession();
-  const res = await supabase.functions.invoke('create-verification-session', {
-    headers: { Authorization: `Bearer ${session?.access_token}` },
-  });
-  if (res.error) throw res.error;
-  return { clientSecret: res.data.clientSecret };
-}
+import { purchaseVerified, restorePurchases, isVerifiedEntitled } from '@/features/purchases/api';
 
 export default function GetVerifiedModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: profile } = useProfile();
-
-  const { status, present, loading } = useStripeIdentity(
-    useCallback(fetchClientSecret, []),
-  );
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [submitted, setSubmitted] = useState(false);
 
   const alreadyVerified = (profile?.verified_tier ?? 0) >= 1;
-  const submitted = status === 'FlowCompleted';
-  const cancelled = status === 'FlowCanceled';
-  const failed = status === 'FlowFailed';
+
+  async function startVerification() {
+    setLoading(true);
+    setError(null);
+    try {
+      // Step 1: purchase subscription via Apple IAP
+      const customerInfo = await purchaseVerified();
+      if (!isVerifiedEntitled(customerInfo)) {
+        throw new Error('Subscription not active. Please try again.');
+      }
+
+      // Step 2: open Stripe Identity for ID verification
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await supabase.functions.invoke('create-verification-session', {
+        headers: { Authorization: `Bearer ${session?.access_token}` },
+      });
+      if (res.error) {
+        let message = res.error.message ?? 'Unknown error';
+        try {
+          const body = await (res.error as any).context?.json?.();
+          if (body?.error) message = body.error;
+          else if (body?.raw?.message) message = body.raw.message;
+        } catch {}
+        throw new Error(message);
+      }
+      const { url } = res.data as { clientSecret: string; url: string };
+      if (!url) throw new Error('No verification URL returned');
+      await WebBrowser.openBrowserAsync(url);
+      setSubmitted(true);
+    } catch (e: any) {
+      if (e?.code === 'PURCHASE_CANCELLED') return; // user cancelled, no error
+      setError(e?.message ?? 'Something went wrong. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleRestore() {
+    setLoading(true);
+    setError(null);
+    try {
+      const customerInfo = await restorePurchases();
+      if (isVerifiedEntitled(customerInfo)) {
+        setError('Subscription restored! Please complete ID verification.');
+      } else {
+        setError('No active subscription found.');
+      }
+    } catch (e: any) {
+      setError(e?.message ?? 'Restore failed.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
@@ -83,34 +124,32 @@ export default function GetVerifiedModal() {
           <View style={styles.successBox}>
             <SymbolView name="clock.fill" size={20} tintColor="#22C55E" type="monochrome" />
             <Text style={styles.successText}>
-              Verification submitted! Your checkmark will appear once Stripe confirms your identity — usually within a few minutes.
+              Verification opened! Complete it in the browser, then come back. Your checkmark will appear once Stripe confirms your identity — usually within a few minutes.
             </Text>
           </View>
         ) : (
           <>
-            {failed && (
-              <Text style={styles.errorText}>
-                Verification couldn't be completed. Please try again or use a different document.
-              </Text>
-            )}
-            {cancelled && (
-              <Text style={styles.errorText}>Verification was cancelled. Tap below to try again.</Text>
+            {error && (
+              <Text style={styles.errorText}>{error}</Text>
             )}
             <Pressable
               style={[styles.btn, loading && styles.btnDisabled]}
-              onPress={present}
+              onPress={startVerification}
               disabled={loading}>
               {loading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text style={styles.btnText}>
-                  {cancelled || failed ? 'Try Again' : 'Start Verification'}
+                  {error ? 'Try Again' : 'Subscribe & Verify — $2.99/mo'}
                 </Text>
               )}
             </Pressable>
             <Text style={styles.disclaimer}>
-              You'll be asked to take a photo of a government-issued ID and a selfie. Powered by Stripe Identity.
+              $2.99/month. Cancel anytime. ID verification powered by Stripe Identity.
             </Text>
+            <Pressable onPress={handleRestore} disabled={loading} style={styles.restoreBtn}>
+              <Text style={styles.restoreText}>Restore purchases</Text>
+            </Pressable>
           </>
         )}
       </ScrollView>
@@ -212,5 +251,7 @@ function createStyles(Brand: BrandPalette) {
       marginBottom: 14,
       lineHeight: 18,
     },
+    restoreBtn: { alignItems: 'center', paddingVertical: 8 },
+    restoreText: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
   });
 }

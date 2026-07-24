@@ -142,6 +142,11 @@ export default function FriendsScreen() {
                   Followers {followers?.length ?? ''}
                 </Text>
               </Pressable>
+              <View style={{ flex: 1 }} />
+              <Pressable style={styles.watchPartiesBtn} onPress={() => router.push('/watch-parties-modal')}>
+                <SymbolView name="popcorn" size={13} tintColor={Brand.trust} type="monochrome" />
+                <Text style={styles.watchPartiesBtnText}>Watch Parties</Text>
+              </Pressable>
             </View>
 
             {/* Inner search */}
@@ -228,7 +233,9 @@ function createStyles(Brand: BrandPalette) {
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   inviteBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 6, paddingHorizontal: 14 },
   inviteBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: '#fff' },
-  tabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Brand.border, marginBottom: 14 },
+  tabRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: Brand.border, marginBottom: 14 },
+  watchPartiesBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingBottom: 10 },
+  watchPartiesBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
   tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 20 },
   tabBtnActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
   tabBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.muted },

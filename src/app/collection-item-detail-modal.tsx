@@ -34,6 +34,7 @@ export default function CollectionItemDetailModal() {
     format?: string;
     userRating?: string;
     externalId?: string;
+    mediaType?: string;
     isOwner?: string;
   }>();
 
@@ -134,7 +135,7 @@ export default function CollectionItemDetailModal() {
                 poster: params.poster ?? undefined,
                 sub: params.sub ?? undefined,
                 externalId: params.externalId ?? undefined,
-                mediaType: params.type === 'tv' ? 'tv' : params.type === 'movie' ? 'movie' : params.sub?.includes('Film') ? 'movie' : params.sub?.includes('TV') ? 'tv' : undefined,
+                mediaType: params.mediaType,
               },
             })
           }>

@@ -7,24 +7,36 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useCloseFriendIds } from '@/features/close-friends/api';
+import { useEmojiReactors } from '@/features/feed/emoji-reactions';
 import { useReactions } from '@/features/feed/reactions';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function PostReactionsModal() {
-  const { postId, postTitle } = useLocalSearchParams<{ postId: string; postTitle?: string }>();
+  const { postId, postTitle, emoji } = useLocalSearchParams<{ postId: string; postTitle?: string; emoji?: string }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: closeFriendIds } = useCloseFriendIds();
-  const { byPost } = useReactions(postId ? [postId] : []);
-  const reactions = postId ? (byPost.get(postId) ?? []) : [];
+
+  // Heart reactions (used when no emoji param)
+  const { byPost } = useReactions(postId && !emoji ? [postId] : []);
+  const heartReactions = postId ? (byPost.get(postId) ?? []) : [];
+
+  // Emoji reactors (used when emoji param present)
+  const { data: emojiReactors = [] } = useEmojiReactors(emoji ? postId : null, emoji ?? null);
+
+  const isEmoji = !!emoji;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <View>
           <View style={styles.titleRow}>
-            <SymbolView name="heart.fill" size={18} tintColor="#E84F4F" type="monochrome" />
-            <Text style={styles.title}>Hearts</Text>
+            {isEmoji ? (
+              <Text style={styles.emojiHeader}>{emoji}</Text>
+            ) : (
+              <SymbolView name="heart.fill" size={18} tintColor="#E84F4F" type="monochrome" />
+            )}
+            <Text style={styles.title}>{isEmoji ? 'Reacted' : 'Hearts'}</Text>
           </View>
           {postTitle ? <Text style={styles.sub} numberOfLines={1}>{postTitle}</Text> : null}
         </View>
@@ -33,7 +45,39 @@ export default function PostReactionsModal() {
         </Pressable>
       </View>
 
-      {reactions.length === 0 ? (
+      {isEmoji ? (
+        emojiReactors.length === 0 ? (
+          <View style={styles.empty}>
+            <Text style={styles.emptyEmoji}>{emoji}</Text>
+            <Text style={styles.emptyTitle}>No reactions yet</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={emojiReactors}
+            keyExtractor={(r) => r.user_id}
+            contentContainerStyle={styles.list}
+            ItemSeparatorComponent={() => <View style={styles.separator} />}
+            renderItem={({ item }) => (
+              <Pressable
+                style={styles.row}
+                onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: item.user_id } })}
+                hitSlop={4}>
+                <View style={styles.avatarWrap}>
+                  {item.avatar_url ? (
+                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                  ) : (
+                    <Avatar name={item.user_name} size={44} />
+                  )}
+                </View>
+                <View style={styles.info}>
+                  <Text style={styles.name}>{item.user_name}</Text>
+                </View>
+                <Text style={styles.reactionEmoji}>{emoji}</Text>
+              </Pressable>
+            )}
+          />
+        )
+      ) : heartReactions.length === 0 ? (
         <View style={styles.empty}>
           <SymbolView name="heart" size={40} tintColor={Brand.muted} type="monochrome" style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>No hearts yet</Text>
@@ -41,7 +85,7 @@ export default function PostReactionsModal() {
         </View>
       ) : (
         <FlatList
-          data={reactions}
+          data={heartReactions}
           keyExtractor={(r) => r.id}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
@@ -126,5 +170,8 @@ function createStyles(Brand: BrandPalette) {
     emptyIcon: { marginBottom: 12 },
     emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 18, color: Brand.ink, marginBottom: 6 },
     emptySub: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, textAlign: 'center', lineHeight: 20 },
+    emojiHeader: { fontSize: 18 },
+    reactionEmoji: { fontSize: 22 },
+    emptyEmoji: { fontSize: 40, marginBottom: 12 },
   });
 }

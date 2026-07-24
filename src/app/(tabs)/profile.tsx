@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { type Chip } from '@/components/profile/chip-row';
 import { DEFAULT_INTERESTS, EditProfile } from '@/components/profile/edit-profile';
 import { ProfileCard } from '@/components/profile/profile-card';
 import { ShareProfileModal } from '@/components/profile/share-profile-modal';
-import { Spacing, type BrandPalette } from '@/constants/theme';
+import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBadges, useFeaturedBadges } from '@/features/badges/api';
 import { useFollowersCount, useFollowingCount } from '@/features/follows/api';
 import { useLibraryItems } from '@/features/library/api';
@@ -36,9 +36,13 @@ export default function ProfileTab() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
         {view === 'edit' ? (
-          <EditProfile
+          <View style={styles.editWrap}>
+            <Pressable onPress={() => setView('card')} style={styles.editBack} hitSlop={8}>
+              <Text style={styles.editBackText}>‹ Back</Text>
+            </Pressable>
+            <EditProfile
             profile={profile}
             interests={interests}
             onInterestsChange={setInterests}
@@ -47,6 +51,7 @@ export default function ProfileTab() {
               setView('card');
             }}
           />
+          </View>
         ) : (
           <ProfileCard
             profile={profile}
@@ -81,7 +86,10 @@ export default function ProfileTab() {
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
-    scroll: { flex: 1 },
-    content: { paddingBottom: Spacing.six },
+scroll: { flex: 1 },
+    content: { paddingBottom: Spacing.three },
+    editWrap: { paddingHorizontal: 16 },
+    editBack: { paddingVertical: 12 },
+    editBackText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.trust },
   });
 }

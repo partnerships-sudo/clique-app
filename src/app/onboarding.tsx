@@ -28,7 +28,7 @@ import { registerForPushNotificationsAsync } from '@/lib/push-notifications';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
-const TOTAL_STEPS = 8; // 0 = welcome … 8 = all set
+const TOTAL_STEPS = 9; // 0 = welcome … 9 = all set
 
 const CONTENT_TYPES = [
   { value: 'watch',   label: 'Movies'   },
@@ -56,6 +56,8 @@ export default function OnboardingScreen() {
   const [contactMatches, setContactMatches] = useState<Profile[] | null>(null);
   const [contactsSyncing, setContactsSyncing] = useState(false);
 
+  const [selectedAgeRange, setSelectedAgeRange] = useState<string | null>(null);
+  const [selectedGender, setSelectedGender] = useState<string | null>(null);
   const [selectedRatingIcon, setSelectedRatingIcon] = useState<RatingIconStyle>('stars');
   const uploadAvatar = useUploadAvatar();
   const updateRatingIcon = useUpdateRatingIcon();
@@ -161,6 +163,12 @@ export default function OnboardingScreen() {
       selectedTypes.size > 0
         ? updateContentTypes.mutateAsync(normalizedTypes)
         : Promise.resolve(),
+      (selectedAgeRange || selectedGender)
+        ? supabase.from('profiles').update({
+            ...(selectedAgeRange ? { age_range: selectedAgeRange } : {}),
+            ...(selectedGender ? { gender: selectedGender } : {}),
+          }).eq('id', user!.id)
+        : Promise.resolve(),
     ]);
     router.replace('/(tabs)');
   }
@@ -169,7 +177,7 @@ export default function OnboardingScreen() {
 
   // Step 7: full-screen interactive tour — render outside SafeAreaView so the
   // spotlight overlay can cover the entire screen including safe areas.
-  if (step === 7) {
+  if (step === 8) {
     return (
       <View style={{ flex: 1 }}>
         <TourScreen onComplete={next} onSkip={next} />
@@ -235,8 +243,54 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* ── Step 2: Taste picker ── */}
+      {/* ── Step 2: About you ── */}
       {step === 2 && (
+        <View style={styles.stepWrap}>
+          <Text style={styles.stepTitle}>A little about you</Text>
+          <Text style={styles.stepSub}>
+            Helps us tailor your experience. This stays private and is never shown on your profile.
+          </Text>
+
+          <Text style={styles.aboutLabel}>Age range</Text>
+          <View style={styles.aboutGrid}>
+            {(['Under 18', '18–24', '25–34', '35–44', '45+'] as const).map((range) => {
+              const active = selectedAgeRange === range;
+              return (
+                <Pressable
+                  key={range}
+                  style={[styles.aboutChip, active && styles.aboutChipActive]}
+                  onPress={() => setSelectedAgeRange(active ? null : range)}>
+                  <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{range}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Text style={[styles.aboutLabel, { marginTop: 24 }]}>Gender</Text>
+          <View style={styles.aboutGrid}>
+            {(['Man', 'Woman', 'Non-binary', 'Prefer not to say'] as const).map((g) => {
+              const active = selectedGender === g;
+              return (
+                <Pressable
+                  key={g}
+                  style={[styles.aboutChip, active && styles.aboutChipActive]}
+                  onPress={() => setSelectedGender(active ? null : g)}>
+                  <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{g}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <Pressable style={[styles.primaryBtn, { marginTop: 'auto' }]} onPress={next}>
+            <Text style={styles.primaryBtnText}>
+              {selectedAgeRange || selectedGender ? 'Continue' : 'Skip'}
+            </Text>
+          </Pressable>
+        </View>
+      )}
+
+      {/* ── Step 3: Taste picker ── */}
+      {step === 3 && (
         <View style={styles.stepWrap}>
           <Text style={styles.stepTitle}>What are you into?</Text>
           <Text style={styles.stepSub}>We'll tune your Feed and Library to match.</Text>
@@ -263,8 +317,8 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* ── Step 3: Rating style ── */}
-      {step === 3 && (
+      {/* ── Step 4: Rating style ── */}
+      {step === 4 && (
         <View style={styles.stepWrap}>
           <Text style={styles.stepTitle}>How do you rate?</Text>
           <Text style={styles.stepSub}>Pick your rating icon — it shows up on all your posts and logs.</Text>
@@ -295,8 +349,8 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* ── Step 4: Find friends ── */}
-      {step === 4 && (
+      {/* ── Step 5: Find friends ── */}
+      {step === 5 && (
         <View style={styles.stepWrap}>
           <Text style={styles.stepTitle}>Find your people</Text>
           <Text style={styles.stepSub}>Follow friends to see their taste.</Text>
@@ -375,8 +429,8 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* ── Step 5: Notifications ── */}
-      {step === 5 && (
+      {/* ── Step 6: Notifications ── */}
+      {step === 6 && (
         <View style={styles.centered}>
           <View style={styles.notifIconWrap}>
             <SymbolView name="bell.badge.fill" size={48} tintColor={Brand.trust} type="monochrome" />
@@ -399,8 +453,8 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* ── Step 6: Import library ── */}
-      {step === 6 && (
+      {/* ── Step 7: Import library ── */}
+      {step === 7 && (
         <View style={styles.centered}>
           <View style={styles.importIconWrap}>
             <SymbolView name="square.and.arrow.down.fill" size={40} tintColor={Brand.trust} type="monochrome" />
@@ -431,9 +485,9 @@ export default function OnboardingScreen() {
         </View>
       )}
 
-      {/* Step 7 is the interactive tour — rendered above the SafeAreaView */}
+      {/* Step 8 is the interactive tour — rendered above the SafeAreaView */}
 
-      {/* ── Step 8: All set ── */}
+      {/* ── Step 9: All set ── */}
       {step === TOTAL_STEPS && (
         <View style={styles.centered}>
           <SymbolView name="checkmark.circle.fill" size={64} tintColor="#34D399" type="monochrome" />
@@ -748,5 +802,37 @@ function createStyles(Brand: BrandPalette) {
       textAlign: 'center',
       marginTop: 12,
     },
+    // About you step
+    aboutLabel: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 11,
+      color: Brand.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 1.1,
+      marginBottom: 10,
+    },
+    aboutGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    aboutChip: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderRadius: 20,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      backgroundColor: Brand.card,
+    },
+    aboutChipActive: {
+      backgroundColor: Brand.trust,
+      borderColor: Brand.trust,
+    },
+    aboutChipText: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 14,
+      color: Brand.ink,
+    },
+    aboutChipTextActive: { color: '#fff' },
   });
 }

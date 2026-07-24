@@ -64,7 +64,9 @@ function parseLine(line: string): string[] {
 }
 
 function parseCSV(text: string): { headers: string[]; rows: string[][] } {
-  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(Boolean);
+  // Strip UTF-8 BOM if present
+  const clean = text.startsWith('﻿') ? text.slice(1) : text;
+  const lines = clean.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(Boolean);
   const headers = parseLine(lines[0]).map((h) => h.toLowerCase().replace(/['"]/g, '').trim());
   const rows = lines.slice(1).map(parseLine);
   return { headers, rows };
@@ -77,28 +79,58 @@ function col(headers: string[], row: string[], name: string): string {
 
 // ── Source parsers ────────────────────────────────────────────────────────────
 
-function parseLetterboxd(text: string): ParsedRow[] {
+function colFuzzy(headers: string[], row: string[], ...names: string[]): string {
+  for (const name of names) {
+    const idx = headers.findIndex((h) => h.replace(/\s+/g, '') === name.replace(/\s+/g, ''));
+    if (idx >= 0) return (row[idx] ?? '').replace(/^"|"$/g, '').trim();
+  }
+  return '';
+}
+
+function parseLetterboxdFile(text: string, defaultStatus: ParsedRow['status']): ParsedRow[] {
+  if (text.startsWith('PK')) throw new Error('zip');
   const { headers, rows } = parseCSV(text);
+  const titleCol = headers.includes('name') ? 'name' : 'title';
   return rows
     .filter((r) => r.length > 1)
     .map((row) => {
-      const ratingRaw = col(headers, row, 'rating') || col(headers, row, 'rating10');
+      const ratingRaw = colFuzzy(headers, row, 'rating', 'rating10');
       const ratingNum = ratingRaw ? parseFloat(ratingRaw) : null;
-      // Letterboxd diary exports "Rating" as 0.5–5; our "Rating10" export is 0–10
       const rating = ratingNum === null ? null
-        : ratingNum > 5 ? ratingNum / 2   // Rating10 column
-        : ratingNum;                        // Rating column (already 0.5–5)
-      const watchedDate = col(headers, row, 'watched date') || col(headers, row, 'watcheddate') || col(headers, row, 'date') || null;
+        : ratingNum > 5 ? ratingNum / 2
+        : ratingNum;
+      const watchedDate = colFuzzy(headers, row, 'watched date', 'watcheddate', 'date') || null;
       return {
-        title: col(headers, row, 'name'),
-        year: col(headers, row, 'year'),
+        title: col(headers, row, titleCol),
+        year: colFuzzy(headers, row, 'year'),
         author: '',
         rating: rating ? Math.min(5, Math.max(0.5, rating)) : null,
         watchedDate: watchedDate || null,
-        status: 'finished' as const,
+        status: defaultStatus,
       };
     })
     .filter((r) => r.title);
+}
+
+// Letterboxd exports: user may pick any one of ratings.csv, watched.csv, watchlist.csv, or diary.csv.
+// We detect which file it is by the columns present and parse accordingly.
+// Precedence when merging: rated entries win over unrated ones for the same title.
+function parseLetterboxd(text: string): ParsedRow[] {
+  if (text.startsWith('PK')) throw new Error('zip');
+  const { headers } = parseCSV(text);
+  const hasRating = headers.includes('rating') || headers.includes('rating10');
+  const hasWatchedDate = headers.some((h) => h.replace(/\s/g, '') === 'watcheddate');
+  const hasLetterboxdURI = headers.some((h) => h.replace(/\s/g, '') === 'letterboxduri');
+
+  // watchlist.csv has a "Date" column but entries have no watch history — it's a to-watch list.
+  // watched.csv ALSO has only Date/Name/Year/URI with no Rating column — but its Date IS the watch date.
+  // We can't distinguish them by headers alone, so we treat both as 'finished' (watched).
+  // Letterboxd's watchlist.csv Date is the date the item was added, not watched — acceptable approximation.
+  if (!hasRating) {
+    return parseLetterboxdFile(text, 'finished');
+  }
+  // ratings.csv / diary.csv: has rating
+  return parseLetterboxdFile(text, 'finished');
 }
 
 function parseGoodreads(text: string): ParsedRow[] {

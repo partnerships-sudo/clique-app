@@ -11,6 +11,8 @@ import { FilterChips } from '@/components/feed/filter-chips';
 import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { NowBanner } from '@/components/feed/now-banner';
 import { PostCard } from '@/components/feed/post-card';
+import { SponsoredCard } from '@/components/feed/sponsored-card';
+import { useActiveAd } from '@/features/ads/api';
 import { CloseFriendsButton } from '@/components/feed/stories-strip';
 import { SectionHeader } from '@/components/feed/section-header';
 import { SectionLabel } from '@/components/feed/section-label';
@@ -92,6 +94,7 @@ export default function FeedScreen() {
     [followingProfiles],
   );
   const { byPost: reactionsByPost } = useReactions(posts.map((p) => p.id));
+  const { data: activeAd } = useActiveAd();
   const myLatestCFPost = useMemo(() => {
     if (!user?.id) return null;
     return allPosts
@@ -526,29 +529,37 @@ export default function FeedScreen() {
             <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={Brand.trust} />
           }
           ListHeaderComponent={header}
-          renderItem={({ item }) => {
+          renderItem={({ item, index }) => {
             const reactions = reactionsByPost.get(item.id) ?? [];
             const meReacted = reactions.some((r) => r.user_id === user?.id);
+            const showAd = activeAd && index === 7;
             return (
-              <PostCard
-                post={item}
-                isMine={item.user_id === user?.id}
-                currentUserId={user?.id}
-                reactions={reactions}
-                compatScore={item.user_id === user?.id ? undefined : compatScores.get(item.user_id)}
-                onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
-                onDelete={() => deletePost.mutate(item.id)}
-                onEdit={item.user_id === user?.id ? () => router.push({
-                  pathname: '/edit-post-modal',
-                  params: {
-                    postId: item.id,
-                    postTitle: item.title,
-                    currentNote: item.note ?? '',
-                    currentRating: String(item.rating ?? 0),
-                    currentVisibility: item.visibility ?? 'everyone',
-                  },
-                }) : undefined}
-              />
+              <>
+                {showAd ? (
+                  <View style={{ marginBottom: 6 }}>
+                    <SponsoredCard ad={activeAd} />
+                  </View>
+                ) : null}
+                <PostCard
+                  post={item}
+                  isMine={item.user_id === user?.id}
+                  currentUserId={user?.id}
+                  reactions={reactions}
+                  compatScore={item.user_id === user?.id ? undefined : compatScores.get(item.user_id)}
+                  onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
+                  onDelete={() => deletePost.mutate(item.id)}
+                  onEdit={item.user_id === user?.id ? () => router.push({
+                    pathname: '/edit-post-modal',
+                    params: {
+                      postId: item.id,
+                      postTitle: item.title,
+                      currentNote: item.note ?? '',
+                      currentRating: String(item.rating ?? 0),
+                      currentVisibility: item.visibility ?? 'everyone',
+                    },
+                  }) : undefined}
+                />
+              </>
             );
           }}
           ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
@@ -686,9 +697,9 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 16,
       overflow: 'hidden',
       minWidth: 200,
-      backgroundColor: 'rgba(255,255,255,0.96)',
+      backgroundColor: Brand.card,
       borderWidth: StyleSheet.hairlineWidth,
-      borderColor: 'rgba(0,0,0,0.08)',
+      borderColor: Brand.border,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 8 },
       shadowOpacity: 0.18,

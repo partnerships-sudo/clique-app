@@ -158,7 +158,7 @@ export default function SignupScreen() {
       email: email.trim(),
       password,
       fullName: name.trim(),
-      username: username.trim().replace('@', '') || email.split('@')[0],
+      username: (username.trim().replace('@', '') || email.split('@')[0]).toLowerCase(),
     });
     setIsSubmitting(false);
     if (error) {
@@ -211,7 +211,7 @@ export default function SignupScreen() {
             placeholder="Username e.g. @alexj"
             placeholderTextColor={Brand.muted}
             value={username}
-            onChangeText={setUsername}
+            onChangeText={(t) => setUsername(t.toLowerCase())}
             autoCapitalize="none"
           />
           <TextInput

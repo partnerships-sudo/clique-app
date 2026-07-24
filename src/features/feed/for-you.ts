@@ -90,53 +90,9 @@ async function fetchTMDBRecs(id: string, mediaType: 'movie' | 'tv'): Promise<Tre
 
 
 async function fetchBookRecs(title: string, hardcoverId?: string | null): Promise<TrendingEntry[]> {
-  // Resolve Hardcover ID if not provided
-  let bookId = hardcoverId ? Number(hardcoverId) : null;
-  if (!bookId) {
-    const searchQ = `query { search(query: ${JSON.stringify(title)}, query_type: "Book", per_page: 1, page: 1) { results } }`;
-    const searchData = await hardcoverQuery(searchQ);
-    bookId = searchData?.search?.results?.hits?.[0]?.document?.id ?? null;
-  }
-  if (!bookId) return [];
-
-  // Get the book's genre tags (pick the most popular genre-like ones)
-  const tagData = await hardcoverQuery(
-    `query { books(where: { id: { _eq: ${bookId} } }, limit: 1) { title taggings(limit: 50) { tag { tag } } contributions { author { name } } } }`,
-  );
-  const sourceTitle = (tagData?.books?.[0]?.title ?? title).toLowerCase();
-  const tags: string[] = (tagData?.books?.[0]?.taggings ?? [])
-    .map((t: any) => t.tag?.tag as string)
-    .filter(Boolean);
-
-  // Pick the best genre tag — prefer known genre terms over mood/pace words
-  const GENRE_TAGS = new Set([
-    'science fiction', 'hard science fiction', 'fantasy', 'epic fantasy', 'mystery', 'thriller',
-    'romance', 'horror', 'historical fiction', 'crime', 'adventure', 'biography', 'memoir',
-    'nonfiction', 'non-fiction', 'self-help', 'literary fiction', 'dystopian', 'young adult',
-    'graphic novel', 'short stories', 'humor', 'satire',
-  ]);
-  const genreTag = tags.find((t) => GENRE_TAGS.has(t.toLowerCase())) ?? null;
-  if (!genreTag) return [];
-
-  // 1. Same-author books
-  const authorName = tagData?.books?.[0]?.contributions?.[0]?.author?.name ?? null;
-  const authorRecs = authorName ? await hardcoverQuery(
-    `query { search(query: ${JSON.stringify(authorName)}, query_type: "Book", per_page: 10, page: 1) { results } }`,
-  ) : null;
-  const authorHits: any[] = (authorRecs?.search?.results?.hits ?? [])
-    .map((h: any) => h.document)
-    .filter((d: any) => d?.title?.toLowerCase() !== sourceTitle);
-
-  // 2. Same genre — use description keywords from the genre tag
-  const genreRecs = await hardcoverQuery(
-    `query { search(query: ${JSON.stringify(genreTag)}, query_type: "Book", per_page: 20, page: 2) { results } }`,
-  );
-  const genreHits: any[] = (genreRecs?.search?.results?.hits ?? [])
-    .map((h: any) => h.document)
-    .filter((d: any) => d?.title?.toLowerCase() !== sourceTitle && d?.users_count > 100);
-
+  const titleLower = title.toLowerCase();
   const seen = new Set<string>();
-  const toEntry = (doc: any) => {
+  const toEntry = (doc: any): TrendingEntry | null => {
     const t: string = doc?.title ?? '';
     if (!t || seen.has(t.toLowerCase())) return null;
     seen.add(t.toLowerCase());
@@ -153,7 +109,80 @@ async function fetchBookRecs(title: string, hardcoverId?: string | null): Promis
     };
   };
 
-  return [...authorHits, ...genreHits].flatMap((d) => { const e = toEntry(d); return e ? [e] : []; }).slice(0, 15);
+  // Resolve Hardcover ID if not provided
+  let bookId = hardcoverId ? Number(hardcoverId) : null;
+  if (!bookId) {
+    const searchQ = `query { search(query: ${JSON.stringify(title)}, query_type: "Book", per_page: 1, page: 1) { results } }`;
+    const searchData = await hardcoverQuery(searchQ);
+    bookId = searchData?.search?.results?.hits?.[0]?.document?.id ?? null;
+  }
+
+  // Fallback: book not found in Hardcover — return results from a keyword title search
+  if (!bookId) {
+    const fallbackData = await hardcoverQuery(
+      `query { search(query: ${JSON.stringify(title)}, query_type: "Book", per_page: 20, page: 2) { results } }`,
+    );
+    const hits: any[] = (fallbackData?.search?.results?.hits ?? [])
+      .map((h: any) => h.document)
+      .filter((d: any) => d?.title?.toLowerCase() !== titleLower);
+    return hits.flatMap((d) => { const e = toEntry(d); return e ? [e] : []; }).slice(0, 15);
+  }
+
+  // Get the book's genre tags
+  const tagData = await hardcoverQuery(
+    `query { books(where: { id: { _eq: ${bookId} } }, limit: 1) { title taggings(limit: 50) { tag { tag } } contributions { author { name } } } }`,
+  );
+  const sourceTitle = (tagData?.books?.[0]?.title ?? title).toLowerCase();
+  const tags: string[] = (tagData?.books?.[0]?.taggings ?? [])
+    .map((t: any) => t.tag?.tag as string)
+    .filter(Boolean);
+
+  // Prefer a known genre term; fall back to the first available tag rather than bailing out
+  const GENRE_TAGS = new Set([
+    'science fiction', 'hard science fiction', 'fantasy', 'epic fantasy', 'mystery', 'thriller',
+    'romance', 'horror', 'historical fiction', 'crime', 'adventure', 'biography', 'memoir',
+    'nonfiction', 'non-fiction', 'self-help', 'literary fiction', 'dystopian', 'young adult',
+    'graphic novel', 'short stories', 'humor', 'satire',
+  ]);
+  const genreTag = tags.find((t) => GENRE_TAGS.has(t.toLowerCase())) ?? tags[0] ?? null;
+
+  // 1. Same-author books (always fetch; single-book authors are handled by the sparse fallback below)
+  const authorName = tagData?.books?.[0]?.contributions?.[0]?.author?.name ?? null;
+  const authorRecs = authorName ? await hardcoverQuery(
+    `query { search(query: ${JSON.stringify(authorName)}, query_type: "Book", per_page: 10, page: 1) { results } }`,
+  ) : null;
+  const authorHits: any[] = (authorRecs?.search?.results?.hits ?? [])
+    .map((h: any) => h.document)
+    .filter((d: any) => d?.title?.toLowerCase() !== sourceTitle);
+
+  // 2. Same genre (or best available tag)
+  let genreHits: any[] = [];
+  if (genreTag) {
+    const genreRecs = await hardcoverQuery(
+      `query { search(query: ${JSON.stringify(genreTag)}, query_type: "Book", per_page: 20, page: 2) { results } }`,
+    );
+    genreHits = (genreRecs?.search?.results?.hits ?? [])
+      .map((h: any) => h.document)
+      .filter((d: any) => d?.title?.toLowerCase() !== sourceTitle && d?.users_count > 100);
+  }
+
+  const combined = [...authorHits, ...genreHits]
+    .flatMap((d) => { const e = toEntry(d); return e ? [e] : []; })
+    .slice(0, 15);
+
+  // 3. Sparse fallback: supplement with a title-keyword search when results are thin
+  if (combined.length < 5) {
+    const fallbackData = await hardcoverQuery(
+      `query { search(query: ${JSON.stringify(sourceTitle)}, query_type: "Book", per_page: 20, page: 2) { results } }`,
+    );
+    const fallbackHits: any[] = (fallbackData?.search?.results?.hits ?? [])
+      .map((h: any) => h.document)
+      .filter((d: any) => d?.title?.toLowerCase() !== sourceTitle);
+    const extra = fallbackHits.flatMap((d) => { const e = toEntry(d); return e ? [e] : []; });
+    return [...combined, ...extra].slice(0, 15);
+  }
+
+  return combined;
 }
 
 // ---------- Spotify: discovery ----------
@@ -216,36 +245,80 @@ async function fetchSpotifyMusicRecs(seed: ForYouSeed | null): Promise<TrendingE
       });
       if (albumRes.ok) {
         const album = await albumRes.json();
-        const artistId = album.artists?.[0]?.id;
-        const artistName = album.artists?.[0]?.name ?? '';
-        if (artistId) {
+        const artistId: string | undefined = album.artists?.[0]?.id;
+        const artistName: string = album.artists?.[0]?.name ?? '';
+        const albumName: string = album.name ?? seed.title;
+
+        // Soundtracks and compilations credit "Various Artists" — the first
+        // artist's catalog is unrelated to the seed, so skip it and rely on
+        // the title search below instead.
+        const isVariousArtists =
+          !artistName || artistName.toLowerCase() === 'various artists';
+
+        const seen = new Set<string>([albumName.toLowerCase(), seed.externalId]);
+
+        // 1. Artist catalog (skipped for various-artists albums)
+        const catalogRecs: TrendingEntry[] = [];
+        if (!isVariousArtists && artistId) {
           const albumsRes = await fetch(
             `https://api.spotify.com/v1/artists/${artistId}/albums?include_groups=album,single&market=US&limit=20`,
             { headers: { Authorization: `Bearer ${token}` } },
           );
           if (albumsRes.ok) {
             const albumsData = await albumsRes.json();
-            const seen = new Set<string>();
-            const recs: TrendingEntry[] = [];
             for (const a of (albumsData.items ?? []) as any[]) {
               if (a.id === seed.externalId) continue;
               const key = a.name.toLowerCase();
               if (seen.has(key)) continue;
               seen.add(key);
-              recs.push({
+              catalogRecs.push({
                 title: a.name,
                 sub: `${artistName}${a.release_date ? ` · ${a.release_date.slice(0, 4)}` : ''}`,
                 type: 'listen',
                 poster: a.images?.[1]?.url ?? a.images?.[0]?.url ?? null,
                 count: 70,
-                score: 70, // same artist as a title you rated highly — real signal, no popularity number to lean on
+                score: 70, // same artist, strong signal
                 users: [],
                 loggers: [],
               });
             }
-            if (recs.length > 0) return recs;
           }
         }
+
+        // 2. Title-based search — Spotify's relevance surfaces genre-adjacent
+        // albums the way it does for podcasts. Scored slightly lower than
+        // catalog results since it's discovery rather than same-artist.
+        const searchRecs: TrendingEntry[] = [];
+        const searchRes = await fetch(
+          `https://api.spotify.com/v1/search?q=${encodeURIComponent(albumName)}&type=album&market=US&limit=20`,
+          { headers: { Authorization: `Bearer ${token}` } },
+        );
+        if (searchRes.ok) {
+          const data = await searchRes.json();
+          for (const a of (data.albums?.items ?? []) as any[]) {
+            if (a.id === seed.externalId) continue;
+            const key = a.name.toLowerCase();
+            if (seen.has(key)) continue;
+            seen.add(key);
+            searchRecs.push({
+              title: a.name,
+              sub: `${a.artists?.[0]?.name ?? ''}${a.release_date ? ` · ${a.release_date.slice(0, 4)}` : ''}`,
+              type: 'listen',
+              poster: a.images?.[1]?.url ?? a.images?.[0]?.url ?? null,
+              count: 65,
+              score: 65,
+              users: [],
+              loggers: [],
+            });
+          }
+        }
+
+        // Lead with catalog for regular artists so same-artist recs come first;
+        // for soundtracks/compilations, title-search results only.
+        const combined = isVariousArtists
+          ? searchRecs
+          : [...catalogRecs, ...searchRecs];
+        if (combined.length > 0) return combined.slice(0, 15);
       }
     }
 

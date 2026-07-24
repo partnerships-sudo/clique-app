@@ -102,8 +102,40 @@ export function useToggleReaction() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reactions'] });
+    onMutate: async ({ postId, reacted }) => {
+      await queryClient.cancelQueries({ queryKey: ['reactions'] });
+      const snapshots = queryClient.getQueriesData<Reaction[]>({ queryKey: ['reactions'] });
+      const userName = user?.user_metadata?.full_name ?? user?.email ?? 'You';
+      for (const [key, data] of snapshots) {
+        if (!data || !(key as string[]).includes(postId)) continue;
+        queryClient.setQueryData<Reaction[]>(
+          key,
+          reacted
+            ? data.filter((r) => !(r.post_id === postId && r.user_id === user!.id))
+            : [...data, {
+                id: `optimistic-${postId}`,
+                post_id: postId,
+                user_id: user!.id,
+                user_name: userName,
+                avatar_url: null,
+                created_at: new Date().toISOString(),
+              }],
+        );
+      }
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      for (const [key, data] of context?.snapshots ?? []) {
+        queryClient.setQueryData(key, data);
+      }
+    },
+    onSettled: (_data, _err, { postId }) => {
+      // Invalidate only the queries whose key includes the toggled post.
+      for (const [key] of queryClient.getQueriesData({ queryKey: ['reactions'] })) {
+        if ((key as string[]).includes(postId)) {
+          queryClient.invalidateQueries({ queryKey: key as readonly string[] });
+        }
+      }
     },
   });
 }

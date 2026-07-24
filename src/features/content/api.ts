@@ -252,7 +252,15 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
       : null;
 
   const trailer = pickYouTubeTrailer(detail.videos?.results ?? []);
-  const watchProviders = await fetchWatchProviders(hit.id, endpoint, title).catch(() => []);
+  const [watchProviders, awards] = await Promise.all([
+    fetchWatchProviders(hit.id, endpoint, title).catch(() => []),
+    fetchWikipediaAwards(
+      endpoint === 'movie'
+        ? [`${title} film`, `${title} (film)`, title]
+        : [`${title} TV series`, `${title} (TV series)`, title],
+      endpoint === 'movie' ? FILM_AWARD_PATTERNS : TV_AWARD_PATTERNS,
+    ),
+  ]);
   const seasons = ((detail.seasons ?? []) as any[])
     .filter((s) => s.season_number > 0)
     .map((s) => ({ seasonNumber: s.season_number as number, episodeCount: s.episode_count as number }))
@@ -280,7 +288,7 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
     watchProviders,
     mediaType: hit.media_type as 'movie' | 'tv',
     seasons,
-    awards: [],
+    awards,
   };
 }
 
@@ -298,10 +306,52 @@ const BOOK_AWARD_PATTERNS: { pattern: RegExp; label: string }[] = [
   { pattern: /#1 new york times|number one new york times/i, label: '#1 NYT Bestseller' },
 ];
 
-async function fetchBookAwards(title: string): Promise<string[]> {
+const FILM_AWARD_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /academy award|oscar/i, label: 'Academy Award' },
+  { pattern: /bafta/i, label: 'BAFTA' },
+  { pattern: /golden globe/i, label: 'Golden Globe' },
+  { pattern: /screen actors guild|sag award/i, label: 'SAG Award' },
+  { pattern: /palme d.or/i, label: "Palme d'Or" },
+  { pattern: /sundance film festival/i, label: 'Sundance' },
+  { pattern: /critics.{0,10}choice/i, label: "Critics' Choice" },
+  { pattern: /independent spirit award/i, label: 'Spirit Award' },
+];
+
+const TV_AWARD_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /emmy award/i, label: 'Emmy Award' },
+  { pattern: /golden globe/i, label: 'Golden Globe' },
+  { pattern: /screen actors guild|sag award/i, label: 'SAG Award' },
+  { pattern: /bafta/i, label: 'BAFTA' },
+  { pattern: /peabody award/i, label: 'Peabody Award' },
+  { pattern: /critics.{0,10}choice/i, label: "Critics' Choice" },
+  { pattern: /television critics association/i, label: 'TCA Award' },
+];
+
+const GAME_AWARD_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /game of the year/i, label: 'Game of the Year' },
+  { pattern: /the game awards/i, label: 'The Game Awards' },
+  { pattern: /bafta games/i, label: 'BAFTA Games' },
+  { pattern: /d\.i\.c\.e\. award|dice award/i, label: 'D.I.C.E. Award' },
+  { pattern: /game developers choice/i, label: 'GDC Award' },
+  { pattern: /golden joystick/i, label: 'Golden Joystick' },
+];
+
+const MUSIC_AWARD_PATTERNS: { pattern: RegExp; label: string }[] = [
+  { pattern: /grammy award/i, label: 'Grammy Award' },
+  { pattern: /mercury prize/i, label: 'Mercury Prize' },
+  { pattern: /brit award/i, label: 'BRIT Award' },
+  { pattern: /american music award/i, label: 'American Music Award' },
+  { pattern: /billboard music award/i, label: 'Billboard Award' },
+  { pattern: /mtv video music award|vma/i, label: 'MTV VMA' },
+  { pattern: /ivor novello/i, label: 'Ivor Novello Award' },
+];
+
+async function fetchWikipediaAwards(
+  terms: string[],
+  patterns: { pattern: RegExp; label: string }[],
+): Promise<string[]> {
   try {
-    const candidates = [`${title} novel`, `${title} book`, title];
-    for (const term of candidates) {
+    for (const term of terms) {
       const res = await fetch(
         `https://en.wikipedia.org/w/api.php?action=query&titles=${encodeURIComponent(term.replace(/ /g, '_'))}&prop=extracts&exintro=true&format=json`,
       );
@@ -312,19 +362,21 @@ async function fetchBookAwards(title: string): Promise<string[]> {
       if (!page || page.missing) continue;
       const text: string = (page?.extract ?? '').replace(/<[^>]+>/g, ' ');
       if (!text.trim()) continue;
-      // Deduplicate: #1 NYT supersedes plain NYT Bestseller
-      const found = BOOK_AWARD_PATTERNS
-        .filter(({ pattern }) => pattern.test(text))
-        .map(({ label }) => label);
-      if (found.includes('#1 NYT Bestseller')) {
-        return found.filter((l) => l !== 'NYT Bestseller');
-      }
-      return found;
+      return patterns.filter(({ pattern }) => pattern.test(text)).map(({ label }) => label);
     }
     return [];
   } catch {
     return [];
   }
+}
+
+async function fetchBookAwards(title: string): Promise<string[]> {
+  const found = await fetchWikipediaAwards(
+    [`${title} novel`, `${title} book`, title],
+    BOOK_AWARD_PATTERNS,
+  );
+  // #1 NYT supersedes plain NYT Bestseller
+  return found.includes('#1 NYT Bestseller') ? found.filter((l) => l !== 'NYT Bestseller') : found;
 }
 
 async function fetchWikipediaGameSummary(title: string): Promise<string> {
@@ -378,19 +430,29 @@ const EXTRA_GAME_STORES: Record<string, Omit<StoreLink, 'url'>> = {
 
 async function fetchGameDetails(title: string, externalId?: string): Promise<ContentDetails> {
   const igdbId = externalId ? Number(externalId) : null;
-  let detail = igdbId ? await igdbDetails(igdbId) : null;
-  // If we had a stored ID but it didn't resolve (edge function down + RAWG ID
-  // mismatch), fall back to a title search so the detail screen still populates.
-  if (!detail) {
-    const results = await igdbSearch(title);
-    detail = results[0] ? await igdbDetails(results[0].id) : null;
-  }
+
+  const [detail, awards] = await Promise.all([
+    (async () => {
+      // If we had a stored ID but it didn't resolve (edge function down + RAWG ID
+      // mismatch), fall back to a title search so the detail screen still populates.
+      let d = igdbId ? await igdbDetails(igdbId) : null;
+      if (!d) {
+        const results = await igdbSearch(title);
+        d = results[0] ? await igdbDetails(results[0].id) : null;
+      }
+      return d;
+    })(),
+    fetchWikipediaAwards(
+      [`${title} (video game)`, `${title} video game`, title],
+      GAME_AWARD_PATTERNS,
+    ),
+  ]);
 
   const igdbSummary = detail?.summary ?? '';
   const overview = igdbSummary || await fetchWikipediaGameSummary(detail?.title || title);
 
   if (!detail) {
-    return { ...EMPTY_DETAILS, overview };
+    return { ...EMPTY_DETAILS, overview, awards };
   }
 
   const platformStores = detail.platforms
@@ -416,6 +478,7 @@ async function fetchGameDetails(title: string, externalId?: string): Promise<Con
     trailerUrl: detail.trailerUrl ?? null,
     trailerThumbnail: detail.trailerThumbnail ?? null,
     watchProviders: stores,
+    awards,
   };
 }
 
@@ -663,6 +726,12 @@ async function fetchMusicDetails(title: string, externalId?: string): Promise<Co
       } catch { /* ignore */ }
     }
 
+    // Start Wikipedia awards fetch in parallel with top-tracks fetch below
+    const awardsPromise = fetchWikipediaAwards(
+      [`${title} (album)`, `${title} album`, title],
+      MUSIC_AWARD_PATTERNS,
+    );
+
     // Artist's top tracks across all albums via search
     let topTracks: ContentDetails['cast'] = [];
     if (artistName) {
@@ -701,6 +770,8 @@ async function fetchMusicDetails(title: string, externalId?: string): Promise<Co
       label,
     ].filter(Boolean);
 
+    const awards = await awardsPromise;
+
     return {
       ...EMPTY_DETAILS,
       overview: artistBio,
@@ -715,6 +786,7 @@ async function fetchMusicDetails(title: string, externalId?: string): Promise<Co
         { name: 'Amazon Music', logo: '🎶', logoUrl: 'https://www.google.com/s2/favicons?domain=music.amazon.com&sz=64', price: 'Stream or buy', cta: 'Find on Amazon', color: '#FF9900', url: `https://music.amazon.com/search/${encodeURIComponent(title)}` },
         { name: 'Tidal', logo: '💧', logoUrl: 'https://www.google.com/s2/favicons?domain=tidal.com&sz=64', price: 'Hi-fi streaming', cta: 'Listen on Tidal', color: '#000000', url: `https://tidal.com/search?q=${encodeURIComponent(title)}` },
       ],
+      awards,
     };
   } catch {
     return EMPTY_DETAILS;
@@ -880,7 +952,15 @@ export function useContentDetails(
                 ? `${detail.episode_run_time[0]}min/ep`
                 : null;
             const trailer = pickYouTubeTrailer(detail.videos?.results ?? []);
-            const watchProviders = await fetchWatchProviders(Number(externalId), endpoint, title).catch(() => []);
+            const [watchProviders, awards] = await Promise.all([
+              fetchWatchProviders(Number(externalId), endpoint, title).catch(() => []),
+              fetchWikipediaAwards(
+                endpoint === 'movie'
+                  ? [`${title} film`, `${title} (film)`, title]
+                  : [`${title} TV series`, `${title} (TV series)`, title],
+                endpoint === 'movie' ? FILM_AWARD_PATTERNS : TV_AWARD_PATTERNS,
+              ),
+            ]);
             const seasons = ((detail.seasons ?? []) as any[])
               .filter((s) => s.season_number > 0)
               .map((s) => ({ seasonNumber: s.season_number as number, episodeCount: s.episode_count as number }))
@@ -907,7 +987,7 @@ export function useContentDetails(
               watchProviders,
               mediaType: (endpoint as 'movie' | 'tv'),
               seasons,
-              awards: [],
+              awards,
             };
           }
           return fetchWatchDetails(title);

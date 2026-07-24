@@ -7,7 +7,7 @@ import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { useEffect } from 'react';
-import { AppState, type AppStateStatus, Platform, useColorScheme } from 'react-native';
+import { AppState, type AppStateStatus, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Do NOT call SplashScreen.preventAutoHideAsync() here.
 // Expo Router calls _internal_preventAutoHideAsync on startup and
@@ -16,6 +16,8 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
+import { configureRevenueCat } from '@/features/purchases/api';
+import { AppearanceProvider, useAppearance } from '@/providers/appearance-provider';
 import { SessionProvider } from '@/providers/session-provider';
 import { ShakespearProvider } from '@/providers/shakespear-provider';
 
@@ -73,12 +75,13 @@ function RootNavigator() {
       <Stack.Screen name="export-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.55], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="get-verified-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="watch-parties-modal" options={{ headerShown: false }} />
     </Stack>
   );
 }
 
-export default function RootLayout() {
-  const colorScheme = useColorScheme();
+function RootLayoutInner() {
+  const { scheme: colorScheme } = useAppearance();
   const [fontsLoaded] = useFonts({
     'Satoshi-Light': require('../assets/fonts/Satoshi-Light.otf'),
     'Satoshi-Regular': require('../assets/fonts/Satoshi-Regular.otf'),
@@ -86,6 +89,12 @@ export default function RootLayout() {
     'Satoshi-Bold': require('../assets/fonts/Satoshi-Bold.otf'),
     'Satoshi-Black': require('../assets/fonts/Satoshi-Black.otf'),
   });
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      configureRevenueCat(session?.user?.id);
+    });
+  }, []);
+
   useEffect(() => {
     function onAppStateChange(status: AppStateStatus) {
       if (Platform.OS !== 'web') {
@@ -156,5 +165,13 @@ export default function RootLayout() {
         {null /* AnimatedSplash temporarily disabled */}
       </StripeProvider>
     </GestureHandlerRootView>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <AppearanceProvider>
+      <RootLayoutInner />
+    </AppearanceProvider>
   );
 }

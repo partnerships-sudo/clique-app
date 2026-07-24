@@ -1,6 +1,7 @@
+import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, Image, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { ActionSheetIOS, ActivityIndicator, Alert, Image, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 
 import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -111,10 +112,26 @@ export function ProfileCard({
 
           <View style={styles.headerInfo}>
             <View style={styles.nameRow}>
-              <Text style={styles.name} numberOfLines={1} adjustsFontSizeToFit>{name}</Text>
+              <Text style={styles.name} numberOfLines={1}>{name}</Text>
               {profile?.verified_tier ? <VerifiedBadge tier={profile.verified_tier} size={16} /> : null}
               {onEditPress ? (
-                <Pressable onPress={onEditPress} hitSlop={10} style={styles.iconBtn}>
+                <Pressable
+                  hitSlop={10}
+                  style={styles.iconBtn}
+                  onPress={() => {
+                    if (Platform.OS === 'ios') {
+                      ActionSheetIOS.showActionSheetWithOptions(
+                        { options: ['Cancel', 'Edit Profile', 'Settings'], cancelButtonIndex: 0 },
+                        (i) => { if (i === 1) onEditPress(); else if (i === 2) router.push('/settings'); },
+                      );
+                    } else {
+                      Alert.alert('Profile', undefined, [
+                        { text: 'Edit Profile', onPress: onEditPress },
+                        { text: 'Settings', onPress: () => router.push('/settings') },
+                        { text: 'Cancel', style: 'cancel' },
+                      ]);
+                    }
+                  }}>
                   <SymbolView name="pencil" size={14} tintColor={Brand.trust} type="monochrome" />
                 </Pressable>
               ) : null}
@@ -123,52 +140,57 @@ export function ProfileCard({
                   <SymbolView name="square.and.arrow.up" size={14} tintColor={Brand.trust} type="monochrome" />
                 </Pressable>
               ) : null}
-              {friendAction ? (
-                <Pressable
-                  onPress={friendAction.onPress}
-                  disabled={!friendAction.onPress}
-                  hitSlop={8}
-                  style={[styles.friendActionBtn, friendAction.variant === 'muted' && styles.friendActionBtnMuted]}>
-                  <Text style={[styles.friendActionBtnText, friendAction.variant === 'muted' && styles.friendActionBtnTextMuted]}>
-                    {friendAction.label}
-                  </Text>
-                </Pressable>
-              ) : null}
-              {closeFriendAction ? (
-                <Pressable
-                  onPress={closeFriendAction.onPress}
-                  hitSlop={8}
-                  style={[styles.friendActionBtn, closeFriendAction.isCloseFriend ? styles.closeFriendBtnActive : styles.friendActionBtnMuted]}>
-                  <Text style={[styles.friendActionBtnText, closeFriendAction.isCloseFriend ? styles.closeFriendBtnTextActive : styles.friendActionBtnTextMuted]}>
-                    {closeFriendAction.isCloseFriend ? '💚 Close Friend' : '+ Close Friend'}
-                  </Text>
-                </Pressable>
-              ) : null}
             </View>
             {profile?.username ? <Text style={styles.handle}>@{profile.username}</Text> : null}
-            {mutualFollowers && mutualFollowers.length > 0 ? (
-              <Text style={styles.mutualFollowers} numberOfLines={2}>
-                {(() => {
-                  const first = mutualFollowers[0].full_name || mutualFollowers[0].username || 'someone';
-                  if (mutualFollowers.length === 1) return `Followed by ${first}`;
-                  if (mutualFollowers.length === 2) {
-                    const second = mutualFollowers[1].full_name || mutualFollowers[1].username || 'someone';
-                    return `Followed by ${first} and ${second}`;
-                  }
-                  return `Followed by ${first} and ${mutualFollowers.length - 1} others you follow`;
-                })()}
-              </Text>
-            ) : null}
-            {active[0] ? (
-              <View style={styles.activityPill}>
-                <View style={styles.activityDot} />
-                <Text style={styles.activityText} numberOfLines={1}>
-                  {active[0].status.charAt(0).toUpperCase() + active[0].status.slice(1)}: {active[0].title}
-                </Text>
+            {(friendAction || closeFriendAction) ? (
+              <View style={styles.actionRow}>
+                {friendAction ? (
+                  <Pressable
+                    onPress={friendAction.onPress}
+                    disabled={!friendAction.onPress}
+                    hitSlop={8}
+                    style={[styles.friendActionBtn, friendAction.variant === 'muted' && styles.friendActionBtnMuted]}>
+                    <Text style={[styles.friendActionBtnText, friendAction.variant === 'muted' && styles.friendActionBtnTextMuted]}>
+                      {friendAction.label}
+                    </Text>
+                  </Pressable>
+                ) : null}
+                {closeFriendAction ? (
+                  <Pressable
+                    onPress={closeFriendAction.onPress}
+                    hitSlop={8}
+                    style={[styles.friendActionBtn, closeFriendAction.isCloseFriend ? styles.closeFriendBtnActive : styles.friendActionBtnMuted]}>
+                    <Text style={[styles.friendActionBtnText, closeFriendAction.isCloseFriend ? styles.closeFriendBtnTextActive : styles.friendActionBtnTextMuted]}>
+                      {closeFriendAction.isCloseFriend ? '💚 Close Friend' : '+ Close Friend'}
+                    </Text>
+                  </Pressable>
+                ) : null}
               </View>
             ) : null}
           </View>
         </View>
+
+        {mutualFollowers && mutualFollowers.length > 0 ? (
+          <Text style={styles.mutualFollowers} numberOfLines={2}>
+            {(() => {
+              const first = mutualFollowers[0].full_name || mutualFollowers[0].username || 'someone';
+              if (mutualFollowers.length === 1) return `Followed by ${first}`;
+              if (mutualFollowers.length === 2) {
+                const second = mutualFollowers[1].full_name || mutualFollowers[1].username || 'someone';
+                return `Followed by ${first} and ${second}`;
+              }
+              return `Followed by ${first} and ${mutualFollowers.length - 1} others you follow`;
+            })()}
+          </Text>
+        ) : null}
+        {active[0] ? (
+          <View style={styles.activityPill}>
+            <View style={styles.activityDot} />
+            <Text style={styles.activityText} numberOfLines={1}>
+              {active[0].status.charAt(0).toUpperCase() + active[0].status.slice(1)}: {active[0].title}
+            </Text>
+          </View>
+        ) : null}
 
         {/* Achievements */}
         {onOpenAchievements ? (

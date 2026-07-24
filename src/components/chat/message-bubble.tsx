@@ -56,6 +56,11 @@ export function MessageBubble({
   const storyReply = parseStoryReply(message.content);
   const rec = storyReply ? null : parseRec(message.content);
   const chatImage = (!storyReply && !rec) ? parseChatImage(message.content) : null;
+  const premiereId = (() => {
+    if (storyReply || rec || chatImage) return null;
+    const m = message.content.match(/thecliqueapp:\/\/premiere\/([a-zA-Z0-9_-]+)/);
+    return m ? m[1] : null;
+  })();
   const gifUrl = (() => {
     if (storyReply || rec || chatImage) return null;
     if (message.content.startsWith('__gif:')) return message.content.slice(6, -2);
@@ -221,6 +226,24 @@ export function MessageBubble({
         ) : gifUrl ? (
           /* ── GIF bubble ── */
           <Image source={{ uri: gifUrl }} style={styles.gifImage} resizeMode="cover" />
+        ) : premiereId ? (
+          /* ── Watch party invite card ── */
+          <Pressable
+            style={styles.premiereCard}
+            onPress={() =>
+              router.push({ pathname: '/premiere-waiting-room', params: { id: premiereId } })
+            }>
+            <View style={styles.premiereHeader}>
+              <Text style={styles.premiereEmoji}>🎬</Text>
+              <Text style={styles.premiereLabel}>Watch Party Invite</Text>
+            </View>
+            <Text style={styles.premiereBody} numberOfLines={3}>
+              {message.content.replace(/\n*thecliqueapp:\/\/premiere\/[a-zA-Z0-9_-]+/, '').trim()}
+            </Text>
+            <View style={styles.premiereFooter}>
+              <Text style={styles.premiereJoin}>Tap to join →</Text>
+            </View>
+          </Pressable>
         ) : (
           /* ── Plain text bubble ── */
           <View style={[styles.bubble, isMine && styles.bubbleMine]}>
@@ -475,6 +498,38 @@ function createStyles(Brand: BrandPalette) {
     recWatchlistBtnTextSaved: {
       color: '#2E9E5B',
     },
+
+    // Watch party invite card
+    premiereCard: {
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.trust,
+      borderRadius: 16,
+      overflow: 'hidden',
+      minWidth: 210,
+      maxWidth: 280,
+    },
+    premiereHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 7,
+      backgroundColor: Brand.tlight,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+    },
+    premiereEmoji: { fontSize: 16 },
+    premiereLabel: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.trust, textTransform: 'uppercase', letterSpacing: 0.5 },
+    premiereBody: { fontFamily: BrandFonts.interRegular, fontSize: 13.5, color: Brand.ink, paddingHorizontal: 12, paddingVertical: 10, lineHeight: 19 },
+    premiereFooter: {
+      borderTopWidth: 1,
+      borderTopColor: Brand.border,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+      backgroundColor: Brand.paper,
+    },
+    premiereJoin: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
 
     // Photo bubble
     photoImage: {

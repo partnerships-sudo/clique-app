@@ -14,6 +14,7 @@ export interface StoryPost {
   type: EntryType;
   title: string;
   sub: string | null;
+  media_type: string | null;
   note: string | null;
   rating: number | null;
   poster: string | null;
@@ -62,6 +63,7 @@ export function useCloseFriendsPosts() {
         type: post.type as EntryType,
         title: post.title,
         sub: post.sub ?? null,
+        media_type: post.media_type ?? null,
         note: post.note ?? null,
         rating: post.rating ?? null,
         poster: post.poster ?? null,

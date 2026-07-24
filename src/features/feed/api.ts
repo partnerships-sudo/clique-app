@@ -54,17 +54,18 @@ function useInfiniteFeedPosts() {
 
       const [postsResult, profilesResult] = await Promise.all([
         postsQuery,
-        supabase.from('profiles').select('id, avatar_url, rating_icon, verified_tier').in('id', ids),
+        supabase.from('profiles').select('id, avatar_url, rating_icon, verified_tier, username').in('id', ids),
       ]);
 
       if (postsResult.error) throw postsResult.error;
 
       const profileMap = Object.fromEntries(
-        (profilesResult.data ?? []).map((p) => [p.id, p as { avatar_url: string | null; rating_icon: string | null; verified_tier: number }]),
+        (profilesResult.data ?? []).map((p) => [p.id, p as { avatar_url: string | null; rating_icon: string | null; verified_tier: number; username: string | null }]),
       );
 
       const posts = (postsResult.data as any[]).map((post) => ({
         ...post,
+        user_name: profileMap[post.user_id]?.username ?? post.user_name,
         user_avatar_url: profileMap[post.user_id]?.avatar_url ?? null,
         user_rating_icon: profileMap[post.user_id]?.rating_icon ?? null,
         user_verified_tier: profileMap[post.user_id]?.verified_tier ?? 0,
@@ -107,11 +108,12 @@ export function useGlobalPosts() {
       const uniqueUserIds = [...new Set(posts.map((p) => p.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, avatar_url, verified_tier')
+        .select('id, username, full_name, avatar_url, verified_tier')
         .in('id', uniqueUserIds);
-      const profileMap2 = Object.fromEntries((profiles ?? []).map((p) => [p.id, p as { avatar_url: string | null; verified_tier: number }]));
+      const profileMap2 = Object.fromEntries((profiles ?? []).map((p) => [p.id, p as { username: string | null; full_name: string | null; avatar_url: string | null; verified_tier: number }]));
       return posts.map((p) => ({
         ...p,
+        user_name: profileMap2[p.user_id]?.username ?? profileMap2[p.user_id]?.full_name ?? p.user_name,
         user_avatar_url: profileMap2[p.user_id]?.avatar_url ?? null,
         user_verified_tier: profileMap2[p.user_id]?.verified_tier ?? 0,
       })) as Post[];
@@ -167,12 +169,12 @@ export function useCircleLogActivity() {
       const profileMap = Object.fromEntries(
         (profiles ?? []).map((p: any) => [
           p.id,
-          { name: p.full_name ?? p.username ?? 'Someone', avatarUrl: p.avatar_url ?? null },
+          { name: p.username ?? p.full_name ?? 'someone', avatarUrl: p.avatar_url ?? null },
         ]),
       );
 
       return rows.map((r) => ({
-        user_name: profileMap[r.user_id]?.name ?? 'Someone',
+        user_name: profileMap[r.user_id]?.name ?? 'someone',
         user_avatar_url: profileMap[r.user_id]?.avatarUrl ?? null,
         title: r.title,
         sub: r.sub,

@@ -245,6 +245,20 @@ export function useRemoveLibraryItem() {
   });
 }
 
+export function useBulkRemoveLibraryItems() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase.from('library').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: libraryQueryKey(user?.id) });
+    },
+  });
+}
+
 export function useUpdateEpisodeProgress() {
   const { user } = useSession();
   const queryClient = useQueryClient();

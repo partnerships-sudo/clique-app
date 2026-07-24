@@ -8,7 +8,7 @@ import { ProfileCard, type ProfileCardFriendAction } from '@/components/profile/
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBadgesForUser } from '@/features/badges/api';
 import { useCloseFriendIds, useToggleCloseFriend } from '@/features/close-friends/api';
-import { useFollow, useFollowStatus, useFollowersCount, useFollowingCount, useUnfollow } from '@/features/follows/api';
+import { useFollow, useFollowStatus, useFollowersCount, useFollowingCount, useMutualConnections, useUnfollow } from '@/features/follows/api';
 import { useLibraryItemsByUser } from '@/features/library/api';
 import { useProfileById } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
@@ -33,6 +33,7 @@ export default function FriendProfileModal() {
   const { data: followingCount, refetch: refetchFollowingCount } = useFollowingCount(params.userId);
   const { badges } = useBadgesForUser(params.userId);
   const { data: followStatus, refetch: refetchFollowStatus } = useFollowStatus(params.userId);
+  const { data: mutualFollowers } = useMutualConnections(params.userId);
   const follow = useFollow();
   const unfollow = useUnfollow();
   const { data: closeFriendIds } = useCloseFriendIds();
@@ -120,6 +121,7 @@ export default function FriendProfileModal() {
                 params: { userId: params.userId, name: profile?.full_name ?? profile?.username ?? 'Friend' },
               })
             }
+            mutualFollowers={mutualFollowers}
             friendAction={friendAction}
             closeFriendAction={followStatus?.kind === 'accepted' ? {
               isCloseFriend,
@@ -136,8 +138,8 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Brand.paper },
   scroll: { flex: 1 },
-  content: { padding: Spacing.three, paddingBottom: Spacing.six },
-  backRow: { marginBottom: Spacing.three },
+  content: { paddingBottom: Spacing.three },
+  backRow: { marginBottom: Spacing.three, paddingHorizontal: Spacing.three },
   backBtn: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
   });
 }

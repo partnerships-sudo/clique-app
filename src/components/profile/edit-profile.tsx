@@ -1,4 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
+import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
@@ -112,43 +114,63 @@ export function EditProfile({
 
   return (
     <View>
+      {/* Avatar */}
       <View style={styles.avatarRow}>
-        <Avatar name={fullName || 'You'} size={58} avatarUrl={profile?.avatar_url} />
-        <Pressable
-          style={styles.changePhotoBtn}
-          onPress={handleChangePhoto}
-          disabled={uploadAvatar.isPending}>
-          {uploadAvatar.isPending ? (
-            <ActivityIndicator color={Brand.trust} />
-          ) : (
+        <Pressable style={styles.avatarPressable} onPress={handleChangePhoto} disabled={uploadAvatar.isPending}>
+          <View style={styles.avatarWrap}>
+            <Avatar name={fullName || 'You'} size={64} avatarUrl={profile?.avatar_url} />
+            <View style={styles.cameraBadge}>
+              {uploadAvatar.isPending
+                ? <ActivityIndicator color="#fff" size="small" />
+                : <SymbolView name="camera.fill" size={12} tintColor="#fff" type="monochrome" />}
+            </View>
+          </View>
+          <View style={styles.avatarMeta}>
+            <Text style={styles.avatarName}>{fullName || 'Your name'}</Text>
+            {username ? <Text style={styles.avatarHandle}>@{username}</Text> : null}
             <Text style={styles.changePhotoText}>Change photo</Text>
-          )}
+          </View>
+        </Pressable>
+        <Pressable style={styles.cogBtn} onPress={() => router.push('/settings')}>
+          <SymbolView name="gearshape" size={20} tintColor={Brand.muted} type="monochrome" />
         </Pressable>
       </View>
 
+      {/* Basic info — grouped card */}
       <Text style={styles.secLbl}>Basic info</Text>
-      <View style={styles.field}>
-        <Text style={styles.label}>Full name</Text>
-        <TextInput style={styles.input} value={fullName} onChangeText={setFullName} />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Username</Text>
-        <TextInput style={styles.input} value={username} onChangeText={setUsername} autoCapitalize="none" />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Location</Text>
-        <TextInput style={styles.input} value={location} onChangeText={setLocation} />
-      </View>
-      <View style={styles.field}>
-        <Text style={styles.label}>Bio</Text>
-        <TextInput
-          style={[styles.input, styles.bioInput]}
-          value={bio}
-          onChangeText={setBio}
-          multiline
-        />
+      <View style={styles.card}>
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Full name</Text>
+          <TextInput style={styles.rowInput} value={fullName} onChangeText={setFullName} placeholder="Your name" placeholderTextColor="#999" />
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Username</Text>
+          <TextInput style={styles.rowInput} value={username} onChangeText={(t) => setUsername(t.toLowerCase())} autoCapitalize="none" placeholder="@handle" placeholderTextColor="#999" />
+        </View>
+        <View style={styles.divider} />
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Location</Text>
+          <TextInput style={styles.rowInput} value={location} onChangeText={setLocation} placeholder="City, Country" placeholderTextColor="#999" />
+        </View>
+        <View style={styles.divider} />
+        <View style={[styles.row, { alignItems: 'flex-start' }]}>
+          <Text style={[styles.rowLabel, { paddingTop: 2 }]}>Bio</Text>
+          <View style={styles.bioWrap}>
+            <TextInput
+              style={styles.bioInput}
+              value={bio}
+              onChangeText={(t) => t.length <= 150 && setBio(t)}
+              multiline
+              placeholder="A little about you…"
+              placeholderTextColor="#999"
+            />
+            <Text style={styles.bioCount}>{bio.length}/150</Text>
+          </View>
+        </View>
       </View>
 
+      {/* Rating icon */}
       <Text style={styles.secLbl}>Rating icon</Text>
       <View style={styles.ratingIconRow}>
         {RATING_ICON_OPTIONS.map((option) => {
@@ -167,6 +189,7 @@ export function EditProfile({
         })}
       </View>
 
+      {/* Interests */}
       <Text style={styles.secLbl}>Interests</Text>
       <ChipRow
         chips={interests}
@@ -175,7 +198,8 @@ export function EditProfile({
         }
       />
 
-      <Text style={[styles.secLbl, { marginTop: 18 }]}>Favourite genres</Text>
+      {/* Genres */}
+      <Text style={[styles.secLbl, { marginTop: 14 }]}>Favourite genres</Text>
       <ChipRow
         chips={genres}
         variant="dark"
@@ -185,6 +209,13 @@ export function EditProfile({
       <Pressable style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
         {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save profile</Text>}
       </Pressable>
+
+      <View style={styles.footerRow}>
+        <Pressable style={styles.footerBtn} onPress={() => router.push('/watch-parties-modal')}>
+          <SymbolView name="popcorn" size={15} tintColor={Brand.muted} type="monochrome" />
+          <Text style={styles.footerText}>Watch parties</Text>
+        </Pressable>
+      </View>
 
       <Pressable style={styles.logoutBtn} onPress={() => signOut()}>
         <Text style={styles.logoutText}>Log out</Text>
@@ -197,67 +228,129 @@ export { DEFAULT_INTERESTS };
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
+    // Avatar row
     avatarRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 16,
+    },
+    avatarPressable: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
+      flex: 1,
+    },
+    cogBtn: { padding: 6 },
+    avatarWrap: { position: 'relative' },
+    cameraBadge: {
+      position: 'absolute',
+      bottom: 0,
+      right: 0,
+      width: 22,
+      height: 22,
+      borderRadius: 11,
+      backgroundColor: Brand.trust,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: Brand.paper,
+    },
+    avatarMeta: { flex: 1, gap: 1 },
+    avatarName: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink },
+    avatarHandle: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted },
+    changePhotoText: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.trust, marginTop: 4 },
+
+    // Section label
+    secLbl: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 10,
+      color: Brand.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 1.2,
+      marginBottom: 6,
+      marginTop: 14,
+    },
+
+    // Grouped card
+    card: {
       backgroundColor: Brand.card,
       borderWidth: 1,
       borderColor: Brand.border,
       borderRadius: 16,
-      padding: 16,
-      marginBottom: Spacing.three,
+      overflow: 'hidden',
+      marginBottom: 4,
     },
-    changePhotoBtn: { backgroundColor: Brand.tlight, borderRadius: 10, paddingVertical: 8, paddingHorizontal: 14 },
-    changePhotoText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
-    secLbl: {
-      fontFamily: BrandFonts.syneBold,
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      gap: 10,
+    },
+    rowLabel: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 13,
+      color: Brand.muted,
+      width: 78,
+    },
+    rowInput: {
+      flex: 1,
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 14,
+      color: Brand.ink,
+      padding: 0,
+    },
+    divider: { height: 1, backgroundColor: Brand.border, marginLeft: 14 },
+    bioWrap: { flex: 1 },
+    bioInput: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 14,
+      color: Brand.ink,
+      padding: 0,
+      minHeight: 60,
+      textAlignVertical: 'top',
+    },
+    bioCount: {
+      fontFamily: BrandFonts.interRegular,
       fontSize: 11,
       color: Brand.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      marginBottom: 10,
+      textAlign: 'right',
       marginTop: 4,
     },
-    ratingIconRow: { flexDirection: 'row', gap: 10, marginBottom: 18 },
+
+    // Rating icons
+    ratingIconRow: { flexDirection: 'row', gap: 8, marginBottom: 2 },
     ratingIconBtn: {
       flex: 1,
       alignItems: 'center',
       gap: 4,
-      paddingVertical: 12,
-      borderRadius: 14,
+      paddingVertical: 8,
+      borderRadius: 12,
       borderWidth: 1.5,
       borderColor: Brand.border,
       backgroundColor: Brand.card,
     },
     ratingIconBtnActive: { borderColor: Brand.trust, backgroundColor: Brand.tlight },
-    ratingIconEmoji: { fontSize: 22 },
-    ratingIconLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11.5, color: Brand.muted },
-    ratingIconLabelActive: { color: Brand.trust, fontFamily: BrandFonts.syneBold },
-    field: { marginBottom: 12 },
-    label: { fontFamily: BrandFonts.interMedium, fontSize: 12.5, color: Brand.ink, marginBottom: 5 },
-    input: {
-      borderWidth: 1.5,
-      borderColor: Brand.border,
-      borderRadius: 12,
-      paddingHorizontal: 14,
-      paddingVertical: 11,
-      fontSize: 14.5,
-      fontFamily: BrandFonts.interRegular,
-      color: Brand.ink,
-      backgroundColor: Brand.card,
-    },
-    bioInput: { minHeight: 72, textAlignVertical: 'top' },
+    ratingIconEmoji: { fontSize: 20 },
+    ratingIconLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11, color: Brand.muted },
+    ratingIconLabelActive: { color: Brand.trust },
+
+    // Save button
     saveBtn: {
       backgroundColor: Brand.trust,
       borderRadius: 14,
       paddingVertical: 14,
       alignItems: 'center',
-      marginTop: 24,
-      marginBottom: 10,
+      marginTop: 18,
+      marginBottom: 4,
     },
     saveBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#fff' },
-    logoutBtn: { alignItems: 'center', paddingVertical: 10 },
-    logoutText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#E84F4F' },
+
+    // Footer links
+    footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 6 },
+    footerBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 6 },
+    footerText: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted },
+    logoutBtn: { alignItems: 'center', paddingVertical: 8, marginBottom: 8 },
+    logoutText: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: '#E84F4F' },
   });
 }
