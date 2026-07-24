@@ -57,7 +57,7 @@ export function useFollowersByUser(userId: string | undefined) {
       if (error) throw error;
       const ids = (data ?? []).map((f) => f.follower_id);
       if (!ids.length) return [] as Profile[];
-      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*').in('id', ids);
+      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, username, full_name, avatar_url, verified_tier').in('id', ids);
       if (profilesError) throw profilesError;
       return (profiles ?? []) as Profile[];
     },
@@ -80,7 +80,7 @@ export function useFollowingByUser(userId: string | undefined) {
       if (error) throw error;
       const ids = (data ?? []).map((f) => f.followed_id);
       if (!ids.length) return [] as Profile[];
-      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('*').in('id', ids);
+      const { data: profiles, error: profilesError } = await supabase.from('profiles').select('id, username, full_name, avatar_url, verified_tier').in('id', ids);
       if (profilesError) throw profilesError;
       return (profiles ?? []) as Profile[];
     },

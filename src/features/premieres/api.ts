@@ -16,6 +16,13 @@ export function useSendPremiereMessage() {
       content: string;
       relativeMs: number | null;
     }) => {
+      // Reject writes to ended premieres
+      const { data: premiere } = await supabase
+        .from('premieres')
+        .select('status')
+        .eq('id', premiereId)
+        .single();
+      if (premiere?.status === 'ended') throw new Error('This watch party has ended.');
       const { error } = await supabase.from('premiere_messages').insert({
         premiere_id: premiereId,
         user_id: user!.id,

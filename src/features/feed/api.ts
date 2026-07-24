@@ -101,23 +101,17 @@ export function useGlobalPosts() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('posts')
-        .select('*')
+        .select('*, profiles!posts_user_id_fkey(username, full_name, avatar_url, verified_tier)')
         .eq('visibility', 'everyone')
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
-      const posts = data as Post[];
-      const uniqueUserIds = [...new Set(posts.map((p) => p.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, username, full_name, avatar_url, verified_tier')
-        .in('id', uniqueUserIds);
-      const profileMap2 = Object.fromEntries((profiles ?? []).map((p) => [p.id, p as { username: string | null; full_name: string | null; avatar_url: string | null; verified_tier: number }]));
-      return posts.map((p) => ({
+      return ((data ?? []) as any[]).map((p) => ({
         ...p,
-        user_name: profileMap2[p.user_id]?.username ?? profileMap2[p.user_id]?.full_name ?? p.user_name,
-        user_avatar_url: profileMap2[p.user_id]?.avatar_url ?? null,
-        user_verified_tier: profileMap2[p.user_id]?.verified_tier ?? 0,
+        user_name: p.profiles?.username ?? p.profiles?.full_name ?? p.user_name,
+        user_avatar_url: p.profiles?.avatar_url ?? null,
+        user_verified_tier: p.profiles?.verified_tier ?? 0,
+        profiles: undefined,
       })) as Post[];
     },
   });
@@ -320,29 +314,19 @@ export function useMostReviewed(period: MostReviewedPeriod) {
         since = new Date(now.getFullYear(), 0, 1).toISOString();
       }
 
-      let query = supabase
-        .from('posts')
-        .select('title, type, poster, sub, rating, external_id, media_type')
-        .not('title', 'is', null);
-      if (since) query = query.gte('created_at', since);
-      query = query.eq('visibility', 'everyone').limit(500);
-
-      const { data, error } = await query;
+      const { data, error } = await supabase.rpc('get_most_reviewed', { since_date: since });
       if (error) throw error;
 
-      const map = new Map<string, { title: string; type: EntryType; poster: string | null; sub: string | null; externalId?: string; count: number; ratingSum: number; ratingCount: number }>();
-      for (const row of (data ?? []) as any[]) {
-        const key = `${row.type}:${row.title}`;
-        const entry = map.get(key) ?? { title: row.title, type: row.type, poster: row.poster ?? null, sub: row.sub ?? null, externalId: row.external_id ?? undefined, mediaType: row.media_type ?? undefined, count: 0, ratingSum: 0, ratingCount: 0 };
-        entry.count += 1;
-        if (row.rating) { entry.ratingSum += row.rating; entry.ratingCount += 1; }
-        map.set(key, entry);
-      }
-
-      return [...map.values()]
-        .map((e) => ({ title: e.title, type: e.type, poster: e.poster, sub: e.sub, externalId: e.externalId, mediaType: e.mediaType, count: e.count, avgRating: e.ratingCount > 0 ? e.ratingSum / e.ratingCount : null }))
-        .sort((a, b) => b.count - a.count)
-        .slice(0, 20) as MostReviewedEntry[];
+      return ((data ?? []) as any[]).map((row) => ({
+        title: row.title as string,
+        type: row.type as EntryType,
+        poster: row.poster as string | null,
+        sub: row.sub as string | null,
+        externalId: row.external_id as string | undefined,
+        mediaType: row.media_type as string | undefined,
+        count: Number(row.count),
+        avgRating: row.avg_rating != null ? Number(row.avg_rating) : null,
+      })) as MostReviewedEntry[];
     },
     staleTime: 10 * 60 * 1000,
   });
