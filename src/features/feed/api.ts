@@ -97,6 +97,7 @@ export function useGlobalPosts() {
   const { blockedIds, mutedIds } = useBlockedMutedIds();
   const query = useQuery({
     queryKey: ['posts', 'global'],
+    staleTime: 60_000,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('posts')
@@ -318,6 +319,7 @@ export function useMostReviewed(period: MostReviewedPeriod) {
         .select('title, type, poster, sub, rating, external_id, media_type')
         .not('title', 'is', null);
       if (since) query = query.gte('created_at', since);
+      query = query.eq('visibility', 'everyone').limit(500);
 
       const { data, error } = await query;
       if (error) throw error;
@@ -336,6 +338,6 @@ export function useMostReviewed(period: MostReviewedPeriod) {
         .sort((a, b) => b.count - a.count)
         .slice(0, 20) as MostReviewedEntry[];
     },
-    staleTime: 5 * 60 * 1000,
+    staleTime: 10 * 60 * 1000,
   });
 }

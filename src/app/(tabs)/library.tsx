@@ -15,6 +15,7 @@ import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from
 import { useCreatePost, type FeedFilterValue } from '@/features/feed/api';
 import {
   useBulkRemoveLibraryItems,
+  useFriendWatchlist,
   useLibraryItems,
   useMoveToLibrary,
   useRateLibraryItem,
@@ -25,7 +26,7 @@ import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 
 type LibTab = 'logged' | 'watchlist' | 'collection';
-type WatchlistView = 'mine' | 'friends';
+type WatchlistView = 'mine' | 'friends' | 'their-watchlist';
 type CollectionView = 'read' | 'watch' | 'tv' | 'listen' | 'play' | 'podcast';
 type CollectionSort = 'recent' | 'rating' | 'alpha';
 
@@ -70,6 +71,7 @@ export default function LibraryScreen() {
   const removeItem = useRemoveLibraryItem();
   const rateItem = useRateLibraryItem();
   const createPost = useCreatePost();
+  const { items: friendWatchlistItems } = useFriendWatchlist();
   const bulkRemoveItems = useBulkRemoveLibraryItems();
 
   const [selectMode, setSelectMode] = useState(false);
@@ -238,7 +240,7 @@ export default function LibraryScreen() {
         <FlatList
           key="watchlist"
           contentContainerStyle={styles.content}
-          data={watchlistView === 'mine' ? watchlist : friendRecItems}
+          data={watchlistView === 'mine' ? watchlist : watchlistView === 'friends' ? friendRecItems : friendWatchlistItems}
           keyExtractor={(item: LibraryItem) => item.id}
           refreshControl={
             <RefreshControl
@@ -262,6 +264,13 @@ export default function LibraryScreen() {
                   onPress={() => setWatchlistView('friends')}>
                   <Text style={[styles.subToggleText, watchlistView === 'friends' && styles.subToggleTextActive]}>
                     💌 From Friends{friendRecItems.length ? ` ${friendRecItems.length}` : ''}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.subToggle, watchlistView === 'their-watchlist' && styles.subToggleActive]}
+                  onPress={() => setWatchlistView('their-watchlist')}>
+                  <Text style={[styles.subToggleText, watchlistView === 'their-watchlist' && styles.subToggleTextActive]}>
+                    👀 Their Lists{friendWatchlistItems.length ? ` ${friendWatchlistItems.length}` : ''}
                   </Text>
                 </Pressable>
               </View>
