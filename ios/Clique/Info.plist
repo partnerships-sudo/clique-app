@@ -59,6 +59,8 @@
     <string>Clique uses your calendar to let you save and share events with friends.</string>
     <key>NSCalendarsWriteOnlyAccessUsageDescription</key>
     <string>Clique uses your calendar to let you save and share events with friends.</string>
+    <key>NSContactsUsageDescription</key>
+    <string>Clique uses your contacts to find friends who are already on the app.</string>
     <key>NSCameraUsageDescription</key>
     <string>Allow Clique to access your camera so you can scan barcodes to add books and movies to My Collection.</string>
     <key>NSMicrophoneUsageDescription</key>
