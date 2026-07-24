@@ -76,7 +76,7 @@ export function PostCard({
     .slice(0, 3);
 
   function confirmDelete() {
-    Alert.alert(post.title, undefined, [
+    Alert.alert('Delete post?', post.title, [
       ...(onEdit ? [{ text: 'Edit post', onPress: onEdit }] : []),
       { text: 'Delete', style: 'destructive' as const, onPress: onDelete },
       { text: 'Cancel', style: 'cancel' as const },
@@ -106,6 +106,8 @@ export function PostCard({
               },
             })
           }
+          accessibilityLabel={`View details for ${post.title}`}
+          accessibilityRole="button"
           style={[styles.posterPress, isSquareType && styles.posterPressSquare]}>
           {post.poster ? (
             <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} resizeMode="cover" />
@@ -124,6 +126,8 @@ export function PostCard({
             <Pressable
               style={styles.identity}
               hitSlop={4}
+              accessibilityLabel={`View @${post.user_name}'s profile`}
+              accessibilityRole="button"
               onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } })}>
               <Avatar name={post.user_name} size={22} avatarUrl={post.user_avatar_url} />
               <Text style={styles.userName} numberOfLines={1}>@{post.user_name}</Text>
@@ -200,6 +204,8 @@ export function PostCard({
               <Pressable
                 onPress={onToggleReaction}
                 onLongPress={() => reactions.length > 0 && router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}
+                accessibilityLabel={meReacted ? `Remove Me too reaction, ${reactions.length} reactions` : `Me too — ${reactions.length} reactions`}
+                accessibilityRole="button"
                 style={[styles.reactBtn, meReacted && styles.reactBtnActive]}>
                 <Text style={[styles.reactText, meReacted && styles.reactTextActive]}>
                   ✦ Me too!{reactions.length ? ` ${reactions.length}` : ''}
@@ -227,12 +233,16 @@ export function PostCard({
                     },
                   })
                 }
+                accessibilityLabel={`Share ${post.title}`}
+                accessibilityRole="button"
                 hitSlop={16}>
                 <SymbolView name="paperplane" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
               </Pressable>
               <View style={styles.shareDivider} />
               <Pressable
                 onPress={() => router.push({ pathname: '/chat-modal', params: { title: post.title, type: post.type } })}
+                accessibilityLabel={`Open group chat for ${post.title}`}
+                accessibilityRole="button"
                 hitSlop={16}>
                 <SymbolView name="bubble.left" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
               </Pressable>

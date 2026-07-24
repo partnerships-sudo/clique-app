@@ -19,7 +19,12 @@ export function SponsoredCard({ ad }: { ad: Ad }) {
   }, [ad.id]);
 
   return (
-    <Pressable style={styles.card} onPress={() => handleAdTap(ad, logEvent)}>
+    <Pressable
+      style={styles.card}
+      onPress={() => handleAdTap(ad, logEvent)}
+      accessibilityLabel={`Sponsored post from ${ad.brand_name}: ${ad.headline}`}
+      accessibilityRole="link"
+      accessibilityHint="Opens advertiser's page">
       {ad.image_url ? (
         <Image source={{ uri: ad.image_url }} style={styles.image} resizeMode="cover" />
       ) : null}
@@ -80,7 +85,7 @@ function createStyles(Brand: BrandPalette) {
       flex: 1,
     },
     sponsoredBadge: {
-      backgroundColor: Brand.border,
+      backgroundColor: Brand.trust,
       borderRadius: 4,
       paddingHorizontal: 6,
       paddingVertical: 2,
@@ -88,8 +93,8 @@ function createStyles(Brand: BrandPalette) {
     sponsoredText: {
       fontFamily: BrandFonts.interMedium,
       fontSize: 10,
-      color: Brand.muted,
-      letterSpacing: 0.3,
+      color: '#fff',
+      letterSpacing: 0.5,
     },
     headline: {
       fontFamily: BrandFonts.syneBold,

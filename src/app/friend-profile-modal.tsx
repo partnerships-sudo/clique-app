@@ -1,7 +1,7 @@
 import { useFocusEffect } from 'expo-router';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { ProfileCard, type ProfileCardFriendAction } from '@/components/profile/profile-card';
@@ -63,7 +63,16 @@ export default function FriendProfileModal() {
     friendAction = {
       label: 'Following ✓',
       variant: 'muted',
-      onPress: () => unfollow.mutate(params.userId),
+      onPress: () => {
+        Alert.alert(
+          `Unfollow @${profile?.username ?? 'this person'}?`,
+          undefined,
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Unfollow', style: 'destructive', onPress: () => unfollow.mutate(params.userId) },
+          ],
+        );
+      },
     };
   }
 
@@ -80,7 +89,7 @@ export default function FriendProfileModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backRow}>
+        <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backRow} accessibilityLabel="Go back" accessibilityRole="button">
           <Text style={styles.backBtn}>‹ Back</Text>
         </Pressable>
 

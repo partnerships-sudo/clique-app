@@ -41,7 +41,9 @@ function libraryQueryKey(userId: string | undefined) {
 }
 
 function todayLabel() {
-  return new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+  // Store as ISO YYYY-MM so it sorts correctly across locales
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
 export function useLibraryItems() {
