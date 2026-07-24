@@ -137,6 +137,10 @@ export default function PremiereModal() {
   }
 
   async function handleCreate() {
+    if (!showTitle.trim()) {
+      Alert.alert('Missing title', 'Please select a show or movie first.');
+      return;
+    }
     if (!/^\d{4}-\d{2}-\d{2}$/.test(partyDate)) {
       Alert.alert('Invalid date', 'Please enter a date in YYYY-MM-DD format, e.g. 2026-08-10.');
       return;
@@ -157,8 +161,8 @@ export default function PremiereModal() {
 
       setIsSharing(true);
       try {
-        if (cardRef.current) {
-          const uri = await (cardRef.current as any).capture();
+        if (cardRef.current && typeof (cardRef.current as { capture?: () => Promise<string> }).capture === 'function') {
+          const uri = await (cardRef.current as { capture: () => Promise<string> }).capture();
           setCapturedUri(uri);
         }
       } catch {}

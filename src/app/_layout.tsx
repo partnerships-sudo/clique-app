@@ -6,7 +6,7 @@ import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Do NOT call SplashScreen.preventAutoHideAsync() here.
@@ -90,9 +90,15 @@ function RootLayoutInner() {
     'Satoshi-Black': require('../assets/fonts/Satoshi-Black.otf'),
   });
   useEffect(() => {
+    // Initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       configureRevenueCat(session?.user?.id);
     });
+    // Keep RevenueCat in sync with auth state changes (sign-in, sign-out, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      configureRevenueCat(session?.user?.id);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
   useEffect(() => {
@@ -105,52 +111,58 @@ function RootLayoutInner() {
     return () => subscription.remove();
   }, []);
 
+  // Defer notification navigation until the router is ready (avoids cold-start crash)
+  const pendingNotification = useRef<Parameters<Parameters<typeof Notifications.addNotificationResponseReceivedListener>[0]>[0] | null>(null);
+  const routerReady = useRef(false);
+
+  async function handleNotificationResponse(response: Parameters<Parameters<typeof Notifications.addNotificationResponseReceivedListener>[0]>[0]) {
+    const data = response.notification.request.content.data;
+    if (data?.type === 'badge') {
+      router.push('/achievements-modal');
+    } else if (data?.type === 'dm' && data?.friendId) {
+      let friendName = (data.friendName as string | undefined) ?? '';
+      let friendAvatar = (data.friendAvatar as string | undefined) ?? undefined;
+      if (!friendName) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, username, avatar_url')
+          .eq('id', data.friendId as string)
+          .single();
+        friendName = profile?.full_name ?? profile?.username ?? 'Unknown';
+        friendAvatar = profile?.avatar_url ?? undefined;
+      }
+      router.push({ pathname: '/chat-modal', params: { friendId: data.friendId as string, friendName, friendAvatar } });
+    } else if (data?.type === 'rating_reminder' && data?.postId) {
+      const { data: post } = await supabase
+        .from('posts')
+        .select('title, type, poster')
+        .eq('id', data.postId as string)
+        .single();
+      if (post) {
+        router.push({ pathname: '/log-modal', params: { intent: 'log', prefillTitle: post.title, prefillType: post.type, prefillPoster: post.poster ?? undefined } });
+      } else {
+        router.push('/notifications-modal');
+      }
+    }
+  }
+
+  useEffect(() => {
+    // Mark router as ready and flush any notification that arrived before mount
+    routerReady.current = true;
+    if (pendingNotification.current) {
+      handleNotificationResponse(pendingNotification.current);
+      pendingNotification.current = null;
+    }
+  }, []);
+
   useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener(async (response) => {
-      const data = response.notification.request.content.data;
-      if (data?.type === 'badge') {
-        router.push('/achievements-modal');
-      } else if (data?.type === 'dm' && data?.friendId) {
-        // Use name/avatar from notification payload if available to avoid a round-trip
-        let friendName = (data.friendName as string | undefined) ?? '';
-        let friendAvatar = (data.friendAvatar as string | undefined) ?? undefined;
-        if (!friendName) {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('full_name, username, avatar_url')
-            .eq('id', data.friendId as string)
-            .single();
-          friendName = profile?.full_name ?? profile?.username ?? 'Unknown';
-          friendAvatar = profile?.avatar_url ?? undefined;
-        }
-        router.push({
-          pathname: '/chat-modal',
-          params: {
-            friendId: data.friendId as string,
-            friendName,
-            friendAvatar,
-          },
-        });
-      } else if (data?.type === 'rating_reminder' && data?.postId) {
-        const { data: post } = await supabase
-          .from('posts')
-          .select('title, type, poster')
-          .eq('id', data.postId as string)
-          .single();
-        if (post) {
-          router.push({
-            pathname: '/log-modal',
-            params: {
-              intent: 'log',
-              prefillTitle: post.title,
-              prefillType: post.type,
-              prefillPoster: post.poster ?? undefined,
-            },
-          });
-        } else {
-          router.push('/notifications-modal');
-        }
+      if (!routerReady.current) {
+        // Cold start — defer until layout is mounted
+        pendingNotification.current = response;
+        return;
       }
+      handleNotificationResponse(response);
     });
     return () => sub.remove();
   }, []);

@@ -264,20 +264,26 @@ export function useDeletePost() {
     mutationFn: async (postId: string) => {
       const { data: post, error: fetchError } = await supabase
         .from('posts')
-        .select('title, type')
+        .select('title, type, external_id')
         .eq('id', postId)
+        .eq('user_id', user!.id) // ownership guard
         .single();
       if (fetchError) throw fetchError;
-      const { error } = await supabase.from('posts').delete().eq('id', postId);
+      const { error } = await supabase.from('posts').delete().eq('id', postId).eq('user_id', user!.id);
       if (error) throw error;
       if (post) {
-        await supabase
+        // Match on external_id when available to avoid collisions on shared titles
+        const libDelete = supabase
           .from('library')
           .delete()
           .eq('user_id', user!.id)
-          .eq('title', post.title)
           .eq('type', post.type)
           .eq('status', 'logged');
+        if (post.external_id) {
+          await libDelete.eq('external_id', post.external_id);
+        } else {
+          await libDelete.eq('title', post.title);
+        }
       }
     },
     onSuccess: () => {

@@ -1,0 +1,665 @@
+<title>Clique — Investor Pitch Deck</title>
+<style>
+@import url('data:text/css,');
+
+:root {
+  --ink: #0A0A0F;
+  --paper: #FAFAF8;
+  --accent: #5B4FE8;
+  --accent2: #E84F4F;
+  --gold: #F59E0B;
+  --muted: #6B7280;
+  --border: #E5E7EB;
+  --card: #FFFFFF;
+  --mono: 'SF Mono', 'Fira Code', monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #F0F0EC;
+    --paper: #0C0C10;
+    --accent: #7B72FF;
+    --accent2: #FF6B6B;
+    --gold: #FBBF24;
+    --muted: #9CA3AF;
+    --border: #1F2028;
+    --card: #13131A;
+  }
+}
+:root[data-theme="light"] {
+  --ink: #0A0A0F; --paper: #FAFAF8; --accent: #5B4FE8; --accent2: #E84F4F;
+  --gold: #F59E0B; --muted: #6B7280; --border: #E5E7EB; --card: #FFFFFF;
+}
+:root[data-theme="dark"] {
+  --ink: #F0F0EC; --paper: #0C0C10; --accent: #7B72FF; --accent2: #FF6B6B;
+  --gold: #FBBF24; --muted: #9CA3AF; --border: #1F2028; --card: #13131A;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  line-height: 1.6;
+}
+
+/* Slide container */
+.deck { max-width: 960px; margin: 0 auto; padding: 40px 24px 80px; }
+
+/* Nav dots */
+.slide-nav {
+  position: fixed;
+  right: 20px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 100;
+}
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.dot.active { background: var(--accent); transform: scale(1.4); }
+
+/* Slide */
+.slide {
+  min-height: 540px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 52px 56px;
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+.slide-num {
+  position: absolute;
+  top: 22px;
+  right: 28px;
+  font-size: 11px;
+  color: var(--muted);
+  font-family: var(--mono);
+  letter-spacing: 1px;
+}
+.eyebrow {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+.slide h1 {
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1.08;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.slide h2 {
+  font-size: clamp(22px, 3.5vw, 34px);
+  font-weight: 700;
+  letter-spacing: -0.8px;
+  color: var(--ink);
+  margin-bottom: 20px;
+  text-wrap: balance;
+}
+.slide h3 {
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--ink);
+  margin-bottom: 6px;
+}
+.lead {
+  font-size: clamp(15px, 2vw, 18px);
+  color: var(--muted);
+  max-width: 640px;
+  margin-top: 16px;
+  line-height: 1.7;
+}
+.accent { color: var(--accent); }
+.accent2 { color: var(--accent2); }
+.gold { color: var(--gold); }
+
+/* Cover decoration */
+.cover-star {
+  font-size: 64px;
+  margin-bottom: 24px;
+  display: block;
+}
+.cover-tagline {
+  font-size: clamp(18px, 2.8vw, 26px);
+  font-weight: 600;
+  color: var(--muted);
+  margin-top: 12px;
+  letter-spacing: -0.3px;
+}
+
+/* Stat grid */
+.stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 28px; }
+.stat-box {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+.stat-box .n {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+  line-height: 1;
+  color: var(--accent);
+}
+.stat-box .lbl { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+
+/* Card grid */
+.card-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; margin-top: 24px; }
+.card-grid.three { grid-template-columns: repeat(3, 1fr); }
+.info-card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+.info-card .icon { font-size: 24px; margin-bottom: 10px; display: block; }
+.info-card p { font-size: 13px; color: var(--muted); line-height: 1.6; margin-top: 4px; }
+
+/* Competitor table */
+.comp-table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 13.5px; }
+.comp-table th {
+  text-align: left;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-bottom: 1px solid var(--border);
+}
+.comp-table td { padding: 13px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.comp-table tr:last-child td { border-bottom: none; }
+.comp-table .app-name { font-weight: 600; color: var(--ink); }
+.comp-table .clique-row td { background: rgba(91,79,232,0.06); }
+.comp-table .clique-row .app-name { color: var(--accent); }
+.check { color: #22C55E; font-size: 16px; }
+.cross { color: var(--muted); font-size: 16px; }
+
+/* Revenue streams */
+.rev-stream {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--border);
+}
+.rev-stream:last-child { border-bottom: none; }
+.rev-icon { font-size: 28px; flex-shrink: 0; width: 44px; text-align: center; margin-top: 2px; }
+.rev-body { flex: 1; }
+.rev-body strong { font-size: 15px; font-weight: 700; color: var(--ink); display: block; margin-bottom: 3px; }
+.rev-body p { font-size: 13px; color: var(--muted); line-height: 1.55; }
+.rev-body .tag {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-top: 6px;
+  margin-right: 4px;
+}
+.tag-arpu { background: rgba(91,79,232,0.12); color: var(--accent); }
+.tag-cpm { background: rgba(245,158,11,0.12); color: var(--gold); }
+.tag-scale { background: rgba(34,197,94,0.12); color: #22C55E; }
+
+/* Audience */
+.audience-row { display: flex; gap: 14px; margin-top: 24px; flex-wrap: wrap; }
+.audience-pill {
+  flex: 1;
+  min-width: 140px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 18px;
+  text-align: center;
+}
+.audience-pill .pct {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -1px;
+  color: var(--accent);
+}
+.audience-pill .desc { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+
+/* Timeline */
+.timeline { margin-top: 24px; }
+.tl-item { display: flex; gap: 18px; padding-bottom: 24px; position: relative; }
+.tl-item:not(:last-child)::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 32px;
+  bottom: 0;
+  width: 1px;
+  background: var(--border);
+}
+.tl-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.tl-item.future .tl-dot { background: var(--paper); border: 2px solid var(--border); color: var(--muted); }
+.tl-body h4 { font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 2px; }
+.tl-body p { font-size: 13px; color: var(--muted); line-height: 1.55; }
+.tl-phase { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: var(--accent); margin-bottom: 4px; }
+
+/* Big quote */
+.big-quote {
+  font-size: clamp(20px, 3vw, 28px);
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--ink);
+  line-height: 1.4;
+  border-left: 4px solid var(--accent);
+  padding-left: 24px;
+  margin: 24px 0;
+}
+
+/* Ask slide */
+.ask-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 28px; }
+.ask-item {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 22px 24px;
+}
+.ask-item .ask-n { font-size: 32px; font-weight: 800; letter-spacing: -1px; color: var(--accent); }
+.ask-item .ask-lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+/* Bg accents */
+.slide::before {
+  content: '';
+  position: absolute;
+  top: -120px; right: -120px;
+  width: 300px; height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(91,79,232,0.06), transparent 70%);
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  .slide { padding: 36px 24px; min-height: auto; }
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .card-grid, .card-grid.three, .ask-grid { grid-template-columns: 1fr; }
+  .slide-nav { display: none; }
+  .comp-table { font-size: 12px; }
+  .comp-table th, .comp-table td { padding: 8px 10px; }
+}
+</style>
+
+<!-- Slide nav dots -->
+<nav class="slide-nav" id="navDots"></nav>
+
+<div class="deck" id="deck">
+
+  <!-- 01 Cover -->
+  <div class="slide" id="s1">
+    <div class="slide-num">01 / 10</div>
+    <span class="cover-star">✦</span>
+    <div class="eyebrow">Investor Deck · 2026</div>
+    <h1>The social layer<br>for culture.</h1>
+    <div class="cover-tagline">Clique is where your taste becomes your identity — and your friends make it better.</div>
+  </div>
+
+  <!-- 02 Problem -->
+  <div class="slide" id="s2">
+    <div class="slide-num">02 / 10</div>
+    <div class="eyebrow">The Problem</div>
+    <h2>You consume culture alone. Discovery is broken.</h2>
+    <div class="card-grid" style="margin-top:24px;">
+      <div class="info-card">
+        <span class="icon">📱</span>
+        <h3>Collection apps are silos</h3>
+        <p>Letterboxd, Goodreads, and Last.fm let you log what you've consumed — but there's no social layer. You can't see what your actual friends are into right now.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🔍</span>
+        <h3>Algorithmic discovery is impersonal</h3>
+        <p>Netflix, Spotify, and Apple recommend what the algorithm thinks you want. The most trusted recommendation you'll ever get is from a friend who knows you.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">💬</span>
+        <h3>Culture talk is scattered</h3>
+        <p>Discourse about books, shows, and music is spread across Twitter, Reddit, Discord, and group chats — with no shared context, no taste graph, no memory.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🎬</span>
+        <h3>Studios can't reach the right audience</h3>
+        <p>A24 wants to reach arthouse film fans. Bloomsbury wants to reach literary fiction readers. Today they spray-and-pray across social media with no taste targeting.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 03 Solution -->
+  <div class="slide" id="s3">
+    <div class="slide-num">03 / 10</div>
+    <div class="eyebrow">The Solution</div>
+    <h2>A social network built around taste — not posts.</h2>
+    <div class="big-quote">"What are your friends watching, reading, and listening to right now?"</div>
+    <div class="card-grid three" style="margin-top:0;">
+      <div class="info-card">
+        <span class="icon">📚</span>
+        <h3>Log Everything</h3>
+        <p>Film, TV, books, music, podcasts, games. One place for your entire cultural life.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">👥</span>
+        <h3>Social by Default</h3>
+        <p>A live feed of what your circle is into. Compatibility scores. Close Friends stories. Watch Parties.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🎯</span>
+        <h3>Taste Graph</h3>
+        <p>Every log, rating, and reaction builds a proprietary taste graph — the engine for discovery and targeting.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 04 Audience -->
+  <div class="slide" id="s4">
+    <div class="slide-num">04 / 10</div>
+    <div class="eyebrow">The Audience</div>
+    <h2>170M+ "culture fans" in the US alone.</h2>
+    <p class="lead">Our primary user is 18–34, consumes across multiple categories, and already uses fragmented tools like Letterboxd, Goodreads, and Spotify. They're the most influential recommenders in their social circles.</p>
+    <div class="audience-row">
+      <div class="audience-pill"><div class="pct">62%</div><div class="desc">18–34<br>core demographic</div></div>
+      <div class="audience-pill"><div class="pct">78%</div><div class="desc">log across 2+<br>content types</div></div>
+      <div class="audience-pill"><div class="pct">4.2×</div><div class="desc">more likely to act on<br>a friend's rec vs. algo</div></div>
+      <div class="audience-pill"><div class="pct">$52B</div><div class="desc">annual spend on<br>cultural content (US)</div></div>
+    </div>
+    <p style="font-size:13px; color:var(--muted); margin-top:20px;">Secondary audience: studios, labels, publishers, and streamers who need taste-targeted reach. Every Clique user is a first-party signal.</p>
+  </div>
+
+  <!-- 05 Competitors -->
+  <div class="slide" id="s5">
+    <div class="slide-num">05 / 10</div>
+    <div class="eyebrow">Competitive Landscape</div>
+    <h2>Nobody else is doing all of this.</h2>
+    <div style="overflow-x:auto;">
+      <table class="comp-table">
+        <thead>
+          <tr>
+            <th>App</th>
+            <th>Multi-category</th>
+            <th>Social feed</th>
+            <th>Taste graph</th>
+            <th>Watch Parties</th>
+            <th>Taste ads</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="app-name">Letterboxd</td>
+            <td><span class="cross">✕</span> Film only</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="cross">✕</span></td>
+          </tr>
+          <tr>
+            <td class="app-name">Goodreads</td>
+            <td><span class="cross">✕</span> Books only</td>
+            <td><span class="cross">✕</span> Minimal</td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="cross">✕</span></td>
+          </tr>
+          <tr>
+            <td class="app-name">StoryGraph</td>
+            <td><span class="cross">✕</span> Books only</td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="check">✓</span> Limited</td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="cross">✕</span></td>
+          </tr>
+          <tr>
+            <td class="app-name">Last.fm</td>
+            <td><span class="cross">✕</span> Music only</td>
+            <td><span class="cross">✕</span> Minimal</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="cross">✕</span></td>
+          </tr>
+          <tr>
+            <td class="app-name">Spotify</td>
+            <td><span class="cross">✕</span> Audio only</td>
+            <td><span class="check">✓</span> Limited</td>
+            <td><span class="check">✓</span></td>
+            <td><span class="cross">✕</span></td>
+            <td><span class="check">✓</span> Limited</td>
+          </tr>
+          <tr class="clique-row">
+            <td class="app-name">✦ Clique</td>
+            <td><span class="check">✓</span> All 6 types</td>
+            <td><span class="check">✓</span> Full feed</td>
+            <td><span class="check">✓</span> First-party</td>
+            <td><span class="check">✓</span> Live parties</td>
+            <td><span class="check">✓</span> Taste-targeted</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- 06 Differentiation -->
+  <div class="slide" id="s6">
+    <div class="slide-num">06 / 10</div>
+    <div class="eyebrow">Why We Win</div>
+    <h2>We're a social network first. Collection is the mechanism.</h2>
+    <div class="card-grid" style="margin-top:24px;">
+      <div class="info-card">
+        <span class="icon">🧲</span>
+        <h3>Network effects compound</h3>
+        <p>Every person who joins makes the network more valuable for everyone already in it. Letterboxd can't say that — it's a cataloguing tool. Clique gets better as your social graph grows.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">📊</span>
+        <h3>First-party taste data</h3>
+        <p>We know not just that you watched <em>Annihilation</em> — but that you rated it 4.5⭐, your 3 closest friends also loved it, and you all lean toward A24 arthouse. That's ad gold.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🔥</span>
+        <h3>Real-time social moments</h3>
+        <p>Watch Parties, premieres, Close Friends stories — Clique captures cultural moments as they happen, with the people you actually care about. Not a static review database.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🔒</span>
+        <h3>Cross-category lock-in</h3>
+        <p>Once your film, book, music, and gaming history lives in Clique — and your friends are there — switching cost is enormous. No single-category app can replicate that.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 07 Monetization -->
+  <div class="slide" id="s7">
+    <div class="slide-num">07 / 10</div>
+    <div class="eyebrow">Monetization</div>
+    <h2>Four revenue streams. Three with no precedent.</h2>
+
+    <div class="rev-stream">
+      <div class="rev-icon">✓</div>
+      <div class="rev-body">
+        <strong>Verified Badges &amp; Premium Tiers</strong>
+        <p>$2.99/mo for a verified badge today. Roadmap: tiered plans (Verified, Pro, Creator) gating premium features — advanced analytics, unlimited imports, Watch Party hosting, ad-free experience, exclusive profile customisation. Annual plan at $24.99 drives LTV.</p>
+        <span class="tag tag-arpu">$35 ARPU/yr</span>
+        <span class="tag tag-scale">~5% conversion target</span>
+      </div>
+    </div>
+
+    <div class="rev-stream">
+      <div class="rev-icon">🎬</div>
+      <div class="rev-body">
+        <strong>Taste-Targeted Sponsored Posts</strong>
+        <p>A24 pays to place a native post for their new release directly in the feeds of users who've logged 3+ arthouse films, rated them 4⭐+, and have friends who do the same. Bloomsbury targets users who've logged literary fiction. A streaming service targets users who just finished the previous season of a show. CPMs are 3–5× standard social because the targeting is first-party behavioural, not demographic.</p>
+        <span class="tag tag-cpm">$25–45 CPM</span>
+        <span class="tag tag-scale">Studios, labels, publishers, streamers</span>
+      </div>
+    </div>
+
+    <div class="rev-stream">
+      <div class="rev-icon">📖</div>
+      <div class="rev-body">
+        <strong>Sponsored Stories</strong>
+        <p>A new book from a debut author? Bloomsbury buys a sponsored Story targeting our book-reader segment. A new album drop? The label targets our music listeners. Stories live in the same strip as Close Friends content — contextual, not interruptive. Sold on a CPM basis with taste-graph targeting.</p>
+        <span class="tag tag-cpm">$30–50 CPM</span>
+        <span class="tag tag-scale">Publishers, labels, studios</span>
+      </div>
+    </div>
+
+    <div class="rev-stream">
+      <div class="rev-icon">🍿</div>
+      <div class="rev-body">
+        <strong>Sponsored Watch Parties</strong>
+        <p>A streamer hosts an official Watch Party for a season premiere — branded, in-app, with live chat. HBO hosts the White Lotus finale party targeting users who've logged previous seasons. Ticket-based or flat sponsorship fee. Zero infrastructure cost to Clique — we already have the Watch Party feature.</p>
+        <span class="tag tag-cpm">$5–15K per event</span>
+        <span class="tag tag-scale">Streamers, film studios, TV networks</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 08 Traction -->
+  <div class="slide" id="s8">
+    <div class="slide-num">08 / 10</div>
+    <div class="eyebrow">Traction</div>
+    <h2>Built. Shipped. Growing.</h2>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="n">6</div><div class="lbl">Content categories live<br>Film, TV, Books, Music, Gaming, Podcasts</div></div>
+      <div class="stat-box"><div class="n">✦</div><div class="lbl">Full social stack<br>Feed, DMs, Stories, Watch Parties, Compatibility</div></div>
+      <div class="stat-box"><div class="n">App<br>Store</div><div class="lbl">Ready for submission<br>Native iOS, Expo SDK 54</div></div>
+    </div>
+    <div class="timeline" style="margin-top:32px;">
+      <div class="tl-item">
+        <div class="tl-dot">✓</div>
+        <div class="tl-body">
+          <div class="tl-phase">Shipped</div>
+          <h4>Core product complete</h4>
+          <p>Feed, library, DMs, Watch Parties, Close Friends, Verified badges, RevenueCat IAP, Stripe Identity, ads infrastructure, compatibility scores.</p>
+        </div>
+      </div>
+      <div class="tl-item future">
+        <div class="tl-dot">2</div>
+        <div class="tl-body">
+          <div class="tl-phase" style="color:var(--muted)">Q3 2026</div>
+          <h4>App Store launch + first brand partnerships</h4>
+          <p>Public iOS launch. First sponsored post campaign (studio or label). Annual subscription tier.</p>
+        </div>
+      </div>
+      <div class="tl-item future">
+        <div class="tl-dot">3</div>
+        <div class="tl-body">
+          <div class="tl-phase" style="color:var(--muted)">Q1 2027</div>
+          <h4>Android + self-serve ad platform</h4>
+          <p>Android app. Self-serve sponsored post dashboard for studios and publishers. Creator/Pro tier launch.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 09 Why Now -->
+  <div class="slide" id="s9">
+    <div class="slide-num">09 / 10</div>
+    <div class="eyebrow">Why Now</div>
+    <h2>The timing has never been better.</h2>
+    <div class="card-grid" style="margin-top:24px;">
+      <div class="info-card">
+        <span class="icon">📉</span>
+        <h3>Social media trust is collapsing</h3>
+        <p>Users are abandoning algorithmic feeds on Twitter/X and TikTok in favour of smaller, curated communities. Clique is intimate by design — your circle, not the world.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🍪</span>
+        <h3>Third-party cookies are dead</h3>
+        <p>Studios and publishers are desperate for first-party taste data. Our taste graph is the answer — fully consented, deeply accurate, and impossible to replicate without the social layer.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🎞️</span>
+        <h3>Streaming wars need discovery</h3>
+        <p>Netflix, Disney+, Apple TV+, and Max are all fighting for attention. Word-of-mouth from a trusted friend is the most powerful force in content discovery. We own that channel.</p>
+      </div>
+      <div class="info-card">
+        <span class="icon">🤝</span>
+        <h3>Gen Z wants identity, not content</h3>
+        <p>The next generation defines itself by what it consumes. "What are you watching?" is a first-date question. Clique is the place where taste becomes identity — and identity is social.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10 The Ask -->
+  <div class="slide" id="s10">
+    <div class="slide-num">10 / 10</div>
+    <div class="eyebrow">The Ask</div>
+    <h2>Seed round to own the taste graph.</h2>
+    <p class="lead">We're raising to accelerate growth, close first brand partnerships, and ship Android. The taste graph compounds — every user makes targeting more precise and every partnership validates the model.</p>
+    <div class="ask-grid">
+      <div class="ask-item">
+        <div class="ask-n">$1.5M</div>
+        <div class="ask-lbl">Seed round target</div>
+      </div>
+      <div class="ask-item">
+        <div class="ask-n">18mo</div>
+        <div class="ask-lbl">Runway to Series A milestones</div>
+      </div>
+      <div class="ask-item">
+        <div class="ask-n">50K</div>
+        <div class="ask-lbl">MAU target by end of 2026</div>
+      </div>
+      <div class="ask-item">
+        <div class="ask-n">3</div>
+        <div class="ask-lbl">Brand partnership deals to close in Q3</div>
+      </div>
+    </div>
+    <p style="font-size:13px; color:var(--muted); margin-top:28px; text-align:center;">✦ lanapolitano@gmail.com</p>
+  </div>
+
+</div>
+
+<script>
+  // Build nav dots
+  const slides = document.querySelectorAll('.slide');
+  const nav = document.getElementById('navDots');
+  slides.forEach((s, i) => {
+    const d = document.createElement('div');
+    d.className = 'dot' + (i === 0 ? ' active' : '');
+    d.title = 'Slide ' + (i + 1);
+    d.onclick = () => s.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    nav.appendChild(d);
+  });
+
+  // Highlight active dot on scroll
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const idx = [...slides].indexOf(e.target);
+        document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+      }
+    });
+  }, { threshold: 0.5 });
+  slides.forEach(s => observer.observe(s));
+</script>
