@@ -91,7 +91,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
             onPress={() =>
               router.push({
                 pathname: '/recommend-modal',
-                params: { title: item.title, type: item.type, sub: item.sub ?? undefined, poster: item.poster ?? undefined, extRating: item.ext_rating ?? undefined },
+                params: { title: item.title, type: item.type, sub: item.sub ?? undefined, poster: item.poster ?? undefined, extRating: item.ext_rating ?? undefined, mediaType: item.media_type ?? undefined },
               })
             }
             hitSlop={8}>

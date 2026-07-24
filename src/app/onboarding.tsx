@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Contacts from 'expo-contacts';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
@@ -21,6 +22,7 @@ import { Avatar } from '@/components/avatar';
 import { RATING_ICON_OPTIONS, type RatingIconStyle } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useDiscoverPeople, useFollow, useSearchUsers, type Profile } from '@/features/follows/api';
+import { supabase } from '@/lib/supabase';
 import { useUpdateContentTypes, useUpdateRatingIcon, useUploadAvatar } from '@/features/profile/api';
 import { registerForPushNotificationsAsync } from '@/lib/push-notifications';
 import { useBrand } from '@/hooks/use-brand';
@@ -51,6 +53,8 @@ export default function OnboardingScreen() {
   const [followedIds, setFollowedIds] = useState<Set<string>>(new Set());
   const [notifDone, setNotifDone] = useState(false);
   const [importDone, setImportDone] = useState(false);
+  const [contactMatches, setContactMatches] = useState<Profile[] | null>(null);
+  const [contactsSyncing, setContactsSyncing] = useState(false);
 
   const [selectedRatingIcon, setSelectedRatingIcon] = useState<RatingIconStyle>('stars');
   const uploadAvatar = useUploadAvatar();
@@ -60,7 +64,10 @@ export default function OnboardingScreen() {
   const { data: suggested = [] } = useDiscoverPeople('mutual', '');
   const { data: searchResults = [] } = useSearchUsers(friendQuery);
 
-  const friendList: Profile[] = friendQuery.length >= 2 ? searchResults : suggested.slice(0, 10);
+  const friendList: Profile[] =
+    friendQuery.length >= 2 ? searchResults :
+    contactMatches !== null ? contactMatches :
+    suggested.slice(0, 10);
 
   function next() { setStep((s) => Math.min(s + 1, TOTAL_STEPS)); }
   function back() { setStep((s) => Math.max(s - 1, 0)); }
@@ -93,6 +100,51 @@ export default function OnboardingScreen() {
   async function handleNotifications() {
     await registerForPushNotificationsAsync();
     setNotifDone(true);
+  }
+
+  async function handleSyncContacts() {
+    setContactsSyncing(true);
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Contacts access denied',
+          'To find friends, allow Clique to access your contacts in Settings.',
+          [{ text: 'OK' }],
+        );
+        setContactsSyncing(false);
+        return;
+      }
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.Emails],
+      });
+      const emails = [
+        ...new Set(
+          data
+            .flatMap((c) => c.emails?.map((e) => e.email) ?? [])
+            .filter((e): e is string => !!e),
+        ),
+      ];
+      if (emails.length === 0) {
+        Alert.alert('No contacts found', 'None of your contacts have email addresses saved.');
+        setContactsSyncing(false);
+        return;
+      }
+      const { data: matches } = await supabase.rpc('match_contacts_by_email', { emails });
+      const profiles: Profile[] = (matches ?? []).map((m: any) => ({
+        id: m.id,
+        username: m.username,
+        full_name: m.full_name,
+        avatar_url: m.avatar_url,
+        is_private: m.is_private ?? false,
+      }));
+      setContactMatches(profiles);
+      if (profiles.length === 0) {
+        Alert.alert('No matches', "None of your contacts are on Clique yet.");
+      }
+    } finally {
+      setContactsSyncing(false);
+    }
   }
 
   async function complete() {
@@ -260,11 +312,16 @@ export default function OnboardingScreen() {
           </Pressable>
           <Pressable
             style={[styles.connectBtn, { marginBottom: 20 }]}
-            onPress={() => Alert.alert('Sync Contacts', 'Coming soon — match your phone contacts against people already on Clique.')}>
+            onPress={handleSyncContacts}
+            disabled={contactsSyncing}>
             <View style={[styles.connectIcon, { backgroundColor: '#8E44AD' }]}>
-              <Text style={styles.connectIconGlyph}>👥</Text>
+              {contactsSyncing
+                ? <ActivityIndicator size="small" color="#fff" />
+                : <Text style={styles.connectIconGlyph}>👥</Text>}
             </View>
-            <Text style={styles.connectLabel}>Sync Contacts</Text>
+            <Text style={styles.connectLabel}>
+              {contactMatches !== null ? `${contactMatches.length} contact${contactMatches.length !== 1 ? 's' : ''} found` : 'Sync Contacts'}
+            </Text>
           </Pressable>
 
           <View style={styles.searchRow}>
@@ -279,7 +336,9 @@ export default function OnboardingScreen() {
             />
           </View>
           {friendQuery.length === 0 && (
-            <Text style={styles.sectionLabel}>Suggested</Text>
+            <Text style={styles.sectionLabel}>
+              {contactMatches !== null ? 'From your contacts' : 'Suggested'}
+            </Text>
           )}
           <ScrollView style={styles.friendList} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {friendList.map((profile) => {

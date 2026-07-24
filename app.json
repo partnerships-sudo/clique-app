@@ -22,7 +22,8 @@
         "NSCalendarsFullAccessUsageDescription": "Clique uses your calendar to let you save and share events with friends.",
         "NSCalendarsWriteOnlyAccessUsageDescription": "Clique uses your calendar to let you save and share events with friends.",
         "NSRemindersUsageDescription": "Clique uses reminders to help you keep track of plans with friends.",
-        "NSRemindersFullAccessUsageDescription": "Clique uses reminders to help you keep track of plans with friends."
+        "NSRemindersFullAccessUsageDescription": "Clique uses reminders to help you keep track of plans with friends.",
+        "NSContactsUsageDescription": "Clique uses your contacts to find friends who are already on the app."
       }
     },
     "android": {
@@ -39,7 +40,8 @@
         "android.permission.CAMERA",
         "android.permission.RECORD_AUDIO",
         "android.permission.MODIFY_AUDIO_SETTINGS",
-        "android.permission.CAMERA"
+        "android.permission.CAMERA",
+        "android.permission.READ_CONTACTS"
       ],
       "package": "com.lanapolitano.thecliqueapp"
     },

@@ -30,6 +30,7 @@ export interface ShareSheetPost {
   note?: string;
   date?: string;
   extRating?: number;
+  mediaType?: string;
 }
 
 interface Props {
@@ -50,7 +51,7 @@ export function ShareSheet({ visible, onClose, post, isMine, onWatchlist }: Prop
 
   function handleRecommend() {
     close();
-    router.push({ pathname: '/recommend-modal', params: { title: post.title, type: post.type, sub: post.sub, poster: post.poster, extRating: post.extRating != null ? String(post.extRating) : undefined } });
+    router.push({ pathname: '/recommend-modal', params: { title: post.title, type: post.type, sub: post.sub, poster: post.poster, extRating: post.extRating != null ? String(post.extRating) : undefined, mediaType: post.mediaType } });
   }
 
   function handleLogIt() {

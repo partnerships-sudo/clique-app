@@ -270,6 +270,7 @@ export interface MostReviewedEntry {
   poster: string | null;
   sub: string | null;
   externalId?: string;
+  mediaType?: string;
   count: number;
   avgRating: number | null;
 }
@@ -290,7 +291,7 @@ export function useMostReviewed(period: MostReviewedPeriod) {
 
       let query = supabase
         .from('posts')
-        .select('title, type, poster, sub, rating, external_id')
+        .select('title, type, poster, sub, rating, external_id, media_type')
         .not('title', 'is', null);
       if (since) query = query.gte('created_at', since);
 
@@ -300,14 +301,14 @@ export function useMostReviewed(period: MostReviewedPeriod) {
       const map = new Map<string, { title: string; type: EntryType; poster: string | null; sub: string | null; externalId?: string; count: number; ratingSum: number; ratingCount: number }>();
       for (const row of (data ?? []) as any[]) {
         const key = `${row.type}:${row.title}`;
-        const entry = map.get(key) ?? { title: row.title, type: row.type, poster: row.poster ?? null, sub: row.sub ?? null, externalId: row.external_id ?? undefined, count: 0, ratingSum: 0, ratingCount: 0 };
+        const entry = map.get(key) ?? { title: row.title, type: row.type, poster: row.poster ?? null, sub: row.sub ?? null, externalId: row.external_id ?? undefined, mediaType: row.media_type ?? undefined, count: 0, ratingSum: 0, ratingCount: 0 };
         entry.count += 1;
         if (row.rating) { entry.ratingSum += row.rating; entry.ratingCount += 1; }
         map.set(key, entry);
       }
 
       return [...map.values()]
-        .map((e) => ({ title: e.title, type: e.type, poster: e.poster, sub: e.sub, externalId: e.externalId, count: e.count, avgRating: e.ratingCount > 0 ? e.ratingSum / e.ratingCount : null }))
+        .map((e) => ({ title: e.title, type: e.type, poster: e.poster, sub: e.sub, externalId: e.externalId, mediaType: e.mediaType, count: e.count, avgRating: e.ratingCount > 0 ? e.ratingSum / e.ratingCount : null }))
         .sort((a, b) => b.count - a.count)
         .slice(0, 20) as MostReviewedEntry[];
     },

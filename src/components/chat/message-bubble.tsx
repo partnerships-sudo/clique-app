@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
@@ -36,17 +36,21 @@ export function MessageBubble({
 
   async function handleSaveToWatchlist() {
     if (!rec || savedToWatchlist || addLibraryItem.isPending) return;
-    await addLibraryItem.mutateAsync({
-      type: rec.type as EntryType,
-      title: rec.title,
-      sub: rec.sub ?? undefined,
-      poster: rec.poster ?? undefined,
-      extRating: rec.extRating ?? undefined,
-      intent: 'watchlist',
-      recFromUserName: message.user_name,
-      recCompatScore: rec.compatScore,
-    });
-    setSavedToWatchlist(true);
+    try {
+      await addLibraryItem.mutateAsync({
+        type: rec.type as EntryType,
+        title: rec.title,
+        sub: rec.sub ?? undefined,
+        poster: rec.poster ?? undefined,
+        extRating: rec.extRating ?? undefined,
+        intent: 'watchlist',
+        recFromUserName: message.user_name,
+        recCompatScore: rec.compatScore,
+      });
+      setSavedToWatchlist(true);
+    } catch {
+      Alert.alert('Could not save', 'Failed to add to your watchlist. Please try again.');
+    }
   }
 
   const storyReply = parseStoryReply(message.content);
@@ -116,7 +120,7 @@ export function MessageBubble({
                   type: rec.type,
                   poster: rec.poster,
                   sub: rec.sub,
-                  mediaType: rec.sub?.includes('Film') ? 'movie' : rec.sub?.includes('TV') ? 'tv' : undefined,
+                  mediaType: rec.mediaType ?? (rec.sub?.includes('Film') ? 'movie' : rec.sub?.includes('TV') ? 'tv' : undefined),
                 },
               })
             }>

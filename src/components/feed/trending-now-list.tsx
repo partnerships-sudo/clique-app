@@ -17,7 +17,7 @@ function openEntry(entry: TrendingEntry) {
       poster: entry.poster ?? undefined,
       sub: entry.sub ?? undefined,
       externalId: entry.externalId ?? undefined,
-      mediaType: entry.sub?.includes('Film') ? 'movie' : entry.sub?.includes('TV') ? 'tv' : undefined,
+      mediaType: entry.mediaType ?? (entry.sub?.includes('Film') ? 'movie' : entry.sub?.includes('TV') ? 'tv' : undefined),
     },
   });
 }

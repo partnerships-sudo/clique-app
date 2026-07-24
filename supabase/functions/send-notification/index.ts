@@ -118,10 +118,12 @@ Deno.serve(async (req) => {
       }
 
       case 'messages': {
+        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
         const { data: participants } = await supabase
           .from('messages')
           .select('user_id')
-          .eq('title', record.title);
+          .eq('title', record.title)
+          .gte('created_at', since);
         const recipients = [...new Set((participants ?? []).map((p) => p.user_id))].filter(
           (id) => id !== record.user_id,
         );

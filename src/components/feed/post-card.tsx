@@ -100,7 +100,7 @@ export function PostCard({
                 poster: post.poster ?? undefined,
                 sub: post.sub ?? undefined,
                 externalId: post.external_id ?? undefined,
-                mediaType: post.sub?.includes('Film') ? 'movie' : post.sub?.includes('TV') ? 'tv' : undefined,
+                mediaType: post.media_type ?? (post.sub?.includes('Film') ? 'movie' : post.sub?.includes('TV') ? 'tv' : undefined),
               },
             })
           }
@@ -215,6 +215,7 @@ export function PostCard({
                       sub: post.sub ?? undefined,
                       poster: post.poster ?? undefined,
                       extRating: post.ext_rating ?? undefined,
+                      mediaType: post.media_type ?? undefined,
                     },
                   })
                 }

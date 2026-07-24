@@ -26,6 +26,7 @@ export default function PostShareModal() {
     sub?: string;
     poster?: string;
     extRating?: string;
+    mediaType?: string;
   }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -42,6 +43,7 @@ export default function PostShareModal() {
             sub: params.sub,
             poster: params.poster,
             extRating: params.extRating,
+            mediaType: params.mediaType,
           },
         });
       } else if (id === 'log') {

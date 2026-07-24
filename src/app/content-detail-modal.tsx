@@ -374,7 +374,7 @@ export default function ContentDetailModal() {
                   })()}
                 </View>
               ) : null}
-              {!isLoading && resolvedType === 'read' && (details?.awards?.length ?? 0) > 0 ? (
+              {!isLoading && (details?.awards?.length ?? 0) > 0 ? (
                 <View style={styles.awardsRow}>
                   {details!.awards.map((award) => (
                     <View key={award} style={styles.awardBadge}>
@@ -648,7 +648,7 @@ export default function ContentDetailModal() {
       <ShareSheet
         visible={shareSheetVisible}
         onClose={() => setShareSheetVisible(false)}
-        post={{ title: params.title, type: resolvedType, sub: params.sub, poster: params.poster }}
+        post={{ title: params.title, type: resolvedType, sub: params.sub, poster: params.poster, mediaType: resolvedMediaType }}
         onWatchlist={() => navigateToLog('watchlist')}
       />
     </>

@@ -7,6 +7,7 @@ export interface RecPayload {
   note?: string;
   extRating?: string;
   compatScore?: number;
+  mediaType?: string;
 }
 
 const TYPE_EMOJI: Record<string, string> = {

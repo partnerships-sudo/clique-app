@@ -2,6 +2,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -29,7 +30,7 @@ const TYPE_EMOJI: Record<string, string> = {
 
 export default function RecommendModal() {
   const params = useLocalSearchParams<{
-    title?: string; sub?: string; type?: string; poster?: string; extRating?: string;
+    title?: string; sub?: string; type?: string; poster?: string; extRating?: string; mediaType?: string;
   }>();
   const { user } = useSession();
   const Brand = useBrand();
@@ -70,11 +71,14 @@ export default function RecommendModal() {
       note: note.trim() || undefined,
       extRating: params.extRating || undefined,
       compatScore,
+      mediaType: params.mediaType || undefined,
     });
 
     try {
       await sendDm.mutateAsync({ friendId, content: payload });
       setSent((prev) => new Set([...prev, friendId]));
+    } catch {
+      Alert.alert('Could not send', 'Failed to send the recommendation. Please try again.');
     } finally {
       setSending(null);
     }
