@@ -39,7 +39,7 @@ export default function PremiereLive() {
   const params = useLocalSearchParams<{ id: string }>();
   const insets = useSafeAreaInsets();
 
-  const { data: premiere } = usePremiere(params.id ?? null);
+  const { data: premiere, isLoading: premiereLoading, isError: premiereError } = usePremiere(params.id ?? null);
   const { data: initialMessages = [], isSuccess: messagesLoaded } = usePremiereMessages(params.id ?? null);
   const joinPremiere = useJoinPremiere();
   const sendMsg = useSendPremiereMessage();
@@ -149,6 +149,21 @@ export default function PremiereLive() {
           </Pressable>
           <Pressable style={styles.leaveEndedBtn} onPress={() => router.back()}>
             <Text style={styles.leaveEndedText}>Leave</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (!premiereLoading && (premiereError || !premiere)) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 32 }}>
+          <Text style={{ fontSize: 36, marginBottom: 16 }}>📺</Text>
+          <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 18, color: '#0A0A0F', marginBottom: 8, textAlign: 'center' }}>Watch party not found</Text>
+          <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 14, color: '#6B7280', textAlign: 'center', marginBottom: 24 }}>This watch party may have ended or the link is no longer valid.</Text>
+          <Pressable onPress={() => router.back()} style={{ backgroundColor: '#5B4FE8', borderRadius: 12, paddingVertical: 11, paddingHorizontal: 24 }}>
+            <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' }}>Go back</Text>
           </Pressable>
         </View>
       </SafeAreaView>

@@ -504,7 +504,13 @@ export default function FeedScreen() {
             <View style={styles.forYouLoader}>
               <ActivityIndicator color={Brand.trust} />
             </View>
-          ) : topPicks.length === 0 && becauseRows.length === 0 ? (
+          ) : forYouLoading && (topPicks.length > 0 || becauseRows.length > 0) ? (
+            // Stale cache shown — subtle spinner in top-right to signal background refresh
+            <View style={{ position: 'absolute', top: 8, right: 16, zIndex: 10 }}>
+              <ActivityIndicator size="small" color={Brand.trust} />
+            </View>
+          ) : null}
+          {topPicks.length === 0 && becauseRows.length === 0 && !forYouLoading ? (
             <View style={styles.forYouEmpty}>
               <Text style={styles.forYouEmptyTitle}>Nothing here yet</Text>
               <Text style={styles.forYouEmptyBody}>
@@ -516,7 +522,7 @@ export default function FeedScreen() {
                 <Text style={styles.forYouEmptyBtnText}>Log something →</Text>
               </Pressable>
             </View>
-          ) : (
+          ) : (topPicks.length > 0 || becauseRows.length > 0) ? (
             <>
               {topPicks.length > 0 && (
                 <View style={styles.forYouSection}>
@@ -534,7 +540,7 @@ export default function FeedScreen() {
                 </View>
               ))}
             </>
-          )}
+          ) : null}
         </ScrollView>
       ) : feedView !== 'feed' ? (
         <ScrollView contentContainerStyle={styles.content}>
@@ -601,6 +607,11 @@ export default function FeedScreen() {
                 <Text style={styles.emptyBody}>
                   Follow some friends to see what they're watching, reading, and playing.
                 </Text>
+                <Pressable
+                  style={styles.emptyDiscoverBtn}
+                  onPress={() => router.push('/discover-people-modal')}>
+                  <Text style={styles.emptyDiscoverBtnText}>Find people to follow →</Text>
+                </Pressable>
               </View>
             ) : null
           }
@@ -737,6 +748,18 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.muted,
       textAlign: 'center',
       lineHeight: 19,
+    },
+    emptyDiscoverBtn: {
+      marginTop: 18,
+      backgroundColor: Brand.trust,
+      borderRadius: 12,
+      paddingVertical: 11,
+      paddingHorizontal: 22,
+    },
+    emptyDiscoverBtnText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: '#fff',
     },
 
     // Dropdown menu

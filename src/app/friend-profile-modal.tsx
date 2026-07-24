@@ -18,14 +18,12 @@ export default function FriendProfileModal() {
   const params = useLocalSearchParams<{ userId: string }>();
   const { user } = useSession();
 
-  // A shared profile link points here with the owner's own id — if they (or
-  // a device already signed in as them) opens it, send them to their own
-  // profile screen instead of a friend-request UI pointed at themselves.
-  useEffect(() => {
-    if (user && params.userId && user.id === params.userId) {
-      router.replace('/profile');
-    }
-  }, [user, params.userId]);
+  // A shared profile link points here with the owner's own id — redirect
+  // immediately (render nothing) to avoid flashing the friend UI for self.
+  if (user && params.userId && user.id === params.userId) {
+    router.replace('/profile');
+    return null;
+  }
 
   const { data: profile, isLoading, refetch: refetchProfile } = useProfileById(params.userId);
   const { logged, isLoading: libraryLoading, refetch: refetchLibrary } = useLibraryItemsByUser(params.userId);

@@ -286,6 +286,7 @@ export function useWaitingRoomMessages(premiereId: string | null) {
       return data as PremiereMessage[];
     },
     enabled: !!premiereId,
+    refetchInterval: 5_000, // poll every 5s — waiting room has no realtime subscription
   });
 }
 
