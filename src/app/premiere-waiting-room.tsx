@@ -3,14 +3,14 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Alert,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -41,6 +41,8 @@ export default function PremiereWaitingRoom() {
   const [messages, setMessages] = useState<PremiereMessage[]>([]);
   const [text, setText] = useState('');
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
+  const [channelError, setChannelError] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
   const flatListRef = useRef<FlatList>(null);
   const initializedRef = useRef(false);
   const redirectedRef = useRef(false);
@@ -65,6 +67,7 @@ export default function PremiereWaitingRoom() {
   // Realtime: new waiting room messages written to DB
   useEffect(() => {
     if (!params.id) return;
+    setChannelError(false);
     const channel = supabase
       .channel(`waiting-msgs-${params.id}`)
       .on(
@@ -86,9 +89,13 @@ export default function PremiereWaitingRoom() {
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setChannelError(true);
+        }
+      });
     return () => { supabase.removeChannel(channel); };
-  }, [params.id]);
+  }, [params.id, retryKey]);
 
   // Realtime: redirect participants when host starts premiere
   useEffect(() => {
@@ -110,9 +117,13 @@ export default function PremiereWaitingRoom() {
           }
         },
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+          setChannelError(true);
+        }
+      });
     return () => { supabase.removeChannel(channel); };
-  }, [params.id]);
+  }, [params.id, retryKey]);
 
   // Countdown to air time
   useEffect(() => {
@@ -176,7 +187,7 @@ export default function PremiereWaitingRoom() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingWrapper>
 
         {/* Header */}
         <View style={styles.header}>
@@ -231,6 +242,16 @@ export default function PremiereWaitingRoom() {
           </Text>
         </View>
 
+        {/* Channel error banner */}
+        {channelError ? (
+          <View style={styles.channelErrorBanner}>
+            <Text style={styles.channelErrorText}>⚠️ Chat disconnected</Text>
+            <Pressable onPress={() => setRetryKey((k) => k + 1)} style={styles.retryBtn} hitSlop={8}>
+              <Text style={styles.retryBtnText}>Retry</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
         {/* Messages */}
         <FlatList
           ref={flatListRef}
@@ -267,7 +288,7 @@ export default function PremiereWaitingRoom() {
           </Pressable>
         </View>
 
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingWrapper>
     </SafeAreaView>
   );
 }
@@ -337,6 +358,31 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.syneBold,
       fontSize: 13,
       color: '#A78BFA',
+    },
+    channelErrorBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+      backgroundColor: '#FEF2F2',
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+    },
+    channelErrorText: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 13,
+      color: '#B91C1C',
+    },
+    retryBtn: {
+      borderRadius: 6,
+      paddingVertical: 4,
+      paddingHorizontal: 10,
+      backgroundColor: '#B91C1C',
+    },
+    retryBtnText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 12,
+      color: '#fff',
     },
     wipeBanner: {
       backgroundColor: Brand.tlight,

@@ -9,6 +9,7 @@ import { compatColor, compatLabel } from '@/features/friends/compatibility';
 import type { Post } from '@/features/feed/api';
 import { useBrand } from '@/hooks/use-brand';
 import type { Profile } from '@/features/follows/api';
+import { VerifiedBadge } from '@/components/verified-badge';
 
 export function FriendCard({
   profile,
@@ -54,7 +55,10 @@ export function FriendCard({
         <Pressable
           style={styles.info}
           onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: profile.id } })}>
-          <Text style={styles.name} numberOfLines={1}>{name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name} numberOfLines={1}>{name}</Text>
+            {profile.verified_tier ? <VerifiedBadge tier={profile.verified_tier} /> : null}
+          </View>
           {profile.username ? <Text style={styles.handle}>@{profile.username}</Text> : null}
           <Text style={styles.compatLabel}>{emoji} <Text style={[styles.compatLabelText, { color }]}>{label}</Text></Text>
         </Pressable>
@@ -139,6 +143,7 @@ function createStyles(Brand: BrandPalette) {
     },
     pctText: { fontFamily: BrandFonts.syneBold, fontSize: 10 },
     info: { flex: 1, minWidth: 0, paddingTop: 4 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     name: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
     handle: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2 },
     compatLabel: { marginTop: 5, fontSize: 12 },

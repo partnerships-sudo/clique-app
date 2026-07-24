@@ -23,6 +23,7 @@ export interface Profile {
   last_seen_at: string | null;
   show_online_status: boolean;
   show_read_receipts: boolean;
+  verified_tier: number;
 }
 
 function profileQueryKey(userId: string | undefined) {

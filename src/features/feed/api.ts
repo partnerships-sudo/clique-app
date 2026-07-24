@@ -13,6 +13,7 @@ export interface Post {
   user_name: string;
   user_avatar_url: string | null;
   user_rating_icon: string | null;
+  user_verified_tier: number;
   type: EntryType;
   title: string;
   sub: string | null;
@@ -53,19 +54,20 @@ function useInfiniteFeedPosts() {
 
       const [postsResult, profilesResult] = await Promise.all([
         postsQuery,
-        supabase.from('profiles').select('id, avatar_url, rating_icon').in('id', ids),
+        supabase.from('profiles').select('id, avatar_url, rating_icon, verified_tier').in('id', ids),
       ]);
 
       if (postsResult.error) throw postsResult.error;
 
       const profileMap = Object.fromEntries(
-        (profilesResult.data ?? []).map((p) => [p.id, p as { avatar_url: string | null; rating_icon: string | null }]),
+        (profilesResult.data ?? []).map((p) => [p.id, p as { avatar_url: string | null; rating_icon: string | null; verified_tier: number }]),
       );
 
       const posts = (postsResult.data as any[]).map((post) => ({
         ...post,
         user_avatar_url: profileMap[post.user_id]?.avatar_url ?? null,
         user_rating_icon: profileMap[post.user_id]?.rating_icon ?? null,
+        user_verified_tier: profileMap[post.user_id]?.verified_tier ?? 0,
       })) as Post[];
 
       return {
@@ -105,10 +107,14 @@ export function useGlobalPosts() {
       const uniqueUserIds = [...new Set(posts.map((p) => p.user_id))];
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, avatar_url')
+        .select('id, avatar_url, verified_tier')
         .in('id', uniqueUserIds);
-      const avatarMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.avatar_url]));
-      return posts.map((p) => ({ ...p, user_avatar_url: avatarMap[p.user_id] ?? null })) as Post[];
+      const profileMap2 = Object.fromEntries((profiles ?? []).map((p) => [p.id, p as { avatar_url: string | null; verified_tier: number }]));
+      return posts.map((p) => ({
+        ...p,
+        user_avatar_url: profileMap2[p.user_id]?.avatar_url ?? null,
+        user_verified_tier: profileMap2[p.user_id]?.verified_tier ?? 0,
+      })) as Post[];
     },
   });
   const data = useMemo(

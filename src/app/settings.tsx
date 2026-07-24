@@ -82,6 +82,24 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
+          <Pressable
+            style={[styles.row, styles.rowDivider]}
+            onPress={() => router.push('/get-verified-modal')}>
+            <View style={styles.rowIcon}>
+              <SymbolView name="checkmark.seal.fill" size={18} tintColor="#1D9BF0" type="monochrome" />
+            </View>
+            <View style={styles.rowBody}>
+              <Text style={styles.rowLabel}>
+                {(profile?.verified_tier ?? 0) >= 1 ? 'Verified ✓' : 'Get Verified'}
+              </Text>
+              <Text style={styles.rowSub}>
+                {(profile?.verified_tier ?? 0) >= 1
+                  ? 'Your identity has been verified'
+                  : 'Verify your identity to get a blue checkmark'}
+              </Text>
+            </View>
+            {(profile?.verified_tier ?? 0) < 1 && <Text style={styles.chevron}>›</Text>}
+          </Pressable>
         </View>
 
         {/* SOCIAL */}

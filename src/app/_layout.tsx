@@ -1,9 +1,11 @@
 import 'react-native-url-polyfill/auto';
 
+import { StripeProvider } from '@stripe/stripe-react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { focusManager, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
-import { Stack } from 'expo-router';
+import * as Notifications from 'expo-notifications';
+import { router, Stack } from 'expo-router';
 import { useEffect } from 'react';
 import { AppState, type AppStateStatus, Platform, useColorScheme } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -13,6 +15,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // by setting userControlledAutoHideEnabled=true breaks the auto-hide chain.
 
 import { queryClient } from '@/lib/query-client';
+import { supabase } from '@/lib/supabase';
 import { SessionProvider } from '@/providers/session-provider';
 import { ShakespearProvider } from '@/providers/shakespear-provider';
 
@@ -69,6 +72,7 @@ function RootNavigator() {
       <Stack.Screen name="collection-item-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="export-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.55], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="get-verified-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
     </Stack>
   );
 }
@@ -92,18 +96,65 @@ export default function RootLayout() {
     return () => subscription.remove();
   }, []);
 
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener(async (response) => {
+      const data = response.notification.request.content.data;
+      if (data?.type === 'badge') {
+        router.push('/achievements-modal');
+      } else if (data?.type === 'dm' && data?.friendId) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name, username, avatar_url')
+          .eq('id', data.friendId as string)
+          .single();
+        router.push({
+          pathname: '/chat-modal',
+          params: {
+            friendId: data.friendId as string,
+            friendName: profile?.full_name ?? profile?.username ?? 'Unknown',
+            friendAvatar: profile?.avatar_url ?? undefined,
+          },
+        });
+      } else if (data?.type === 'rating_reminder' && data?.postId) {
+        const { data: post } = await supabase
+          .from('posts')
+          .select('title, type, poster')
+          .eq('id', data.postId as string)
+          .single();
+        if (post) {
+          router.push({
+            pathname: '/log-modal',
+            params: {
+              intent: 'log',
+              prefillTitle: post.title,
+              prefillType: post.type,
+              prefillPoster: post.poster ?? undefined,
+            },
+          });
+        } else {
+          router.push('/notifications-modal');
+        }
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <QueryClientProvider client={queryClient}>
-          <SessionProvider>
-            <ShakespearProvider>
-              <RootNavigator />
-            </ShakespearProvider>
-          </SessionProvider>
-        </QueryClientProvider>
-      </ThemeProvider>
-      {null /* AnimatedSplash temporarily disabled */}
+      <StripeProvider
+        publishableKey={process.env.EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY!}
+        urlScheme="thecliqueapp">
+        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+          <QueryClientProvider client={queryClient}>
+            <SessionProvider>
+              <ShakespearProvider>
+                <RootNavigator />
+              </ShakespearProvider>
+            </SessionProvider>
+          </QueryClientProvider>
+        </ThemeProvider>
+        {null /* AnimatedSplash temporarily disabled */}
+      </StripeProvider>
     </GestureHandlerRootView>
   );
 }

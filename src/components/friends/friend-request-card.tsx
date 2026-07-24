@@ -5,6 +5,7 @@ import { Avatar } from '@/components/avatar';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 import type { FollowRequest } from '@/features/follows/api';
+import { VerifiedBadge } from '@/components/verified-badge';
 
 export function FriendRequestCard({
   request,
@@ -23,7 +24,10 @@ export function FriendRequestCard({
     <View style={styles.card}>
       <Avatar name={name} size={46} avatarUrl={request.profile.avatar_url} />
       <View style={styles.info}>
-        <Text style={styles.name}>{name}</Text>
+        <View style={styles.nameRow}>
+          <Text style={styles.name}>{name}</Text>
+          {request.profile.verified_tier ? <VerifiedBadge tier={request.profile.verified_tier} /> : null}
+        </View>
         {request.profile.username ? <Text style={styles.handle}>@{request.profile.username}</Text> : null}
         <Text style={styles.wants}>Wants to follow you</Text>
       </View>
@@ -58,6 +62,7 @@ function createStyles(Brand: BrandPalette) {
       elevation: 1,
     },
     info: { flex: 1, minWidth: 0 },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     name: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.ink },
     handle: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginTop: 2 },
     wants: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.trust, marginTop: 3 },

@@ -76,7 +76,8 @@
       "expo-audio",
       "expo-asset",
       "expo-notifications",
-      "expo-localization"
+      "expo-localization",
+      ["@stripe/stripe-react-native", { "merchantIdentifier": "merchant.com.thecliqueapp" }]
     ],
     "experiments": {
       "typedRoutes": true

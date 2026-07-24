@@ -13,7 +13,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,13 +25,14 @@ import { addPremiereToCalendar } from '@/features/premieres/use-add-to-calendar'
 import { useProfile } from '@/features/profile/api';
 import { useTitleSearch, useTVSeasons, useTVEpisodes, type SearchResult, type TvSeason, type TvEpisode } from '@/features/search/api';
 import { useBrand } from '@/hooks/use-brand';
+import { useShareIcons } from '@/hooks/use-share-icons';
 
 type Step = 'search' | 'seasons' | 'episodes' | 'form';
 
 export default function PremiereModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const scheme = useColorScheme();
+  const ic = useShareIcons();
   const { data: profile } = useProfile();
   const createPremiere = useCreatePremiere();
 
@@ -414,9 +414,9 @@ export default function PremiereModal() {
             <Text style={styles.shareTitle}>Share your watch party invite</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareRow}>
               {[
-                { label: 'Messages', icon: scheme === 'dark' ? require('@/assets/logos/messages_dark.png') : require('@/assets/logos/messages_light.png'),
+                { label: 'Messages', icon: ic.messages,
                   onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}` }); } },
-                { label: 'WhatsApp', icon: scheme === 'dark' ? require('@/assets/logos/whatsapp_App_Icon_Dark_2026.png') : require('@/assets/logos/whatsapp_App_Icon_Light_2026.png'),
+                { label: 'WhatsApp', icon: ic.whatsapp,
                   onPress: async () => {
                     if (capturedUri) {
                       await Share.share({
@@ -429,7 +429,7 @@ export default function PremiereModal() {
                       if (ok) Linking.openURL(`whatsapp://send?text=${msg}`); else Alert.alert('WhatsApp not installed');
                     }
                   } },
-                { label: 'Mail', icon: scheme === 'dark' ? require('@/assets/logos/mail_dark.png') : require('@/assets/logos/mail_light.png'),
+                { label: 'Mail', icon: ic.mail,
                   onPress: async () => {
                     if (capturedUri) {
                       await Share.share({
@@ -443,7 +443,7 @@ export default function PremiereModal() {
                       Linking.openURL(`mailto:?subject=${subject}&body=${body}`);
                     }
                   } },
-                { label: 'AirDrop', icon: scheme === 'dark' ? require('@/assets/logos/airdrop_dark.png') : require('@/assets/logos/airdrop_light.png'),
+                { label: 'AirDrop', icon: ic.airdrop,
                   onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri }); } },
               ].map(({ label, icon, onPress }) => (
                 <Pressable key={label} style={styles.shareItem} onPress={async () => { await onPress(); }}>

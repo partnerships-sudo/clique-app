@@ -1,25 +1,11 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
-import { Alert, Image, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Alert, Image, Linking, Modal, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
-
-const externalIcons = {
-  light: {
-    messages: require('@/assets/logos/messages_light.png'),
-    mail:     require('@/assets/logos/mail_light.png'),
-    whatsapp: require('@/assets/logos/whatsapp_App_Icon_Light_2026.png'),
-    airdrop:  require('@/assets/logos/airdrop_light.png'),
-  },
-  dark: {
-    messages: require('@/assets/logos/messages_dark.png'),
-    mail:     require('@/assets/logos/mail_dark.png'),
-    whatsapp: require('@/assets/logos/whatsapp_App_Icon_Dark_2026.png'),
-    airdrop:  require('@/assets/logos/airdrop_dark.png'),
-  },
-};
+import { useShareIcons } from '@/hooks/use-share-icons';
 
 export interface ShareSheetPost {
   title: string;
@@ -44,8 +30,7 @@ interface Props {
 export function ShareSheet({ visible, onClose, post, isMine, onWatchlist }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const scheme = useColorScheme();
-  const ic = scheme === 'dark' ? externalIcons.dark : externalIcons.light;
+  const ic = useShareIcons();
 
   function close() { onClose(); }
 

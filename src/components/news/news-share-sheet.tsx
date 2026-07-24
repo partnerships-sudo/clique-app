@@ -10,7 +10,6 @@ import {
   Share,
   StyleSheet,
   Text,
-  useColorScheme,
   View,
 } from 'react-native';
 
@@ -19,21 +18,7 @@ import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useSendDm } from '@/features/dms/api';
 import { useFriends } from '@/features/friends/api';
 import { useBrand } from '@/hooks/use-brand';
-
-const icons = {
-  light: {
-    messages: require('@/assets/logos/messages_light.png'),
-    mail:     require('@/assets/logos/mail_light.png'),
-    airdrop:  require('@/assets/logos/airdrop_light.png'),
-    whatsapp: require('@/assets/logos/whatsapp_App_Icon_Light_2026.png'),
-  },
-  dark: {
-    messages: require('@/assets/logos/messages_dark.png'),
-    mail:     require('@/assets/logos/mail_dark.png'),
-    airdrop:  require('@/assets/logos/airdrop_dark.png'),
-    whatsapp: require('@/assets/logos/whatsapp_App_Icon_Dark_2026.png'),
-  },
-};
+import { useShareIcons } from '@/hooks/use-share-icons';
 
 interface Props {
   visible: boolean;
@@ -45,8 +30,7 @@ interface Props {
 export function NewsShareSheet({ visible, onClose, title, url }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const scheme = useColorScheme();
-  const ic = scheme === 'dark' ? icons.dark : icons.light;
+  const ic = useShareIcons();
 
   const { data: friends = [] } = useFriends();
   const sendDm = useSendDm();

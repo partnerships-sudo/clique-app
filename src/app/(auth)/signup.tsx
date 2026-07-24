@@ -3,8 +3,6 @@ import { Link, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,6 +10,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 
 import { useSession } from '@/hooks/use-session';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -170,16 +170,14 @@ export default function SignupScreen() {
 
   if (!ageVerified) {
     return (
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingWrapper>
         <AgeGate onPass={() => setAgeVerified(true)} />
-      </KeyboardAvoidingView>
+      </KeyboardAvoidingWrapper>
     );
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingWrapper>
       <View style={styles.container}>
         <View style={styles.logoBlock}>
           <Text style={styles.logo}>
@@ -253,7 +251,7 @@ export default function SignupScreen() {
           ) : null}
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingWrapper>
   );
 }
 

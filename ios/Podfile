@@ -69,5 +69,14 @@ target 'Clique' do
       content = content.gsub('HERMES_ENABLE_DEBUGGER=1', 'HERMES_ENABLE_DEBUGGER=0')
       File.write(rnworklets_xcconfig, content)
     end
+
+    # Fix STPPaymentStatus enum type mismatch: stripe-react-native forward-declares
+    # it as NSUInteger but Stripe iOS SDK 24+ uses NSInteger.
+    interop_header = File.join(installer.sandbox.root, 'Headers/Private/stripe-react-native/stripe_react_native/StripeSwiftInterop.h')
+    if File.exist?(interop_header)
+      content = File.read(interop_header)
+      content = content.gsub('typedef NS_ENUM(NSUInteger, STPPaymentStatus);', 'typedef NS_ENUM(NSInteger, STPPaymentStatus);')
+      File.write(interop_header, content)
+    end
   end
 end

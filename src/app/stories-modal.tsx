@@ -211,7 +211,7 @@ export default function StoriesModal() {
                 poster: post.poster ?? undefined,
                 sub: post.sub ?? undefined,
                 externalId: post.external_id ?? undefined,
-                mediaType: post.sub?.includes('Film') ? 'movie' : post.sub?.includes('TV') ? 'tv' : undefined,
+                mediaType: post.media_type ?? undefined,
               },
             });
           }}
@@ -254,7 +254,9 @@ export default function StoriesModal() {
         </View>
       </View>
 
-      {/* Bottom action bar */}
+      {/* Bottom action bar — intentionally uses behavior='position' (not 'padding') because
+          bottomSafe is absolutely positioned. 'position' physically lifts the overlay element
+          when the keyboard appears; 'padding' would add dead space inside the fixed rect. */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'position' : 'height'}
         style={styles.bottomSafe}

@@ -14,6 +14,7 @@ export interface Profile {
   bio: string | null;
   avatar_url: string | null;
   is_private: boolean;
+  verified_tier: number;
 }
 
 export interface FollowRequest {
@@ -145,8 +146,11 @@ export function useCompatItems() {
     [user?.id, following.map((f) => f.id).join(',')],
   );
 
+  // Memoize the sorted key so the O(n log n) sort only runs when allIds actually changes.
+  const compatKey = useMemo(() => allIds.slice().sort().join(','), [allIds]);
+
   return useQuery({
-    queryKey: ['compat-items', allIds.slice().sort().join(',')],
+    queryKey: ['compat-items', compatKey],
     queryFn: async (): Promise<Map<string, CompatItem[]>> => {
       const { data, error } = await supabase
         .from('collection_items')

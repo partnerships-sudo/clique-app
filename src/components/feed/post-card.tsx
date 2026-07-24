@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
 import { SwipeableRow } from '@/components/swipeable-row';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
@@ -125,6 +126,7 @@ export function PostCard({
               onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } })}>
               <Avatar name={post.user_name} size={22} avatarUrl={post.user_avatar_url} />
               <Text style={styles.userName} numberOfLines={1}>@{post.user_name}</Text>
+              {post.user_verified_tier ? <VerifiedBadge tier={post.user_verified_tier} size={12} /> : null}
             </Pressable>
             <View style={[styles.pill, { backgroundColor: type.bg }]}>
               <Text style={[styles.pillText, { color: type.color }]}>{type.label}</Text>

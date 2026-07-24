@@ -2,14 +2,14 @@ import { Link, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+
+import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/use-session';
@@ -77,9 +77,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <KeyboardAvoidingView
-      style={styles.flex}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingWrapper>
       <View style={styles.container}>
         <View style={styles.logoBlock}>
           <Text style={styles.logo}>
@@ -143,7 +141,7 @@ export default function LoginScreen() {
           ) : null}
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoidingWrapper>
   );
 }
 
