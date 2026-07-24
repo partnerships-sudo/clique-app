@@ -15,9 +15,10 @@ import { purchaseVerified, restorePurchases, isVerifiedEntitled } from '@/featur
 export default function GetVerifiedModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data: profile } = useProfile();
+  const { data: profile, refetch: refetchProfile } = useProfile();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
 
   const alreadyVerified = (profile?.verified_tier ?? 0) >= 1;
@@ -49,6 +50,8 @@ export default function GetVerifiedModal() {
       const { url } = res.data as { clientSecret: string; url: string };
       if (!url) throw new Error('No verification URL returned');
       await WebBrowser.openBrowserAsync(url);
+      // Browser closed — refetch profile in case webhook already fired
+      await refetchProfile();
       setSubmitted(true);
     } catch (e: any) {
       if (e?.code === 'PURCHASE_CANCELLED') return; // user cancelled, no error
@@ -64,7 +67,7 @@ export default function GetVerifiedModal() {
     try {
       const customerInfo = await restorePurchases();
       if (isVerifiedEntitled(customerInfo)) {
-        setError('Subscription restored! Please complete ID verification.');
+        setSuccessMsg('Subscription restored! Tap "Subscribe & Verify" to complete ID verification.');
       } else {
         setError('No active subscription found.');
       }
@@ -129,6 +132,9 @@ export default function GetVerifiedModal() {
           </View>
         ) : (
           <>
+            {successMsg && (
+              <Text style={styles.successMsgText}>{successMsg}</Text>
+            )}
             {error && (
               <Text style={styles.errorText}>{error}</Text>
             )}
@@ -242,6 +248,14 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.ink,
       flex: 1,
       lineHeight: 20,
+    },
+    successMsgText: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 13,
+      color: '#22C55E',
+      textAlign: 'center',
+      marginBottom: 14,
+      lineHeight: 18,
     },
     errorText: {
       fontFamily: BrandFonts.interRegular,

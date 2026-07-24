@@ -47,12 +47,15 @@ export default function LogModal() {
     visibility?: 'everyone' | 'close_friends';
   }) {
     if (!type) return;
-    const { visibility, ...libraryInput } = input;
-    await addLibraryItem.mutateAsync({ type, intent, ...libraryInput });
-    if (intent === 'log') {
-      await createPost.mutateAsync({ type, ...libraryInput, visibility });
+    try {
+      const { visibility, ...libraryInput } = input;
+      await addLibraryItem.mutateAsync({ type, intent, ...libraryInput });
+      if (intent === 'log') {
+        await createPost.mutateAsync({ type, ...libraryInput, visibility });
+      }
+    } finally {
+      router.back();
     }
-    router.back();
   }
 
   const isSubmitting = createPost.isPending || addLibraryItem.isPending;

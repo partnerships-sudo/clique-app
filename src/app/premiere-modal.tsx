@@ -137,14 +137,19 @@ export default function PremiereModal() {
   }
 
   async function handleCreate() {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(partyDate)) {
+      Alert.alert('Invalid date', 'Please enter a date in YYYY-MM-DD format, e.g. 2026-08-10.');
+      return;
+    }
     try {
+      const isMovie = selectedShow?.mediaType === 'movie' || (hasParams && !params.episodeNumber);
       const premiere = await createPremiere.mutateAsync({
         showTitle,
         showPoster: showPoster || null,
         externalId: externalId || null,
-        episodeName,
-        episodeNumber: Number(episodeNumber),
-        seasonNumber: Number(seasonNumber),
+        episodeName: isMovie ? '' : episodeName,
+        episodeNumber: isMovie ? null : (Number(episodeNumber) || null),
+        seasonNumber: isMovie ? null : (Number(seasonNumber) || null),
         airDate: partyDate,
         airTime: airTime.trim() || null,
         tagline: tagline.trim() || null,
@@ -368,11 +373,18 @@ export default function PremiereModal() {
         {/* Watch party date */}
         <Text style={styles.sectionLabel}>Watch party date</Text>
         <TextInput
-          style={styles.taglineInput}
-          placeholder="YYYY-MM-DD  e.g. 2025-08-10"
+          style={[styles.taglineInput, partyDate && !/^\d{4}-\d{2}-\d{2}$/.test(partyDate) && { borderColor: '#E05252' }]}
+          placeholder="YYYY-MM-DD  e.g. 2026-08-10"
           placeholderTextColor={Brand.muted}
           value={partyDate}
-          onChangeText={setPartyDate}
+          onChangeText={(v) => {
+            // Auto-insert dashes: "20260810" → "2026-08-10"
+            const digits = v.replace(/\D/g, '').slice(0, 8);
+            let formatted = digits;
+            if (digits.length > 4) formatted = digits.slice(0, 4) + '-' + digits.slice(4);
+            if (digits.length > 6) formatted = digits.slice(0, 4) + '-' + digits.slice(4, 6) + '-' + digits.slice(6);
+            setPartyDate(formatted);
+          }}
           keyboardType="numbers-and-punctuation"
           autoCorrect={false}
         />

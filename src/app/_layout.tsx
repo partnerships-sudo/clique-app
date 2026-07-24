@@ -111,17 +111,24 @@ function RootLayoutInner() {
       if (data?.type === 'badge') {
         router.push('/achievements-modal');
       } else if (data?.type === 'dm' && data?.friendId) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('full_name, username, avatar_url')
-          .eq('id', data.friendId as string)
-          .single();
+        // Use name/avatar from notification payload if available to avoid a round-trip
+        let friendName = (data.friendName as string | undefined) ?? '';
+        let friendAvatar = (data.friendAvatar as string | undefined) ?? undefined;
+        if (!friendName) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('full_name, username, avatar_url')
+            .eq('id', data.friendId as string)
+            .single();
+          friendName = profile?.full_name ?? profile?.username ?? 'Unknown';
+          friendAvatar = profile?.avatar_url ?? undefined;
+        }
         router.push({
           pathname: '/chat-modal',
           params: {
             friendId: data.friendId as string,
-            friendName: profile?.full_name ?? profile?.username ?? 'Unknown',
-            friendAvatar: profile?.avatar_url ?? undefined,
+            friendName,
+            friendAvatar,
           },
         });
       } else if (data?.type === 'rating_reminder' && data?.postId) {
