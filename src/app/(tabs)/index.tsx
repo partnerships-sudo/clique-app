@@ -33,6 +33,7 @@ import { computeTrendingInCircle, type TrendingEntry } from '@/features/feed/tre
 import { computeCompatibility } from '@/features/friends/compatibility';
 import { applyGameCovers, useGameCoverOverrides } from '@/features/games/igdb';
 import { useReactions, useToggleReaction } from '@/features/feed/reactions';
+import { useEmojiReactions } from '@/features/feed/emoji-reactions';
 import { useLibraryItems } from '@/features/library/api';
 import { useCollectionItems, useFollowingCollections } from '@/features/collection/api';
 import { useCompatItems, useFollowing } from '@/features/follows/api';
@@ -94,6 +95,7 @@ export default function FeedScreen() {
     [followingProfiles],
   );
   const { byPost: reactionsByPost } = useReactions(posts.map((p) => p.id));
+  const { byPost: emojiByPost } = useEmojiReactions(posts.map((p) => p.id));
   const { data: activeAd } = useActiveAd();
   const myLatestCFPost = useMemo(() => {
     if (!user?.id) return null;
@@ -174,7 +176,7 @@ export default function FeedScreen() {
       })),
   );
 
-  const { data: rawApiRecs = [] } = useForYouRecs(forYouSeeds);
+  const { data: rawApiRecs = [], isFetching: forYouLoading } = useForYouRecs(forYouSeeds);
 
   // ── Friend-sourced picks ───────────────────────────────────────────────────
   // Two sources: (1) items friends have in their collection with a high rating,
@@ -498,21 +500,41 @@ export default function FeedScreen() {
       {feedView === 'foryou' ? (
         <ScrollView contentContainerStyle={styles.content}>
           {header}
-          {topPicks.length > 0 && (
-            <View style={styles.forYouSection}>
-              <SectionHeader title="Top picks for you" />
-              <TopPicksRow entries={topPicks} />
+          {forYouLoading && topPicks.length === 0 && becauseRows.length === 0 ? (
+            <View style={styles.forYouLoader}>
+              <ActivityIndicator color={Brand.trust} />
             </View>
+          ) : topPicks.length === 0 && becauseRows.length === 0 ? (
+            <View style={styles.forYouEmpty}>
+              <Text style={styles.forYouEmptyTitle}>Nothing here yet</Text>
+              <Text style={styles.forYouEmptyBody}>
+                Log a few movies, books, or albums and we'll build personalised picks for you.
+              </Text>
+              <Pressable
+                style={styles.forYouEmptyBtn}
+                onPress={() => router.push('/log-modal')}>
+                <Text style={styles.forYouEmptyBtnText}>Log something →</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              {topPicks.length > 0 && (
+                <View style={styles.forYouSection}>
+                  <SectionHeader title="Top picks for you" />
+                  <TopPicksRow entries={topPicks} />
+                </View>
+              )}
+              {becauseRows.map(({ seed, entries }) => (
+                <View key={`${seed!.type}:${seed!.title}`} style={styles.forYouSection}>
+                  <BecauseYouRow
+                    seedTitle={seed!.title}
+                    verb={PAST_VERBS[seed!.type]}
+                    entries={entries}
+                  />
+                </View>
+              ))}
+            </>
           )}
-          {becauseRows.map(({ seed, entries }) => (
-            <View key={`${seed!.type}:${seed!.title}`} style={styles.forYouSection}>
-              <BecauseYouRow
-                seedTitle={seed!.title}
-                verb={PAST_VERBS[seed!.type]}
-                entries={entries}
-              />
-            </View>
-          ))}
         </ScrollView>
       ) : feedView !== 'feed' ? (
         <ScrollView contentContainerStyle={styles.content}>
@@ -545,6 +567,7 @@ export default function FeedScreen() {
                   isMine={item.user_id === user?.id}
                   currentUserId={user?.id}
                   reactions={reactions}
+                  emojiReactions={emojiByPost.get(item.id)}
                   compatScore={item.user_id === user?.id ? undefined : compatScores.get(item.user_id)}
                   onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
                   onDelete={() => deletePost.mutate(item.id)}
@@ -637,6 +660,34 @@ function createStyles(Brand: BrandPalette) {
     },
     content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six },
     forYouSection: { marginBottom: Spacing.five },
+    forYouLoader: { alignItems: 'center', paddingTop: 60 },
+    forYouEmpty: { alignItems: 'center', paddingTop: 60, paddingHorizontal: Spacing.four },
+    forYouEmptyTitle: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 18,
+      color: Brand.ink,
+      marginBottom: 10,
+      textAlign: 'center',
+    },
+    forYouEmptyBody: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 14,
+      color: Brand.muted,
+      textAlign: 'center',
+      lineHeight: 20,
+      marginBottom: 24,
+    },
+    forYouEmptyBtn: {
+      backgroundColor: Brand.trust,
+      borderRadius: 12,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+    },
+    forYouEmptyBtnText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: '#fff',
+    },
     headerTop: {
       flexDirection: 'row',
       alignItems: 'center',

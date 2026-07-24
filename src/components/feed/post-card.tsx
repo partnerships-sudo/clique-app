@@ -9,7 +9,7 @@ import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
 import { SwipeableRow } from '@/components/swipeable-row';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import type { Post } from '@/features/feed/api';
-import { EMOJI_OPTIONS, useEmojiReactions, useToggleEmojiReaction } from '@/features/feed/emoji-reactions';
+import { EMOJI_OPTIONS, useToggleEmojiReaction, type EmojiReactionSummary } from '@/features/feed/emoji-reactions';
 import type { Reaction } from '@/features/feed/reactions';
 import { timeAgo } from '@/features/feed/time-ago';
 import { compatColor, compatEmoji } from '@/features/friends/compatibility';
@@ -46,6 +46,7 @@ export function PostCard({
   isMine,
   currentUserId,
   reactions,
+  emojiReactions,
   compatScore,
   onToggleReaction,
   onDelete,
@@ -55,6 +56,7 @@ export function PostCard({
   isMine: boolean;
   currentUserId: string | undefined;
   reactions: Reaction[];
+  emojiReactions?: EmojiReactionSummary;
   compatScore?: number;
   onToggleReaction: () => void;
   onDelete: () => void;
@@ -67,8 +69,7 @@ export function PostCard({
   const type = TypeColors[post.type];
   const meReacted = reactions.some((r) => r.user_id === currentUserId);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const { byPost: emojiByPost } = useEmojiReactions([post.id]);
-  const emojiSummary = emojiByPost.get(post.id) ?? { counts: {}, mine: new Set<string>() };
+  const emojiSummary = emojiReactions ?? { counts: {}, mine: new Set<string>() };
   const toggleEmoji = useToggleEmojiReaction();
   const topEmojis = Object.entries(emojiSummary.counts)
     .sort((a, b) => b[1] - a[1])
