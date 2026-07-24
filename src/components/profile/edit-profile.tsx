@@ -59,6 +59,7 @@ export function EditProfile({
     location: string;
     bio: string;
     rating_icon: string;
+    genres: string[];
   }) => Promise<void>;
 }) {
   const Brand = useBrand();
@@ -99,12 +100,27 @@ export function EditProfile({
     setLocation(profile?.location ?? '');
     setBio(profile?.bio ?? '');
     setRatingIcon((profile?.rating_icon as RatingIconStyle) ?? 'stars');
+    if (profile?.content_types) {
+      const savedGenres = profile.content_types
+        .filter((t) => t.startsWith('genre:'))
+        .map((t) => t.replace('genre:', ''));
+      if (savedGenres.length > 0) {
+        setGenres((prev) => prev.map((c) => ({ ...c, on: savedGenres.includes(c.label) })));
+      }
+    }
   }, [profile, user]);
 
   async function handleSave() {
     setIsSaving(true);
     try {
-      await onSaved({ full_name: fullName, username, location, bio, rating_icon: ratingIcon });
+      await onSaved({
+        full_name: fullName,
+        username,
+        location,
+        bio,
+        rating_icon: ratingIcon,
+        genres: genres.filter((c) => c.on).map((c) => c.label),
+      });
     } catch {
       Alert.alert('Could not save', 'Please try again.');
     } finally {

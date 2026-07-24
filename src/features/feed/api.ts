@@ -101,6 +101,7 @@ export function useGlobalPosts() {
       const { data, error } = await supabase
         .from('posts')
         .select('*')
+        .eq('visibility', 'everyone')
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
@@ -260,8 +261,23 @@ export function useDeletePost() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (postId: string) => {
+      const { data: post, error: fetchError } = await supabase
+        .from('posts')
+        .select('title, type')
+        .eq('id', postId)
+        .single();
+      if (fetchError) throw fetchError;
       const { error } = await supabase.from('posts').delete().eq('id', postId);
       if (error) throw error;
+      if (post) {
+        await supabase
+          .from('library')
+          .delete()
+          .eq('user_id', user!.id)
+          .eq('title', post.title)
+          .eq('type', post.type)
+          .eq('status', 'logged');
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });

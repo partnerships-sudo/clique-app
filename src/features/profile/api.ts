@@ -73,6 +73,7 @@ export type UpdateProfileInput = {
   location: string;
   bio: string;
   rating_icon: string;
+  genres?: string[];
 };
 
 export function useUpdateProfile() {
@@ -81,15 +82,25 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: async (input: UpdateProfileInput) => {
       const cleanUsername = input.username.replace('@', '');
+      const updatePayload: Record<string, unknown> = {
+        full_name: input.full_name,
+        username: cleanUsername,
+        location: input.location,
+        bio: input.bio,
+        rating_icon: input.rating_icon,
+      };
+      if (input.genres !== undefined) {
+        const { data: existing } = await supabase
+          .from('profiles')
+          .select('content_types')
+          .eq('id', user!.id)
+          .single();
+        const nonGenre = (existing?.content_types ?? []).filter((t: string) => !t.startsWith('genre:'));
+        updatePayload.content_types = [...nonGenre, ...input.genres.map((g) => `genre:${g}`)];
+      }
       const { error } = await supabase
         .from('profiles')
-        .update({
-          full_name: input.full_name,
-          username: cleanUsername,
-          location: input.location,
-          bio: input.bio,
-          rating_icon: input.rating_icon,
-        })
+        .update(updatePayload)
         .eq('id', user!.id);
       if (error) throw error;
       await supabase.auth.updateUser({

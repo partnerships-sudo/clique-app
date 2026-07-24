@@ -12,7 +12,7 @@ import { WatchlistCard } from '@/components/library/watchlist-card';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { useCollectionItems, useRemoveFromCollection, type CollectionItem } from '@/features/collection/api';
-import type { FeedFilterValue } from '@/features/feed/api';
+import { useCreatePost, type FeedFilterValue } from '@/features/feed/api';
 import {
   useBulkRemoveLibraryItems,
   useLibraryItems,
@@ -69,6 +69,7 @@ export default function LibraryScreen() {
   const moveToLibrary = useMoveToLibrary();
   const removeItem = useRemoveLibraryItem();
   const rateItem = useRateLibraryItem();
+  const createPost = useCreatePost();
   const bulkRemoveItems = useBulkRemoveLibraryItems();
 
   const [selectMode, setSelectMode] = useState(false);
@@ -493,6 +494,18 @@ export default function LibraryScreen() {
                     externalId: ratingItem.external_id ?? null,
                     mediaType: ratingItem.media_type ?? null,
                     extRating: ratingItem.ext_rating ?? null,
+                  });
+                  await createPost.mutateAsync({
+                    type: ratingItem.type,
+                    title: ratingItem.title,
+                    sub: ratingItem.sub ?? undefined,
+                    poster: ratingItem.poster ?? undefined,
+                    rating: ratingValue,
+                    note: ratingNote || undefined,
+                    externalId: ratingItem.external_id ?? undefined,
+                    mediaType: ratingItem.media_type ?? undefined,
+                    extRating: ratingItem.ext_rating ?? undefined,
+                    visibility: 'everyone',
                   });
                   setRatingItem(null);
                 }}>
