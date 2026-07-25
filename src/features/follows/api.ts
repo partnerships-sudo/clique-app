@@ -501,6 +501,7 @@ export function useExtendedNetwork() {
       return [...ids];
     },
     enabled: !!user && mutuals !== undefined,
+    staleTime: 5 * 60_000,
   });
 }
 
@@ -519,6 +520,7 @@ export function useExtendedNetworkProfiles() {
       return (profiles ?? []) as Profile[];
     },
     enabled: !!user && ids !== undefined,
+    staleTime: 5 * 60_000,
   });
 }
 

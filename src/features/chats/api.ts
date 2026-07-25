@@ -52,17 +52,23 @@ export function useChatThreads() {
   const query = useQuery({
     queryKey: ['chat-threads', user?.id, allIds.length],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*')
-        .in('user_id', allIds)
-        .order('created_at', { ascending: false })
-        .limit(500);
+      // Server-side DISTINCT ON per title — one row per thread instead of 500 rows
+      const { data, error } = await supabase.rpc('get_chat_threads', {
+        user_ids: allIds,
+      });
       if (error) throw error;
-      const msgs = data as Message[];
 
-      // Fetch poster art from the posts table for each channel title
-      const titles = [...new Set(msgs.map((m) => m.title))];
+      const rows = (data ?? []) as {
+        title: string;
+        post_type: string;
+        last_user_id: string;
+        last_user: string;
+        last_text: string;
+        last_time: string;
+      }[];
+
+      // Fetch poster art for each thread title
+      const titles = rows.map((r) => r.title);
       let posterByTitle = new Map<string, string | null>();
       if (titles.length > 0) {
         const { data: postsData } = await supabase
@@ -74,47 +80,31 @@ export function useChatThreads() {
         );
       }
 
-      return { messages: msgs, posterByTitle };
+      return { rows, posterByTitle };
     },
     enabled: !!user,
     staleTime: 30_000,
     refetchInterval: 60_000,
   });
 
-  const allMessages = query.data?.messages ?? [];
+  const rows = query.data?.rows ?? [];
   const posterByTitle = query.data?.posterByTitle ?? new Map<string, string | null>();
 
-  // Hide messages from blocked users entirely — both from the thread preview
-  // and the unread count, so blocking someone in a content chat fully silences them.
-  const messages = allMessages.filter((m) => m.user_id === user?.id || !blockedIds.has(m.user_id));
-
-  // Count unread messages per title
-  const unreadCountMap = new Map<string, number>();
-  if (readStateLoaded) {
-    for (const m of messages) {
-      if (m.user_id !== user?.id && isUnread(m.title, m.created_at)) {
-        unreadCountMap.set(m.title, (unreadCountMap.get(m.title) ?? 0) + 1);
-      }
-    }
-  }
-
-  const seen = new Set<string>();
-  const threads: ChatThread[] = [];
-  for (const message of messages) {
-    if (seen.has(message.title)) continue;
-    seen.add(message.title);
-    const unreadCount = unreadCountMap.get(message.title) ?? 0;
-    threads.push({
-      title: message.title,
-      type: message.post_type ?? 'watch',
-      poster: posterByTitle.get(message.title) ?? null,
-      lastUser: message.user_name,
-      lastText: message.content,
-      lastTime: message.created_at,
-      isUnread: unreadCount > 0,
-      unreadCount,
+  const threads: ChatThread[] = rows
+    .filter((r) => !blockedIds.has(r.last_user_id) || r.last_user_id === user?.id)
+    .map((r) => {
+      const unread = readStateLoaded && r.last_user_id !== user?.id && isUnread(r.title, r.last_time);
+      return {
+        title: r.title,
+        type: (r.post_type ?? 'watch') as ChatThread['type'],
+        poster: posterByTitle.get(r.title) ?? null,
+        lastUser: r.last_user,
+        lastText: r.last_text,
+        lastTime: r.last_time,
+        isUnread: unread,
+        unreadCount: unread ? 1 : 0,
+      };
     });
-  }
 
   return { ...query, threads, markRead };
 }
