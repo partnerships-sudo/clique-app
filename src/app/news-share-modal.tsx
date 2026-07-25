@@ -199,9 +199,9 @@ function createStyles(Brand: BrandPalette) {
       textAlign: 'center', marginBottom: 16,
     },
     sectionLabel: {
-      fontFamily: BrandFonts.interMedium,
+      fontFamily: BrandFonts.syneBold,
       fontSize: 11, color: Brand.muted,
-      textTransform: 'uppercase', letterSpacing: 0.5,
+      textTransform: 'uppercase', letterSpacing: 0.8,
       marginBottom: 12,
     },
     searchWrap: {

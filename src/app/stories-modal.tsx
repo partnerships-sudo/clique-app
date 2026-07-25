@@ -44,7 +44,7 @@ function timeAgo(iso: string): string {
 export default function StoriesModal() {
   const { user } = useSession();
   const insets = useSafeAreaInsets();
-  const { data: posts = [] } = useCloseFriendsPosts();
+  const { data: posts = [], isLoading: postsLoading, isSuccess: postsReady } = useCloseFriendsPosts();
   const [index, setIndex] = useState(0);
   const progress = useRef(new Animated.Value(0)).current;
   const animRef = useRef<Animated.CompositeAnimation | null>(null);
@@ -167,7 +167,25 @@ export default function StoriesModal() {
     Keyboard.dismiss();
   }
 
-  if (!post) return null;
+  if (!post) {
+    if (!postsReady) return <View style={styles.container} />;
+    return (
+      <View style={styles.container}>
+        <SafeAreaView style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <Text style={{ fontSize: 36 }}>🌙</Text>
+          <Text style={{ color: '#fff', fontFamily: BrandFonts.syneExtraBold, fontSize: 17, textAlign: 'center' }}>
+            All quiet for now
+          </Text>
+          <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: BrandFonts.interRegular, fontSize: 14, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 }}>
+            None of your close friends have posted in the last 48 hours
+          </Text>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginTop: 8 }}>
+            <Text style={{ color: '#fff', fontFamily: BrandFonts.syneBold, fontSize: 14 }}>Close</Text>
+          </Pressable>
+        </SafeAreaView>
+      </View>
+    );
+  }
 
   return (
     <Pressable

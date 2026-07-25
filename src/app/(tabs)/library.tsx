@@ -36,13 +36,13 @@ const COLLECTION_SORT_OPTIONS: { value: CollectionSort; label: string }[] = [
   { value: 'alpha', label: 'A–Z' },
 ];
 const COLLECTION_VIEW_ORDER: CollectionView[] = ['read', 'watch', 'tv', 'listen', 'play', 'podcast'];
-const COLLECTION_EMPTY_TEXT: Record<CollectionView, string> = {
-  read: "Guess you're not a bookworm... yet.",
-  watch: 'Your watchlist is camera shy.',
-  tv: 'No box sets detected.',
-  listen: 'No bangers detected.',
-  play: 'No high scores detected.',
-  podcast: 'No podcasts in the collection yet.',
+const COLLECTION_EMPTY: Record<CollectionView, { emoji: string; title: string; body: string }> = {
+  watch:   { emoji: '🎬', title: 'Show me the movies!',              body: 'Rate a film and it lives here forever.' },
+  read:    { emoji: '📚', title: 'To read, or not to read?',         body: "Guess you're not a bookworm... yet." },
+  tv:      { emoji: '📺', title: 'Winter is coming',                  body: 'Log some shows to stock up for the long haul.' },
+  listen:  { emoji: '🎧', title: 'No bangers detected',               body: 'Rate some music and your collection wakes up.' },
+  play:    { emoji: '🎮', title: "It's dangerous to go alone",        body: "Log the games you've conquered." },
+  podcast: { emoji: '🎙️', title: 'Houston, we have a podcast problem', body: 'Add podcasts you love to your collection.' },
 };
 
 export default function LibraryScreen() {
@@ -233,7 +233,16 @@ export default function LibraryScreen() {
           )}
           ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
           ListEmptyComponent={
-            !isLoading ? <Text style={styles.empty}>Nothing logged here yet.</Text> : null
+            !isLoading ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyEmoji}>🎬</Text>
+                <Text style={styles.emptyTitle}>Nothing to see here — yet.</Text>
+                <Text style={styles.emptyBody}>Start logging films, shows, books, and games to build your feed.</Text>
+                <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'log' } })}>
+                  <Text style={styles.emptyBtnText}>Log something →</Text>
+                </Pressable>
+              </View>
+            ) : null
           }
         />
       ) : tab === 'watchlist' ? (
@@ -308,11 +317,25 @@ export default function LibraryScreen() {
           ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
           ListEmptyComponent={
             !isLoading ? (
-              <Text style={styles.empty}>
-                {watchlistView === 'mine'
-                  ? 'Your watchlist is empty — add things you want to get to!'
-                  : 'No recs yet — when a friend sends you a rec it shows up here automatically.'}
-              </Text>
+              watchlistView === 'mine' ? (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyEmoji}>🍿</Text>
+                  <Text style={styles.emptyTitle}>We're gonna need a bigger watchlist.</Text>
+                  <Text style={styles.emptyBody}>Add films, shows, books, and games you want to get to.</Text>
+                  <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })}>
+                    <Text style={styles.emptyBtnText}>Add something →</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyEmoji}>📬</Text>
+                  <Text style={styles.emptyTitle}>E.T. phone home.</Text>
+                  <Text style={styles.emptyBody}>Or just ask a friend to send you a rec — it'll show up here automatically.</Text>
+                  <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')}>
+                    <Text style={styles.emptyBtnText}>Find friends →</Text>
+                  </Pressable>
+                </View>
+              )
             ) : null
           }
         />
@@ -418,7 +441,14 @@ export default function LibraryScreen() {
           )}
           ListEmptyComponent={
             !isCollectionLoading ? (
-              <Text style={styles.empty}>{COLLECTION_EMPTY_TEXT[collectionView]}</Text>
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyEmoji}>{COLLECTION_EMPTY[collectionView].emoji}</Text>
+                <Text style={styles.emptyTitle}>{COLLECTION_EMPTY[collectionView].title}</Text>
+                <Text style={styles.emptyBody}>{COLLECTION_EMPTY[collectionView].body}</Text>
+                <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'log' } })}>
+                  <Text style={styles.emptyBtnText}>Log something →</Text>
+                </Pressable>
+              </View>
             ) : null
           }
         />
@@ -641,6 +671,12 @@ function createStyles(Brand: BrandPalette) {
     fontFamily: BrandFonts.interRegular,
     fontSize: 13.6,
   },
+  emptyWrap: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
+  emptyEmoji: { fontSize: 40, marginBottom: 12 },
+  emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, marginBottom: 8, textAlign: 'center' },
+  emptyBody: { fontFamily: BrandFonts.interRegular, fontSize: 13.6, color: Brand.muted, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  emptyBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 22 },
+  emptyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
 
   // Multi-select
   selectOverlay: {
@@ -661,7 +697,7 @@ function createStyles(Brand: BrandPalette) {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  checkboxChecked: { backgroundColor: '#6366F1', borderColor: '#6366F1' },
+  checkboxChecked: { backgroundColor: Brand.trust, borderColor: Brand.trust },
   checkmark: { color: '#fff', fontSize: 13, fontFamily: BrandFonts.syneBold, lineHeight: 16 },
   selectBar: {
     backgroundColor: Brand.card,
@@ -682,7 +718,7 @@ function createStyles(Brand: BrandPalette) {
   selectBarCount: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14, color: Brand.ink },
   selectBarAll: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
   selectDeleteBtn: {
-    backgroundColor: '#DC2626',
+    backgroundColor: Brand.danger,
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',

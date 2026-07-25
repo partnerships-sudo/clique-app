@@ -27,10 +27,12 @@ export function BecauseYouRow({
   seedTitle,
   verb = 'watched',
   entries,
+  customLabel,
 }: {
   seedTitle: string;
   verb?: string;
   entries: TrendingEntry[];
+  customLabel?: string;
 }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
@@ -41,7 +43,11 @@ export function BecauseYouRow({
   return (
     <View>
       <Text style={styles.heading} numberOfLines={1}>
-        Because you {verb} <Text style={styles.headingSeed}>{seedTitle}</Text>
+        {customLabel ? (
+          customLabel
+        ) : (
+          <>Because you {verb} <Text style={styles.headingSeed}>{seedTitle}</Text></>
+        )}
       </Text>
       <FlatList
         horizontal

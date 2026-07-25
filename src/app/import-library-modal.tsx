@@ -525,7 +525,7 @@ function createStyles(Brand: BrandPalette) {
     chevron: { fontSize: 22, color: Brand.muted },
     divider: { height: 1, backgroundColor: Brand.border, marginLeft: Spacing.three },
     note: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, textAlign: 'center', paddingHorizontal: 10 },
-    sectionLabel: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 8 },
+    sectionLabel: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 },
 
     statsRow: { flexDirection: 'row', backgroundColor: Brand.card, borderRadius: 16, borderWidth: 1, borderColor: Brand.border, marginBottom: Spacing.three, padding: 16 },
     stat: { flex: 1, alignItems: 'center', gap: 2 },

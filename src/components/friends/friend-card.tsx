@@ -67,7 +67,12 @@ export function FriendCard({
         <View style={styles.rightCol}>
           {currentlyWatching ? (
             <View style={styles.watching}>
-              <Text style={styles.watchingLabel}>CURRENTLY WATCHING</Text>
+              <Text style={styles.watchingLabel}>{
+                currentlyWatching.type === 'read' ? 'RECENTLY READ' :
+                currentlyWatching.type === 'play' ? 'RECENTLY PLAYED' :
+                currentlyWatching.type === 'listen' || currentlyWatching.type === 'podcast' ? 'RECENTLY LISTENED' :
+                'RECENTLY WATCHED'
+              }</Text>
               <View style={styles.watchingRow}>
                 {currentlyWatching.poster ? (
                   <Image source={{ uri: currentlyWatching.poster }} style={styles.watchingPoster} resizeMode="cover" />
@@ -98,24 +103,24 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     card: {
       backgroundColor: Brand.card,
-      borderRadius: 18,
+      borderRadius: 16,
       borderWidth: 1,
       borderColor: Brand.border,
       marginBottom: 6,
       overflow: 'hidden',
     },
     cardTopMatch: {
-      borderColor: '#5B4FE8',
+      borderColor: Brand.trust,
     },
     topMatchBanner: {
-      backgroundColor: '#EEEAFF',
+      backgroundColor: Brand.tlight,
       paddingVertical: 8,
       paddingHorizontal: 16,
     },
     topMatchLabel: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 10,
-      color: '#5B4FE8',
+      color: Brand.trust,
       letterSpacing: 0.8,
       textTransform: 'uppercase',
     },
@@ -146,7 +151,7 @@ function createStyles(Brand: BrandPalette) {
     nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
     name: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
     handle: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 2 },
-    compatLabel: { marginTop: 5, fontSize: 12 },
+    compatLabel: { marginTop: 5, fontSize: 12, fontFamily: BrandFonts.interRegular },
     compatLabelText: { fontFamily: BrandFonts.syneBold, fontSize: 12 },
     rightCol: { width: 100, alignItems: 'flex-end', gap: 8 },
     watching: { width: '100%' },

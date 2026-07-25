@@ -1,6 +1,6 @@
 import { StyleSheet } from 'react-native';
 
-import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
+import { AvatarSizes, BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 
 export const ONLINE_COLOR = '#3DDC84';
 
@@ -32,8 +32,8 @@ export function createStyles(Brand: BrandPalette) {
       alignItems: 'center', justifyContent: 'center',
       backgroundColor: Brand.card,
     },
-    avImg: { width: 60, height: 60, borderRadius: 30 },
-    avFallback: { width: 60, height: 60, borderRadius: 30, backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
+    avImg: { width: AvatarSizes.lg, height: AvatarSizes.lg, borderRadius: AvatarSizes.lg / 2 },
+    avFallback: { width: AvatarSizes.lg, height: AvatarSizes.lg, borderRadius: AvatarSizes.lg / 2, backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
     avFallbackText: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink },
     onlineDot: { position: 'absolute', bottom: 2, right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: ONLINE_COLOR, borderWidth: 2, borderColor: Brand.card },
     headerInfo: { flex: 1, minWidth: 0, paddingTop: 2 },
@@ -48,7 +48,7 @@ export function createStyles(Brand: BrandPalette) {
     activityText: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.trust },
     closeFriendBtnActive: { backgroundColor: Brand.tlight, borderWidth: 1, borderColor: Brand.trust },
     closeFriendBtnTextActive: { color: Brand.trust },
-    friendActionBtn: { backgroundColor: Brand.trust, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 14 },
+    friendActionBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 5, paddingHorizontal: 14 },
     friendActionBtnMuted: { backgroundColor: Brand.tlight, borderWidth: 1, borderColor: Brand.border },
     friendActionBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: '#fff' },
     friendActionBtnTextMuted: { color: Brand.muted },
@@ -70,12 +70,27 @@ export function createStyles(Brand: BrandPalette) {
 
     // Feed tab
     chipScroll: {},
-    chipRow: { flexDirection: 'row', gap: 4, paddingHorizontal: 0 },
+    chipRow: { gap: 6 },
     chipRowCentered: { justifyContent: 'center' },
-    chip: { width: 54, paddingVertical: 7, borderRadius: 12, backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, alignItems: 'center', gap: 3 },
-    chipIcon: { width: 17, height: 17 },
-    chipText: { fontFamily: BrandFonts.syneBold, fontSize: 8.5, color: Brand.muted, textAlign: 'center' },
-    chipTextActive: { color: '#fff' },
+    chipItem: { alignItems: 'center', gap: 6 },
+    chip: {
+      width: 52,
+      height: 52,
+      borderRadius: 14,
+      backgroundColor: Brand.card,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
+    },
+    chipIcon: { width: 22, height: 22 },
+    chipText: { fontFamily: BrandFonts.interMedium, fontSize: 11, color: Brand.muted, textAlign: 'center' },
+    chipTextActive: { fontFamily: BrandFonts.syneBold },
     feedSortRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 14 },
     feedSortLabel: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginRight: 2 },
     feedSortBtn: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 14 },
@@ -133,7 +148,7 @@ export function createStyles(Brand: BrandPalette) {
     collGridImgPlaceholder: { alignItems: 'center', justifyContent: 'center', padding: 6 },
     collGridImgPlaceholderText: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textAlign: 'center' },
     collGridStars: { paddingTop: 4, paddingHorizontal: 2 },
-    collGridStarText: { fontSize: 10, color: '#F4A340', letterSpacing: 0.5 },
+    collGridStarText: { fontSize: 10, color: Brand.warm, letterSpacing: 0.5 },
 
     // Stats tab
     statsBox: { flexDirection: 'row', alignItems: 'center', width: '100%', backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, borderRadius: 18, paddingVertical: 16, marginBottom: 8 },
@@ -210,7 +225,7 @@ export function createStyles(Brand: BrandPalette) {
     genreBarTrack: { height: 4, borderRadius: 2, backgroundColor: Brand.border, overflow: 'hidden' },
     genreBarFill: { height: '100%', borderRadius: 2 },
     genreCount: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted },
-    recentChipRow: { flexWrap: 'wrap', marginBottom: 12 },
+    recentChipRow: { marginBottom: 12 },
     recentChip: { paddingVertical: 4, paddingHorizontal: 9, borderRadius: 20, backgroundColor: Brand.paper, borderWidth: 1, borderColor: Brand.border },
     recentChipActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
     recentChipText: { fontFamily: BrandFonts.interMedium, fontSize: 11.5, color: Brand.muted },

@@ -2,6 +2,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Dimensions,
+  Image,
   Pressable,
   StyleSheet,
   Text,
@@ -16,7 +17,7 @@ import { useBrand } from '@/hooks/use-brand';
 const { height: SH } = Dimensions.get('window');
 const HP = 10;
 
-type ScreenType = 'feed' | 'chats' | 'friends' | 'library' | 'news';
+type ScreenType = 'feed' | 'chats' | 'friends' | 'news' | 'library';
 type RefKey = 'tabs' | 'post' | 'action' | 'nav0' | 'nav1' | 'nav2' | 'nav3' | 'nav4';
 type Rect = { x: number; y: number; width: number; height: number };
 
@@ -35,22 +36,22 @@ const STEPS: StepDef[] = [
   {
     refKey: 'tabs',
     title: 'Your Feed, your way',
-    desc: 'My Feed is people you follow. My Circle is close friends only. Global is the whole community. For You is picked just for you.',
+    desc: 'My Feed is people you follow. My Circle is close friends only. Global is the whole community. For You is personalised picks based on your taste.',
     screen: 'feed',
     navActive: 0,
     tooltipPos: 'bottom',
   },
   {
     refKey: 'post',
-    title: "Your followers' taste",
-    desc: "See what the people you follow are into, with their actual thoughts on it.",
+    title: "Real takes, no spoilers",
+    desc: "See what the people you follow are actually watching. React with an emoji, hide spoilers with one tap, or jump straight into the content chat for that title.",
     screen: 'feed',
     navActive: 0,
     tooltipPos: 'bottom',
   },
   {
     refKey: 'action',
-    title: 'React and save',
+    title: 'Share and save',
     desc: 'Tap ↗ to send it to a friend, add it to your watchlist, or log it once you\'ve watched, read or played it.',
     screen: 'feed',
     navActive: 0,
@@ -58,8 +59,8 @@ const STEPS: StepDef[] = [
   },
   {
     refKey: 'nav1',
-    title: 'Chats',
-    desc: "DM friends directly or start a group chat. Great for when you finish something and need to talk about it.",
+    title: 'Chats & Watch Parties',
+    desc: "DM friends, start a group chat, or join a content chat for any title. Start a Watch Party to sync up and stream something together in real time.",
     screen: 'chats',
     navActive: 1,
     tooltipPos: 'above-nav',
@@ -67,24 +68,24 @@ const STEPS: StepDef[] = [
   {
     refKey: 'nav2',
     title: 'Friends',
-    desc: 'Find people you know, or discover new ones with taste worth following.',
+    desc: 'Find people you know or discover new ones. Your compatibility score shows how closely your taste lines up — the higher it is, the more you\'re likely to love the same things.',
     screen: 'friends',
     navActive: 2,
     tooltipPos: 'above-nav',
   },
   {
     refKey: 'nav3',
-    title: 'Library',
-    desc: "Your personal collection. Everything you've watched, read or played, rated and saved — your watchlist lives here too.",
-    screen: 'library',
+    title: 'News',
+    desc: "What's buzzing, what's dropping soon, and what's pulling in at the box office — across film, TV, books, games and music.",
+    screen: 'news',
     navActive: 3,
     tooltipPos: 'above-nav',
   },
   {
     refKey: 'nav4',
-    title: 'News',
-    desc: "What's buzzing, what's dropping soon, and what's pulling in at the box office. All in one place.",
-    screen: 'news',
+    title: 'Your Library',
+    desc: "Your personal collection lives in your Profile — three tabs: Logged keeps everything you've rated, Watchlist is what's next, and Collection is for the physical stuff you own.",
+    screen: 'library',
     navActive: 4,
     tooltipPos: 'above-nav',
   },
@@ -94,16 +95,16 @@ const NAV_TABS = [
   { sf: 'house.fill' as const, label: 'Feed' },
   { sf: 'message.fill' as const, label: 'Chats' },
   { sf: 'person.2.fill' as const, label: 'Friends' },
-  { sf: 'books.vertical.fill' as const, label: 'Library' },
   { sf: 'newspaper.fill' as const, label: 'News' },
+  { sf: 'person.crop.circle.fill' as const, label: 'Profile' },
 ];
 
 const SCREEN_TITLE: Record<ScreenType, string> = {
   feed: 'Feed',
   chats: 'Chats',
   friends: 'Friends',
-  library: 'Library',
   news: 'News',
+  library: 'Profile',
 };
 
 const FILTER_CHIPS = [
@@ -114,6 +115,41 @@ const FILTER_CHIPS = [
   { sf: 'mic' as const, label: 'Podcasts', active: false },
   { sf: 'headphones' as const, label: 'Music', active: false },
 ];
+
+// TMDB poster paths for well-known titles used in the tour mock screens
+const POSTERS: Record<string, string> = {
+  oppenheimer: 'https://image.tmdb.org/t/p/w342/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg',
+  succession:  'https://image.tmdb.org/t/p/w342/7HW47XbkNQ5fiwQFYGWdw9gs144.jpg',
+  nosferatu:   'https://image.tmdb.org/t/p/w342/5qGIxdEO841C0tdY8vKuTh8OgKL.jpg',
+  tomorrow:    'https://image.tmdb.org/t/p/w342/gqAqtJ4P1ND00Ia8tNQ1fmLijHY.jpg',
+  bear:        'https://image.tmdb.org/t/p/w342/sHFlbKS3WLqMnp9t2ghADIJFnuQ.jpg',
+};
+
+function MockPoster({
+  posterKey,
+  fallbackEmoji,
+  style,
+}: {
+  posterKey: keyof typeof POSTERS;
+  fallbackEmoji: string;
+  style: object;
+}) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <View style={[style, { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }]}>
+      {!failed ? (
+        <Image
+          source={{ uri: POSTERS[posterKey] }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+          onError={() => setFailed(true)}
+        />
+      ) : (
+        <Text style={{ fontSize: 22 }}>{fallbackEmoji}</Text>
+      )}
+    </View>
+  );
+}
 
 function MockFilterChips({ Brand }: { Brand: BrandPalette }) {
   return (
@@ -319,9 +355,7 @@ export function TourScreen({
                   <Text style={styles.nowBtnText}>+ Log something</Text>
                 </View>
               </View>
-              <View style={[styles.nowPoster, { backgroundColor: Brand.trust }]}>
-                <Text style={{ fontSize: 32 }}>🎬</Text>
-              </View>
+              <MockPoster posterKey="oppenheimer" fallbackEmoji="🎬" style={[styles.nowPoster, { backgroundColor: Brand.trust }]} />
             </View>
 
             {/* FilterChips */}
@@ -333,70 +367,88 @@ export function TourScreen({
               <View style={[styles.sectionLabelLine, { backgroundColor: Brand.border }]} />
             </View>
 
+            {/* Primary post card — matches real PostCard layout */}
             <View
               ref={postRef}
               collapsable={false}
               onLayout={measureRef('post', postRef)}
-              style={styles.postCard}>
-              <View style={styles.postHeader}>
-                <View style={styles.postAvatar}>
-                  <Text style={styles.postAvatarText}>SH</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.postName}>Sherlock Holmes</Text>
-                  <Text style={styles.postHandle}>@sherlockh · 2h ago</Text>
-                </View>
-                <View
-                  ref={actionRef}
-                  collapsable={false}
-                  onLayout={measureRef('action', actionRef)}
-                  style={styles.actionBtn}>
-                  <Text style={styles.actionBtnText}>↗</Text>
-                </View>
-              </View>
-              <View style={styles.postBody}>
-                <View style={[styles.poster, { backgroundColor: '#1a1a2e' }]}>
-                  <Text style={styles.posterEmoji}>🎬</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.postTitle}>Oppenheimer</Text>
-                  <View style={styles.stars}>
-                    {[1, 2, 3, 4].map(i => (
-                      <SymbolView key={i} name="star.fill" size={12} tintColor="#F4A340" type="monochrome" />
-                    ))}
-                    <SymbolView name="star.leadinghalf.filled" size={12} tintColor="#F4A340" type="monochrome" />
+              style={[styles.postCard, { flexDirection: 'row', gap: 10 }]}>
+              {/* Large poster on left */}
+              <MockPoster posterKey="oppenheimer" fallbackEmoji="🎬" style={[styles.poster, { backgroundColor: '#1a1a2e' }]} />
+              {/* Content on right */}
+              <View style={{ flex: 1, minWidth: 0 }}>
+                {/* Meta row: avatar · @handle · WATCHING pill · time */}
+                <View style={styles.postMeta}>
+                  <View style={styles.postAvatar}>
+                    <Text style={styles.postAvatarText}>SH</Text>
                   </View>
-                  <Text style={styles.postNote} numberOfLines={2}>
-                    Deduced the ending in 12 minutes. Still kept me up for 3 days. Remarkable.
-                  </Text>
+                  <Text style={[styles.postHandle, { color: Brand.muted }]} numberOfLines={1}>@sherlockh</Text>
+                  <View style={styles.postPill}>
+                    <Text style={styles.postPillText}>WATCHING</Text>
+                  </View>
+                  <Text style={[styles.postTime, { color: Brand.muted }]}>2h</Text>
+                </View>
+                <Text style={[styles.postTitle, { color: Brand.ink }]}>Oppenheimer</Text>
+                <Text style={[styles.postSub, { color: Brand.muted }]}>Film · 2023 · Drama · History</Text>
+                <Text style={[styles.postNote, { color: Brand.muted }]} numberOfLines={2}>
+                  {'“Deduced the ending in 12 minutes. Still kept me up for 3 days.”'}
+                </Text>
+                <View style={styles.stars}>
+                  {[1, 2, 3, 4].map(i => (
+                    <SymbolView key={i} name="star.fill" size={11} tintColor="#F4A340" type="monochrome" />
+                  ))}
+                  <SymbolView name="star.leadinghalf.filled" size={11} tintColor="#F4A340" type="monochrome" />
+                </View>
+                {/* Emoji reactions */}
+                <View style={styles.emojiRow}>
+                  {(['🔥 12', '💯 5'] as const).map(label => (
+                    <View key={label} style={[styles.emojiPill, { borderColor: Brand.border }]}>
+                      <Text style={[styles.emojiPillText, { color: Brand.ink }]}>{label}</Text>
+                    </View>
+                  ))}
+                  <View style={[styles.emojiAddBtn, { borderColor: Brand.border }]}>
+                    <Text style={[styles.emojiAddText, { color: Brand.muted }]}>+</Text>
+                  </View>
+                </View>
+                {/* Actions row */}
+                <View style={styles.actionsRow}>
+                  <View style={[styles.metooBtn, { backgroundColor: Brand.tlight }]}>
+                    <Text style={[styles.metooText, { color: Brand.trust }]}>✦ Me too! 3</Text>
+                  </View>
+                  <View
+                    ref={actionRef}
+                    collapsable={false}
+                    onLayout={measureRef('action', actionRef)}
+                    style={styles.actionBtn}>
+                    <Text style={[styles.actionBtnText, { color: Brand.muted }]}>↗</Text>
+                  </View>
+                  <View style={styles.actionBtn}>
+                    <SymbolView name="bubble.right" size={16} tintColor={Brand.muted} type="monochrome" />
+                  </View>
                 </View>
               </View>
             </View>
 
-            <View style={[styles.postCard, { opacity: 0.35 }]}>
-              <View style={styles.postHeader}>
-                <View style={[styles.postAvatar, { backgroundColor: '#5c3317' }]}>
-                  <Text style={styles.postAvatarText}>DQ</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.postName}>Don Quixote</Text>
-                  <Text style={styles.postHandle}>@donquixote · 5h ago</Text>
-                </View>
-              </View>
-              <View style={styles.postBody}>
-                <View style={[styles.poster, { backgroundColor: '#3b2a1a' }]}>
-                  <Text style={styles.posterEmoji}>🎬</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.postTitle}>A Knight's Tale</Text>
-                  <View style={styles.stars}>
-                    {[1, 2, 3].map(i => (
-                      <SymbolView key={i} name="star.fill" size={12} tintColor="#F4A340" type="monochrome" />
-                    ))}
+            {/* Second card — dimmed */}
+            <View style={[styles.postCard, { flexDirection: 'row', gap: 10, opacity: 0.35 }]}>
+              <MockPoster posterKey="succession" fallbackEmoji="📺" style={[styles.poster, { backgroundColor: '#1e2e1a' }]} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <View style={styles.postMeta}>
+                  <View style={[styles.postAvatar, { backgroundColor: '#5c3317' }]}>
+                    <Text style={styles.postAvatarText}>WP</Text>
                   </View>
-                  <Text style={styles.postNote} numberOfLines={2}>
-                    He is brave, this William Thatcher. But his windmill technique is poor.
-                  </Text>
+                  <Text style={[styles.postHandle, { color: Brand.muted }]}>@winniepooh</Text>
+                  <View style={[styles.postPill, { backgroundColor: '#e8fff0' }]}>
+                    <Text style={[styles.postPillText, { color: '#34C759' }]}>FINISHED</Text>
+                  </View>
+                  <Text style={[styles.postTime, { color: Brand.muted }]}>5h</Text>
+                </View>
+                <Text style={[styles.postTitle, { color: Brand.ink }]}>Succession</Text>
+                <Text style={[styles.postSub, { color: Brand.muted }]}>TV Series · HBO · 2023</Text>
+                <View style={styles.stars}>
+                  {[1, 2, 3, 4, 5].map(i => (
+                    <SymbolView key={i} name="star.fill" size={11} tintColor="#F4A340" type="monochrome" />
+                  ))}
                 </View>
               </View>
             </View>
@@ -419,20 +471,26 @@ export function TourScreen({
                 </View>
               ))}
             </View>
+            <View style={[styles.watchPartyBanner, { backgroundColor: Brand.trust }]}>
+              <Text style={styles.watchPartyEmoji}>🎬</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.watchPartyTitle}>Start a Watch Party</Text>
+                <Text style={styles.watchPartySub}>Stream together in real time</Text>
+              </View>
+              <Text style={styles.watchPartyChevron}>›</Text>
+            </View>
             <View style={[styles.chatSearchRow, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
               <Text style={styles.chatSearchEmoji}>🔍</Text>
               <Text style={[styles.chatSearchText, { color: Brand.muted }]}>Search content chats…</Text>
             </View>
             <MockFilterChips Brand={Brand} />
             {[
-              { emoji: '🎬', bg: '#1a1a2e', title: 'Oppenheimer', time: '2h', sender: 'Sherlock Holmes', msg: 'Deduced the ending in 12 minutes. Remarkable.' },
-              { emoji: '📺', bg: '#1e2e1a', title: 'Succession', time: '5h', sender: 'Winnie the Pooh', msg: 'It is a very long winter in this kingdom.' },
-              { emoji: '🎬', bg: '#2e1a1a', title: 'Nosferatu', time: '1d', sender: 'Dracula', msg: 'They got my cheekbones completely wrong.' },
+              { pk: 'oppenheimer' as const, emoji: '🎬', bg: '#1a1a2e', title: 'Oppenheimer', time: '2h', sender: 'Sherlock Holmes', msg: 'Deduced the ending in 12 minutes. Remarkable.' },
+              { pk: 'succession'  as const, emoji: '📺', bg: '#1e2e1a', title: 'Succession',  time: '5h', sender: 'Winnie the Pooh', msg: 'It is a very long winter in this kingdom.' },
+              { pk: 'nosferatu'   as const, emoji: '🎬', bg: '#2e1a1a', title: 'Nosferatu',   time: '1d', sender: 'Dracula',          msg: 'They got my cheekbones completely wrong.' },
             ].map((chat, i) => (
               <View key={i} style={[styles.chatCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-                <View style={[styles.chatCardIcon, { backgroundColor: chat.bg }]}>
-                  <Text style={{ fontSize: 20 }}>{chat.emoji}</Text>
-                </View>
+                <MockPoster posterKey={chat.pk} fallbackEmoji={chat.emoji} style={[styles.chatCardIcon, { backgroundColor: chat.bg }]} />
                 <View style={styles.chatCardBody}>
                   <View style={styles.chatCardTitleRow}>
                     <Text style={[styles.chatCardTitle, { color: Brand.ink }]} numberOfLines={1}>{chat.title}</Text>
@@ -493,7 +551,14 @@ export function TourScreen({
                     <Text style={styles.friendAvatarText}>{f.initials}</Text>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
-                    <Text style={[styles.friendName, { color: Brand.ink }]}>{f.name}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                      <Text style={[styles.friendName, { color: Brand.ink }]}>{f.name}</Text>
+                      {f.hot && (
+                        <View style={[styles.verifiedBadge, { backgroundColor: Brand.trust }]}>
+                          <Text style={styles.verifiedTick}>✓</Text>
+                        </View>
+                      )}
+                    </View>
                     <Text style={[styles.friendHandle, { color: Brand.muted }]}>@{f.handle}</Text>
                     <View style={styles.friendCompatRow}>
                       <View style={[styles.friendCompatTrack, { backgroundColor: Brand.tlight }]}>
@@ -534,14 +599,12 @@ export function TourScreen({
             </View>
             <View style={{ paddingHorizontal: 16, gap: 10 }}>
               {[
-                { emoji: '🎬', bg: '#1a1a2e', title: 'Oppenheimer', sub: 'Film • 2023', badge: 'Watching', badgeColor: '#E84F4F', badgeBg: '#FFEDED', date: 'Jul 2026' },
-                { emoji: '📺', bg: '#1e2e1a', title: 'Succession', sub: 'TV Series • HBO • 2023', badge: 'Watching', badgeColor: '#E84F4F', badgeBg: '#FFEDED', date: 'Jul 2026' },
-                { emoji: '📖', bg: '#1e2a3f', title: 'Tomorrow, and Tomorrow...', sub: 'Gabrielle Zevin', badge: 'Finished', badgeColor: '#4FE87B', badgeBg: '#EDFFF3', date: 'Jun 2026' },
+                { pk: 'oppenheimer' as const, emoji: '🎬', bg: '#1a1a2e', title: 'Oppenheimer',              sub: 'Film • 2023',           badge: 'Watching', badgeColor: '#E84F4F', badgeBg: '#FFEDED', date: 'Jul 2026' },
+                { pk: 'succession'  as const, emoji: '📺', bg: '#1e2e1a', title: 'Succession',               sub: 'TV Series • HBO • 2023', badge: 'Watching', badgeColor: '#E84F4F', badgeBg: '#FFEDED', date: 'Jul 2026' },
+                { pk: 'tomorrow'    as const, emoji: '📖', bg: '#1e2a3f', title: 'Tomorrow, and Tomorrow...', sub: 'Gabrielle Zevin',        badge: 'Finished', badgeColor: '#4FE87B', badgeBg: '#EDFFF3', date: 'Jun 2026' },
               ].map((item, i) => (
                 <View key={i} style={[styles.libCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-                  <View style={[styles.libPoster, { backgroundColor: item.bg }]}>
-                    <Text style={{ fontSize: 20 }}>{item.emoji}</Text>
-                  </View>
+                  <MockPoster posterKey={item.pk} fallbackEmoji={item.emoji} style={[styles.libPoster, { backgroundColor: item.bg }]} />
                   <View style={styles.libBody}>
                     <Text style={[styles.libTitle, { color: Brand.ink }]} numberOfLines={1}>{item.title}</Text>
                     <Text style={[styles.libSub, { color: Brand.muted }]} numberOfLines={1}>{item.sub}</Text>
@@ -577,14 +640,12 @@ export function TourScreen({
             <MockFilterChips Brand={Brand} />
             <View style={{ paddingHorizontal: 16, gap: 10 }}>
               {[
-                { bg: '#1a1a2e', emoji: '🎬', section: 'FILM', time: '2h ago', headline: "Nolan's next: a Cold War spy thriller set in 1960s Berlin", trail: "The director confirmed the project after months of speculation, with filming set to begin this winter." },
-                { bg: '#1e2e1a', emoji: '📺', section: 'TELEVISION', time: '5h ago', headline: 'The Last of Us season 3 confirmed — begins filming this fall', trail: "HBO has greenlit a third season following the record-breaking success of season two." },
-                { bg: '#1e2a3f', emoji: '📖', section: 'BOOKS', time: '1d ago', headline: "Zadie Smith's new novel is the read of the summer", trail: "An ambitious, tender, and frequently hilarious story about family, identity and loss." },
+                { pk: 'oppenheimer' as const, emoji: '🎬', bg: '#1a1a2e', section: 'FILM',       time: '2h ago', headline: "Nolan's next: a Cold War spy thriller set in 1960s Berlin",    trail: "The director confirmed the project after months of speculation, with filming set to begin this winter." },
+                { pk: 'bear'        as const, emoji: '📺', bg: '#1e2e1a', section: 'TELEVISION', time: '5h ago', headline: 'The Last of Us season 3 confirmed — begins filming this fall', trail: "HBO has greenlit a third season following the record-breaking success of season two." },
+                { pk: 'tomorrow'    as const, emoji: '📖', bg: '#1e2a3f', section: 'BOOKS',      time: '1d ago', headline: "Zadie Smith's new novel is the read of the summer",           trail: "An ambitious, tender, and frequently hilarious story about family, identity and loss." },
               ].map((article, i) => (
                 <View key={i} style={[styles.newsCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-                  <View style={[styles.newsThumb, { backgroundColor: article.bg }]}>
-                    <Text style={{ fontSize: 24 }}>{article.emoji}</Text>
-                  </View>
+                  <MockPoster posterKey={article.pk} fallbackEmoji={article.emoji} style={[styles.newsThumb, { backgroundColor: article.bg }]} />
                   <View style={styles.newsBody}>
                     <View style={styles.newsMetaRow}>
                       <View style={[styles.newsPill, { backgroundColor: Brand.tlight }]}>
@@ -740,29 +801,77 @@ function createStyles(Brand: BrandPalette) {
     postCard: {
       backgroundColor: Brand.card,
       borderWidth: 1, borderColor: Brand.border, borderRadius: 16,
-      padding: 14, marginHorizontal: 16, marginTop: 0,
+      padding: 12, marginHorizontal: 16, marginTop: 0,
     },
-    postHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+    poster: { width: 90, height: 135, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+    posterEmoji: { fontSize: 30 },
+    postMeta: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 5, flexWrap: 'wrap' as const },
     postAvatar: {
-      width: 36, height: 36, borderRadius: 18,
+      width: 22, height: 22, borderRadius: 11,
       backgroundColor: '#1a1a2e',
-      alignItems: 'center', justifyContent: 'center',
+      alignItems: 'center', justifyContent: 'center', flexShrink: 0,
     },
-    postAvatarText: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#fff' },
-    postName: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
-    postHandle: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 1 },
-    actionBtn: {
-      width: 34, height: 34, borderRadius: 17,
-      backgroundColor: Brand.tlight,
-      alignItems: 'center', justifyContent: 'center',
+    postAvatarText: { fontFamily: BrandFonts.syneBold, fontSize: 7, color: '#fff' },
+    postHandle: { fontFamily: BrandFonts.interMedium, fontSize: 11, flexShrink: 1 },
+    postPill: {
+      backgroundColor: '#FFEDED', borderRadius: 6,
+      paddingHorizontal: 5, paddingVertical: 2,
     },
-    actionBtnText: { fontSize: 16, color: Brand.trust },
-    postBody: { flexDirection: 'row', gap: 12 },
-    poster: { width: 52, height: 72, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-    posterEmoji: { fontSize: 22 },
-    postTitle: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.ink, marginBottom: 4 },
+    postPillText: { fontFamily: BrandFonts.syneBold, fontSize: 9, color: '#E84F4F' },
+    postTime: { fontFamily: BrandFonts.interRegular, fontSize: 10, marginLeft: 'auto' as const },
+    postTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14, marginBottom: 2 },
+    postSub: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, marginBottom: 4 },
+    postNote: { fontFamily: BrandFonts.interRegular, fontSize: 11, lineHeight: 15, marginBottom: 5 },
     stars: { flexDirection: 'row', gap: 2, marginBottom: 6 },
-    postNote: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, lineHeight: 17 },
+    emojiRow: { flexDirection: 'row', gap: 5, alignItems: 'center', marginBottom: 7 },
+    emojiPill: {
+      borderWidth: 1, borderRadius: 20,
+      paddingHorizontal: 7, paddingVertical: 3,
+    },
+    emojiPillText: { fontFamily: BrandFonts.syneBold, fontSize: 10 },
+    emojiAddBtn: {
+      width: 22, height: 22, borderRadius: 11,
+      borderWidth: 1, alignItems: 'center', justifyContent: 'center',
+    },
+    emojiAddText: { fontFamily: BrandFonts.syneBold, fontSize: 13, lineHeight: 16 },
+    actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    metooBtn: {
+      flex: 1, borderRadius: 20, paddingVertical: 5,
+      alignItems: 'center' as const,
+    },
+    metooText: { fontFamily: BrandFonts.syneBold, fontSize: 11 },
+    actionBtn: {
+      width: 30, height: 30, borderRadius: 15,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    actionBtnText: { fontSize: 16 },
+
+    // Reactions
+    reactionsRow: { flexDirection: 'row', gap: 5, marginTop: 8, flexWrap: 'wrap' as const },
+    reactionPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 3,
+      borderWidth: 1, borderRadius: 20, paddingVertical: 3, paddingHorizontal: 7,
+    },
+    reactionEmoji: { fontSize: 11 },
+    reactionCount: { fontSize: 10, fontFamily: BrandFonts.syneBold },
+
+    // Watch Party banner
+    watchPartyBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      borderRadius: 14, marginHorizontal: 16, marginBottom: 10,
+      padding: 12,
+    },
+    watchPartyEmoji: { fontSize: 22 },
+    watchPartyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#fff' },
+    watchPartySub: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: 'rgba(255,255,255,0.75)', marginTop: 1 },
+    watchPartyChevron: { color: '#fff', fontSize: 20, opacity: 0.7 },
+
+    // Verified badge
+    verifiedBadge: {
+      width: 14, height: 14, borderRadius: 7,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    verifiedTick: { color: '#fff', fontSize: 8, fontFamily: BrandFonts.syneBold },
 
     // Chats
     chatArchivedBtn: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 6 },

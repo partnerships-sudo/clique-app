@@ -73,8 +73,8 @@ export default function NewsScreen() {
   }
 
   const articles = data ?? [];
-  const trending = articles.slice(0, 3);
-  const topStories = articles.slice(3);
+  const trending = articles.slice(0, 10);
+  const topStories = articles.slice(10);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

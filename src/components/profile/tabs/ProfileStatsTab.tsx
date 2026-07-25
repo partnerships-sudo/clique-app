@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, Text, View } from 'react-native';
+import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { type EntryType } from '@/constants/theme';
 import { useMyTasteTop4 } from '@/features/follows/api';
@@ -320,7 +320,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
       {/* Recently Logged */}
       <View style={styles.statsCard}>
         <Text style={styles.statsCardTitle}>RECENTLY LOGGED</Text>
-        <View style={[styles.chipRow, styles.recentChipRow]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={[styles.chipRow]}>
           {[{ type: 'all' as const, label: 'All' }, ...STAT_CATEGORIES.map((c) => ({ type: c.type, label: c.label }))].map((f) => {
             const active = recentCatFilter === f.type;
             return (
@@ -329,7 +329,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
               </Pressable>
             );
           })}
-        </View>
+        </ScrollView>
         {recentItems.map((item) => (
           <View key={item.id} style={styles.recentRow}>
             {item.poster ? (

@@ -99,7 +99,7 @@ export function FilterChips({
               <View style={[styles.tile, active && styles.tileActive]}>
                 <SymbolView
                   name={filter.symbol as any}
-                  size={28}
+                  size={22}
                   tintColor={active ? '#fff' : Brand.muted}
                   type="monochrome"
                 />
@@ -114,7 +114,7 @@ export function FilterChips({
               <SymbolView name="plus" size={13} tintColor={Brand.muted} type="monochrome" style={{ width: 14, height: 14 }} />
             ) : (
               <View style={styles.tile}>
-                <SymbolView name="plus" size={26} tintColor={Brand.muted} type="monochrome" />
+                <SymbolView name="plus" size={22} tintColor={Brand.muted} type="monochrome" />
               </View>
             )}
             <Text style={compact ? styles.pillLabel : styles.label}>Add back</Text>
@@ -184,7 +184,7 @@ function RestoreSheet({
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     row: { marginBottom: 14 },
-    content: { gap: 10, paddingRight: 16 },
+    content: { gap: 6, paddingRight: 16 },
 
     // Compact pill variant
     compactRow: { marginBottom: 14 },
@@ -213,11 +213,11 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.syneBold,
       color: '#fff',
     },
-    item: { alignItems: 'center', gap: 7 },
+    item: { alignItems: 'center', gap: 6 },
     tile: {
-      width: 61,
-      height: 61,
-      borderRadius: 16,
+      width: 52,
+      height: 52,
+      borderRadius: 14,
       backgroundColor: Brand.card,
       borderWidth: 1.5,
       borderColor: Brand.border,

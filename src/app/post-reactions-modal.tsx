@@ -34,9 +34,9 @@ export default function PostReactionsModal() {
             {isEmoji ? (
               <Text style={styles.emojiHeader}>{emoji}</Text>
             ) : (
-              <SymbolView name="heart.fill" size={18} tintColor="#E84F4F" type="monochrome" />
+              <Text style={{ fontSize: 16 }}>✦</Text>
             )}
-            <Text style={styles.title}>{isEmoji ? 'Reacted' : 'Hearts'}</Text>
+            <Text style={styles.title}>{isEmoji ? 'Reacted' : 'Also watched'}</Text>
           </View>
           {postTitle ? <Text style={styles.sub} numberOfLines={1}>{postTitle}</Text> : null}
         </View>
@@ -80,8 +80,8 @@ export default function PostReactionsModal() {
       ) : heartReactions.length === 0 ? (
         <View style={styles.empty}>
           <SymbolView name="heart" size={40} tintColor={Brand.muted} type="monochrome" style={styles.emptyIcon} />
-          <Text style={styles.emptyTitle}>No hearts yet</Text>
-          <Text style={styles.emptySub}>When your friends react to this post, they'll show up here.</Text>
+          <Text style={styles.emptyTitle}>No one yet</Text>
+          <Text style={styles.emptySub}>When your friends hit "Me too!", they'll show up here.</Text>
         </View>
       ) : (
         <FlatList
@@ -109,12 +109,12 @@ export default function PostReactionsModal() {
                   ) : null}
                 </View>
                 <View style={styles.info}>
-                  <Text style={styles.name}>{item.user_name}</Text>
+                  <Text style={styles.name}>{item.username ? `@${item.username}` : item.user_name}</Text>
                   {isCloseFriend ? (
                     <Text style={styles.closeFriendLabel}>Close friend</Text>
                   ) : null}
                 </View>
-                <SymbolView name="heart.fill" size={20} tintColor="#E84F4F" type="monochrome" />
+                <Text style={{ fontSize: 14, color: Brand.trust, fontFamily: BrandFonts.syneBold }}>✦</Text>
               </Pressable>
             );
           }}

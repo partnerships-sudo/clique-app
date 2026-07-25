@@ -53,7 +53,9 @@ async function pushTo(
   const { data: tokens } = await supabase.from('push_tokens').select('token').eq('user_id', userId);
   if (!tokens || tokens.length === 0) return;
 
-  const messages = tokens.map((t) => ({ to: t.token, title, body, data, sound: 'default' }));
+  // ttl: 300 — expire after 5 minutes so stale notifications don't pile up
+  // during app updates or brief offline windows and re-fire all at once
+  const messages = tokens.map((t) => ({ to: t.token, title, body, data, sound: 'default', ttl: 300 }));
   await fetch('https://exp.host/--/api/v2/push/send', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },

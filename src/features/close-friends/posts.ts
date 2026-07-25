@@ -39,7 +39,6 @@ export function useCloseFriendsPosts() {
           .from('posts')
           .select('*')
           .in('user_id', allIds)
-          .eq('visibility', 'close_friends')
           .gte('created_at', since)
           .order('created_at', { ascending: false })
           .limit(50),

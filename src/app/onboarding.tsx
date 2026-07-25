@@ -159,7 +159,7 @@ export default function OnboardingScreen() {
       [...selectedTypes].map((t) => (t === 'tv' ? 'watch' : t))
     )];
     await Promise.all([
-      updateRatingIcon.mutateAsync(selectedRatingIcon),
+      updateRatingIcon.mutateAsync(selectedRatingIcon).catch(() => {}),
       selectedTypes.size > 0
         ? updateContentTypes.mutateAsync(normalizedTypes)
         : Promise.resolve(),
@@ -253,13 +253,13 @@ export default function OnboardingScreen() {
 
           <Text style={styles.aboutLabel}>Age range</Text>
           <View style={styles.aboutGrid}>
-            {(['Under 18', '18–24', '25–34', '35–44', '45+'] as const).map((range) => {
+            {(['Under 18', '18–24', '25–34', '35–44', '45+', 'Prefer not to say'] as const).map((range) => {
               const active = selectedAgeRange === range;
               return (
                 <Pressable
                   key={range}
                   style={[styles.aboutChip, active && styles.aboutChipActive]}
-                  onPress={() => setSelectedAgeRange(active ? null : range)}>
+                  onPress={() => setSelectedAgeRange(range)}>
                   <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{range}</Text>
                 </Pressable>
               );
@@ -274,17 +274,23 @@ export default function OnboardingScreen() {
                 <Pressable
                   key={g}
                   style={[styles.aboutChip, active && styles.aboutChipActive]}
-                  onPress={() => setSelectedGender(active ? null : g)}>
+                  onPress={() => setSelectedGender(g)}>
                   <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{g}</Text>
                 </Pressable>
               );
             })}
           </View>
 
-          <Pressable style={[styles.primaryBtn, { marginTop: 'auto' }]} onPress={next}>
-            <Text style={styles.primaryBtnText}>
-              {selectedAgeRange || selectedGender ? 'Continue' : 'Skip'}
+          {(!selectedAgeRange || !selectedGender) && (
+            <Text style={styles.aboutRequiredHint}>
+              Please select an age range and gender to continue.
             </Text>
+          )}
+
+          <Pressable
+            style={[styles.primaryBtn, { marginTop: 'auto' }, !(selectedAgeRange && selectedGender) && styles.primaryBtnDisabled]}
+            onPress={selectedAgeRange && selectedGender ? next : undefined}>
+            <Text style={styles.primaryBtnText}>Continue</Text>
           </Pressable>
         </View>
       )}
@@ -579,13 +585,14 @@ function createStyles(Brand: BrandPalette) {
     primaryBtn: {
       backgroundColor: Brand.trust,
       borderRadius: 14,
-      paddingVertical: 15,
+      paddingVertical: 12,
       paddingHorizontal: 32,
       alignItems: 'center',
       marginTop: 8,
       alignSelf: 'stretch',
     },
     primaryBtnMuted: { backgroundColor: Brand.tlight },
+    primaryBtnDisabled: { backgroundColor: Brand.border },
     primaryBtnDone: { backgroundColor: '#34D399' },
     primaryBtnText: {
       fontFamily: BrandFonts.syneBold,
@@ -653,7 +660,7 @@ function createStyles(Brand: BrandPalette) {
       alignItems: 'center',
       paddingVertical: 18,
       paddingHorizontal: 12,
-      borderRadius: 18,
+      borderRadius: 16,
       borderWidth: 1.5,
       borderColor: Brand.border,
       backgroundColor: Brand.card,
@@ -727,10 +734,10 @@ function createStyles(Brand: BrandPalette) {
     },
     sectionLabel: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 11.5,
+      fontSize: 11,
       color: Brand.muted,
       textTransform: 'uppercase',
-      letterSpacing: 0.6,
+      letterSpacing: 0.8,
       marginBottom: 10,
     },
     friendList: { flex: 1, marginBottom: 12 },
@@ -748,7 +755,7 @@ function createStyles(Brand: BrandPalette) {
     followBtn: {
       paddingHorizontal: 14,
       paddingVertical: 7,
-      borderRadius: 10,
+      borderRadius: 50,
       backgroundColor: Brand.trust,
     },
     followBtnDone: { backgroundColor: Brand.tlight },
@@ -770,7 +777,7 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: Brand.card,
       borderWidth: 1,
       borderColor: Brand.border,
-      borderRadius: 18,
+      borderRadius: 16,
       paddingVertical: 18,
       paddingHorizontal: 32,
       gap: 0,
@@ -834,5 +841,12 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.ink,
     },
     aboutChipTextActive: { color: '#fff' },
+    aboutRequiredHint: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12.5,
+      color: Brand.muted,
+      textAlign: 'center',
+      marginTop: 20,
+    },
   });
 }

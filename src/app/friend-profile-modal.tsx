@@ -18,15 +18,14 @@ export default function FriendProfileModal() {
   const params = useLocalSearchParams<{ userId: string }>();
   const { user } = useSession();
 
-  // A shared profile link points here with the owner's own id — redirect
-  // immediately (render nothing) to avoid flashing the friend UI for self.
-  if (user && params.userId && user.id === params.userId) {
-    router.replace('/profile');
-    return null;
-  }
+  // A shared profile link points here with the owner's own id — redirect to own profile.
+  const isSelf = !!(user && params.userId && user.id === params.userId);
+  useEffect(() => {
+    if (isSelf) router.replace('/profile');
+  }, [isSelf]);
 
   const { data: profile, isLoading, refetch: refetchProfile } = useProfileById(params.userId);
-  const { logged, isLoading: libraryLoading, refetch: refetchLibrary } = useLibraryItemsByUser(params.userId);
+  const { logged, watchlist: friendWatchlist, isLoading: libraryLoading, refetch: refetchLibrary } = useLibraryItemsByUser(params.userId);
   const { data: followersCount, refetch: refetchFollowersCount } = useFollowersCount(params.userId);
   const { data: followingCount, refetch: refetchFollowingCount } = useFollowingCount(params.userId);
   const { badges } = useBadgesForUser(params.userId);
@@ -98,7 +97,7 @@ export default function FriendProfileModal() {
         ) : (
           <ProfileCard
             profile={profile}
-            library={logged}
+            library={[...logged, ...friendWatchlist]}
             followersCount={followersCount ?? 0}
             followingCount={followingCount ?? 0}
             onLoggedPress={() =>
@@ -146,7 +145,7 @@ function createStyles(Brand: BrandPalette) {
   safeArea: { flex: 1, backgroundColor: Brand.paper },
   scroll: { flex: 1 },
   content: { paddingBottom: Spacing.three },
-  backRow: { marginBottom: Spacing.three, paddingHorizontal: Spacing.three },
+  backRow: { marginBottom: 12, paddingHorizontal: 12 },
   backBtn: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
   });
 }

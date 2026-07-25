@@ -1,13 +1,15 @@
 import 'react-native-url-polyfill/auto';
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import { focusManager, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
+import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { AppState, type AppStateStatus, Platform } from 'react-native';
+import { Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Do NOT call SplashScreen.preventAutoHideAsync() here.
 // Expo Router calls _internal_preventAutoHideAsync on startup and
@@ -101,21 +103,23 @@ function RootLayoutInner() {
     return () => subscription.unsubscribe();
   }, []);
 
-  useEffect(() => {
-    function onAppStateChange(status: AppStateStatus) {
-      if (Platform.OS !== 'web') {
-        focusManager.setFocused(status === 'active');
-      }
-    }
-    const subscription = AppState.addEventListener('change', onAppStateChange);
-    return () => subscription.remove();
-  }, []);
 
   // Defer notification navigation until the router is ready (avoids cold-start crash)
   const pendingNotification = useRef<Parameters<Parameters<typeof Notifications.addNotificationResponseReceivedListener>[0]>[0] | null>(null);
   const routerReady = useRef(false);
 
   async function handleNotificationResponse(response: Parameters<Parameters<typeof Notifications.addNotificationResponseReceivedListener>[0]>[0]) {
+    // Deduplicate: skip notifications we've already navigated to (prevents
+    // re-firing on cold start after an app update)
+    const id = response.notification.request.identifier;
+    try {
+      const raw = await AsyncStorage.getItem('handled_notif_ids');
+      const handled: string[] = raw ? JSON.parse(raw) : [];
+      if (handled.includes(id)) return;
+      const updated = [...handled, id].slice(-100);
+      await AsyncStorage.setItem('handled_notif_ids', JSON.stringify(updated));
+    } catch { /* storage failure — still process the notification */ }
+
     const data = response.notification.request.content.data;
     if (data?.type === 'badge') {
       router.push('/achievements-modal');
@@ -164,6 +168,27 @@ function RootLayoutInner() {
       }
       handleNotificationResponse(response);
     });
+    return () => sub.remove();
+  }, []);
+
+  function handleDeepLink(url: string) {
+    // Matches both:
+    //   thecliqueapp://premiere/{id}
+    //   https://vaultedmediagroup.com/premiere/{id}
+    const match = url.match(/\/premiere\/([a-zA-Z0-9_-]+)/);
+    if (match) {
+      const premiereId = match[1];
+      router.push({ pathname: '/premiere-waiting-room', params: { premiereId } });
+    }
+  }
+
+  useEffect(() => {
+    // Cold start: app opened via a link
+    Linking.getInitialURL().then((url) => {
+      if (url) handleDeepLink(url);
+    });
+    // Foreground: link opened while app is running
+    const sub = Linking.addEventListener('url', ({ url }) => handleDeepLink(url));
     return () => sub.remove();
   }, []);
 

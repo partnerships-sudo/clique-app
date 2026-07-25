@@ -7,7 +7,7 @@ import { Avatar } from '@/components/avatar';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
 import { SwipeableRow } from '@/components/swipeable-row';
-import { BrandFonts, type BrandPalette } from '@/constants/theme';
+import { AvatarSizes, BrandFonts, CloseFriendsColors, type BrandPalette } from '@/constants/theme';
 import type { Post } from '@/features/feed/api';
 import { EMOJI_OPTIONS, useToggleEmojiReaction, type EmojiReactionSummary } from '@/features/feed/emoji-reactions';
 import type { Reaction } from '@/features/feed/reactions';
@@ -129,7 +129,7 @@ export function PostCard({
               accessibilityLabel={`View @${post.user_name}'s profile`}
               accessibilityRole="button"
               onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } })}>
-              <Avatar name={post.user_name} size={22} avatarUrl={post.user_avatar_url} />
+              <Avatar name={post.user_name} size={AvatarSizes.md} avatarUrl={post.user_avatar_url} />
               <Text style={styles.userName} numberOfLines={1}>@{post.user_name}</Text>
               {post.user_verified_tier ? <VerifiedBadge tier={post.user_verified_tier} size={12} /> : null}
             </Pressable>
@@ -200,24 +200,30 @@ export function PostCard({
 
           {/* Me too + share + comment row */}
           <View style={[styles.actionsRow, isSquareType && styles.actionsRowCompact]}>
-            {!isMine ? (
-              <Pressable
-                onPress={onToggleReaction}
-                onLongPress={() => reactions.length > 0 && router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}
-                accessibilityLabel={meReacted ? `Remove Me too reaction, ${reactions.length} reactions` : `Me too — ${reactions.length} reactions`}
-                accessibilityRole="button"
-                style={[styles.reactBtn, meReacted && styles.reactBtnActive]}>
-                <Text style={[styles.reactText, meReacted && styles.reactTextActive]}>
-                  ✦ Me too!{reactions.length ? ` ${reactions.length}` : ''}
-                </Text>
-              </Pressable>
-            ) : (
-              <Pressable
-                onPress={reactions.length > 0 ? () => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } }) : undefined}
-                style={styles.reactBtn}>
-                <Text style={styles.reactText}>✦ {reactions.length > 0 ? reactions.length : 'Me too!'}</Text>
-              </Pressable>
-            )}
+            <View style={styles.reactCol}>
+              {!isMine ? (
+                <Pressable
+                  onPress={onToggleReaction}
+                  accessibilityLabel={meReacted ? `Remove Me too reaction, ${reactions.length} reactions` : `Me too — ${reactions.length} reactions`}
+                  accessibilityRole="button"
+                  style={[styles.reactBtn, meReacted && styles.reactBtnActive]}>
+                  <Text style={[styles.reactText, meReacted && styles.reactTextActive]}>
+                    ✦ Me too!
+                  </Text>
+                </Pressable>
+              ) : null}
+              {reactions.length > 0 && (
+                <Pressable
+                  style={styles.reactorRow}
+                  onPress={() => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}>
+                  {reactions.slice(0, 4).map((r, i) => (
+                    <View key={r.user_id} style={[styles.reactorAvatar, i > 0 && { marginLeft: -6 }]}>
+                      <Avatar name={r.user_name} avatarUrl={r.avatar_url} size={18} />
+                    </View>
+                  ))}
+                </Pressable>
+              )}
+            </View>
             <View style={styles.shareChatRow}>
               <Pressable
                 onPress={() =>
@@ -302,7 +308,7 @@ function createStyles(Brand: BrandPalette) {
       gap: 3,
     },
     ratingBadgeStar: { color: '#FFD700', fontSize: 10 },
-    ratingBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+    ratingBadgeText: { color: '#fff', fontSize: 10, fontFamily: BrandFonts.syneBold },
 
     // Body
     body: { flex: 1, minWidth: 0, padding: 12, paddingTop: 8, paddingBottom: 10 },
@@ -331,12 +337,12 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 20,
       paddingVertical: 2,
       paddingHorizontal: 7,
-      backgroundColor: '#E6F9EA',
+      backgroundColor: CloseFriendsColors.bg,
     },
     closeFriendsPillText: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 9.5,
-      color: '#248A3D',
+      color: CloseFriendsColors.text,
     },
     pillText: {
       fontFamily: BrandFonts.syneBold,
@@ -381,7 +387,7 @@ function createStyles(Brand: BrandPalette) {
       lineHeight: 17,
     },
     stars: {
-      color: '#F4A340',
+      color: Brand.warm,
       fontSize: 13,
       marginTop: 4,
     },
@@ -465,6 +471,22 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.trust,
     },
     reactTextActive: { color: '#fff' },
+    reactCol: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flexShrink: 1,
+    },
+    reactorRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    reactorAvatar: {
+      borderRadius: 9,
+      overflow: 'hidden',
+      borderWidth: 1.5,
+      borderColor: Brand.card,
+    },
     shareChatRow: {
       flexDirection: 'row',
       alignItems: 'center',

@@ -732,34 +732,23 @@ async function fetchMusicDetails(title: string, externalId?: string): Promise<Co
       MUSIC_AWARD_PATTERNS,
     );
 
-    // Artist's top tracks across all albums via search
+    // Artist's top tracks via iTunes — no auth required, returns popular tracks first
     let topTracks: ContentDetails['cast'] = [];
     if (artistName) {
       try {
-        const tracksRes = await fetch(
-          `https://api.spotify.com/v1/search?q=${encodeURIComponent(artistName)}&type=track&limit=5&market=US`,
-          { headers: { Authorization: `Bearer ${token}` } },
+        const itunesRes = await fetch(
+          `https://itunes.apple.com/search?term=${encodeURIComponent(artistName)}&entity=song&attribute=artistTerm&limit=10&sort=popular`
         );
-        if (tracksRes.ok) {
-          const tracksData = await tracksRes.json();
-          const spotifyTracks = (tracksData.tracks?.items ?? []) as any[];
-          topTracks = await Promise.all(spotifyTracks.map(async (t: any) => {
-            let previewUrl: string | null = null;
-            try {
-              const itunesRes = await fetch(
-                `https://itunes.apple.com/search?term=${encodeURIComponent(`${t.name} ${artistName}`)}&entity=song&limit=1`
-              );
-              if (itunesRes.ok) {
-                const itunesData = await itunesRes.json();
-                previewUrl = itunesData.results?.[0]?.previewUrl ?? null;
-              }
-            } catch { /* ignore */ }
-            return {
-              name: t.name,
-              character: t.album?.name ?? '',
-              profilePath: t.album?.images?.[0]?.url ?? null,
-              previewUrl,
-            };
+        if (itunesRes.ok) {
+          const itunesData = await itunesRes.json();
+          const results = ((itunesData.results ?? []) as any[])
+            .filter((r: any) => r.artistName?.toLowerCase() === artistName.toLowerCase())
+            .slice(0, 5);
+          topTracks = results.map((r: any) => ({
+            name: r.trackName ?? '',
+            character: r.collectionName ?? '',
+            profilePath: (r.artworkUrl100 ?? r.artworkUrl60 ?? '').replace('100x100', '300x300') || null,
+            previewUrl: r.previewUrl ?? null,
           }));
         }
       } catch { /* ignore */ }

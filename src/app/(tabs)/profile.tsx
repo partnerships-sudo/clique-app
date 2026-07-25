@@ -88,7 +88,7 @@ function createStyles(Brand: BrandPalette) {
     safeArea: { flex: 1, backgroundColor: Brand.paper },
 scroll: { flex: 1 },
     content: { paddingBottom: Spacing.three },
-    editWrap: { paddingHorizontal: 16 },
+    editWrap: { paddingHorizontal: 12 },
     editBack: { paddingVertical: 12 },
     editBackText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.trust },
   });

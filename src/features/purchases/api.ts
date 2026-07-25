@@ -1,5 +1,10 @@
 import Purchases, { LOG_LEVEL, type CustomerInfo } from 'react-native-purchases';
-import { Platform } from 'react-native';
+import { NativeModules, Platform } from 'react-native';
+
+// True only when the RevenueCat native module is actually registered
+function isNativeAvailable() {
+  return !!NativeModules.RNPurchases;
+}
 
 const RC_API_KEY = process.env.EXPO_PUBLIC_RC_API_KEY!;
 export const VERIFIED_ENTITLEMENT = 'Verified';
@@ -8,6 +13,7 @@ let configured = false;
 
 export function configureRevenueCat(userId?: string) {
   try {
+    if (!isNativeAvailable()) return;
     if (!configured) {
       Purchases.setLogLevel(LOG_LEVEL.ERROR);
       Purchases.configure({ apiKey: RC_API_KEY, appUserID: userId });

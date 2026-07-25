@@ -18,7 +18,7 @@ import { SectionHeader } from '@/components/feed/section-header';
 import { SectionLabel } from '@/components/feed/section-label';
 import { TopPicksRow } from '@/components/feed/top-picks-row';
 import { TrendingList } from '@/components/feed/trending-list';
-import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
+import { BrandFonts, CloseFriendsColors, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import {
   useFeedPosts,
   useCircleLogActivity,
@@ -77,6 +77,7 @@ export default function FeedScreen() {
   const [feedView, setFeedView] = useState<FeedView>('feed');
   const [filter, setFilter] = useState<FeedFilterValue>('all');
   const [showMenu, setShowMenu] = useState(false);
+  const [adDismissed, setAdDismissed] = useState(false);
   const { hidden: hiddenCategories, hideCategory, showCategory } = useHiddenCategories(profile?.content_types);
   const { posts: rawPosts, allPosts, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeedPosts(filter);
   const { data: circleActivity = [] } = useCircleLogActivity();
@@ -410,7 +411,12 @@ export default function FeedScreen() {
         onHide={hideCategory}
         onShow={showCategory}
       />
-      {feedView !== 'foryou' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
+      {feedView !== 'foryou' && feedView !== 'feed' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
+      {feedView === 'feed' && activeAd && !adDismissed ? (
+        <View style={{ marginBottom: 6 }}>
+          <SponsoredCard ad={activeAd} onDismiss={() => setAdDismissed(true)} />
+        </View>
+      ) : null}
     </View>
   );
 
@@ -560,14 +566,8 @@ export default function FeedScreen() {
           renderItem={({ item, index }) => {
             const reactions = reactionsByPost.get(item.id) ?? [];
             const meReacted = reactions.some((r) => r.user_id === user?.id);
-            const showAd = activeAd && index === 7;
             return (
               <>
-                {showAd ? (
-                  <View style={{ marginBottom: 6 }}>
-                    <SponsoredCard ad={activeAd} />
-                  </View>
-                ) : null}
                 <PostCard
                   post={item}
                   isMine={item.user_id === user?.id}
@@ -651,8 +651,8 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: '#E6F9EA',
-      borderRadius: 12,
+      backgroundColor: CloseFriendsColors.bg,
+      borderRadius: 14,
       marginHorizontal: Spacing.three,
       marginBottom: 6,
       paddingVertical: 9,
@@ -661,13 +661,13 @@ function createStyles(Brand: BrandPalette) {
     cfBannerText: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 13,
-      color: '#248A3D',
+      color: CloseFriendsColors.text,
       flex: 1,
     },
     cfBannerChevron: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 18,
-      color: '#248A3D',
+      color: CloseFriendsColors.text,
     },
     content: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six },
     forYouSection: { marginBottom: Spacing.five },
@@ -690,7 +690,7 @@ function createStyles(Brand: BrandPalette) {
     },
     forYouEmptyBtn: {
       backgroundColor: Brand.trust,
-      borderRadius: 12,
+      borderRadius: 14,
       paddingVertical: 12,
       paddingHorizontal: 24,
     },
@@ -752,8 +752,8 @@ function createStyles(Brand: BrandPalette) {
     emptyDiscoverBtn: {
       marginTop: 18,
       backgroundColor: Brand.trust,
-      borderRadius: 12,
-      paddingVertical: 11,
+      borderRadius: 14,
+      paddingVertical: 12,
       paddingHorizontal: 22,
     },
     emptyDiscoverBtnText: {

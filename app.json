@@ -11,6 +11,7 @@
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.lanapolitano.thecliqueapp",
       "buildNumber": "10",
+      "associatedDomains": ["applinks:vaultedmediagroup.com"],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [

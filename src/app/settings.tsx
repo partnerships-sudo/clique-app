@@ -250,7 +250,7 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
     scroll: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.six },
-    backRow: { paddingTop: Spacing.three, marginBottom: Spacing.two },
+    backRow: { paddingTop: 12, marginBottom: Spacing.two },
     backBtn: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
     title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink, marginBottom: Spacing.four },
     sectionLabel: {

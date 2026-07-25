@@ -63,6 +63,7 @@ export const BrandLight = {
   trust: '#5B4FE8',
   tlight: '#EAE8FF',
   warm: '#F4A340',
+  danger: '#E84F4F',
   muted: '#9E9E9E',
   border: '#E2E0DA',
   card: '#FFFFFF',
@@ -74,6 +75,7 @@ export const BrandDark = {
   trust: '#8C82FF',
   tlight: '#2A2750',
   warm: '#FFB35C',
+  danger: '#FF6363',
   muted: '#9A98A0',
   border: '#2C2B30',
   card: '#1C1C1F',
@@ -82,19 +84,19 @@ export const BrandDark = {
 export type BrandPalette = Record<keyof typeof BrandLight, string>;
 
 export const TypeColorsLight = {
-  watch: { color: '#E84F4F', bg: '#FFEDED', icon: '📺', label: 'Watching' },
+  watch: { color: '#E84F4F', bg: '#FFEDED', icon: '📺', label: 'Watched' },
   read: { color: '#4F9CE8', bg: '#EDF4FF', icon: '📖', label: 'Reading' },
   play: { color: '#4FE87B', bg: '#EDFFF3', icon: '🎮', label: 'Playing' },
-  listen: { color: '#E8A84F', bg: '#FFF6ED', icon: '🎧', label: 'Listening' },
-  podcast: { color: '#A855F7', bg: '#F5EEFF', icon: '🎙', label: 'Podcast' },
+  listen: { color: '#E8A84F', bg: '#FFF6ED', icon: '🎧', label: 'Listened to' },
+  podcast: { color: '#A855F7', bg: '#F5EEFF', icon: '🎙', label: 'Listened to' },
 } as const;
 
 export const TypeColorsDark = {
-  watch: { color: '#FF6B6B', bg: '#3A2020', icon: '📺', label: 'Watching' },
+  watch: { color: '#FF6B6B', bg: '#3A2020', icon: '📺', label: 'Watched' },
   read: { color: '#6CB2FF', bg: '#1E2C3D', icon: '📖', label: 'Reading' },
   play: { color: '#5FFF96', bg: '#1A3324', icon: '🎮', label: 'Playing' },
-  listen: { color: '#FFC069', bg: '#3A2A18', icon: '🎧', label: 'Listening' },
-  podcast: { color: '#C084FC', bg: '#2E2140', icon: '🎙', label: 'Podcast' },
+  listen: { color: '#FFC069', bg: '#3A2A18', icon: '🎧', label: 'Listened to' },
+  podcast: { color: '#C084FC', bg: '#2E2140', icon: '🎙', label: 'Listened to' },
 } as const;
 
 export type TypeColorPalette = Record<
@@ -127,3 +129,14 @@ export const Spacing = {
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
 export const MaxContentWidth = 800;
+
+export const AvatarSizes = {
+  sm: 20,  // overlays on images (rec sender, watching row stacks)
+  md: 28,  // feed card author attribution
+  lg: 60,  // profile page hero
+} as const;
+
+export const CloseFriendsColors = {
+  bg: '#E6F9EA',
+  text: '#248A3D',
+} as const;

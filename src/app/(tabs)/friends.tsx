@@ -61,7 +61,7 @@ export default function FriendsScreen() {
   const listRef = useRef<FlatList>(null);
   const searchRef = useRef<UserSearchHandle>(null);
 
-  const list = tab === 'following' ? following : followers;
+  const rawList = tab === 'following' ? following : followers;
   const isLoading = tab === 'following' ? followingLoading : followersLoading;
   const isFetching = tab === 'following' ? followingFetching : followersFetching;
   const refetch = tab === 'following' ? refetchFollowing : refetchFollowers;
@@ -76,6 +76,11 @@ export default function FriendsScreen() {
     }
     return map;
   }, [compatItemsMap, user?.id]);
+
+  const list = useMemo(() => {
+    if (tab !== 'following' || !rawList) return rawList;
+    return [...rawList].sort((a, b) => (compatScores.get(b.id) ?? 0) - (compatScores.get(a.id) ?? 0));
+  }, [rawList, compatScores, tab]);
 
   const activePostByUser = useMemo(() => {
     const map = new Map<string, (typeof allPosts)[number]>();
@@ -211,11 +216,22 @@ export default function FriendsScreen() {
         }}
         ListEmptyComponent={
           !isLoading ? (
-            <Text style={styles.empty}>
-              {tab === 'following'
-                ? "You're not following anyone yet — search above to find people on Clique."
-                : 'No followers yet.'}
-            </Text>
+            tab === 'following' ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyEmoji}>👥</Text>
+                <Text style={styles.emptyTitle}>Toto, I've a feeling we need more friends.</Text>
+                <Text style={styles.emptyBody}>Search above to find people you know on Clique.</Text>
+                <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')}>
+                  <Text style={styles.emptyBtnText}>Find people →</Text>
+                </Pressable>
+              </View>
+            ) : (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyEmoji}>🌟</Text>
+                <Text style={styles.emptyTitle}>No followers yet.</Text>
+                <Text style={styles.emptyBody}>Fame is fleeting, but great taste is forever. Keep logging.</Text>
+              </View>
+            )
           ) : null
         }
       />
@@ -246,5 +262,11 @@ function createStyles(Brand: BrandPalette) {
   seeAll: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.trust },
   suggestRow: { paddingBottom: 4 },
   empty: { textAlign: 'center', paddingVertical: 40, paddingHorizontal: 20, color: Brand.muted, fontFamily: BrandFonts.interRegular, fontSize: 13.6 },
+  emptyWrap: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
+  emptyEmoji: { fontSize: 40, marginBottom: 12 },
+  emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, marginBottom: 8, textAlign: 'center' },
+  emptyBody: { fontFamily: BrandFonts.interRegular, fontSize: 13.6, color: Brand.muted, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  emptyBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 22 },
+  emptyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
   });
 }

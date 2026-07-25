@@ -117,6 +117,16 @@ export function useAddLibraryItem() {
     mutationFn: async (input: AddLibraryItemInput) => {
       const status: LibraryStatus =
         input.intent === 'watchlist' ? 'watchlist' : STATUS_BY_TYPE[input.type];
+      // If logging (not adding to watchlist), remove any existing watchlist entry for this title
+      // so it doesn't appear as both watchlisted and logged
+      if (input.intent !== 'watchlist') {
+        await supabase
+          .from('library')
+          .delete()
+          .eq('user_id', user!.id)
+          .eq('title', input.title)
+          .eq('status', 'watchlist');
+      }
       const { data, error } = await supabase
         .from('library')
         .insert({

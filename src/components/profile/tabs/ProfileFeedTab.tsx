@@ -1,6 +1,6 @@
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { Alert, Pressable, Text, View, Vibration } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View, Vibration } from 'react-native';
 
 import { LibCard } from '@/components/library/lib-card';
 import { type EntryType } from '@/constants/theme';
@@ -29,20 +29,26 @@ export function ProfileFeedTab({ logged }: Props) {
 
   return (
     <View style={styles.tabContent}>
-      <View style={[styles.chipScroll, styles.chipRow, styles.chipRowCentered]}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.chipScroll}
+        contentContainerStyle={[styles.chipRow, { paddingRight: 16, flexGrow: 1, justifyContent: 'center' }]}>
         {CAT_FILTERS.map((f) => {
           const isActive = catFilter === f.type;
           return (
             <Pressable
               key={f.type}
-              style={[styles.chip, isActive && { backgroundColor: f.color }]}
+              style={styles.chipItem}
               onPress={() => setCatFilter(f.type)}>
-              <SymbolView name={f.sf as any} size={22} tintColor={isActive ? '#fff' : Brand.muted} style={styles.chipIcon} />
-              <Text style={[styles.chipText, isActive && styles.chipTextActive]}>{f.label}</Text>
+              <View style={[styles.chip, isActive && { backgroundColor: f.color, borderColor: f.color, shadowOpacity: 0.22, shadowRadius: 10 }]}>
+                <SymbolView name={f.sf as any} size={22} tintColor={isActive ? '#fff' : Brand.muted} style={styles.chipIcon} />
+              </View>
+              <Text style={[styles.chipText, isActive && styles.chipTextActive, isActive && { color: f.color }]}>{f.label}</Text>
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
       <View style={styles.feedSortRow}>
         <Text style={styles.feedSortLabel}>Sort by</Text>
         {([{ value: 'recent', label: 'Recent' }, { value: 'alpha', label: 'A—Z' }] as const).map((opt) => {

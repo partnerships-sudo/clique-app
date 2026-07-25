@@ -13,6 +13,7 @@ import { useContentDetails, type ContentDetails } from '@/features/content/api';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
 import { ShareSheet } from '@/components/feed/share-sheet';
 import { useBecauseYouRecs } from '@/features/feed/for-you';
+import { useStudioFilms } from '@/features/ads/api';
 import { useTVEpisodes } from '@/features/search/api';
 import { getWhereToFindConfig } from '@/features/where-to-find/links';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
@@ -216,6 +217,8 @@ export default function ContentDetailModal() {
     sub?: string;
     externalId?: string;
     mediaType?: string;
+    adBrandName?: string;
+    adCompanyId?: string;
   }>();
 
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
@@ -249,6 +252,8 @@ export default function ContentDetailModal() {
     externalId: params.externalId ?? null,
     mediaType: resolvedMediaType ?? null,
   });
+  const { data: studioFilms = [] } = useStudioFilms(params.adBrandName ?? null, params.adCompanyId ?? null);
+  const recEntries = params.adBrandName ? studioFilms : similarTitles;
   const recVerb = resolvedType === 'read' ? 'read'
     : resolvedType === 'play' ? 'played'
     : resolvedType === 'listen' || resolvedType === 'podcast' ? 'listened to'
@@ -624,9 +629,14 @@ export default function ContentDetailModal() {
           </View>
 
           {/* Similar titles */}
-          {similarTitles.length > 0 ? (
+          {recEntries.length > 0 ? (
             <View style={styles.section}>
-              <BecauseYouRow seedTitle={params.title} verb={recVerb} entries={similarTitles} />
+              <BecauseYouRow
+                seedTitle={params.title}
+                verb={recVerb}
+                entries={recEntries}
+                customLabel={params.adBrandName ? `More from ${params.adBrandName}` : undefined}
+              />
             </View>
           ) : null}
 
@@ -807,10 +817,10 @@ function createStyles(Brand: BrandPalette) {
   },
   sectionLabel: {
     fontFamily: BrandFonts.syneBold,
-    fontSize: 10,
+    fontSize: 11,
     color: Brand.muted,
     textTransform: 'uppercase',
-    letterSpacing: 0.9,
+    letterSpacing: 0.8,
     marginBottom: 8,
   },
 

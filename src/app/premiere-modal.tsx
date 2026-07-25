@@ -477,7 +477,7 @@ export default function PremiereModal() {
                         style={styles.sharePickerRow}
                         onPress={async () => {
                           if (sent) return;
-                          const inviteText = `Join my ${showTitle} watch party on Clique! 🎬\n\nthecliqueapp://premiere/${createdPremiereId}`;
+                          const inviteText = `Join my ${showTitle} watch party on Clique! 🎬\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`;
                           await sendDm.mutateAsync({ friendId: thread.friendId, content: inviteText });
                           setSentToIds((prev) => new Set([...prev, thread.friendId]));
                         }}>
@@ -505,13 +505,13 @@ export default function PremiereModal() {
                   </Pressable>
                   {[
                     { label: 'Messages', icon: ic.messages,
-                      onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}` }); } },
+                      onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}` }); } },
                     { label: 'WhatsApp', icon: ic.whatsapp,
                       onPress: async () => {
                         if (capturedUri) {
-                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}` });
+                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}` });
                         } else {
-                          const msg = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
+                          const msg = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`);
                           const ok = await Linking.canOpenURL('whatsapp://send');
                           if (ok) Linking.openURL(`whatsapp://send?text=${msg}`); else Alert.alert('WhatsApp not installed');
                         }
@@ -519,10 +519,10 @@ export default function PremiereModal() {
                     { label: 'Mail', icon: ic.mail,
                       onPress: async () => {
                         if (capturedUri) {
-                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`, title: `Join my ${showTitle} watch party on Clique` });
+                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`, title: `Join my ${showTitle} watch party on Clique` });
                         } else {
                           const subject = encodeURIComponent(`Join my ${showTitle} watch party on Clique`);
-                          const body = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nthecliqueapp://premiere/${createdPremiereId}`);
+                          const body = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`);
                           Linking.openURL(`mailto:?subject=${subject}&body=${body}`);
                         }
                       } },

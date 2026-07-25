@@ -69,7 +69,11 @@
       "Bash(git -C /Users/laura/Desktop/Repository status)",
       "Bash(git -C /Users/laura/Desktop/Repository diff HEAD)",
       "Bash(git -C /Users/laura/Desktop/Repository log --oneline -5)",
-      "Bash(git -C /Users/laura/Desktop/Repository commit -m ' *)"
+      "Bash(git -C /Users/laura/Desktop/Repository commit -m ' *)",
+      "Bash(git commit *)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Bash(grep -oP \"#[0-9A-Fa-f]{3,6}\")"
     ]
   }
 }

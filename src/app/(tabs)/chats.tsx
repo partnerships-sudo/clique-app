@@ -8,9 +8,11 @@ import { SymbolView } from 'expo-symbols';
 import { ChatListItem } from '@/components/chat/chat-list-item';
 import { DmListItem } from '@/components/chat/dm-list-item';
 import { GroupListItem } from '@/components/chat/group-list-item';
+import { SwipeableChatRow } from '@/components/chat/swipeable-chat-row';
 import { FilterChips } from '@/components/feed/filter-chips';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useChatThreads, type ChatThread } from '@/features/chats/api';
+import { useArchivedChats } from '@/features/chats/archive';
 import { useDmThreads, type DmThread } from '@/features/dms/api';
 import { type FeedFilterValue } from '@/features/feed/api';
 import { useGroupThreads, type GroupThread } from '@/features/groups/api';
@@ -31,8 +33,10 @@ export default function ChatsScreen() {
   const { threads, isLoading, isFetching, refetch, markRead } = useChatThreads();
   const { threads: dmThreads, requestThreads, markRead: markDmRead } = useDmThreads();
   const { threads: groupThreads, markRead: markGroupRead } = useGroupThreads();
+  const { archived, archive, softDelete } = useArchivedChats();
   const trimmedQuery = query.trim().toLowerCase();
   const filteredThreads = threads
+    .filter((t) => !archived.has(`content:${t.title}`))
     .filter((t) => filter === 'all' || t.type === filter)
     .filter(
       (t) =>
@@ -49,10 +53,10 @@ export default function ChatsScreen() {
     dmThreads.reduce((sum, t) => sum + t.unreadCount, 0) +
     groupThreads.reduce((sum, t) => sum + t.unreadCount, 0);
 
-  // Merge DMs + groups sorted by most recent activity
+  // Merge DMs + groups sorted by most recent activity, excluding archived
   const privateItems: PrivateItem[] = [
-    ...(dmThreads ?? []).map((d): PrivateItem => ({ kind: 'dm', data: d })),
-    ...(groupThreads ?? []).map((g): PrivateItem => ({ kind: 'group', data: g })),
+    ...(dmThreads ?? []).filter((t) => !archived.has(`dm:${t.friendId}`)).map((d): PrivateItem => ({ kind: 'dm', data: d })),
+    ...(groupThreads ?? []).filter((t) => !archived.has(`group:${t.id}`)).map((g): PrivateItem => ({ kind: 'group', data: g })),
   ]
     .filter((item) => {
       if (!trimmedQuery) return true;
@@ -187,9 +191,17 @@ export default function ChatsScreen() {
           ListHeaderComponent={headerContent}
           renderItem={({ item }) =>
             item.kind === 'dm' ? (
-              <DmListItem thread={item.data} onPress={() => openDm(item.data)} />
+              <SwipeableChatRow
+                onArchive={() => archive(`dm:${item.data.friendId}`)}
+                onDelete={() => softDelete(`dm:${item.data.friendId}`)}>
+                <DmListItem thread={item.data} onPress={() => openDm(item.data)} />
+              </SwipeableChatRow>
             ) : (
-              <GroupListItem thread={item.data} onPress={() => openGroup(item.data)} />
+              <SwipeableChatRow
+                onArchive={() => archive(`group:${item.data.id}`)}
+                onDelete={() => softDelete(`group:${item.data.id}`)}>
+                <GroupListItem thread={item.data} onPress={() => openGroup(item.data)} />
+              </SwipeableChatRow>
             )
           }
           ListEmptyComponent={
@@ -234,7 +246,13 @@ export default function ChatsScreen() {
             <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={Brand.trust} />
           }
           ListHeaderComponent={headerContent}
-          renderItem={({ item }) => <ChatListItem thread={item} onPress={() => openThread(item)} />}
+          renderItem={({ item }) => (
+            <SwipeableChatRow
+              onArchive={() => archive(`content:${item.title}`)}
+              onDelete={() => softDelete(`content:${item.title}`)}>
+              <ChatListItem thread={item} onPress={() => openThread(item)} />
+            </SwipeableChatRow>
+          )}
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.empty}>

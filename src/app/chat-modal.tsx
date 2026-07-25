@@ -2,10 +2,12 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   FlatList,
   Image,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -19,6 +21,8 @@ import { Avatar } from '@/components/avatar';
 import { MessageBubble } from '@/components/chat/message-bubble';
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useSendMessage, useThreadMessages } from '@/features/chats/api';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { useChatReadState, useDmReadState, useGroupReadState } from '@/features/chats/read-state';
 import { isAhead, useEpisodeCheckpoint, type EpisodeCheckpoint } from '@/features/chats/spoiler-guard';
 import { useContentDetails } from '@/features/content/api';
@@ -118,7 +122,25 @@ export default function ChatModal() {
   const [gifs, setGifs] = useState<GiphyResult[]>([]);
   const [gifsLoading, setGifsLoading] = useState(false);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [membersVisible, setMembersVisible] = useState(false);
   const listRef = useRef<FlatList>(null);
+  const queryClient = useQueryClient();
+  const deleteMyMessages = useMutation({
+    mutationFn: async () => {
+      if (!user || !params.title) return;
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('title', params.title)
+        .eq('user_id', user.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['messages', params.title] });
+      queryClient.invalidateQueries({ queryKey: ['chat-threads'] });
+      router.back();
+    },
+  });
   const isContentChat = !isDm && !isGroup;
   const isBookChat = isContentChat && params.type === 'read';
   // Movies don't have a spoiler-relevant "progress" the way TV shows do, so
@@ -377,6 +399,22 @@ export default function ChatModal() {
                 : `Chatting about this ${type.label.toLowerCase()}`}
             </Text>
           </Pressable>
+          {isContentChat && (
+            <Pressable
+              onPress={() => setMembersVisible(true)}
+              hitSlop={10}
+              style={styles.searchToggleBtn}
+              accessibilityLabel="See who's in this chat"
+              accessibilityRole="button">
+              <SymbolView
+                name="person.2"
+                size={16}
+                tintColor={Brand.muted}
+                type="monochrome"
+                style={{ width: 20, height: 16 }}
+              />
+            </Pressable>
+          )}
           <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
             <SymbolView
               name={searchVisible ? 'xmark' : 'magnifyingglass'}
@@ -630,6 +668,67 @@ export default function ChatModal() {
             ) : null}
           </View>
         ) : null}
+
+        <Modal visible={membersVisible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setMembersVisible(false)}>
+          <SafeAreaView style={{ flex: 1, backgroundColor: Brand.paper }} edges={['top']}>
+            <View style={styles.membersHeader}>
+              <Text style={styles.membersTitle}>Members</Text>
+              <Pressable onPress={() => setMembersVisible(false)} hitSlop={16} style={styles.gifCloseBtn}>
+                <Text style={styles.gifCloseText}>✕</Text>
+              </Pressable>
+            </View>
+            <ScrollView contentContainerStyle={styles.membersList}>
+              {Array.from(
+                new Map(messages.map((m) => [m.user_id, m])).values()
+              ).map((m) => (
+                <View key={m.user_id} style={styles.memberRow}>
+                  <Avatar
+                    name={m.user_handle ?? m.user_name}
+                    size={36}
+                    avatarUrl={m.avatar_url}
+                  />
+                  <Text style={styles.memberName}>
+                    {m.user_id === user?.id ? 'You' : (m.user_handle ?? m.user_name)}
+                  </Text>
+                  {m.user_id === user?.id && (
+                    <Text style={styles.memberYouBadge}>you</Text>
+                  )}
+                </View>
+              ))}
+            </ScrollView>
+            <View style={[styles.membersFooter, { paddingBottom: 24 }]}>
+              <Pressable
+                style={styles.leaveBtn}
+                onPress={() => {
+                  Alert.alert(
+                    'Leave chat?',
+                    undefined,
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Leave',
+                        onPress: () => {
+                          setMembersVisible(false);
+                          router.back();
+                        },
+                      },
+                      {
+                        text: 'Leave & delete my messages',
+                        style: 'destructive',
+                        onPress: () => {
+                          setMembersVisible(false);
+                          deleteMyMessages.mutate();
+                        },
+                      },
+                    ],
+                  );
+                }}
+                disabled={deleteMyMessages.isPending}>
+                <Text style={styles.leaveBtnText}>Leave Chat</Text>
+              </Pressable>
+            </View>
+          </SafeAreaView>
+        </Modal>
 
         <Modal visible={gifPickerOpen} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setGifPickerOpen(false)}>
           <SafeAreaView style={{ flex: 1, backgroundColor: Brand.paper }} edges={['top']}>
@@ -976,6 +1075,66 @@ function createStyles(Brand: BrandPalette) {
       height: 30,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+
+    // Members sheet
+    membersHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+    },
+    membersTitle: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 16,
+      color: Brand.ink,
+    },
+    membersList: {
+      paddingVertical: 8,
+    },
+    memberRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 11,
+    },
+    memberName: {
+      flex: 1,
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 14.5,
+      color: Brand.ink,
+    },
+    memberYouBadge: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 11,
+      color: Brand.muted,
+      backgroundColor: Brand.border,
+      borderRadius: 8,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+    },
+    membersFooter: {
+      borderTopWidth: 1,
+      borderTopColor: Brand.border,
+      paddingHorizontal: 16,
+      paddingTop: 14,
+    },
+    leaveBtn: {
+      backgroundColor: '#FF3B3020',
+      borderWidth: 1.5,
+      borderColor: '#FF3B30',
+      borderRadius: 14,
+      paddingVertical: 13,
+      alignItems: 'center',
+    },
+    leaveBtnText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: '#FF3B30',
     },
     searchBar: {
       flexDirection: 'row',

@@ -8,6 +8,7 @@ export interface Reaction {
   post_id: string;
   user_id: string;
   user_name: string;
+  username: string | null;
   avatar_url: string | null;
   created_at: string;
 }
@@ -25,10 +26,10 @@ export function useReactions(postIds: string[]) {
       const reactions = data as Omit<Reaction, 'avatar_url'>[];
       const uniqueIds = [...new Set(reactions.map((r) => r.user_id))];
       const { data: profiles } = uniqueIds.length
-        ? await supabase.from('profiles').select('id, avatar_url').in('id', uniqueIds)
+        ? await supabase.from('profiles').select('id, avatar_url, username').in('id', uniqueIds)
         : { data: [] };
-      const avatarMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, p.avatar_url as string | null]));
-      return reactions.map((r) => ({ ...r, avatar_url: avatarMap[r.user_id] ?? null })) as Reaction[];
+      const profileMap = Object.fromEntries((profiles ?? []).map((p) => [p.id, { avatar_url: p.avatar_url as string | null, username: p.username as string | null }]));
+      return reactions.map((r) => ({ ...r, avatar_url: profileMap[r.user_id]?.avatar_url ?? null, username: profileMap[r.user_id]?.username ?? null })) as Reaction[];
     },
     enabled: postIds.length > 0,
   });
