@@ -57,7 +57,9 @@ function useReadState(type: ThreadType) {
   const isUnread = useCallback(
     (threadKey: string, messageTime: string) => {
       const lastRead = readMap[threadKey];
-      if (!lastRead) return true;
+      // Never opened → not unread. Only show unread after the user has
+      // visited the thread at least once and new messages arrived after.
+      if (!lastRead) return false;
       return new Date(messageTime) > new Date(lastRead);
     },
     [readMap],

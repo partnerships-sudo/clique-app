@@ -8,6 +8,9 @@ import { useAudioPlayer } from 'expo-audio';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { useAnimatedStyle, useSharedValue, withDecay } from 'react-native-reanimated';
 
+import * as WebBrowser from 'expo-web-browser';
+import WebView from 'react-native-webview';
+
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useContentDetails, type ContentDetails } from '@/features/content/api';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
@@ -208,6 +211,67 @@ function CastRow({ cast, square, fit }: { cast: ContentDetails['cast']; square?:
     </View>
   );
 }
+
+function TrailerPlayer({ trailerUrl, thumbnail, site }: { trailerUrl: string; thumbnail: string; site: 'YouTube' | 'Vimeo' | 'Apple' | 'Dailymotion' | null }) {
+  const [playing, setPlaying] = useState(false);
+  const vimeoId = site === 'Vimeo' ? trailerUrl.match(/vimeo\.com\/(\d+)/)?.[1] : null;
+  const dailymotionId = site === 'Dailymotion' ? trailerUrl.match(/dailymotion\.com\/video\/([a-zA-Z0-9]+)/)?.[1] : null;
+  const canPlayInline = site === 'Vimeo' || site === 'Apple' || site === 'Dailymotion';
+
+  const appleVideoHtml = site === 'Apple' ? `<!DOCTYPE html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><style>*{margin:0;padding:0;background:#000}video{width:100%;height:100%;display:block}</style></head><body><video autoplay playsinline controls src="${trailerUrl}"></video></body></html>` : null;
+
+  return (
+    <View style={trailerStyles.section}>
+      <Text style={trailerStyles.label}>Trailer</Text>
+      <View style={trailerStyles.container}>
+        {playing && vimeoId ? (
+          <WebView
+            source={{ uri: `https://player.vimeo.com/video/${vimeoId}?autoplay=1&playsinline=1` }}
+            style={trailerStyles.webview}
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            scrollEnabled={false}
+          />
+        ) : playing && dailymotionId ? (
+          <WebView
+            source={{ uri: `https://www.dailymotion.com/embed/video/${dailymotionId}?autoplay=1&playsinline=1&mute=0` }}
+            style={trailerStyles.webview}
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            scrollEnabled={false}
+          />
+        ) : playing && appleVideoHtml ? (
+          <WebView
+            source={{ html: appleVideoHtml }}
+            style={trailerStyles.webview}
+            allowsInlineMediaPlayback
+            mediaPlaybackRequiresUserAction={false}
+            scrollEnabled={false}
+          />
+        ) : (
+          <Pressable
+            onPress={() => canPlayInline ? setPlaying(true) : WebBrowser.openBrowserAsync(trailerUrl)}
+            style={trailerStyles.thumbPress}>
+            <Image source={{ uri: thumbnail }} style={trailerStyles.thumb} resizeMode="cover" />
+            <View style={trailerStyles.playBtn}>
+              <SymbolView name="play.fill" size={20} tintColor="#fff" type="monochrome" />
+            </View>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const trailerStyles = StyleSheet.create({
+  section: { paddingHorizontal: 20, marginBottom: 28 },
+  label: { fontFamily: BrandFonts.syneBold, fontSize: 11, letterSpacing: 0.8, textTransform: 'uppercase', color: '#888', marginBottom: 10 },
+  container: { borderRadius: 12, overflow: 'hidden', aspectRatio: 16 / 9, backgroundColor: '#000' },
+  webview: { flex: 1 },
+  thumbPress: { width: '100%', height: '100%' },
+  thumb: { width: '100%', height: '100%' },
+  playBtn: { position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: 'rgba(0,0,0,0.35)' },
+});
 
 export default function ContentDetailModal() {
   const params = useLocalSearchParams<{
@@ -557,17 +621,7 @@ export default function ContentDetailModal() {
 
           {/* Trailer */}
           {!isLoading && details?.trailerUrl && details?.trailerThumbnail ? (
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Trailer</Text>
-              <Pressable
-                onPress={() => Linking.openURL(details.trailerUrl!).catch(() => {})}
-                style={styles.trailerContainer}>
-                <Image source={{ uri: details.trailerThumbnail }} style={styles.trailerThumb} resizeMode="cover" />
-                <View style={styles.trailerPlayBtn}>
-                  <SymbolView name="play.fill" size={20} tintColor="#fff" type="monochrome" />
-                </View>
-              </Pressable>
-            </View>
+            <TrailerPlayer trailerUrl={details.trailerUrl} thumbnail={details.trailerThumbnail} site={details.trailerSite} />
           ) : null}
 
           {/* Cast / Key Staff */}

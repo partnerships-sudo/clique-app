@@ -1,5 +1,5 @@
 import * as DocumentPicker from 'expo-document-picker';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
@@ -37,6 +37,7 @@ interface ParsedRow {
 
 interface ImportResult {
   imported: number;
+  updated: number;
   skipped: number;
   unmatched: number;
 }
@@ -115,21 +116,19 @@ function parseLetterboxdFile(text: string, defaultStatus: ParsedRow['status']): 
 // Letterboxd exports: user may pick any one of ratings.csv, watched.csv, watchlist.csv, or diary.csv.
 // We detect which file it is by the columns present and parse accordingly.
 // Precedence when merging: rated entries win over unrated ones for the same title.
-function parseLetterboxd(text: string): ParsedRow[] {
+function parseLetterboxd(text: string, filename = ''): ParsedRow[] {
   if (text.startsWith('PK')) throw new Error('zip');
   const { headers } = parseCSV(text);
   const hasRating = headers.includes('rating') || headers.includes('rating10');
-  const hasWatchedDate = headers.some((h) => h.replace(/\s/g, '') === 'watcheddate');
-  const hasLetterboxdURI = headers.some((h) => h.replace(/\s/g, '') === 'letterboxduri');
+  const lowerName = filename.toLowerCase();
 
-  // watchlist.csv has a "Date" column but entries have no watch history — it's a to-watch list.
-  // watched.csv ALSO has only Date/Name/Year/URI with no Rating column — but its Date IS the watch date.
-  // We can't distinguish them by headers alone, so we treat both as 'finished' (watched).
-  // Letterboxd's watchlist.csv Date is the date the item was added, not watched — acceptable approximation.
+  // watchlist.csv and watched.csv have identical headers (Date, Name, Year, Letterboxd URI).
+  // Distinguish by filename — watchlist.csv entries are to-watch, not finished.
   if (!hasRating) {
-    return parseLetterboxdFile(text, 'finished');
+    const status = lowerName.includes('watchlist') ? 'watchlist' : 'finished';
+    return parseLetterboxdFile(text, status);
   }
-  // ratings.csv / diary.csv: has rating
+  // ratings.csv / diary.csv: has rating — all finished
   return parseLetterboxdFile(text, 'finished');
 }
 
@@ -160,7 +159,7 @@ function parseGoodreads(text: string): ParsedRow[] {
 
 // ── API lookups ───────────────────────────────────────────────────────────────
 
-async function lookupTMDB(title: string, year: string): Promise<{ externalId: string; poster: string | null; sub: string } | null> {
+async function lookupTMDB(title: string, year: string): Promise<{ externalId: string; poster: string | null; sub: string; mediaType: string } | null> {
   try {
     const yearParam = year ? `&year=${year}` : '';
     const res = await fetch(
@@ -179,6 +178,7 @@ async function lookupTMDB(title: string, year: string): Promise<{ externalId: st
       externalId: String(hit.id),
       poster: hit.poster_path ? `https://image.tmdb.org/t/p/w185${hit.poster_path}` : null,
       sub,
+      mediaType: hit.media_type,
     };
   } catch { return null; }
 }
@@ -223,21 +223,30 @@ export default function ImportLibraryModal() {
   const [result, setResult] = useState<ImportResult | null>(null);
   const cancelledRef = useRef(false);
 
-  // Build sets for dedup
-  const existingExternalIds = useMemo(
-    () => new Set(logged.map((i) => i.external_id).filter(Boolean)),
+  // Build lookup maps for dedup + update detection
+  const existingByExternalId = useMemo(
+    () => new Map(logged.filter((i) => i.external_id).map((i) => [i.external_id!, i])),
     [logged],
   );
-  const existingTitles = useMemo(
-    () => new Set(logged.map((i) => i.title.toLowerCase())),
+  const existingByTitle = useMemo(
+    () => new Map(logged.map((i) => [i.title.toLowerCase(), i])),
     [logged],
   );
 
+  // Rows that are genuinely new (not in library by title)
   const newRows = useMemo(
-    () => parsed.filter((r) => !existingTitles.has(r.title.toLowerCase())),
-    [parsed, existingTitles],
+    () => parsed.filter((r) => !existingByTitle.has(r.title.toLowerCase())),
+    [parsed, existingByTitle],
   );
-  const alreadyOwned = parsed.length - newRows.length;
+  // Rows that exist already but carry a rating we can add
+  const updateRows = useMemo(
+    () => parsed.filter((r) => {
+      const existing = existingByTitle.get(r.title.toLowerCase());
+      return existing && existing.rating === null && r.rating !== null;
+    }),
+    [parsed, existingByTitle],
+  );
+  const alreadyOwned = parsed.length - newRows.length - updateRows.length;
 
   async function pickFile(src: ImportSource) {
     try {
@@ -247,17 +256,61 @@ export default function ImportLibraryModal() {
       });
       if (result.canceled) return;
       const asset = result.assets[0];
-      const text = await FileSystem.readAsStringAsync(asset.uri);
-      const rows = src === 'letterboxd' ? parseLetterboxd(text) : parseGoodreads(text);
+      const name = asset.name ?? '';
+
+      // Catch ZIP before trying to read it as text
+      if (name.toLowerCase().endsWith('.zip') || asset.mimeType === 'application/zip') {
+        Alert.alert(
+          'Unzip required',
+          'Letterboxd exports a ZIP file. Open it in the Files app, then come back and pick one of the CSVs inside — diary.csv or ratings.csv works best.',
+        );
+        return;
+      }
+
+      // Copy to app cache first (handles iCloud security-scoped URLs),
+      // then read. Falls back to direct read if copy fails.
+      let readUri = asset.uri;
+      try {
+        const dest = `${FileSystem.cacheDirectory}clique_import_${Date.now()}.csv`;
+        await FileSystem.copyAsync({ from: asset.uri, to: dest });
+        readUri = dest;
+      } catch {
+        // Couldn't copy — will try reading the original URI directly
+      }
+
+      let text: string;
+      try {
+        text = await FileSystem.readAsStringAsync(readUri, { encoding: 'utf8' as any });
+      } catch {
+        try {
+          const b64 = await FileSystem.readAsStringAsync(readUri, { encoding: 'base64' as any });
+          text = atob(b64);
+        } catch (readErr: any) {
+          throw new Error(`Cannot read file: ${readErr?.message ?? readErr}`);
+        }
+      }
+      let rows: ParsedRow[] = [];
+      try {
+        rows = src === 'letterboxd' ? parseLetterboxd(text, name) : parseGoodreads(text);
+      } catch (e: any) {
+        if (e?.message === 'zip') {
+          Alert.alert(
+            'Unzip required',
+            'Letterboxd exports a ZIP file. Open it in the Files app, then come back and pick one of the CSVs inside — diary.csv or ratings.csv works best.',
+          );
+          return;
+        }
+        throw e;
+      }
       if (rows.length === 0) {
-        Alert.alert('Nothing found', 'The file doesn\'t look like a valid Letterboxd or Goodreads export. Make sure you\'re uploading the diary/ratings CSV.');
+        Alert.alert('Nothing found', 'The file doesn\'t look like a valid export. Make sure you\'re uploading the diary.csv or ratings.csv from inside the Letterboxd ZIP.');
         return;
       }
       setFileName(asset.name ?? 'file.csv');
       setParsed(rows);
       setStep('preview');
-    } catch {
-      Alert.alert('Could not read file', 'Please try again.');
+    } catch (e: any) {
+      Alert.alert('Could not read file', e?.message ?? 'Unknown error — please try again.');
     }
   }
 
@@ -267,23 +320,37 @@ export default function ImportLibraryModal() {
     setStep('importing');
     setProgress(0);
 
-    const rows = newRows;
+    const allRows = [...newRows, ...updateRows];
     let imported = 0;
-    let skippedById = 0;
+    let updated = 0;
     let unmatched = 0;
     const inserts: object[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
+    for (let i = 0; i < allRows.length; i++) {
       if (cancelledRef.current) break;
-      setProgress(i / rows.length);
+      setProgress(i / allRows.length);
 
-      const row = rows[i];
+      const row = allRows[i];
+      const isUpdate = existingByTitle.has(row.title.toLowerCase());
+
+      if (isUpdate) {
+        // Rating update on an existing entry — no TMDB lookup needed
+        const existing = existingByTitle.get(row.title.toLowerCase())!;
+        await supabase.from('library')
+          .update({ rating: row.rating })
+          .eq('id', existing.id)
+          .eq('user_id', user.id);
+        updated++;
+        await new Promise((r) => setTimeout(r, 40));
+        continue;
+      }
+
       const lookup = source === 'letterboxd'
         ? await lookupTMDB(row.title, row.year)
         : await lookupHardcover(row.title, row.author);
 
-      // Skip if we resolved an external_id that's already in the library
-      if (lookup && existingExternalIds.has(lookup.externalId)) { skippedById++; continue; }
+      // Skip if TMDB resolved to an id already in the library
+      if (lookup && existingByExternalId.has(lookup.externalId)) continue;
 
       if (!lookup) unmatched++;
 
@@ -299,7 +366,7 @@ export default function ImportLibraryModal() {
         sub: lookup?.sub ?? (row.year || null),
         poster: lookup?.poster ?? null,
         external_id: lookup?.externalId ?? null,
-        media_type: source === 'letterboxd' ? 'movie' : 'book',
+        media_type: lookup?.mediaType ?? (source === 'letterboxd' ? 'movie' : 'book'),
         status: row.status,
         rating: row.rating,
         date: dateLabel,
@@ -307,18 +374,16 @@ export default function ImportLibraryModal() {
       });
       imported++;
 
-      // Small delay to avoid hammering APIs
       await new Promise((r) => setTimeout(r, 80));
     }
 
     if (inserts.length > 0) {
-      // Insert in chunks of 50
       for (let i = 0; i < inserts.length; i += 50) {
         await supabase.from('library').insert(inserts.slice(i, i + 50));
       }
     }
 
-    setResult({ imported, skipped: alreadyOwned + skippedById, unmatched });
+    setResult({ imported, updated, skipped: alreadyOwned, unmatched });
     setProgress(1);
     setStep('done');
   }
@@ -388,10 +453,19 @@ export default function ImportLibraryModal() {
               <Text style={styles.statNum}>{alreadyOwned}</Text>
               <Text style={styles.statLabel}>Already logged</Text>
             </View>
+            {updateRows.length > 0 && (
+              <>
+                <View style={styles.statDivider} />
+                <View style={styles.stat}>
+                  <Text style={[styles.statNum, { color: Brand.trust }]}>{updateRows.length}</Text>
+                  <Text style={styles.statLabel}>Ratings to add</Text>
+                </View>
+              </>
+            )}
             <View style={styles.statDivider} />
             <View style={[styles.stat]}>
               <Text style={[styles.statNum, { color: Brand.trust }]}>{newRows.length}</Text>
-              <Text style={styles.statLabel}>To import</Text>
+              <Text style={styles.statLabel}>New</Text>
             </View>
           </View>
 
@@ -404,7 +478,7 @@ export default function ImportLibraryModal() {
                   keyExtractor={(_, i) => String(i)}
                   scrollEnabled={false}
                   renderItem={({ item, index }) => (
-                    <View style={[styles.previewRow, index > 0 && styles.divider]}>
+                    <View style={[styles.previewRow, index > 0 && styles.previewDivider]}>
                       <View style={styles.previewDot} />
                       <View style={styles.previewBody}>
                         <Text style={styles.previewTitle} numberOfLines={1}>{item.title}</Text>
@@ -435,10 +509,18 @@ export default function ImportLibraryModal() {
             <Text style={styles.cancelBtnText}>Back</Text>
           </Pressable>
           <Pressable
-            style={[styles.importBtn, newRows.length === 0 && styles.importBtnDisabled]}
-            disabled={newRows.length === 0}
+            style={[styles.importBtn, (newRows.length + updateRows.length) === 0 && styles.importBtnDisabled]}
+            disabled={(newRows.length + updateRows.length) === 0}
             onPress={runImport}>
-            <Text style={styles.importBtnText}>Import {newRows.length} items</Text>
+            <Text style={styles.importBtnText}>
+              {newRows.length + updateRows.length === 0
+                ? 'Nothing new to import'
+                : updateRows.length > 0 && newRows.length === 0
+                  ? `Update ${updateRows.length} ratings`
+                  : updateRows.length > 0
+                    ? `Import ${newRows.length} + update ${updateRows.length}`
+                    : `Import ${newRows.length} items`}
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -476,6 +558,15 @@ export default function ImportLibraryModal() {
             <Text style={[styles.statNum, { color: Brand.trust }]}>{result?.imported ?? 0}</Text>
             <Text style={styles.statLabel}>Imported</Text>
           </View>
+          {(result?.updated ?? 0) > 0 && (
+            <>
+              <View style={styles.statDivider} />
+              <View style={styles.stat}>
+                <Text style={[styles.statNum, { color: Brand.trust }]}>{result.updated}</Text>
+                <Text style={styles.statLabel}>Ratings added</Text>
+              </View>
+            </>
+          )}
           <View style={styles.statDivider} />
           <View style={styles.stat}>
             <Text style={styles.statNum}>{result?.skipped ?? 0}</Text>
@@ -539,6 +630,7 @@ function createStyles(Brand: BrandPalette) {
     previewTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: Brand.ink },
     previewSub: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, marginTop: 1 },
     previewMore: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, fontStyle: 'italic' },
+    previewDivider: { borderTopWidth: 1, borderTopColor: Brand.border },
 
     footer: { flexDirection: 'row', gap: 10, padding: Spacing.three, borderTopWidth: 1, borderTopColor: Brand.border, backgroundColor: Brand.paper },
     cancelBtn: { flex: 1, borderWidth: 1.5, borderColor: Brand.border, borderRadius: 14, paddingVertical: 14, alignItems: 'center' },

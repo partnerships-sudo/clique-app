@@ -98,12 +98,6 @@ export default function FeedScreen() {
   const { byPost: reactionsByPost } = useReactions(posts.map((p) => p.id));
   const { byPost: emojiByPost } = useEmojiReactions(posts.map((p) => p.id));
   const { data: activeAd } = useActiveAd();
-  const myLatestCFPost = useMemo(() => {
-    if (!user?.id) return null;
-    return allPosts
-      .filter((p) => p.user_id === user.id && p.visibility === 'close_friends')
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0] ?? null;
-  }, [allPosts, user?.id]);
   const toggleReaction = useToggleReaction();
 
   // Keyed by type + title, not title alone — a logged book and a recommended
@@ -390,20 +384,6 @@ export default function FeedScreen() {
           onPressLog={() => router.push('/log-modal')}
         />
       )}
-      {feedView === 'feed' && myLatestCFPost ? (() => {
-        const hearts = reactionsByPost.get(myLatestCFPost.id) ?? [];
-        return (
-          <Pressable
-            style={styles.cfBanner}
-            onPress={() => router.push({ pathname: '/stories-modal', params: { postId: myLatestCFPost.id } })}>
-            <Text style={styles.cfBannerText}>
-              💚 {myLatestCFPost.title} · close friends only
-              {hearts.length > 0 ? ` · ${hearts.length} ❤️` : ''}
-            </Text>
-            <Text style={styles.cfBannerChevron}>›</Text>
-          </Pressable>
-        );
-      })() : null}
       <FilterChips
         value={filter}
         onChange={setFilter}

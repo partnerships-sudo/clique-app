@@ -58,17 +58,19 @@ export function useToggleCloseFriend() {
   return useMutation({
     mutationFn: async ({ friendId, isCloseFriend }: { friendId: string; isCloseFriend: boolean }) => {
       if (isCloseFriend) {
+        // Already a close friend — remove them
         const { error } = await supabase
           .from('close_friends')
-          .insert({ user_id: user!.id, friend_id: friendId });
+          .delete()
+          .eq('user_id', user!.id)
+          .eq('friend_id', friendId);
         if (error) throw error;
         return;
       }
+      // Not yet a close friend — add them
       const { error } = await supabase
         .from('close_friends')
-        .delete()
-        .eq('user_id', user!.id)
-        .eq('friend_id', friendId);
+        .insert({ user_id: user!.id, friend_id: friendId });
       if (error) throw error;
     },
     onSuccess: () => {

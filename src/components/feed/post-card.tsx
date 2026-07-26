@@ -144,16 +144,31 @@ export function PostCard({
             <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
           </View>
 
-          <Text style={styles.title} numberOfLines={isSquareType ? 1 : 3}>{post.title}</Text>
-          {/* sub/note/rating dropped in compact mode — there isn't room for them
-              at 90pt without losing the react/share/chat row, which matters more. */}
-          {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={2}>{post.sub}</Text> : null}
-          {!isSquareType && post.note ? (
-            <Text style={styles.note} numberOfLines={3}>&ldquo;{post.note}&rdquo;</Text>
-          ) : null}
-          {post.rating ? (
-            <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
-          ) : null}
+          {isMine && onEdit ? (
+            <Pressable onPress={onEdit} accessibilityLabel="Edit rating and review" accessibilityRole="button">
+              <Text style={styles.title} numberOfLines={isSquareType ? 1 : 3}>{post.title}</Text>
+              {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={2}>{post.sub}</Text> : null}
+              {!isSquareType && post.note ? (
+                <Text style={styles.note} numberOfLines={3}>&ldquo;{post.note}&rdquo;</Text>
+              ) : null}
+              {post.rating ? (
+                <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
+              ) : (
+                <Text style={styles.tapToRate}>Tap to rate ›</Text>
+              )}
+            </Pressable>
+          ) : (
+            <>
+              <Text style={styles.title} numberOfLines={isSquareType ? 1 : 3}>{post.title}</Text>
+              {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={2}>{post.sub}</Text> : null}
+              {!isSquareType && post.note ? (
+                <Text style={styles.note} numberOfLines={3}>&ldquo;{post.note}&rdquo;</Text>
+              ) : null}
+              {post.rating ? (
+                <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
+              ) : null}
+            </>
+          )}
 
           {/* Emoji picker popover — hidden on own posts */}
           {showEmojiPicker && !isMine && (
@@ -389,6 +404,12 @@ function createStyles(Brand: BrandPalette) {
     stars: {
       color: Brand.warm,
       fontSize: 13,
+      marginTop: 4,
+    },
+    tapToRate: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12,
+      color: Brand.muted,
       marginTop: 4,
     },
     emojiPickerWrap: {

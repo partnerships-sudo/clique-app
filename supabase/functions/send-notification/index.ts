@@ -120,15 +120,13 @@ Deno.serve(async (req) => {
       }
 
       case 'messages': {
-        const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        // Only notify users who have previously written in this thread
         const { data: participants } = await supabase
           .from('messages')
           .select('user_id')
           .eq('title', record.title)
-          .gte('created_at', since);
-        const recipients = [...new Set((participants ?? []).map((p) => p.user_id))].filter(
-          (id) => id !== record.user_id,
-        );
+          .neq('user_id', record.user_id);
+        const recipients = [...new Set((participants ?? []).map((p) => p.user_id))];
         await Promise.all(
           recipients.map((id) =>
             pushTo(id, 'messages', `${record.user_name} in "${record.title}"`, record.content, {

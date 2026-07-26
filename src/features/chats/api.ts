@@ -49,6 +49,20 @@ export function useChatThreads() {
 
   const allIds = extendedNetwork ?? (user ? [user.id] : []);
 
+  // Threads the current user has written in — only these get unread badges
+  const { data: participatedTitles } = useQuery({
+    queryKey: ['chat-participated', user?.id],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from('messages')
+        .select('title')
+        .eq('user_id', user!.id);
+      return new Set((data ?? []).map((r: any) => r.title as string));
+    },
+    enabled: !!user,
+    staleTime: 30_000,
+  });
+
   const query = useQuery({
     queryKey: ['chat-threads', user?.id, allIds.length],
     queryFn: async () => {
@@ -93,7 +107,8 @@ export function useChatThreads() {
   const threads: ChatThread[] = rows
     .filter((r) => !blockedIds.has(r.last_user_id) || r.last_user_id === user?.id)
     .map((r) => {
-      const unread = readStateLoaded && r.last_user_id !== user?.id && isUnread(r.title, r.last_time);
+      const hasParticipated = participatedTitles?.has(r.title) ?? false;
+      const unread = readStateLoaded && hasParticipated && r.last_user_id !== user?.id && isUnread(r.title, r.last_time);
       return {
         title: r.title,
         type: (r.post_type ?? 'watch') as ChatThread['type'],
@@ -161,6 +176,7 @@ export function useSendMessage() {
     onSuccess: (_, input) => {
       queryClient.invalidateQueries({ queryKey: ['messages', input.title] });
       queryClient.invalidateQueries({ queryKey: ['chat-threads'] });
+      queryClient.invalidateQueries({ queryKey: ['chat-participated', user?.id] });
     },
   });
 }

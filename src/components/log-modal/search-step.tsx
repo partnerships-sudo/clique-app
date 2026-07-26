@@ -173,14 +173,16 @@ export function SearchStep({
         </View>
       ) : manualMode ? (
         <View>
-          <TextInput
-            style={styles.input}
-            placeholder="Title"
-            placeholderTextColor={Brand.muted}
-            value={manualTitle}
-            onChangeText={setManualTitle}
-            autoFocus
-          />
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.input}
+              placeholder="Title"
+              placeholderTextColor={Brand.muted}
+              value={manualTitle}
+              onChangeText={setManualTitle}
+              autoFocus
+            />
+          </View>
           <Pressable
             onPress={() => {
               setManualMode(false);
@@ -192,14 +194,16 @@ export function SearchStep({
         </View>
       ) : (
         <View>
-          <TextInput
-            style={styles.input}
-            placeholder={PLACEHOLDERS[type]}
-            placeholderTextColor={Brand.muted}
-            value={query}
-            onChangeText={setQuery}
-            autoFocus
-          />
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={styles.input}
+              placeholder={PLACEHOLDERS[type]}
+              placeholderTextColor={Brand.muted}
+              value={query}
+              onChangeText={setQuery}
+              autoFocus
+            />
+          </View>
           {isFetching ? <ActivityIndicator color={Brand.trust} style={styles.spinner} /> : null}
           {isError ? <Text style={styles.errorText}>Search failed — check your connection.</Text> : null}
           {!isFetching && debouncedQuery.length >= 2 && results?.length === 0 ? (
@@ -327,14 +331,16 @@ export function SearchStep({
               />
             </View>
           ) : null}
-          <TextInput
-            style={[styles.input, styles.noteInput]}
-            placeholder="Add a note (optional)"
-            placeholderTextColor={Brand.muted}
-            value={note}
-            onChangeText={setNote}
-            multiline
-          />
+          <View style={styles.inputWrap}>
+            <TextInput
+              style={[styles.input, styles.noteInput]}
+              placeholder="Add a note (optional)"
+              placeholderTextColor={Brand.muted}
+              value={note}
+              onChangeText={setNote}
+              multiline
+            />
+          </View>
 
           {intent === 'log' && hasCloseFriends ? (
             <Pressable
@@ -375,17 +381,20 @@ export function SearchStep({
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
-  input: {
+  inputWrap: {
     borderWidth: 1.5,
     borderColor: Brand.border,
     borderRadius: 12,
+    backgroundColor: Brand.paper,
+    marginBottom: 10,
+  },
+  input: {
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
     fontFamily: BrandFonts.interRegular,
     color: Brand.ink,
-    backgroundColor: Brand.paper,
-    marginBottom: 10,
+    backgroundColor: 'transparent',
   },
   noteInput: {
     minHeight: 56,

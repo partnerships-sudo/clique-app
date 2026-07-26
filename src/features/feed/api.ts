@@ -238,15 +238,39 @@ export function useUpdatePost() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (input: { postId: string; note: string | null; rating: number | null; visibility: 'everyone' | 'close_friends' }) => {
+      // Fetch the post so we can match the library entry
+      const { data: post, error: fetchError } = await supabase
+        .from('posts')
+        .select('external_id, title, type')
+        .eq('id', input.postId)
+        .eq('user_id', user!.id)
+        .single();
+      if (fetchError) throw fetchError;
+
       const { error } = await supabase
         .from('posts')
         .update({ note: input.note, rating: input.rating, visibility: input.visibility })
         .eq('id', input.postId)
         .eq('user_id', user!.id);
       if (error) throw error;
+
+      // Keep library in sync: update rating and promote watchlist → finished
+      const libUpdate: Record<string, unknown> = { rating: input.rating };
+      if (input.rating) libUpdate.status = 'finished';
+      const libQ = supabase
+        .from('library')
+        .update(libUpdate)
+        .eq('user_id', user!.id)
+        .eq('type', post.type);
+      if (post.external_id) {
+        await libQ.eq('external_id', post.external_id);
+      } else {
+        await libQ.eq('title', post.title);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['library', user?.id] });
     },
   });
 }

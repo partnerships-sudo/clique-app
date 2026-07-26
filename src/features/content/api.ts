@@ -149,6 +149,7 @@ export interface ContentDetails {
   publisher: string | null;
   trailerUrl: string | null;
   trailerThumbnail: string | null;
+  trailerSite: 'YouTube' | 'Vimeo' | 'Apple' | 'Dailymotion' | null;
   watchProviders: StoreLink[];
   mediaType: 'movie' | 'tv' | null;
   seasons: { seasonNumber: number; episodeCount: number }[];
@@ -170,20 +171,99 @@ const EMPTY_DETAILS: ContentDetails = {
   publisher: null,
   trailerUrl: null,
   trailerThumbnail: null,
+  trailerSite: null,
   watchProviders: [],
   mediaType: null,
   seasons: [],
   awards: [],
 };
 
-function pickYouTubeTrailer(videos: any[]): { url: string; thumbnail: string } | null {
-  const trailers = videos.filter((v) => v.site === 'YouTube' && v.type === 'Trailer');
-  const best = trailers.find((v) => v.official) ?? trailers[0];
-  if (!best) return null;
+function pickYouTubeTrailer(videos: any[]): { url: string; thumbnail: string; site: 'YouTube' | 'Vimeo' } | null {
+  const ranked = [
+    videos.find((v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official),
+    videos.find((v) => v.site === 'YouTube' && v.type === 'Trailer'),
+    videos.find((v) => v.site === 'Vimeo'   && v.type === 'Trailer'),
+    videos.find((v) => v.site === 'YouTube' && v.type === 'Teaser' && v.official),
+    videos.find((v) => v.site === 'YouTube' && v.type === 'Teaser'),
+    videos.find((v) => v.site === 'Vimeo'   && v.type === 'Teaser'),
+  ].find(Boolean);
+  if (!ranked) return null;
+  if (ranked.site === 'Vimeo') {
+    return {
+      url: `https://vimeo.com/${ranked.key}`,
+      thumbnail: `https://vumbnail.com/${ranked.key}.jpg`,
+      site: 'Vimeo',
+    };
+  }
   return {
-    url: `https://www.youtube.com/watch?v=${best.key}`,
-    thumbnail: `https://img.youtube.com/vi/${best.key}/hqdefault.jpg`,
+    url: `https://www.youtube.com/watch?v=${ranked.key}`,
+    thumbnail: `https://img.youtube.com/vi/${ranked.key}/hqdefault.jpg`,
+    site: 'YouTube',
   };
+}
+
+async function fetchDailymotionTrailer(title: string, type: 'movie' | 'tv' | 'game'): Promise<{ url: string; thumbnail: string; site: 'Dailymotion' } | null> {
+  try {
+    const suffix = type === 'game' ? 'game trailer' : type === 'tv' ? 'official trailer' : 'official trailer';
+    const q = encodeURIComponent(`${title} ${suffix}`);
+    const res = await fetch(
+      `https://api.dailymotion.com/videos?search=${q}&fields=id,title,thumbnail_url,allow_embed&limit=5&sort=relevance`,
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const videos: any[] = data?.list ?? [];
+    const hit = videos.find((v) => v.allow_embed && /trailer/i.test(v.title ?? ''))
+      ?? videos.find((v) => v.allow_embed);
+    if (!hit?.id) return null;
+    return {
+      url: `https://www.dailymotion.com/video/${hit.id}`,
+      thumbnail: hit.thumbnail_url ?? '',
+      site: 'Dailymotion',
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchAppleTrailer(title: string, year: string | null): Promise<{ url: string; thumbnail: string; site: 'Apple' } | null> {
+  try {
+    const res = await fetch(
+      `https://trailers.apple.com/trailers/home/feeds/search.json?q=${encodeURIComponent(title)}`,
+      { headers: { 'User-Agent': 'iTunes/12.12.0 (Macintosh; OS X 14.0)' } },
+    );
+    if (!res.ok) return null;
+    const results: any[] = await res.json();
+    if (!results?.length) return null;
+
+    // Find the closest title match, optionally filtered by year
+    const match = results.find((r) => {
+      const titleMatch = r.title?.toLowerCase() === title.toLowerCase();
+      if (!titleMatch) return false;
+      if (!year || !r.releasedate) return true;
+      return (r.releasedate as string).startsWith(year);
+    }) ?? results.find((r) => (r.title as string)?.toLowerCase().includes(title.toLowerCase()));
+
+    if (!match?.location) return null;
+
+    const detailRes = await fetch(
+      `https://trailers.apple.com${match.location}includes/movies/current.json`,
+      { headers: { 'User-Agent': 'iTunes/12.12.0 (Macintosh; OS X 14.0)' } },
+    );
+    if (!detailRes.ok) return null;
+    const clips: any[] = await detailRes.json();
+    const trailer = clips?.find((c) => /trailer/i.test(c.title ?? '')) ?? clips?.[0];
+    const videoUrl = trailer?.versions?.enus?.sizes?.hd1080?.src
+      ?? trailer?.versions?.enus?.sizes?.sd?.src
+      ?? trailer?.preview;
+    if (!videoUrl) return null;
+
+    const poster = match.poster
+      ? `https://trailers.apple.com${match.poster}`
+      : null;
+    return { url: videoUrl, thumbnail: poster ?? '', site: 'Apple' };
+  } catch {
+    return null;
+  }
 }
 
 async function fetchWatchProviders(id: number, mediaType: 'movie' | 'tv', title: string): Promise<StoreLink[]> {
@@ -251,7 +331,16 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
       ? `${detail.episode_run_time[0]}min/ep`
       : null;
 
-  const trailer = pickYouTubeTrailer(detail.videos?.results ?? []);
+  const tmdbTrailer = pickYouTubeTrailer(detail.videos?.results ?? []);
+  const vimeoTrailer = tmdbTrailer?.site === 'Vimeo' ? tmdbTrailer : null;
+  const needsInlineFallback = !vimeoTrailer;
+  const [dailymotionTrailer, appleTrailer] = needsInlineFallback
+    ? await Promise.all([
+        fetchDailymotionTrailer(title, endpoint === 'movie' ? 'movie' : 'tv'),
+        fetchAppleTrailer(title, year),
+      ])
+    : [null, null];
+  const trailer = vimeoTrailer ?? dailymotionTrailer ?? appleTrailer ?? tmdbTrailer;
   const [watchProviders, awards] = await Promise.all([
     fetchWatchProviders(hit.id, endpoint, title).catch(() => []),
     fetchWikipediaAwards(
@@ -285,6 +374,7 @@ async function fetchWatchDetails(title: string): Promise<ContentDetails> {
     publisher: null,
     trailerUrl: trailer?.url ?? null,
     trailerThumbnail: trailer?.thumbnail ?? null,
+    trailerSite: trailer?.site ?? null,
     watchProviders,
     mediaType: hit.media_type as 'movie' | 'tv',
     seasons,
@@ -467,6 +557,14 @@ async function fetchGameDetails(title: string, externalId?: string): Promise<Con
     .map(([name, url]) => ({ ...EXTRA_GAME_STORES[name]!, url }));
   const stores = [...platformStores, ...extraStores];
 
+  const igdbSite = detail.trailerSite ?? (detail.trailerUrl?.includes('vimeo.com') ? 'Vimeo' : detail.trailerUrl?.includes('dailymotion.com') ? 'Dailymotion' : detail.trailerUrl?.includes('youtube.com') || detail.trailerUrl?.includes('youtu.be') ? 'YouTube' : null);
+  const igdbTrailer = detail.trailerUrl ? { url: detail.trailerUrl, thumbnail: detail.trailerThumbnail ?? '', site: igdbSite } : null;
+  const gameVimeoTrailer = igdbSite === 'Vimeo' ? igdbTrailer : null;
+  const [gameDailymotionTrailer, gameAppleTrailer] = !gameVimeoTrailer
+    ? await Promise.all([fetchDailymotionTrailer(title, 'game'), fetchAppleTrailer(title, detail.year ?? null)])
+    : [null, null];
+  const gameTrailer = gameVimeoTrailer ?? gameDailymotionTrailer ?? gameAppleTrailer ?? igdbTrailer;
+
   return {
     ...EMPTY_DETAILS,
     overview,
@@ -475,8 +573,9 @@ async function fetchGameDetails(title: string, externalId?: string): Promise<Con
     year: detail.year ?? null,
     genre: detail.genre ?? null,
     developer: detail.developer ?? null,
-    trailerUrl: detail.trailerUrl ?? null,
-    trailerThumbnail: detail.trailerThumbnail ?? null,
+    trailerUrl: gameTrailer?.url ?? null,
+    trailerThumbnail: gameTrailer?.thumbnail ?? null,
+    trailerSite: (gameTrailer?.site as 'YouTube' | 'Vimeo' | 'Apple' | 'Dailymotion' | null) ?? null,
     watchProviders: stores,
     awards,
   };
@@ -940,7 +1039,15 @@ export function useContentDetails(
               : detail.episode_run_time?.[0]
                 ? `${detail.episode_run_time[0]}min/ep`
                 : null;
-            const trailer = pickYouTubeTrailer(detail.videos?.results ?? []);
+            const tmdbTrailer2 = pickYouTubeTrailer(detail.videos?.results ?? []);
+            const vimeoTrailer2 = tmdbTrailer2?.site === 'Vimeo' ? tmdbTrailer2 : null;
+            const [dailymotionTrailer2, appleTrailer2] = !vimeoTrailer2
+              ? await Promise.all([
+                  fetchDailymotionTrailer(title, endpoint === 'movie' ? 'movie' : 'tv'),
+                  fetchAppleTrailer(title, year),
+                ])
+              : [null, null];
+            const trailer = vimeoTrailer2 ?? dailymotionTrailer2 ?? appleTrailer2 ?? tmdbTrailer2;
             const [watchProviders, awards] = await Promise.all([
               fetchWatchProviders(Number(externalId), endpoint, title).catch(() => []),
               fetchWikipediaAwards(
@@ -973,6 +1080,7 @@ export function useContentDetails(
               publisher: null,
               trailerUrl: trailer?.url ?? null,
               trailerThumbnail: trailer?.thumbnail ?? null,
+              trailerSite: trailer?.site ?? null,
               watchProviders,
               mediaType: (endpoint as 'movie' | 'tv'),
               seasons,

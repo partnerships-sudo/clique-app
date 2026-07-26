@@ -115,6 +115,7 @@ export interface IgdbGame {
   cast?: { name: string; character: string; profilePath: string | null }[];
   trailerUrl?: string | null;
   trailerThumbnail?: string | null;
+  trailerSite?: 'YouTube' | 'Vimeo' | 'Apple' | 'Dailymotion' | null;
 }
 
 export async function igdbSearch(query: string): Promise<IgdbGame[]> {
