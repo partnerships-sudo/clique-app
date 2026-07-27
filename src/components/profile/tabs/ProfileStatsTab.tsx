@@ -2,13 +2,13 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, ScrollView, Text, View } from 'react-native';
-
-import { type EntryType } from '@/constants/theme';
+import { Alert, Image, Pressable, Text, View } from 'react-native';
+import { TIER_COLORS } from '@/features/badges/catalog';
 import { useMyTasteTop4 } from '@/features/follows/api';
 import { type LibraryItem } from '@/features/library/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
+import { type ProfileCardBadge } from '../profile-card';
 import { STAT_CATEGORIES, createStyles } from '../profile-styles';
 
 const GOAL_OPTIONS = [3, 5, 7, 10, 14, 20];
@@ -22,12 +22,14 @@ interface Props {
   onLoggedPress?: () => void;
   onFollowersPress?: () => void;
   onFollowingPress?: () => void;
+  featuredBadges?: ProfileCardBadge[];
+  onOpenAchievements?: () => void;
+  isOwnProfile?: boolean;
 }
 
-export function ProfileStatsTab({ logged, followersCount, followingCount, onLoggedPress, onFollowersPress, onFollowingPress }: Props) {
+export function ProfileStatsTab({ logged, followersCount, followingCount, onLoggedPress, onFollowersPress, onFollowingPress, featuredBadges = [], onOpenAchievements, isOwnProfile }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const [recentCatFilter, setRecentCatFilter] = useState<EntryType | 'all'>('all');
   const { data: top4 = [] } = useMyTasteTop4();
   const { user } = useSession();
   const [weeklyTarget, setWeeklyTarget] = useState(DEFAULT_WEEKLY_TARGET);
@@ -57,8 +59,14 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
     );
   }
 
-  const counts: Record<EntryType, number> = { watch: 0, read: 0, play: 0, listen: 0, podcast: 0 };
-  logged.forEach((item) => { counts[item.type] += 1; });
+  const counts: Record<string, number> = { watch: 0, tv: 0, read: 0, play: 0, listen: 0, podcast: 0 };
+  logged.forEach((item) => {
+    if (item.type === 'watch' && item.media_type === 'tv') {
+      counts.tv += 1;
+    } else {
+      counts[item.type] = (counts[item.type] ?? 0) + 1;
+    }
+  });
   const maxCount = Math.max(1, ...Object.values(counts));
 
   const loggedDates = new Set(logged.map((i) => {
@@ -108,43 +116,79 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
     active.filter((i) => i.type === 'watch' && i.media_type !== 'movie').length
       ? { label: 'TV', sub: `${active.filter((i) => i.type === 'watch' && i.media_type !== 'movie').length} show${active.filter((i) => i.type === 'watch' && i.media_type !== 'movie').length !== 1 ? 's' : ''}`, sf: 'tv.fill', color: '#FF6B6B', bg: '#FF6B6B18' } : null,
     active.filter((i) => i.type === 'watch' && i.media_type === 'movie').length
-      ? { label: 'TV', sub: `${active.filter((i) => i.type === 'watch' && i.media_type === 'movie').length} movie${active.filter((i) => i.type === 'watch' && i.media_type === 'movie').length !== 1 ? 's' : ''}`, sf: 'film.fill', color: '#FF6B6B', bg: '#FF6B6B18' } : null,
+      ? { label: 'Movies', sub: `${active.filter((i) => i.type === 'watch' && i.media_type === 'movie').length} movie${active.filter((i) => i.type === 'watch' && i.media_type === 'movie').length !== 1 ? 's' : ''}`, sf: 'film.fill', color: '#FF6B6B', bg: '#FF6B6B18' } : null,
     active.filter((i) => i.type === 'read').length ? { label: 'Books', sub: `${active.filter((i) => i.type === 'read').length} book${active.filter((i) => i.type === 'read').length !== 1 ? 's' : ''}`, sf: 'book.fill', color: '#5FA8FF', bg: '#5FA8FF18' } : null,
     active.filter((i) => i.type === 'play').length ? { label: 'Games', sub: `${active.filter((i) => i.type === 'play').length} game${active.filter((i) => i.type === 'play').length !== 1 ? 's' : ''}`, sf: 'gamecontroller.fill', color: '#5FD9FF', bg: '#5FD9FF18' } : null,
     active.filter((i) => i.type === 'podcast').length ? { label: 'Podcasts', sub: `${active.filter((i) => i.type === 'podcast').length} podcast${active.filter((i) => i.type === 'podcast').length !== 1 ? 's' : ''}`, sf: 'mic.fill', color: '#C084FC', bg: '#C084FC18' } : null,
     active.filter((i) => i.type === 'listen').length ? { label: 'Music', sub: `${active.filter((i) => i.type === 'listen').length} track${active.filter((i) => i.type === 'listen').length !== 1 ? 's' : ''}`, sf: 'headphones', color: '#9B95AC', bg: '#9B95AC18' } : null,
   ].filter(Boolean) as { label: string; sub: string; sf: string; color: string; bg: string }[];
 
+  // Allowlist derived from TMDB movie/TV genre maps + common book/game genres.
+  // Only strings in this set are accepted — prevents publishers, networks, episode
+  // markers, and other sub-field noise from appearing as genres.
+  const GENRE_ALLOWLIST = new Set([
+    // TMDB movie genres
+    'Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 'Documentary', 'Drama',
+    'Family', 'Fantasy', 'History', 'Horror', 'Music', 'Mystery', 'Romance',
+    'Sci-Fi', 'Thriller', 'War', 'Western',
+    // TMDB TV genres
+    'Action & Adventure', 'Kids', 'Reality', 'Reality TV', 'Sci-Fi & Fantasy',
+    'Soap', 'Talk', 'War & Politics',
+    // Common book genres (Hardcover / Goodreads)
+    'Fiction', 'Non-Fiction', 'Nonfiction', 'Science Fiction', 'Literary Fiction',
+    'Historical Fiction', 'Young Adult', "Children's", 'Biography', 'Memoir',
+    'Self-Help', 'Business', 'Psychology', 'Philosophy', 'Poetry', 'True Crime',
+    'Humor', 'Classics', 'Short Stories', 'Graphic Novel', 'Manga', 'Anime',
+    // Game genres (IGDB)
+    'Role-playing (RPG)', 'Shooter', 'Platform', 'Puzzle', 'Racing', 'Sport',
+    'Strategy', 'Fighting', 'Simulation', 'Indie', 'Arcade',
+  ]);
+
   const genreCounts = new Map<string, number>();
   for (const item of logged) {
     if (!item.sub) continue;
     const parts = item.sub.split('·').map((s) => s.trim()).filter(Boolean);
     if (!parts.length) continue;
-    let genre: string | null = null;
     if (item.type === 'play') {
       const first = parts[0];
-      if (first && first !== 'Game' && !first.match(/^\d{4}$/)) genre = first;
-    } else if (item.type === 'watch') {
-      const last = parts[parts.length - 1];
-      if (last && !last.match(/^\d{4}$/) && last !== 'Film' && last !== 'TV Series') genre = last;
-    }
-    if (!genre) continue;
-    for (const g of genre.split(',').map((s) => s.trim()).filter(Boolean)) {
-      genreCounts.set(g, (genreCounts.get(g) ?? 0) + 1);
+      if (GENRE_ALLOWLIST.has(first)) genreCounts.set(first, (genreCounts.get(first) ?? 0) + 1);
+    } else if (item.type === 'watch' || item.type === 'tv' || item.type === 'read') {
+      for (const part of parts) {
+        if (GENRE_ALLOWLIST.has(part)) genreCounts.set(part, (genreCounts.get(part) ?? 0) + 1);
+      }
     }
   }
   const topGenres = [...genreCounts.entries()]
     .sort((a, b) => b[1] - a[1])
-    .slice(0, 3)
-    .map(([name, count], i) => ({ name, count, rank: i + 1, color: (['#FF6B6B', '#5B4FE8', '#F59E0B'] as const)[i] }));
+    .slice(0, 5)
+    .map(([name, count], i) => ({ name, count, rank: i + 1, color: (['#FF6B6B', '#5B4FE8', '#F59E0B', '#10B981', '#9B95AC'] as const)[i] }));
 
-  const recentItems = useMemo(() => {
-    const base = recentCatFilter === 'all' ? logged : logged.filter((i) => i.type === recentCatFilter);
-    return base.slice(0, 8);
-  }, [logged, recentCatFilter]);
 
   return (
     <View style={styles.tabContent}>
+      {/* Achievements */}
+      {onOpenAchievements ? (
+        <Pressable style={styles.badgesSection} onPress={onOpenAchievements}>
+          <Text style={styles.badgesTitle}>Achievements</Text>
+          {featuredBadges.length ? (
+            <View style={styles.badgesRow}>
+              {featuredBadges.map((badge) => (
+                <View key={badge.key} style={styles.badgeItem}>
+                  <View style={[styles.badgeCircle, { backgroundColor: TIER_COLORS[badge.tier] + '33', borderColor: TIER_COLORS[badge.tier] }]}>
+                    <Text style={styles.badgeIcon}>{badge.icon}</Text>
+                  </View>
+                  <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.badgesEmpty}>
+              {isOwnProfile ? 'Pick up to 3 badges to show off here.' : "Hasn't featured any badges yet."}
+            </Text>
+          )}
+        </Pressable>
+      ) : null}
+
       {/* Logged / Followers / Following */}
       <View style={styles.statsBox}>
         <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
@@ -317,30 +361,6 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
         </View>
       </View>
 
-      {/* Recently Logged */}
-      <View style={styles.statsCard}>
-        <Text style={styles.statsCardTitle}>RECENTLY LOGGED</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }} contentContainerStyle={[styles.chipRow]}>
-          {[{ type: 'all' as const, label: 'All' }, ...STAT_CATEGORIES.map((c) => ({ type: c.type, label: c.label }))].map((f) => {
-            const active = recentCatFilter === f.type;
-            return (
-              <Pressable key={f.type} style={[styles.recentChip, active && styles.recentChipActive]} onPress={() => setRecentCatFilter(f.type)}>
-                <Text style={[styles.recentChipText, active && styles.recentChipTextActive]}>{f.label}</Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-        {recentItems.map((item) => (
-          <View key={item.id} style={styles.recentRow}>
-            {item.poster ? (
-              <Image source={{ uri: item.poster }} style={styles.recentThumb} resizeMode="cover" />
-            ) : (
-              <View style={[styles.recentThumb, styles.recentThumbFallback]} />
-            )}
-            <Text style={styles.recentTitle} numberOfLines={1}>{item.title}</Text>
-          </View>
-        ))}
-      </View>
     </View>
   );
 }

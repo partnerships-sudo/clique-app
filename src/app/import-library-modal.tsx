@@ -3,6 +3,7 @@ import * as FileSystem from 'expo-file-system/legacy';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   ActivityIndicator,
   Alert,
@@ -15,13 +16,26 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useLibraryItems } from '@/features/library/api';
+import { useCollectionItems } from '@/features/collection/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
 const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
+
+const TMDB_MOVIE_GENRES: Record<number, string> = {
+  28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 14: 'Fantasy', 36: 'History',
+  27: 'Horror', 10402: 'Music', 9648: 'Mystery', 10749: 'Romance',
+  878: 'Sci-Fi', 53: 'Thriller', 10752: 'War', 37: 'Western',
+};
+const TMDB_TV_GENRES: Record<number, string> = {
+  10759: 'Action & Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
+  99: 'Documentary', 18: 'Drama', 10751: 'Family', 10762: 'Kids',
+  9648: 'Mystery', 10764: 'Reality', 10765: 'Sci-Fi & Fantasy',
+  10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics', 37: 'Western',
+};
 
 type ImportSource = 'letterboxd' | 'goodreads';
 type ImportStep = 'source' | 'preview' | 'importing' | 'done';
@@ -31,6 +45,7 @@ interface ParsedRow {
   year: string;
   author: string;
   rating: number | null;
+  note: string | null;
   watchedDate: string | null;
   status: 'finished' | 'reading' | 'watchlist';
 }
@@ -101,11 +116,15 @@ function parseLetterboxdFile(text: string, defaultStatus: ParsedRow['status']): 
         : ratingNum > 5 ? ratingNum / 2
         : ratingNum;
       const watchedDate = colFuzzy(headers, row, 'watched date', 'watcheddate', 'date') || null;
+      const reviewRaw = colFuzzy(headers, row, 'review', 'text', 'body');
+      const hasSpoilers = colFuzzy(headers, row, 'contains spoilers', 'containsspoilers').toLowerCase() === 'yes';
+      const note = reviewRaw ? (hasSpoilers ? `[spoilers] ${reviewRaw}` : reviewRaw) : null;
       return {
         title: col(headers, row, titleCol),
         year: colFuzzy(headers, row, 'year'),
         author: '',
         rating: rating ? Math.min(5, Math.max(0.5, rating)) : null,
+        note: note || null,
         watchedDate: watchedDate || null,
         status: defaultStatus,
       };
@@ -145,11 +164,13 @@ function parseGoodreads(text: string): ParsedRow[] {
         shelf === 'read' ? 'finished'
         : shelf === 'currently-reading' ? 'reading'
         : 'watchlist';
+      const review = col(headers, row, 'my review');
       return {
         title: col(headers, row, 'title'),
         year: col(headers, row, 'original publication year') || col(headers, row, 'year published'),
         author: col(headers, row, 'author'),
         rating,
+        note: review || null,
         watchedDate: shelf === 'read' ? dateRead : null,
         status,
       };
@@ -171,9 +192,12 @@ async function lookupTMDB(title: string, year: string): Promise<{ externalId: st
     if (!hit) return null;
     const isTV = hit.media_type === 'tv';
     const hitYear = (hit.release_date || hit.first_air_date || '').slice(0, 4);
+    const genreMap = isTV ? TMDB_TV_GENRES : TMDB_MOVIE_GENRES;
+    const genreNames = (hit.genre_ids ?? []).slice(0, 2).map((id: number) => genreMap[id]).filter(Boolean);
+    const genrePart = genreNames.length ? ` · ${genreNames.join(' · ')}` : '';
     const sub = isTV
-      ? `TV Series${hitYear ? ` · ${hitYear}` : ''}`
-      : `Film${hitYear ? ` · ${hitYear}` : ''}`;
+      ? `TV Series${hitYear ? ` · ${hitYear}` : ''}${genrePart}`
+      : `Film${hitYear ? ` · ${hitYear}` : ''}${genrePart}`;
     return {
       externalId: String(hit.id),
       poster: hit.poster_path ? `https://image.tmdb.org/t/p/w185${hit.poster_path}` : null,
@@ -213,7 +237,8 @@ export default function ImportLibraryModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { user } = useSession();
-  const { logged } = useLibraryItems();
+  const queryClient = useQueryClient();
+  const { items: collectionItems } = useCollectionItems();
 
   const [step, setStep] = useState<ImportStep>('source');
   const [source, setSource] = useState<ImportSource | null>(null);
@@ -225,15 +250,15 @@ export default function ImportLibraryModal() {
 
   // Build lookup maps for dedup + update detection
   const existingByExternalId = useMemo(
-    () => new Map(logged.filter((i) => i.external_id).map((i) => [i.external_id!, i])),
-    [logged],
+    () => new Map(collectionItems.filter((i) => i.external_id).map((i) => [i.external_id!, i])),
+    [collectionItems],
   );
   const existingByTitle = useMemo(
-    () => new Map(logged.map((i) => [i.title.toLowerCase(), i])),
-    [logged],
+    () => new Map(collectionItems.map((i) => [i.title.toLowerCase(), i])),
+    [collectionItems],
   );
 
-  // Rows that are genuinely new (not in library by title)
+  // Rows that are genuinely new (not in collection by title)
   const newRows = useMemo(
     () => parsed.filter((r) => !existingByTitle.has(r.title.toLowerCase())),
     [parsed, existingByTitle],
@@ -242,7 +267,8 @@ export default function ImportLibraryModal() {
   const updateRows = useMemo(
     () => parsed.filter((r) => {
       const existing = existingByTitle.get(r.title.toLowerCase());
-      return existing && existing.rating === null && r.rating !== null;
+      if (!existing) return false;
+      return existing.user_rating === null && r.rating !== null;
     }),
     [parsed, existingByTitle],
   );
@@ -334,12 +360,16 @@ export default function ImportLibraryModal() {
       const isUpdate = existingByTitle.has(row.title.toLowerCase());
 
       if (isUpdate) {
-        // Rating update on an existing entry — no TMDB lookup needed
         const existing = existingByTitle.get(row.title.toLowerCase())!;
-        await supabase.from('library')
-          .update({ rating: row.rating })
-          .eq('id', existing.id)
-          .eq('user_id', user.id);
+        const patch: Record<string, unknown> = {};
+        if (existing.user_rating === null && row.rating !== null) patch.user_rating = row.rating;
+        if (!existing.note && row.note) patch.note = row.note;
+        if (Object.keys(patch).length > 0) {
+          await supabase.from('collection_items')
+            .update(patch)
+            .eq('id', existing.id)
+            .eq('user_id', user.id);
+        }
         updated++;
         await new Promise((r) => setTimeout(r, 40));
         continue;
@@ -349,15 +379,27 @@ export default function ImportLibraryModal() {
         ? await lookupTMDB(row.title, row.year)
         : await lookupHardcover(row.title, row.author);
 
-      // Skip if TMDB resolved to an id already in the library
-      if (lookup && existingByExternalId.has(lookup.externalId)) continue;
+      // If TMDB resolved to an id already in the collection, update rating instead of inserting
+      if (lookup && existingByExternalId.has(lookup.externalId)) {
+        const existing = existingByExternalId.get(lookup.externalId)!;
+        const idPatch: Record<string, unknown> = {};
+        if (existing.user_rating === null && row.rating !== null) idPatch.user_rating = row.rating;
+        if (!existing.note && row.note) idPatch.note = row.note;
+        if (Object.keys(idPatch).length > 0) {
+          await supabase.from('collection_items')
+            .update(idPatch)
+            .eq('id', existing.id)
+            .eq('user_id', user.id);
+          updated++;
+        }
+        continue;
+      }
 
       if (!lookup) unmatched++;
 
-      const type = source === 'letterboxd' ? 'watch' : 'read';
-      const dateLabel = row.watchedDate
-        ? new Date(row.watchedDate).toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
-        : null;
+      const type = source === 'goodreads' ? 'read'
+        : lookup?.mediaType === 'tv' ? 'tv'
+        : 'watch';
 
       inserts.push({
         user_id: user.id,
@@ -367,10 +409,8 @@ export default function ImportLibraryModal() {
         poster: lookup?.poster ?? null,
         external_id: lookup?.externalId ?? null,
         media_type: lookup?.mediaType ?? (source === 'letterboxd' ? 'movie' : 'book'),
-        status: row.status,
-        rating: row.rating,
-        date: dateLabel,
-        note: null,
+        user_rating: row.rating,
+        note: row.note ?? null,
       });
       imported++;
 
@@ -379,9 +419,11 @@ export default function ImportLibraryModal() {
 
     if (inserts.length > 0) {
       for (let i = 0; i < inserts.length; i += 50) {
-        await supabase.from('library').insert(inserts.slice(i, i + 50));
+        await supabase.from('collection_items').insert(inserts.slice(i, i + 50));
       }
     }
+
+    await queryClient.invalidateQueries({ queryKey: ['collection-items'] });
 
     setResult({ imported, updated, skipped: alreadyOwned, unmatched });
     setProgress(1);
@@ -399,7 +441,14 @@ export default function ImportLibraryModal() {
           <View style={styles.card}>
             <Pressable
               style={styles.row}
-              onPress={() => { setSource('letterboxd'); pickFile('letterboxd'); }}>
+              onPress={() => {
+                setSource('letterboxd');
+                Alert.alert(
+                  'Which file to pick',
+                  'We accept three CSVs from your Letterboxd export:\n\n• watched.csv — your watch history\n• ratings.csv — your star ratings\n• reviews.csv — your written reviews\n\nImport them in any order — we\'ll merge them onto the right titles automatically.',
+                  [{ text: 'Choose File', onPress: () => pickFile('letterboxd') }, { text: 'Cancel', style: 'cancel' }],
+                );
+              }}>
               <View style={styles.rowIcon}>
                 <SymbolView name="film" size={18} tintColor={Brand.muted} type="monochrome" />
               </View>

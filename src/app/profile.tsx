@@ -47,7 +47,7 @@ export default function ProfileScreen() {
         {view === 'card' ? (
           <ProfileCard
             profile={profile}
-            library={logged}
+            library={logged ?? []}
             followersCount={followersCount ?? 0}
             followingCount={followingCount ?? 0}
             onLoggedPress={() =>

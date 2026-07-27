@@ -24,9 +24,14 @@ import {
   useUpdatePremiere,
   type Premiere,
 } from '@/features/premieres/api';
+import {
+  useMyScreeningRooms,
+  useDeleteScreeningRoom,
+  type ScreeningRoom,
+} from '@/features/screening-rooms/api';
 import { useBrand } from '@/hooks/use-brand';
 
-type Tab = 'hosting' | 'attending';
+type Tab = 'hosting' | 'attending' | 'screening';
 
 const STATUS_LABEL: Record<string, string> = {
   waiting: 'Scheduled',
@@ -55,6 +60,133 @@ function formatPartyDate(airDate: string | null): string {
   }
 }
 
+function ScreeningRoomCard({
+  item,
+  Brand,
+  styles,
+  deleteScreeningRoom,
+}: {
+  item: ScreeningRoom;
+  Brand: BrandPalette;
+  styles: ReturnType<typeof createStyles>;
+  deleteScreeningRoom: { mutate: (id: string) => void };
+}) {
+  const statusColor = item.status === 'live' ? '#22C55E' : item.status === 'ended' ? '#6B7280' : '#F59E0B';
+  const statusLabel = item.status === 'live' ? '● Live' : item.status === 'ended' ? 'Ended' : 'Waiting';
+  const ended = item.status === 'ended';
+  const endedDate = item.ended_at
+    ? new Date(item.ended_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : item.created_at
+      ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '';
+
+  return (
+    <View style={styles.card}>
+      <Pressable
+        style={styles.cardMain}
+        onPress={() => !ended && router.push({ pathname: '/screening-room-live', params: { id: item.id } })}>
+        <View style={[styles.poster, styles.posterFallback, { backgroundColor: '#1A0E2E' }]}>
+          <Text style={styles.posterEmoji}>🎬</Text>
+        </View>
+        <View style={styles.cardInfo}>
+          <View style={styles.statusRow}>
+            <Text style={[styles.statusText, { color: statusColor }]}>{statusLabel}</Text>
+            {ended && endedDate ? <Text style={styles.date}>{endedDate}</Text> : null}
+          </View>
+          <Text style={styles.showTitle} numberOfLines={1}>{item.title}</Text>
+          {item.description ? <Text style={styles.episodeTitle} numberOfLines={1}>{item.description}</Text> : null}
+          {!ended && (
+            <Text style={styles.date}>{item.video_type === 'youtube' ? '▶ YouTube' : '▶ Direct video'}</Text>
+          )}
+        </View>
+      </Pressable>
+      <View style={styles.cardActions}>
+        {!ended ? (
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => router.push({ pathname: '/screening-room-live', params: { id: item.id } })}>
+            <SymbolView name="play.fill" size={14} tintColor={Brand.trust} type="monochrome" />
+            <Text style={styles.actionBtnText}>Open</Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            style={styles.actionBtn}
+            onPress={() => router.push({ pathname: '/screening-room-analytics-modal', params: { roomId: item.id, roomTitle: item.title } })}>
+            <SymbolView name="chart.bar.fill" size={14} tintColor={Brand.trust} type="monochrome" />
+            <Text style={styles.actionBtnText}>Analytics</Text>
+          </Pressable>
+        )}
+        <Pressable
+          style={[styles.actionBtn, styles.actionBtnDelete]}
+          onPress={() => Alert.alert('Delete screening room?', `"${item.title}" will be removed.`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => deleteScreeningRoom.mutate(item.id) },
+          ])}>
+          <SymbolView name="trash" size={14} tintColor="#E84F4F" type="monochrome" />
+          <Text style={[styles.actionBtnText, styles.actionBtnTextDelete]}>Delete</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function ScreeningsTab({
+  screeningRooms,
+  Brand,
+  styles,
+  deleteScreeningRoom,
+}: {
+  screeningRooms: ScreeningRoom[];
+  Brand: BrandPalette;
+  styles: ReturnType<typeof createStyles>;
+  deleteScreeningRoom: { mutate: (id: string) => void };
+}) {
+  const active = screeningRooms.filter((r) => r.status !== 'ended');
+  const ended = screeningRooms.filter((r) => r.status === 'ended');
+
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={[styles.list, { flexGrow: 1 }]}>
+      <Pressable
+        style={[styles.createBtn, { backgroundColor: '#F59E0B', marginBottom: 20 }]}
+        onPress={() => router.push('/create-screening-room-modal')}>
+        <Text style={styles.createBtnText}>+ New Screening Room</Text>
+      </Pressable>
+
+      {active.length > 0 && (
+        <>
+          <Text style={styles.sectionHeader}>Active</Text>
+          {active.map((item, i) => (
+            <View key={item.id}>
+              {i > 0 && <View style={{ height: 12 }} />}
+              <ScreeningRoomCard item={item} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
+            </View>
+          ))}
+        </>
+      )}
+
+      {ended.length > 0 && (
+        <>
+          <Text style={[styles.sectionHeader, active.length > 0 && { marginTop: 24 }]}>History</Text>
+          {ended.map((item, i) => (
+            <View key={item.id}>
+              {i > 0 && <View style={{ height: 12 }} />}
+              <ScreeningRoomCard item={item} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
+            </View>
+          ))}
+        </>
+      )}
+
+      {screeningRooms.length === 0 && (
+        <View style={styles.empty}>
+          <Text style={styles.emptyEmoji}>🎬</Text>
+          <Text style={styles.emptyTitle}>No screening rooms yet</Text>
+          <Text style={styles.emptySub}>Create one and invite your audience.</Text>
+        </View>
+      )}
+    </ScrollView>
+  );
+}
+
 export default function WatchPartiesModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -62,6 +194,8 @@ export default function WatchPartiesModal() {
 
   const { data: hosted = [], isLoading: hostedLoading } = useMyPremieres();
   const { data: attending = [], isLoading: attendingLoading } = useAttendingPremieres();
+  const { data: screeningRooms = [], isLoading: screeningLoading } = useMyScreeningRooms();
+  const deleteScreeningRoom = useDeleteScreeningRoom();
 
   const [editingPremiere, setEditingPremiere] = useState<Premiere | null>(null);
   const [editDate, setEditDate] = useState('');
@@ -108,8 +242,8 @@ export default function WatchPartiesModal() {
     );
   }
 
-  const list = tab === 'hosting' ? hosted : attending;
-  const loading = tab === 'hosting' ? hostedLoading : attendingLoading;
+  const list = tab === 'hosting' ? hosted : tab === 'attending' ? attending : [];
+  const loading = tab === 'hosting' ? hostedLoading : tab === 'attending' ? attendingLoading : screeningLoading;
 
   function renderItem({ item }: { item: Premiere }) {
     const isHost = tab === 'hosting';
@@ -180,29 +314,35 @@ export default function WatchPartiesModal() {
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>Watch Parties</Text>
-        <Pressable onPress={() => router.push('/premiere-modal')} hitSlop={16}>
+        <Pressable
+          onPress={() => tab === 'screening' ? router.push('/create-screening-room-modal') : router.push('/premiere-modal')}
+          hitSlop={16}>
           <SymbolView name="plus" size={20} tintColor={Brand.trust} type="monochrome" />
         </Pressable>
       </View>
 
       {/* Tabs */}
       <View style={styles.tabRow}>
-        {(['hosting', 'attending'] as Tab[]).map((t) => (
+        {([
+          { id: 'hosting', label: 'Parties', count: hosted.length },
+          { id: 'attending', label: 'Attending', count: attending.length },
+          { id: 'screening', label: '🎬 Screenings', count: screeningRooms.length },
+        ] as { id: Tab; label: string; count: number }[]).map((t) => (
           <Pressable
-            key={t}
-            style={[styles.tab, tab === t && styles.tabActive]}
-            onPress={() => setTab(t)}>
-            <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>
-              {t === 'hosting' ? 'Hosting' : 'Attending'}
-              {t === 'hosting' && hosted.length > 0 ? ` (${hosted.length})` : ''}
-              {t === 'attending' && attending.length > 0 ? ` (${attending.length})` : ''}
+            key={t.id}
+            style={[styles.tab, tab === t.id && styles.tabActive]}
+            onPress={() => setTab(t.id)}>
+            <Text style={[styles.tabText, tab === t.id && styles.tabTextActive]}>
+              {t.label}{t.count > 0 ? ` (${t.count})` : ''}
             </Text>
           </Pressable>
         ))}
       </View>
 
       {/* List */}
-      {loading ? (
+      {tab === 'screening' ? (
+        <ScreeningsTab screeningRooms={screeningRooms} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
+      ) : loading ? (
         <ActivityIndicator style={styles.loader} color={Brand.trust} />
       ) : list.length === 0 ? (
         <View style={styles.empty}>
@@ -218,6 +358,10 @@ export default function WatchPartiesModal() {
           {tab === 'hosting' ? (
             <Pressable style={styles.createBtn} onPress={() => router.push('/premiere-modal')}>
               <Text style={styles.createBtnText}>Host a watch party</Text>
+            </Pressable>
+          ) : tab === 'screening' ? (
+            <Pressable style={[styles.createBtn, { backgroundColor: '#F59E0B' }]} onPress={() => router.push('/create-screening-room-modal')}>
+              <Text style={styles.createBtnText}>Create a Screening Room</Text>
             </Pressable>
           ) : null}
         </View>
@@ -331,7 +475,7 @@ function createStyles(Brand: BrandPalette) {
       borderBottomColor: 'transparent',
     },
     tabActive: { borderBottomColor: Brand.trust },
-    tabText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.muted },
+    tabText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
     tabTextActive: { color: Brand.trust },
     loader: { marginTop: 40 },
     list: { padding: Spacing.three },
@@ -348,6 +492,14 @@ function createStyles(Brand: BrandPalette) {
     posterEmoji: { fontSize: 24 },
     cardInfo: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 3 },
     statusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 },
+    sectionHeader: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 10,
+      color: Brand.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 1.2,
+      marginBottom: 10,
+    },
     statusDot: { width: 6, height: 6, borderRadius: 3 },
     statusText: { fontFamily: BrandFonts.syneBold, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 },
     showTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },

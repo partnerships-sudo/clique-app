@@ -19,6 +19,7 @@ export interface CollectionItem {
   media_type: string | null;
   ext_rating: string | null;
   user_rating: number | null;
+  note: string | null;
   created_at: string;
 }
 

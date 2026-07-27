@@ -1,7 +1,20 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
-import { Alert, FlatList, Pressable, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  FlatList,
+  Image,
+  Modal,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { FriendCard } from '@/components/friends/friend-card';
@@ -24,10 +37,278 @@ import {
   type Profile,
 } from '@/features/follows/api';
 import { computeCompatibility } from '@/features/friends/compatibility';
+import {
+  useAttendingPremieres,
+  useDeletePremiere,
+  useMyPremieres,
+  useUpdatePremiere,
+  type Premiere,
+} from '@/features/premieres/api';
+import {
+  useMyScreeningRooms,
+  useDeleteScreeningRoom,
+  type ScreeningRoom,
+} from '@/features/screening-rooms/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
-type FollowListTab = 'following' | 'followers';
+type FollowListTab = 'following' | 'followers' | 'watchparties';
+type WatchPartyTab = 'hosting' | 'attending' | 'screening';
+
+const WP_STATUS_LABEL: Record<string, string> = {
+  waiting: 'Scheduled', live: 'Live now', ended: 'Ended', replay: 'Replay',
+};
+const WP_STATUS_COLOR: Record<string, string> = {
+  waiting: '#F59E0B', live: '#22C55E', ended: '#6B7280', replay: '#8B5CF6',
+};
+
+function formatPartyDate(airDate: string | null): string {
+  if (!airDate) return '';
+  try {
+    return new Date(airDate + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  } catch { return airDate; }
+}
+
+function ScreeningRoomCard({ item, Brand, styles, deleteScreeningRoom }: {
+  item: ScreeningRoom; Brand: BrandPalette; styles: any; deleteScreeningRoom: { mutate: (id: string) => void };
+}) {
+  const statusColor = item.status === 'live' ? '#22C55E' : item.status === 'ended' ? '#6B7280' : '#F59E0B';
+  const statusLabel = item.status === 'live' ? '● Live' : item.status === 'ended' ? 'Ended' : 'Waiting';
+  const ended = item.status === 'ended';
+  const endedDate = item.ended_at
+    ? new Date(item.ended_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+    : item.created_at
+      ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      : '';
+  return (
+    <View style={styles.wpCard}>
+      <Pressable style={styles.wpCardMain} onPress={() => !ended && router.push({ pathname: '/screening-room-live', params: { id: item.id } })}>
+        <View style={[styles.wpPoster, styles.wpPosterFallback, { backgroundColor: '#1A0E2E' }]}>
+          <Text style={styles.wpPosterEmoji}>🎬</Text>
+        </View>
+        <View style={styles.wpCardInfo}>
+          <View style={styles.wpStatusRow}>
+            <Text style={[styles.wpStatusText, { color: statusColor }]}>{statusLabel}</Text>
+            {ended && endedDate ? <Text style={styles.wpDate}>{endedDate}</Text> : null}
+          </View>
+          <Text style={styles.wpShowTitle} numberOfLines={1}>{item.title}</Text>
+          {item.description ? <Text style={styles.wpEpisodeTitle} numberOfLines={1}>{item.description}</Text> : null}
+          {!ended && <Text style={styles.wpDate}>{item.video_type === 'youtube' ? '▶ YouTube' : '▶ Direct video'}</Text>}
+        </View>
+      </Pressable>
+      <View style={styles.wpCardActions}>
+        {!ended ? (
+          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/screening-room-live', params: { id: item.id } })}>
+            <SymbolView name="play.fill" size={14} tintColor={Brand.trust} type="monochrome" />
+            <Text style={styles.wpActionBtnText}>Open</Text>
+          </Pressable>
+        ) : (
+          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/screening-room-analytics-modal', params: { roomId: item.id, roomTitle: item.title } })}>
+            <SymbolView name="chart.bar.fill" size={14} tintColor={Brand.trust} type="monochrome" />
+            <Text style={styles.wpActionBtnText}>Analytics</Text>
+          </Pressable>
+        )}
+        <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() =>
+          Alert.alert('Delete screening room?', `"${item.title}" will be removed.`, [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Delete', style: 'destructive', onPress: () => deleteScreeningRoom.mutate(item.id) },
+          ])}>
+          <SymbolView name="trash" size={14} tintColor="#E84F4F" type="monochrome" />
+          <Text style={[styles.wpActionBtnText, { color: '#E84F4F' }]}>Delete</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: any }) {
+  const [wpTab, setWpTab] = useState<WatchPartyTab>('hosting');
+  const { data: hosted = [], isLoading: hostedLoading } = useMyPremieres();
+  const { data: attending = [], isLoading: attendingLoading } = useAttendingPremieres();
+  const { data: screeningRooms = [], isLoading: screeningLoading } = useMyScreeningRooms();
+  const deleteScreeningRoom = useDeleteScreeningRoom();
+  const updatePremiere = useUpdatePremiere();
+  const deletePremiere = useDeletePremiere();
+  const [editingPremiere, setEditingPremiere] = useState<Premiere | null>(null);
+  const [editDate, setEditDate] = useState('');
+  const [editTime, setEditTime] = useState('');
+  const [editTagline, setEditTagline] = useState('');
+
+  function openEdit(p: Premiere) {
+    setEditingPremiere(p);
+    setEditDate(p.air_date ?? '');
+    setEditTime(p.air_time ?? '');
+    setEditTagline(p.tagline ?? '');
+  }
+
+  async function handleSaveEdit() {
+    if (!editingPremiere) return;
+    await updatePremiere.mutateAsync({ id: editingPremiere.id, airDate: editDate, airTime: editTime.trim() || null, tagline: editTagline.trim() || null });
+    setEditingPremiere(null);
+  }
+
+  function handleDelete(p: Premiere) {
+    Alert.alert('Delete watch party?', `"${p.show_title}" will be removed and attendees won't be able to join.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deletePremiere.mutate(p.id, { onError: () => Alert.alert('Could not delete', 'Something went wrong. Please try again.') }) },
+    ]);
+  }
+
+  const list = wpTab === 'hosting' ? hosted : wpTab === 'attending' ? attending : [];
+  const loading = wpTab === 'hosting' ? hostedLoading : wpTab === 'attending' ? attendingLoading : screeningLoading;
+
+  return (
+    <>
+      {/* Sub-tabs */}
+      <View style={styles.wpTabRow}>
+        {([
+          { id: 'hosting' as const, label: 'Parties', count: hosted.length },
+          { id: 'attending' as const, label: 'Attending', count: attending.length },
+          { id: 'screening' as const, label: '🎬 Screenings', count: screeningRooms.length },
+        ]).map((t) => (
+          <Pressable key={t.id} style={[styles.wpSubTab, wpTab === t.id && styles.wpSubTabActive]} onPress={() => setWpTab(t.id)}>
+            <Text style={[styles.wpSubTabText, wpTab === t.id && styles.wpSubTabTextActive]}>
+              {t.label}{t.count > 0 ? ` (${t.count})` : ''}
+            </Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Create button */}
+      <View style={styles.wpCreateRow}>
+        <Pressable
+          style={[styles.wpCreateBtn, wpTab === 'screening' && { backgroundColor: '#F59E0B' }]}
+          onPress={() => wpTab === 'screening' ? router.push('/create-screening-room-modal') : router.push('/premiere-modal')}>
+          <Text style={styles.wpCreateBtnText}>
+            {wpTab === 'screening' ? '+ New Screening Room' : '+ Host a Watch Party'}
+          </Text>
+        </Pressable>
+      </View>
+
+      {/* Content */}
+      {wpTab === 'screening' ? (
+        <>
+          {screeningLoading ? <ActivityIndicator style={{ marginTop: 24 }} color={Brand.trust} /> : null}
+          {screeningRooms.filter((r) => r.status !== 'ended').length > 0 && (
+            <>
+              <Text style={styles.wpSectionHeader}>Active</Text>
+              {screeningRooms.filter((r) => r.status !== 'ended').map((item, i) => (
+                <View key={item.id}>
+                  {i > 0 && <View style={{ height: 12 }} />}
+                  <ScreeningRoomCard item={item} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
+                </View>
+              ))}
+            </>
+          )}
+          {screeningRooms.filter((r) => r.status === 'ended').length > 0 && (
+            <>
+              <Text style={[styles.wpSectionHeader, { marginTop: 24 }]}>History</Text>
+              {screeningRooms.filter((r) => r.status === 'ended').map((item, i) => (
+                <View key={item.id}>
+                  {i > 0 && <View style={{ height: 12 }} />}
+                  <ScreeningRoomCard item={item} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
+                </View>
+              ))}
+            </>
+          )}
+          {!screeningLoading && screeningRooms.length === 0 && (
+            <View style={styles.wpEmpty}>
+              <Text style={styles.wpEmptyEmoji}>🎬</Text>
+              <Text style={styles.wpEmptyTitle}>No screening rooms yet</Text>
+              <Text style={styles.wpEmptySub}>Create one and invite your audience.</Text>
+            </View>
+          )}
+        </>
+      ) : loading ? (
+        <ActivityIndicator style={{ marginTop: 24 }} color={Brand.trust} />
+      ) : list.length === 0 ? (
+        <View style={styles.wpEmpty}>
+          <Text style={styles.wpEmptyEmoji}>🎬</Text>
+          <Text style={styles.wpEmptyTitle}>{wpTab === 'hosting' ? 'No watch parties yet' : "You haven't joined any yet"}</Text>
+          <Text style={styles.wpEmptySub}>{wpTab === 'hosting' ? 'Host one and invite your friends.' : 'Accept an invite or ask a friend to host one.'}</Text>
+        </View>
+      ) : (
+        list.map((item, i) => {
+          const isHost = wpTab === 'hosting';
+          const canEnter = item.status === 'waiting' || item.status === 'live';
+          return (
+            <View key={item.id}>
+              {i > 0 && <View style={{ height: 12 }} />}
+              <View style={styles.wpCard}>
+                <Pressable style={styles.wpCardMain} onPress={() =>
+                  canEnter
+                    ? router.push({ pathname: '/premiere-waiting-room', params: { id: item.id } })
+                    : router.push({ pathname: '/premiere/[id]', params: { id: item.id } })}>
+                  {item.show_poster ? (
+                    <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
+                  ) : (
+                    <View style={[styles.wpPoster, styles.wpPosterFallback]}>
+                      <Text style={styles.wpPosterEmoji}>🎬</Text>
+                    </View>
+                  )}
+                  <View style={styles.wpCardInfo}>
+                    <View style={styles.wpStatusRow}>
+                      <View style={[styles.wpStatusDot, { backgroundColor: WP_STATUS_COLOR[item.status] ?? '#6B7280' }]} />
+                      <Text style={[styles.wpStatusText, { color: WP_STATUS_COLOR[item.status] ?? Brand.muted }]}>
+                        {WP_STATUS_LABEL[item.status] ?? item.status}
+                      </Text>
+                    </View>
+                    <Text style={styles.wpShowTitle} numberOfLines={1}>{item.show_title}</Text>
+                    {item.episode_name ? <Text style={styles.wpEpisodeTitle} numberOfLines={1}>S{item.season_number}E{item.episode_number} · {item.episode_name}</Text> : null}
+                    {item.air_date ? <Text style={styles.wpDate}>📅 {formatPartyDate(item.air_date)}{item.air_time ? ` · ${item.air_time}` : ''}</Text> : null}
+                    {item.tagline ? <Text style={styles.wpTagline} numberOfLines={1}>"{item.tagline}"</Text> : null}
+                    {!isHost ? <Text style={styles.wpHostedBy}>Hosted by {item.host_name}</Text> : null}
+                  </View>
+                </Pressable>
+                {isHost && item.status !== 'ended' ? (
+                  <View style={styles.wpCardActions}>
+                    <Pressable style={styles.wpActionBtn} onPress={() => openEdit(item)} hitSlop={16}>
+                      <SymbolView name="pencil" size={15} tintColor={Brand.trust} type="monochrome" />
+                      <Text style={styles.wpActionBtnText}>Edit</Text>
+                    </Pressable>
+                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() => handleDelete(item)} hitSlop={16}>
+                      <SymbolView name="trash" size={15} tintColor="#E84F4F" type="monochrome" />
+                      <Text style={[styles.wpActionBtnText, { color: '#E84F4F' }]}>Delete</Text>
+                    </Pressable>
+                  </View>
+                ) : null}
+              </View>
+            </View>
+          );
+        })
+      )}
+
+      {/* Edit modal */}
+      <Modal visible={!!editingPremiere} transparent animationType="slide">
+        <Pressable style={styles.wpEditBackdrop} onPress={() => setEditingPremiere(null)}>
+          <Pressable style={styles.wpEditSheet} onPress={() => {}}>
+            <View style={styles.wpEditGrabber} />
+            <Text style={styles.wpEditTitle}>Edit Watch Party</Text>
+            {editingPremiere ? <Text style={styles.wpEditShow} numberOfLines={1}>{editingPremiere.show_title}{editingPremiere.episode_name ? ` · ${editingPremiere.episode_name}` : ''}</Text> : null}
+            <ScrollView showsVerticalScrollIndicator={false}>
+              <Text style={styles.wpFieldLabel}>Date (YYYY-MM-DD)</Text>
+              <TextInput style={styles.wpFieldInput} value={editDate} onChangeText={setEditDate} placeholder="e.g. 2025-08-10" placeholderTextColor={Brand.muted} keyboardType="numbers-and-punctuation" autoCorrect={false} />
+              <Text style={styles.wpFieldLabel}>Start time</Text>
+              <View style={styles.wpTimeRow}>
+                {['7:00 PM', '8:00 PM', '9:00 PM', '10:00 PM'].map((t) => (
+                  <Pressable key={t} style={[styles.wpTimeChip, editTime === t && styles.wpTimeChipActive]} onPress={() => setEditTime(editTime === t ? '' : t)}>
+                    <Text style={[styles.wpTimeChipText, editTime === t && { color: '#fff' }]}>{t}</Text>
+                  </Pressable>
+                ))}
+              </View>
+              <TextInput style={styles.wpFieldInput} value={editTime} onChangeText={setEditTime} placeholder="Or enter custom time, e.g. 8:30 PM ET" placeholderTextColor={Brand.muted} />
+              <Text style={styles.wpFieldLabel}>Tagline</Text>
+              <TextInput style={[styles.wpFieldInput, { minHeight: 72, textAlignVertical: 'top' }]} value={editTagline} onChangeText={setEditTagline} placeholder='e.g. "girls night 🍷"' placeholderTextColor={Brand.muted} multiline maxLength={80} />
+            </ScrollView>
+            <Pressable style={[styles.wpSaveBtn, updatePremiere.isPending && { opacity: 0.5 }]} onPress={handleSaveEdit} disabled={updatePremiere.isPending}>
+              {updatePremiere.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.wpSaveBtnText}>Save changes</Text>}
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
 
 export default function FriendsScreen() {
   const { user } = useSession();
@@ -61,7 +342,7 @@ export default function FriendsScreen() {
   const listRef = useRef<FlatList>(null);
   const searchRef = useRef<UserSearchHandle>(null);
 
-  const rawList = tab === 'following' ? following : followers;
+  const rawList = tab === 'following' ? following : tab === 'followers' ? followers : undefined;
   const isLoading = tab === 'following' ? followingLoading : followersLoading;
   const isFetching = tab === 'following' ? followingFetching : followersFetching;
   const refetch = tab === 'following' ? refetchFollowing : refetchFollowers;
@@ -105,136 +386,132 @@ export default function FriendsScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <FlatList
-        ref={listRef}
-        contentContainerStyle={styles.content}
-        data={list ?? []}
-        keyExtractor={(item) => item.id}
-        refreshControl={
-          <RefreshControl
-            refreshing={isFetching && !isLoading}
-            onRefresh={refetch}
-            tintColor={Brand.trust}
-          />
-        }
-        ListHeaderComponent={
-          <View>
-            {/* Header row */}
-            <View style={styles.header}>
-              <Text style={styles.headerTitle}>Friends</Text>
-              <View style={styles.headerActions}>
-                <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)}>
-                  <Text style={styles.inviteBtnText}>+ Invite</Text>
-                </Pressable>
-                <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
-                  <SymbolView name="person.badge.plus" size={22} tintColor={Brand.muted} style={{ width: 26, height: 24 }} />
-                </Pressable>
-                <Pressable hitSlop={16} onPress={() => router.push('/settings')}>
-                  <SymbolView name="gearshape" size={22} tintColor={Brand.muted} style={{ width: 24, height: 24 }} />
-                </Pressable>
-              </View>
-            </View>
+      {/* Header row — always visible */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Friends</Text>
+        <View style={styles.headerActions}>
+          <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)}>
+            <Text style={styles.inviteBtnText}>+ Invite</Text>
+          </Pressable>
+          <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
+            <SymbolView name="person.badge.plus" size={22} tintColor={Brand.muted} style={{ width: 26, height: 24 }} />
+          </Pressable>
+        </View>
+      </View>
 
-            {/* Following / Followers underline tabs */}
-            <View style={styles.tabRow}>
-              <Pressable style={[styles.tabBtn, tab === 'following' && styles.tabBtnActive]} onPress={() => setTab('following')}>
-                <Text style={[styles.tabBtnText, tab === 'following' && styles.tabBtnTextActive]}>
-                  Following {following?.length ?? ''}
-                </Text>
-              </Pressable>
-              <Pressable style={[styles.tabBtn, tab === 'followers' && styles.tabBtnActive]} onPress={() => setTab('followers')}>
-                <Text style={[styles.tabBtnText, tab === 'followers' && styles.tabBtnTextActive]}>
-                  Followers {followers?.length ?? ''}
-                </Text>
-              </Pressable>
-              <View style={{ flex: 1 }} />
-              <Pressable style={styles.watchPartiesBtn} onPress={() => router.push('/watch-parties-modal')}>
-                <SymbolView name="popcorn" size={13} tintColor={Brand.trust} type="monochrome" />
-                <Text style={styles.watchPartiesBtnText}>Watch Parties</Text>
-              </Pressable>
-            </View>
+      {/* Tab bar — always visible */}
+      <View style={styles.tabRow}>
+        <Pressable style={[styles.tabBtn, tab === 'following' && styles.tabBtnActive]} onPress={() => setTab('following')}>
+          <Text style={[styles.tabBtnText, tab === 'following' && styles.tabBtnTextActive]}>
+            Following {following?.length ?? ''}
+          </Text>
+        </Pressable>
+        <Pressable style={[styles.tabBtn, tab === 'followers' && styles.tabBtnActive]} onPress={() => setTab('followers')}>
+          <Text style={[styles.tabBtnText, tab === 'followers' && styles.tabBtnTextActive]}>
+            Followers {followers?.length ?? ''}
+          </Text>
+        </Pressable>
+        <Pressable style={[styles.tabBtn, styles.tabBtnWatchParties, tab === 'watchparties' && styles.tabBtnActive]} onPress={() => setTab('watchparties')}>
+          <Text style={[styles.tabBtnText, tab === 'watchparties' && styles.tabBtnTextActive]}>Watch Parties</Text>
+        </Pressable>
+      </View>
 
-            {/* Inner search */}
-            <UserSearch ref={searchRef} />
+      {/* Content */}
+      {tab === 'watchparties' ? (
+        <ScrollView contentContainerStyle={styles.watchPartiesContent}>
+          <WatchPartiesContent Brand={Brand} styles={styles} />
+        </ScrollView>
+      ) : (
+        <FlatList
+          ref={listRef}
+          contentContainerStyle={styles.content}
+          data={list ?? []}
+          keyExtractor={(item) => item.id}
+          refreshControl={
+            <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={Brand.trust} />
+          }
+          ListHeaderComponent={
+            <View>
+              <UserSearch ref={searchRef} />
 
-            {/* Follow requests */}
-            {requests?.length ? (
-              <View style={styles.section}>
-                {requests.map((request) => (
-                  <FriendRequestCard
-                    key={request.followId}
-                    request={request}
-                    onAccept={() => acceptRequest.mutate(request, { onError: (err) => Alert.alert('Could not accept request', err.message) })}
-                    onDecline={() => declineRequest.mutate(request.followId, { onError: (err) => Alert.alert('Could not decline request', err.message) })}
+              {requests?.length ? (
+                <View style={styles.section}>
+                  {requests.map((request) => (
+                    <FriendRequestCard
+                      key={request.followId}
+                      request={request}
+                      onAccept={() => acceptRequest.mutate(request, { onError: (err) => Alert.alert('Could not accept request', err.message) })}
+                      onDecline={() => declineRequest.mutate(request.followId, { onError: (err) => Alert.alert('Could not decline request', err.message) })}
+                    />
+                  ))}
+                </View>
+              ) : null}
+
+              {visibleSuggestions.length ? (
+                <View style={styles.section}>
+                  <View style={styles.sectionHeaderRow}>
+                    <Text style={styles.sectionLabelInline}>People you may know</Text>
+                    <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
+                      <Text style={styles.seeAll}>See all</Text>
+                    </Pressable>
+                  </View>
+                  <FlatList
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    data={visibleSuggestions}
+                    keyExtractor={(p) => p.id}
+                    contentContainerStyle={styles.suggestRow}
+                    ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
+                    renderItem={({ item: profile }) => (
+                      <SuggestedUserCard
+                        profile={profile}
+                        mutualCount={profile.mutualCount}
+                        isAdding={follow.isPending && follow.variables?.targetUserId === profile.id}
+                        onAdd={() => follow.mutate({ targetUserId: profile.id, isTargetPrivate: profile.is_private })}
+                        onDismiss={() => setDismissedIds((prev) => new Set(prev).add(profile.id))}
+                      />
+                    )}
                   />
-                ))}
-              </View>
-            ) : null}
-
-            {/* Suggested follows */}
-            {visibleSuggestions.length ? (
-              <View style={styles.section}>
-                <View style={styles.sectionHeaderRow}>
-                  <Text style={styles.sectionLabelInline}>People you may know</Text>
-                  <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
-                    <Text style={styles.seeAll}>See all</Text>
+                </View>
+              ) : null}
+            </View>
+          }
+          renderItem={({ item, index }: { item: Profile; index: number }) => {
+            const compat = compatScores.get(item.id) ?? 0;
+            const activePost = activePostByUser.get(item.id) ?? null;
+            return (
+              <FriendCard
+                profile={item}
+                compatibility={compat}
+                hasUnread={unreadFriendIds.has(item.id)}
+                currentlyWatching={activePost}
+                isTopMatch={index === 0 && tab === 'following'}
+              />
+            );
+          }}
+          ListEmptyComponent={
+            !isLoading ? (
+              tab === 'following' ? (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyEmoji}>👥</Text>
+                  <Text style={styles.emptyTitle}>Toto, I've a feeling we need more friends.</Text>
+                  <Text style={styles.emptyBody}>Search above to find people you know on Clique.</Text>
+                  <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')}>
+                    <Text style={styles.emptyBtnText}>Find people →</Text>
                   </Pressable>
                 </View>
-                <FlatList
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  data={visibleSuggestions}
-                  keyExtractor={(p) => p.id}
-                  contentContainerStyle={styles.suggestRow}
-                  ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
-                  renderItem={({ item: profile }) => (
-                    <SuggestedUserCard
-                      profile={profile}
-                      mutualCount={profile.mutualCount}
-                      isAdding={follow.isPending && follow.variables?.targetUserId === profile.id}
-                      onAdd={() => follow.mutate({ targetUserId: profile.id, isTargetPrivate: profile.is_private })}
-                      onDismiss={() => setDismissedIds((prev) => new Set(prev).add(profile.id))}
-                    />
-                  )}
-                />
-              </View>
-            ) : null}
-          </View>
-        }
-        renderItem={({ item, index }: { item: Profile; index: number }) => {
-          const compat = compatScores.get(item.id) ?? 0;
-          const activePost = activePostByUser.get(item.id) ?? null;
-          return (
-            <FriendCard
-              profile={item}
-              compatibility={compat}
-              hasUnread={unreadFriendIds.has(item.id)}
-              currentlyWatching={activePost}
-              isTopMatch={index === 0 && tab === 'following'}
-            />
-          );
-        }}
-        ListEmptyComponent={
-          !isLoading ? (
-            tab === 'following' ? (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyEmoji}>👥</Text>
-                <Text style={styles.emptyTitle}>Toto, I've a feeling we need more friends.</Text>
-                <Text style={styles.emptyBody}>Search above to find people you know on Clique.</Text>
-                <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')}>
-                  <Text style={styles.emptyBtnText}>Find people →</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.emptyWrap}>
-                <Text style={styles.emptyEmoji}>🌟</Text>
-                <Text style={styles.emptyTitle}>No followers yet.</Text>
-                <Text style={styles.emptyBody}>Fame is fleeting, but great taste is forever. Keep logging.</Text>
-              </View>
-            )
-          ) : null
-        }
-      />
+              ) : (
+                <View style={styles.emptyWrap}>
+                  <Text style={styles.emptyEmoji}>🌟</Text>
+                  <Text style={styles.emptyTitle}>No followers yet.</Text>
+                  <Text style={styles.emptyBody}>Fame is fleeting, but great taste is forever. Keep logging.</Text>
+                </View>
+              )
+            ) : null
+          }
+        />
+      )}
+
       <InviteSheet visible={inviteSheetVisible} onClose={() => setInviteSheetVisible(false)} />
     </SafeAreaView>
   );
@@ -242,31 +519,76 @@ export default function FriendsScreen() {
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: Brand.paper },
-  content: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.six },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
-  headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink },
-  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  inviteBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 6, paddingHorizontal: 14 },
-  inviteBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: '#fff' },
-  tabRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: Brand.border, marginBottom: 14 },
-  watchPartiesBtn: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingVertical: 8, paddingBottom: 10 },
-  watchPartiesBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
-  tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 20 },
-  tabBtnActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
-  tabBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.muted },
-  tabBtnTextActive: { color: Brand.ink },
-  section: { marginBottom: Spacing.two },
-  sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionLabelInline: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 1 },
-  seeAll: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.trust },
-  suggestRow: { paddingBottom: 4 },
-  empty: { textAlign: 'center', paddingVertical: 40, paddingHorizontal: 20, color: Brand.muted, fontFamily: BrandFonts.interRegular, fontSize: 13.6 },
-  emptyWrap: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
-  emptyEmoji: { fontSize: 40, marginBottom: 12 },
-  emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, marginBottom: 8, textAlign: 'center' },
-  emptyBody: { fontFamily: BrandFonts.interRegular, fontSize: 13.6, color: Brand.muted, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
-  emptyBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 22 },
-  emptyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
+    safeArea: { flex: 1, backgroundColor: Brand.paper },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: 16 },
+    headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    inviteBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 6, paddingHorizontal: 14 },
+    inviteBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: '#fff' },
+    tabRow: { flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: Brand.border, marginBottom: 0, paddingHorizontal: Spacing.three },
+    tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 20 },
+    tabBtnWatchParties: { marginRight: 0, marginLeft: 'auto' },
+    tabBtnActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
+    tabBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.muted },
+    tabBtnTextActive: { color: Brand.ink },
+    content: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.six },
+    watchPartiesContent: { paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: Spacing.six },
+    section: { marginBottom: Spacing.two },
+    sectionHeaderRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+    sectionLabelInline: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 1 },
+    seeAll: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.trust },
+    suggestRow: { paddingBottom: 4 },
+    emptyWrap: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24 },
+    emptyEmoji: { fontSize: 40, marginBottom: 12 },
+    emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, marginBottom: 8, textAlign: 'center' },
+    emptyBody: { fontFamily: BrandFonts.interRegular, fontSize: 13.6, color: Brand.muted, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+    emptyBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 22 },
+    emptyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
+
+    // Watch Parties styles
+    wpTabRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Brand.border, marginBottom: 16 },
+    wpSubTab: { flex: 1, alignItems: 'center', paddingVertical: 10, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    wpSubTabActive: { borderBottomColor: Brand.trust },
+    wpSubTabText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
+    wpSubTabTextActive: { color: Brand.trust },
+    wpCreateRow: { marginBottom: 20 },
+    wpCreateBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 13, alignItems: 'center' },
+    wpCreateBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#fff' },
+    wpSectionHeader: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10 },
+    wpCard: { backgroundColor: Brand.card, borderRadius: 16, borderWidth: 1, borderColor: Brand.border, overflow: 'hidden' },
+    wpCardMain: { flexDirection: 'row', padding: 14, gap: 12 },
+    wpPoster: { width: 56, height: 84, borderRadius: 8 },
+    wpPosterFallback: { backgroundColor: Brand.border, alignItems: 'center', justifyContent: 'center' },
+    wpPosterEmoji: { fontSize: 24 },
+    wpCardInfo: { flex: 1, minWidth: 0, justifyContent: 'center', gap: 3 },
+    wpStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 2 },
+    wpStatusDot: { width: 6, height: 6, borderRadius: 3 },
+    wpStatusText: { fontFamily: BrandFonts.syneBold, fontSize: 11, textTransform: 'uppercase', letterSpacing: 0.5 },
+    wpShowTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
+    wpEpisodeTitle: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted },
+    wpDate: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.ink, marginTop: 2 },
+    wpTagline: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, fontStyle: 'italic' },
+    wpHostedBy: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, marginTop: 2 },
+    wpCardActions: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: Brand.border },
+    wpActionBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: 10 },
+    wpActionBtnDelete: { borderLeftWidth: 1, borderLeftColor: Brand.border },
+    wpActionBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
+    wpEmpty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 24, gap: 8 },
+    wpEmptyEmoji: { fontSize: 44, marginBottom: 4 },
+    wpEmptyTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 18, color: Brand.ink },
+    wpEmptySub: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, textAlign: 'center', lineHeight: 20 },
+    wpEditBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+    wpEditSheet: { backgroundColor: Brand.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.three, paddingBottom: 36, maxHeight: '85%' },
+    wpEditGrabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: Brand.border, alignSelf: 'center', marginBottom: 16 },
+    wpEditTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, color: Brand.ink, marginBottom: 4 },
+    wpEditShow: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, marginBottom: 20 },
+    wpFieldLabel: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6, marginTop: 14 },
+    wpFieldInput: { backgroundColor: Brand.card, borderRadius: 12, borderWidth: 1, borderColor: Brand.border, paddingHorizontal: 14, paddingVertical: 11, fontFamily: BrandFonts.interRegular, fontSize: 15, color: Brand.ink },
+    wpTimeRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
+    wpTimeChip: { paddingVertical: 7, paddingHorizontal: 12, borderRadius: 20, borderWidth: 1, borderColor: Brand.border, backgroundColor: Brand.card },
+    wpTimeChipActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
+    wpTimeChipText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
+    wpSaveBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
+    wpSaveBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: '#fff' },
   });
 }

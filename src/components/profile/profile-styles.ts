@@ -13,12 +13,13 @@ export const CAT_FILTERS: { type: EntryType | 'all'; label: string; color: strin
   { type: 'listen', label: 'Music',     color: '#9B95AC', sf: 'headphones' },
 ];
 
-export const STAT_CATEGORIES = [
-  { type: 'watch' as EntryType, label: 'TV', sf: 'tv', color: '#FF6B6B', bg: '#FF6B6B18' },
-  { type: 'play' as EntryType, label: 'Games', sf: 'gamecontroller.fill', color: '#5BC8F5', bg: '#5BC8F518' },
-  { type: 'podcast' as EntryType, label: 'Podcasts', sf: 'mic.fill', color: '#C084FC', bg: '#C084FC18' },
-  { type: 'listen' as EntryType, label: 'Music', sf: 'music.note', color: '#9B95AC', bg: '#9B95AC18' },
-  { type: 'read' as EntryType, label: 'Books', sf: 'book.fill', color: '#5FA8FF', bg: '#5FA8FF18' },
+export const STAT_CATEGORIES: { type: string; label: string; sf: string; color: string; bg: string }[] = [
+  { type: 'tv',      label: 'TV',       sf: 'tv.fill',             color: '#FF6B6B', bg: '#FF6B6B18' },
+  { type: 'watch',   label: 'Movies',   sf: 'film.fill',           color: '#FF9F43', bg: '#FF9F4318' },
+  { type: 'read',    label: 'Books',    sf: 'book.fill',           color: '#5FA8FF', bg: '#5FA8FF18' },
+  { type: 'play',    label: 'Games',    sf: 'gamecontroller.fill', color: '#5BC8F5', bg: '#5BC8F518' },
+  { type: 'podcast', label: 'Podcasts', sf: 'mic.fill',            color: '#C084FC', bg: '#C084FC18' },
+  { type: 'listen',  label: 'Music',    sf: 'music.note',          color: '#9B95AC', bg: '#9B95AC18' },
 ];
 
 export function createStyles(Brand: BrandPalette) {
@@ -41,7 +42,10 @@ export function createStyles(Brand: BrandPalette) {
     name: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: Brand.ink, flexShrink: 1, flexWrap: 'nowrap' },
     actionRow: { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
     iconBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
-    handle: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted, marginBottom: 4 },
+    cogBtn: { position: 'absolute', top: 0, right: 10, zIndex: 1, padding: 4 },
+    iconBtnSmall: { width: 22, height: 22, borderRadius: 11, backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' },
+    handleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
+    handle: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted },
     mutualFollowers: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.muted, marginBottom: 8, marginTop: 2 },
     activityPill: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Brand.tlight, borderRadius: 20, paddingVertical: 6, paddingHorizontal: 12, alignSelf: 'flex-start' },
     activityDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: ONLINE_COLOR },
@@ -96,7 +100,7 @@ export function createStyles(Brand: BrandPalette) {
     feedSortBtn: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 20, paddingVertical: 5, paddingHorizontal: 14 },
     feedSortBtnActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
     feedSortBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
-    feedSortBtnTextActive: { color: '#fff' },
+    feedSortBtnTextActive: { color: Brand.paper },
 
     // Watchlist tab
     wlToggleRow: { flexDirection: 'row', backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, borderRadius: 50, padding: 4, marginBottom: 14, gap: 4 },
@@ -133,15 +137,15 @@ export function createStyles(Brand: BrandPalette) {
     collCatBtn: { flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center' },
     collCatBtnActive: { backgroundColor: Brand.ink },
     collCatLabel: { fontFamily: BrandFonts.syneBold, fontSize: 8, color: Brand.muted, marginTop: 2 },
-    collCatLabelActive: { color: '#fff' },
+    collCatLabelActive: { color: Brand.paper },
     collCatCount: { fontFamily: BrandFonts.interRegular, fontSize: 8, color: Brand.muted, marginTop: 1 },
-    collCatCountActive: { color: 'rgba(255,255,255,0.75)' },
+    collCatCountActive: { color: Brand.paper },
     collSortRow: { flexDirection: 'row', alignItems: 'center', gap: 7, marginBottom: 12 },
     collSortLabel: { fontSize: 12, color: Brand.muted, fontFamily: BrandFonts.interRegular },
     collSortBtn: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 20, paddingVertical: 4, paddingHorizontal: 11 },
     collSortBtnActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
     collSortBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.muted },
-    collSortBtnTextActive: { color: '#fff' },
+    collSortBtnTextActive: { color: Brand.paper },
     collGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     collGridItem: { width: '31%' },
     collGridImg: { width: '100%', aspectRatio: 2 / 3, borderRadius: 8, backgroundColor: Brand.border },

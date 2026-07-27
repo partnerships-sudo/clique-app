@@ -113,11 +113,11 @@ export function ProfileCard({
           <View style={styles.headerInfo}>
             <View style={styles.nameRow}>
               <Text style={styles.name} numberOfLines={1}>{name}</Text>
-              {profile?.verified_tier ? <VerifiedBadge tier={profile.verified_tier} size={16} /> : null}
+              {profile?.verified_tier ? <View style={{ marginTop: 2 }}><VerifiedBadge tier={profile.verified_tier} size={20} /></View> : null}
               {onEditPress ? (
                 <Pressable
-                  hitSlop={10}
-                  style={styles.iconBtn}
+                  hitSlop={12}
+                  style={{ marginLeft: 'auto' }}
                   onPress={() => {
                     if (Platform.OS === 'ios') {
                       ActionSheetIOS.showActionSheetWithOptions(
@@ -132,16 +132,20 @@ export function ProfileCard({
                       ]);
                     }
                   }}>
-                  <SymbolView name="pencil" size={14} tintColor={Brand.trust} type="monochrome" />
-                </Pressable>
-              ) : null}
-              {onShare ? (
-                <Pressable onPress={onShare} hitSlop={10} style={styles.iconBtn}>
-                  <SymbolView name="square.and.arrow.up" size={14} tintColor={Brand.trust} type="monochrome" />
+                  <SymbolView name="gearshape" size={22} tintColor={Brand.muted} type="monochrome" />
                 </Pressable>
               ) : null}
             </View>
-            {profile?.username ? <Text style={styles.handle}>@{profile.username}</Text> : null}
+            {profile?.username ? (
+              <View style={styles.handleRow}>
+                <Text style={styles.handle}>@{profile.username}</Text>
+                {onShare ? (
+                  <Pressable onPress={onShare} hitSlop={10} style={styles.iconBtnSmall}>
+                    <SymbolView name="square.and.arrow.up" size={11} tintColor={Brand.muted} type="monochrome" />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
             {(friendAction || closeFriendAction) ? (
               <View style={styles.actionRow}>
                 {friendAction ? (
@@ -183,37 +187,6 @@ export function ProfileCard({
             })()}
           </Text>
         ) : null}
-        {active[0] ? (
-          <View style={styles.activityPill}>
-            <View style={styles.activityDot} />
-            <Text style={styles.activityText} numberOfLines={1}>
-              {active[0].status.charAt(0).toUpperCase() + active[0].status.slice(1)}: {active[0].title}
-            </Text>
-          </View>
-        ) : null}
-
-        {/* Achievements */}
-        {onOpenAchievements ? (
-          <Pressable style={styles.badgesSection} onPress={onOpenAchievements}>
-            <Text style={styles.badgesTitle}>Achievements</Text>
-            {featuredBadges.length ? (
-              <View style={styles.badgesRow}>
-                {featuredBadges.map((badge) => (
-                  <View key={badge.key} style={styles.badgeItem}>
-                    <View style={[styles.badgeCircle, { backgroundColor: TIER_COLORS[badge.tier] + '33', borderColor: TIER_COLORS[badge.tier] }]}>
-                      <Text style={styles.badgeIcon}>{badge.icon}</Text>
-                    </View>
-                    <Text style={styles.badgeName} numberOfLines={1}>{badge.name}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <Text style={styles.badgesEmpty}>
-                {isOwnProfile ? 'Pick up to 3 badges to show off here.' : "Hasn't featured any badges yet."}
-              </Text>
-            )}
-          </Pressable>
-        ) : null}
 
         {/* Tab bar */}
         <View style={styles.tabRow}>
@@ -244,6 +217,9 @@ export function ProfileCard({
             onLoggedPress={onLoggedPress}
             onFollowersPress={onFollowersPress}
             onFollowingPress={onFollowingPress}
+            featuredBadges={featuredBadges}
+            onOpenAchievements={onOpenAchievements}
+            isOwnProfile={isOwnProfile}
           />
         )}
       </View>

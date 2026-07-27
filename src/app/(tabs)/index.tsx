@@ -8,6 +8,7 @@ import { Avatar } from '@/components/avatar';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
 import { FeedViewSwitcher, type FeedView } from '@/components/feed/feed-view-switcher';
 import { FilterChips } from '@/components/feed/filter-chips';
+import { GlobalView } from '@/components/feed/global-view';
 import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { NowBanner } from '@/components/feed/now-banner';
 import { PostCard } from '@/components/feed/post-card';
@@ -76,7 +77,6 @@ export default function FeedScreen() {
 
   const [feedView, setFeedView] = useState<FeedView>('feed');
   const [filter, setFilter] = useState<FeedFilterValue>('all');
-  const [showMenu, setShowMenu] = useState(false);
   const [adDismissed, setAdDismissed] = useState(false);
   const { hidden: hiddenCategories, hideCategory, showCategory } = useHiddenCategories(profile?.content_types);
   const { posts: rawPosts, allPosts, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeedPosts(filter);
@@ -314,20 +314,6 @@ export default function FeedScreen() {
   const nowTitle = latest ? latest.title : 'Log your first watch, read, or play';
   const nowPoster = latest?.poster ?? null;
 
-  function openProfile() {
-    setShowMenu(false);
-    router.push('/profile');
-  }
-
-  function openSettings() {
-    setShowMenu(false);
-    router.push('/settings');
-  }
-
-  function openWatchParty() {
-    setShowMenu(false);
-    router.push('/premiere-modal');
-  }
 
   const header = (
     <View>
@@ -365,7 +351,7 @@ export default function FeedScreen() {
               </View>
             )}
           </Pressable>
-          <Pressable onPress={() => setShowMenu((v) => !v)} hitSlop={16}>
+          <Pressable onPress={() => router.push('/profile')} hitSlop={16}>
             <Avatar
               name={profile?.full_name ?? user?.email ?? 'You'}
               size={36}
@@ -387,9 +373,10 @@ export default function FeedScreen() {
       <FilterChips
         value={filter}
         onChange={setFilter}
-        hiddenTypes={hiddenCategories}
-        onHide={hideCategory}
-        onShow={showCategory}
+        hiddenTypes={feedView === 'global' ? undefined : hiddenCategories}
+        onHide={feedView === 'global' ? undefined : hideCategory}
+        onShow={feedView === 'global' ? undefined : showCategory}
+        labelsOnly={feedView === 'global'}
       />
       {feedView !== 'foryou' && feedView !== 'feed' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
       {feedView === 'feed' && activeAd && !adDismissed ? (
@@ -408,20 +395,20 @@ export default function FeedScreen() {
   const SEED_TYPES = ['watch', 'play', 'read', 'listen', 'podcast'] as const;
 
   function bestSeedForType(t: typeof SEED_TYPES[number]) {
-    // Gather candidates from both feed logs and collection, preferring items with
-    // a known external ID (IGDB/TMDB/etc) since those have richer rec data.
-    const feedCandidates = logged
+    // Library items ordered newest-first — use the most recently logged item with
+    // an external ID (richer recs), falling back to any recent item, then collection.
+    const libraryForType = logged
       .filter((item) => item.type === t)
-      .map((item) => ({ title: item.title, type: item.type, external_id: item.external_id, media_type: item.media_type, rating: item.rating ?? 0, hasId: !!item.external_id }));
-    const collCandidates = collectionItems
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const best = libraryForType.find((i) => i.external_id) ?? libraryForType[0];
+    if (best) return { title: best.title, type: best.type, external_id: best.external_id, media_type: best.media_type };
+    // Nothing in library — try collection items (same recency-first logic)
+    const collForType = collectionItems
       .filter((item) => item.type === t)
-      .map((item) => ({ title: item.title, type: item.type as typeof t, external_id: item.external_id, media_type: item.media_type, rating: (item.user_rating ?? 0) * 2, hasId: !!item.external_id }));
-    const all = [...feedCandidates, ...collCandidates];
-    if (!all.length) return null;
-    // Sort: has external ID first, then by rating descending
-    all.sort((a, b) => (b.hasId ? 1 : 0) - (a.hasId ? 1 : 0) || b.rating - a.rating);
-    const best = all[0];
-    return { title: best.title, type: best.type, external_id: best.external_id, media_type: best.media_type };
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    const collBest = collForType.find((i) => i.external_id) ?? collForType[0];
+    if (!collBest) return null;
+    return { title: collBest.title, type: collBest.type as typeof t, external_id: collBest.external_id, media_type: collBest.media_type };
   }
 
   const seedByType = Object.fromEntries(
@@ -460,25 +447,29 @@ export default function FeedScreen() {
   const becauseRecs = [...watchRecs, ...playRecs, ...readRecs, ...listenRecs, ...podcastRecs]
     .map((e) => ({ ...e, score: Math.max(e.score ?? 55, 55) }));
 
-  const allForYou = [...forYouTrending, ...becauseRecs]
+  const deduped = [...forYouTrending, ...becauseRecs]
     .filter((e, i, arr) => arr.findIndex((x) => x.type === e.type && x.title.toLowerCase() === e.title.toLowerCase()) === i)
     .filter((e) => !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`))
-    .sort((a, b) => {
-      const aFriend = a.loggers.length > 0 ? 1 : 0;
-      const bFriend = b.loggers.length > 0 ? 1 : 0;
-      if (bFriend !== aFriend) return bFriend - aFriend;
-      return (b.score ?? 55) - (a.score ?? 55);
-    });
+    .sort((a, b) => (b.score ?? 55) - (a.score ?? 55));
 
-  // Diversity cap: at most 3 picks per content type so one type doesn't dominate
+  const friendPool = deduped.filter((e) => e.loggers.length > 0);
+  const algoPool = deduped.filter((e) => e.loggers.length === 0);
+
+  // Interleave friend-backed and algorithmic picks 1:1, diversity cap 3 per type
   const typeCount = new Map<string, number>();
   const topPicks: TrendingEntry[] = [];
-  for (const e of allForYou) {
+  let fi = 0; let ai = 0;
+  while (topPicks.length < 10 && (fi < friendPool.length || ai < algoPool.length)) {
+    const wantFriend = topPicks.length % 2 === 0;
+    const candidates = wantFriend
+      ? (fi < friendPool.length ? [friendPool[fi++]] : [algoPool[ai++]])
+      : (ai < algoPool.length ? [algoPool[ai++]] : [friendPool[fi++]]);
+    const e = candidates[0];
+    if (!e) break;
     const n = typeCount.get(e.type) ?? 0;
     if (n >= 3) continue;
     typeCount.set(e.type, n + 1);
     topPicks.push(e);
-    if (topPicks.length === 10) break;
   }
 
   return (
@@ -527,6 +518,11 @@ export default function FeedScreen() {
               ))}
             </>
           ) : null}
+        </ScrollView>
+      ) : feedView === 'global' ? (
+        <ScrollView contentContainerStyle={styles.content}>
+          {header}
+          <GlobalView filter={filter} />
         </ScrollView>
       ) : feedView !== 'feed' ? (
         <ScrollView contentContainerStyle={styles.content}>
@@ -598,28 +594,6 @@ export default function FeedScreen() {
         />
       )}
 
-      {/* Avatar dropdown menu */}
-      {showMenu && (
-        <>
-          <Pressable style={styles.menuBackdrop} onPress={() => setShowMenu(false)} />
-          <View style={styles.menuCard}>
-            <Pressable style={styles.menuItem} onPress={openProfile}>
-              <SymbolView name="person.fill" size={16} tintColor={Brand.trust} type="monochrome" style={styles.menuIcon} />
-              <Text style={styles.menuItemText}>Profile</Text>
-            </Pressable>
-            <View style={styles.menuDivider} />
-            <Pressable style={styles.menuItem} onPress={openWatchParty}>
-              <SymbolView name="tv.fill" size={16} tintColor={Brand.trust} type="monochrome" style={styles.menuIcon} />
-              <Text style={styles.menuItemText}>Host a Watch Party</Text>
-            </Pressable>
-            <View style={styles.menuDivider} />
-            <Pressable style={styles.menuItem} onPress={openSettings}>
-              <SymbolView name="gearshape.fill" size={16} tintColor={Brand.trust} type="monochrome" style={styles.menuIcon} />
-              <Text style={styles.menuItemText}>Settings</Text>
-            </Pressable>
-          </View>
-        </>
-      )}
     </SafeAreaView>
   );
 }

@@ -43,6 +43,7 @@ export default function AppTabs() {
         <Label>Profile</Label>
         <Icon sf="person.crop.circle.fill" />
       </NativeTabs.Trigger>
+
     </NativeTabs>
   );
 }
