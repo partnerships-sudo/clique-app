@@ -116,6 +116,23 @@ export function LibCard({ item }: { item: LibraryItem }) {
             hitSlop={16}>
             <InstagramIcon size={16} />
           </Pressable>
+          <Pressable
+            style={styles.storyBtn}
+            onPress={() =>
+              router.push({
+                pathname: '/add-to-list-modal',
+                params: {
+                  libraryItemId: item.id,
+                  title: item.title,
+                  sub: item.sub ?? undefined,
+                  poster: item.poster ?? undefined,
+                  type: item.type,
+                },
+              })
+            }
+            hitSlop={16}>
+            <Text style={styles.shareBtnText}>≡+</Text>
+          </Pressable>
         </View>
         {item.note ? <Text style={styles.note}>&ldquo;{item.note}&rdquo;</Text> : null}
       </View>

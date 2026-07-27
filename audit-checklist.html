@@ -1,0 +1,322 @@
+<title>App Audit Checklist</title>
+<style>
+  :root {
+    --bg: #F7F6F3; --card: #FFFFFF; --ink: #0A0A0F; --muted: #6B7280;
+    --border: #E5E3DE; --accent: #5B4FE8; --success: #16A34A;
+    --track: #E5E3DE; --done-text: #9CA3AF; --tag-bg: #EEF2FF; --tag-text: #4338CA;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0F1117; --card: #1A1D27; --ink: #F0EEF8; --muted: #8B8FA8;
+      --border: #2A2D3A; --accent: #7B72F0; --success: #22C55E;
+      --track: #2A2D3A; --done-text: #4B5563; --tag-bg: #1E1B4B; --tag-text: #A5B4FC;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F7F6F3; --card: #FFFFFF; --ink: #0A0A0F; --muted: #6B7280;
+    --border: #E5E3DE; --accent: #5B4FE8; --success: #16A34A;
+    --track: #E5E3DE; --done-text: #9CA3AF; --tag-bg: #EEF2FF; --tag-text: #4338CA;
+  }
+  :root[data-theme="dark"] {
+    --bg: #0F1117; --card: #1A1D27; --ink: #F0EEF8; --muted: #8B8FA8;
+    --border: #2A2D3A; --accent: #7B72F0; --success: #22C55E;
+    --track: #2A2D3A; --done-text: #4B5563; --tag-bg: #1E1B4B; --tag-text: #A5B4FC;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 14px; line-height: 1.5; padding: 32px 16px 64px; }
+  .page-header { max-width: 680px; margin: 0 auto 32px; }
+  .page-header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; color: var(--ink); }
+  .page-header p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  .totals { display: flex; gap: 12px; margin-top: 16px; flex-wrap: wrap; }
+  .total-pill { font-size: 12px; font-weight: 600; padding: 4px 12px; border-radius: 20px; border: 1.5px solid var(--border); color: var(--muted); }
+  .total-pill span { color: var(--ink); font-weight: 700; }
+  .sections { max-width: 680px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+  .section { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .section-header { display: flex; align-items: center; gap: 10px; padding: 16px 18px 14px; border-bottom: 1px solid var(--border); }
+  .section-emoji { font-size: 16px; line-height: 1; flex-shrink: 0; }
+  .section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink); flex: 1; }
+  .section-count { font-size: 12px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
+  .section-count.all-done { color: var(--success); }
+  .progress-bar { height: 3px; background: var(--track); border-radius: 2px; overflow: hidden; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s ease; }
+  .progress-fill.all-done { background: var(--success); }
+  .items { padding: 6px 0 8px; }
+  .item { display: flex; align-items: flex-start; gap: 12px; padding: 10px 18px; cursor: pointer; transition: background 0.12s; -webkit-tap-highlight-color: transparent; }
+  .item:hover { background: var(--bg); }
+  .item input[type="checkbox"] { appearance: none; -webkit-appearance: none; width: 17px; height: 17px; border: 2px solid var(--border); border-radius: 5px; flex-shrink: 0; margin-top: 2px; cursor: pointer; position: relative; background: transparent; transition: border-color 0.15s, background 0.15s; }
+  .item input[type="checkbox"]:checked { background: var(--success); border-color: var(--success); }
+  .item input[type="checkbox"]:checked::after { content: ''; position: absolute; left: 3px; top: 0px; width: 5px; height: 9px; border: 2px solid #fff; border-top: none; border-left: none; transform: rotate(45deg); }
+  .item-body { flex: 1; min-width: 0; }
+  .item-label { font-size: 13.5px; color: var(--ink); font-weight: 500; line-height: 1.4; }
+  .item-desc { font-size: 12px; color: var(--muted); margin-top: 2px; line-height: 1.45; }
+  .item.done .item-label { text-decoration: line-through; color: var(--done-text); }
+  .item.done .item-desc { color: var(--done-text); }
+  .tag { font-size: 10px; font-weight: 700; letter-spacing: 0.4px; padding: 2px 7px; border-radius: 6px; background: var(--tag-bg); color: var(--tag-text); flex-shrink: 0; margin-top: 2px; text-transform: uppercase; white-space: nowrap; }
+  .tag.warn { background: #FEF3C7; color: #92400E; }
+  @media (prefers-color-scheme: dark) { .tag.warn { background: #422006; color: #FCD34D; } }
+  :root[data-theme="dark"] .tag.warn { background: #422006; color: #FCD34D; }
+</style>
+
+<div class="page-header">
+  <h1>App Audit Checklist</h1>
+  <p>Full audit &middot; July 2026</p>
+  <div class="totals">
+    <div class="total-pill" id="pill-total">--</div>
+    <div class="total-pill" id="pill-done">--</div>
+    <div class="total-pill" id="pill-remaining">--</div>
+  </div>
+</div>
+
+<div class="sections" id="sections"></div>
+
+<script>
+var STORAGE_KEY = 'audit-checklist-v1';
+
+var sections = [
+  {
+    emoji: '🐛',
+    title: 'Critical Bugs',
+    items: [
+      { id: 'b1', done: true,
+        label: 'useDeletePost — wrong match criteria',
+        desc: 'Matched by title+type only; could delete another user\'s post with the same title. Fixed with external_id match + user_id ownership guard.' },
+      { id: 'b2', done: true,
+        label: 'Cold-start push notification crash',
+        desc: 'router.push fired before the navigator was ready on a cold launch. Fixed with pendingNotification ref + routerReady gate.' },
+      { id: 'b3', done: true,
+        label: 'friend-profile-modal showed own profile as friend UI',
+        desc: 'Shared profile links opened the friend view for the owner. Fixed with synchronous self-redirect before any hooks run.' },
+      { id: 'b4', done: true,
+        label: 'Unfollow fired immediately with no confirmation',
+        desc: 'Destructive action had no guard. Added Alert with Cancel / Unfollow (destructive).' },
+      { id: 'b5', done: true,
+        label: 'RevenueCat configured before auth session resolved',
+        desc: 'Race condition on first launch meant RC was set up without a userId. Fixed by subscribing to onAuthStateChange instead.' },
+    ]
+  },
+  {
+    emoji: '🔌',
+    title: 'API Gaps',
+    items: [
+      { id: 'a1', done: true,
+        label: 'useGlobalPosts — two round-trips to build feed',
+        desc: 'Replaced with a single Supabase FK join: posts!posts_user_id_fkey(username, full_name, avatar_url, verified_tier).' },
+      { id: 'a2', done: true,
+        label: 'useMostReviewed — 500-row client-side aggregation',
+        desc: 'Replaced with get_most_reviewed(since_date) RPC — server-side GROUP BY, returns top 20.' },
+      { id: 'a3', done: true,
+        label: 'useFollowersByUser / useFollowingByUser — select(*)',
+        desc: 'Over-fetched every column. Scoped to id, username, full_name, avatar_url, verified_tier.' },
+      { id: 'a4', done: true,
+        label: 'useSendPremiereMessage — no guard against ended premieres',
+        desc: 'Added status check before insert; throws if status === "ended".' },
+      { id: 'a5', done: true,
+        label: 'useWaitingRoomMessages — no polling',
+        desc: 'Waiting room had no realtime sub and no interval. Added refetchInterval: 5000.' },
+      { id: 'a6', done: true,
+        label: 'Posts table missing Row Level Security',
+        desc: 'No RLS policies existed. Deployed select, insert, update, delete all scoped to auth.uid().' },
+    ]
+  },
+  {
+    emoji: '🔀',
+    title: 'App Flow Gaps',
+    items: [
+      { id: 'f1', done: true,
+        label: 'Feed empty state had no CTA',
+        desc: 'When a new user has no posts to show, there was nothing to do. Added "Find people to follow" button to /discover-people-modal.' },
+      { id: 'f2', done: true,
+        label: 'For You showed stale cache with no loading signal',
+        desc: 'Background refetch was invisible. Added subtle ActivityIndicator in top-right corner when refreshing with existing results.' },
+      { id: 'f3', done: true,
+        label: 'forYouSeeds recomputed on every render',
+        desc: 'Seeds array was recalculated each render causing unnecessary re-fetches. Wrapped in useMemo.' },
+      { id: 'f4', done: true,
+        label: 'premiere-live had no error or not-found state',
+        desc: 'If the premiere failed to load, the screen hung silently. Added error/not-found screen.' },
+      { id: 'f5', done: true,
+        label: 'premiere-modal accepted blank show title',
+        desc: 'Could submit the form with an empty title. Added showTitle.trim() guard first.' },
+    ]
+  },
+  {
+    emoji: '✨',
+    title: 'UX / UI',
+    items: [
+      { id: 'u1', done: true,
+        label: 'hitSlop 8 → 16 across all 45 screens',
+        desc: 'Tap targets were too small on icon buttons. Increased hitSlop to 16 everywhere.' },
+      { id: 'u2', done: true,
+        label: 'Delete post fired immediately',
+        desc: 'Destructive swipe action had no confirmation. Added Alert with the post title and a destructive Unfollow button.' },
+      { id: 'u3', done: true,
+        label: 'Post card Pressables missing accessibility labels',
+        desc: 'Poster, avatar, Me too, Share, and Chat buttons had no accessibilityLabel or accessibilityRole.' },
+      { id: 'u4', done: true,
+        label: 'SponsoredCard "Sponsored" badge had poor contrast',
+        desc: 'Badge background was a pale tint. Changed to trust-blue with white text.' },
+      { id: 'u5', done: true,
+        label: 'Content chat — no way to see members or leave',
+        desc: 'Added person icon button that opens a members sheet with Leave / Leave & delete my messages options.' },
+      { id: 'u6', done: true,
+        label: 'todayLabel() returned locale string "Jul 2026"',
+        desc: 'Broke sorting across locales. Changed to ISO YYYY-MM format.' },
+      { id: 'u7', done: true,
+        label: 'Trending Now capped at 3 articles',
+        desc: 'Slice limit was 3. Changed to 10.' },
+    ]
+  },
+  {
+    emoji: '⚡',
+    title: 'Performance',
+    items: [
+      { id: 'p1', done: false, tag: 'backend',
+        label: 'useChatThreads fetches 500 messages to build thread list',
+        desc: 'Needs a server-side GROUP BY to return one row per thread instead of all messages.' },
+      { id: 'p2', done: false,
+        label: 'useCompatibilityScores recalculates for all friends on every render',
+        desc: 'Expensive score computation runs without memoisation. Needs useMemo with a stable dep array.' },
+      { id: 'p3', done: false,
+        label: 'Feed FlatList missing getItemLayout',
+        desc: 'Without fixed item heights, layout is recalculated on every scroll event.' },
+      { id: 'p4', done: false,
+        label: 'useExtendedNetworkProfiles refetches all profiles every 60s',
+        desc: 'No staleTime set. Should add staleTime: 5 * 60000.' },
+      { id: 'p5', done: false,
+        label: 'Image components missing explicit width / height',
+        desc: 'Causes layout thrash while images load. Should set dimensions or use aspectRatio.' },
+    ]
+  },
+  {
+    emoji: '💰',
+    title: 'Monetization',
+    items: [
+      { id: 'm1', done: false, tag: 'revenue',
+        label: 'Verified badge tiers (Bronze / Silver / Gold)',
+        desc: 'Annual pricing tiers for verified status. RevenueCat products need creating and paywall wiring.' },
+      { id: 'm2', done: false, tag: 'revenue',
+        label: 'Taste-targeted sponsored posts',
+        desc: 'Brand buys a post slot shown to users whose library matches the content type (e.g. A24 targeting film fans).' },
+      { id: 'm3', done: false, tag: 'revenue',
+        label: 'Sponsored stories',
+        desc: 'Publisher promotes a new release to relevant readers/watchers (e.g. Bloomsbury targeting book readers).' },
+      { id: 'm4', done: false, tag: 'revenue',
+        label: 'Sponsored Watch Parties',
+        desc: 'Brand sponsors a Premiere event (e.g. HBO sponsoring a live rewatch).' },
+      { id: 'm5', done: false, tag: 'revenue',
+        label: 'Affiliate links on content',
+        desc: 'Book / film / game purchase links with revenue share from Amazon, Apple, etc.' },
+      { id: 'm6', done: false, tag: 'revenue',
+        label: 'Premium "Critic" tier',
+        desc: 'Expanded review tools, detailed stats, and early access features for power users.' },
+    ]
+  },
+  {
+    emoji: '🚀',
+    title: 'App Store Pre-launch',
+    items: [
+      { id: 's1', done: false, tag: 'before submit',
+        label: 'Swap RevenueCat API key from test to live', desc: '' },
+      { id: 's2', done: false, tag: 'before submit',
+        label: 'Swap Stripe secret key from test to live', desc: '' },
+      { id: 's3', done: false, tag: 'before submit',
+        label: 'Update invite sheet App Store URL placeholder',
+        desc: 'Hardcoded placeholder URL in the share sheet needs to point to the live listing.' },
+      { id: 's4', done: false, tag: 'before submit',
+        label: 'Set up Universal Links for shareable profile URLs',
+        desc: 'Requires Associated Domains entitlement + apple-app-site-association file on the server.' },
+    ]
+  }
+];
+
+// Safe localStorage
+var saved = {};
+try { saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}'); } catch(e) {}
+
+function persist() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(saved)); } catch(e) {}
+}
+
+function isChecked(item) {
+  return item.done || saved[item.id] === true;
+}
+
+function getProgress(section) {
+  var total = section.items.length;
+  var done = section.items.filter(function(i) { return isChecked(i); }).length;
+  return { total: total, done: done };
+}
+
+function updatePills() {
+  var total = 0, done = 0;
+  sections.forEach(function(s) {
+    s.items.forEach(function(i) { total++; if (isChecked(i)) done++; });
+  });
+  document.getElementById('pill-total').innerHTML = '<span>' + total + '</span> total';
+  document.getElementById('pill-done').innerHTML = '<span>' + done + '</span> completed';
+  document.getElementById('pill-remaining').innerHTML = '<span>' + (total - done) + '</span> remaining';
+}
+
+function renderItem(item) {
+  var checked = isChecked(item);
+  var tag = item.tag
+    ? '<span class="tag' + (item.tag === 'before submit' ? ' warn' : '') + '">' + item.tag + '</span>'
+    : '';
+  var desc = item.desc
+    ? '<div class="item-desc">' + item.desc + '</div>'
+    : '';
+  return '<div class="item' + (checked ? ' done' : '') + '" data-id="' + item.id + '">'
+    + '<input type="checkbox"' + (checked ? ' checked' : '') + '>'
+    + '<div class="item-body"><div class="item-label">' + item.label + '</div>' + desc + '</div>'
+    + tag + '</div>';
+}
+
+function renderSection(section) {
+  var p = getProgress(section);
+  var pct = p.total === 0 ? 0 : Math.round((p.done / p.total) * 100);
+  var allDone = p.done === p.total;
+
+  var el = document.createElement('div');
+  el.className = 'section';
+  el.innerHTML =
+    '<div class="section-header">'
+    + '<span class="section-emoji">' + section.emoji + '</span>'
+    + '<span class="section-title">' + section.title + '</span>'
+    + '<span class="section-count' + (allDone ? ' all-done' : '') + '">' + p.done + '/' + p.total + '</span>'
+    + '</div>'
+    + '<div class="progress-bar"><div class="progress-fill' + (allDone ? ' all-done' : '') + '" style="width:' + pct + '%"></div></div>'
+    + '<div class="items">' + section.items.map(renderItem).join('') + '</div>';
+
+  el.querySelector('.items').addEventListener('click', function(e) {
+    var row = e.target.closest('.item');
+    if (!row) return;
+    var id = row.dataset.id;
+    var item = section.items.find(function(i) { return i.id === id; });
+    if (!item || item.done) return; // locked
+
+    var cb = row.querySelector('input[type="checkbox"]');
+    cb.checked = !cb.checked;
+    saved[id] = cb.checked;
+    persist();
+    row.classList.toggle('done', cb.checked);
+    updatePills();
+
+    var countEl = el.querySelector('.section-count');
+    var fillEl = el.querySelector('.progress-fill');
+    var np = getProgress(section);
+    var npct = np.total === 0 ? 0 : Math.round((np.done / np.total) * 100);
+    countEl.textContent = np.done + '/' + np.total;
+    countEl.className = 'section-count' + (np.done === np.total ? ' all-done' : '');
+    fillEl.style.width = npct + '%';
+    fillEl.className = 'progress-fill' + (np.done === np.total ? ' all-done' : '');
+  });
+
+  return el;
+}
+
+var container = document.getElementById('sections');
+sections.forEach(function(section) {
+  container.appendChild(renderSection(section));
+});
+updatePills();
+</script>

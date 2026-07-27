@@ -73,7 +73,7 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
         <Pressable
           style={[styles.collCatBtn, collectionView === 'all' && styles.collCatBtnActive]}
           onPress={() => setCollectionView('all')}>
-          <SymbolView name="square.grid.2x2.fill" size={15} tintColor={collectionView === 'all' ? '#fff' : Brand.muted} style={{ width: 18, height: 18 }} />
+          <SymbolView name="square.grid.2x2.fill" size={15} tintColor={collectionView === 'all' ? Brand.paper : Brand.muted} style={{ width: 18, height: 18 }} />
           <Text style={[styles.collCatLabel, collectionView === 'all' && styles.collCatLabelActive]}>All</Text>
           <Text style={[styles.collCatCount, collectionView === 'all' && styles.collCatCountActive]}>{collectionItems.length}</Text>
         </Pressable>
@@ -81,7 +81,7 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
           const active = collectionView === view;
           return (
             <Pressable key={view} style={[styles.collCatBtn, active && styles.collCatBtnActive]} onPress={() => setCollectionView(view)}>
-              <SymbolView name={sf as any} size={15} tintColor={active ? '#fff' : Brand.muted} style={{ width: 18, height: 18 }} />
+              <SymbolView name={sf as any} size={15} tintColor={active ? Brand.paper : Brand.muted} style={{ width: 18, height: 18 }} />
               <Text style={[styles.collCatLabel, active && styles.collCatLabelActive]}>{label}</Text>
               <Text style={[styles.collCatCount, active && styles.collCatCountActive]}>{count}</Text>
             </Pressable>

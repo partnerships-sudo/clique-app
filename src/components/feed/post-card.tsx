@@ -266,7 +266,17 @@ export function PostCard({
                 onPress={() =>
                   router.push({
                     pathname: '/post-comments-modal',
-                    params: { postId: post.id, postTitle: post.title, postAuthorId: post.user_id },
+                    params: {
+                      postId: post.id,
+                      postTitle: post.title,
+                      postAuthorId: post.user_id,
+                      postPoster: post.poster ?? undefined,
+                      postSub: post.sub ?? undefined,
+                      postRating: post.rating != null ? String(post.rating) : undefined,
+                      postNote: post.note ?? undefined,
+                      postUserName: post.user_name,
+                      postUserAvatar: post.user_avatar_url ?? undefined,
+                    },
                   })
                 }
                 accessibilityLabel={`Comments for ${post.title}`}

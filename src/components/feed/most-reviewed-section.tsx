@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useMostReviewed, type MostReviewedEntry, type MostReviewedPeriod } from '@/features/feed/api';
@@ -48,7 +48,7 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
       </View>
 
       {/* Period pills */}
-      <View style={styles.pills}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pills}>
         {PERIODS.map((p) => {
           const active = period === p.value;
           return (
@@ -60,7 +60,7 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* List */}
       {isLoading ? (
@@ -128,11 +128,10 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 18,
       color: Brand.ink,
     },
+    pillsRow: { marginBottom: 14 },
     pills: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
       gap: 8,
-      marginBottom: 14,
     },
     pill: {
       borderRadius: 20,

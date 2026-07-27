@@ -51,6 +51,6 @@ function createStyles(Brand: BrandPalette) {
     chipOnDark: { backgroundColor: Brand.ink, borderColor: Brand.ink },
     text: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.muted },
     textOnLight: { color: Brand.trust },
-    textOnDark: { color: '#fff' },
+    textOnDark: { color: Brand.paper },
   });
 }

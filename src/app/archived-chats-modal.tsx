@@ -72,6 +72,7 @@ export default function ArchivedChatsModal() {
               const thread = archivedContent.find((t) => t.title === row.id)!;
               return (
                 <SwipeableChatRow
+                  archiveLabel="Unarchive"
                   onArchive={() => unarchive(`content:${thread.title}`)}
                   onDelete={() => softDelete(`content:${thread.title}`)}>
                   <ChatListItem
@@ -89,6 +90,7 @@ export default function ArchivedChatsModal() {
               const thread = archivedDms.find((t) => t.friendId === row.id)!;
               return (
                 <SwipeableChatRow
+                  archiveLabel="Unarchive"
                   onArchive={() => unarchive(`dm:${thread.friendId}`)}
                   onDelete={() => softDelete(`dm:${thread.friendId}`)}>
                   <DmListItem
@@ -105,6 +107,7 @@ export default function ArchivedChatsModal() {
             const thread = archivedGroups.find((t) => t.id === row.id)!;
             return (
               <SwipeableChatRow
+                archiveLabel="Unarchive"
                 onArchive={() => unarchive(`group:${thread.id}`)}
                 onDelete={() => softDelete(`group:${thread.id}`)}>
                 <GroupListItem
@@ -137,7 +140,7 @@ function createStyles(Brand: BrandPalette) {
     },
     title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, color: Brand.ink, letterSpacing: -0.3 },
     done: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.trust },
-    list: { paddingBottom: 40 },
+    list: { paddingBottom: 40, paddingHorizontal: Spacing.three },
     sectionLabel: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 11.5,

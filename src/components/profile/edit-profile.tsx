@@ -1,7 +1,7 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -44,11 +44,17 @@ const DEFAULT_GENRES: Chip[] = [
   { label: 'RPG', on: true },
 ];
 
+export type EditProfileHandle = {
+  save: () => Promise<void>;
+  isSaving: boolean;
+};
+
 export function EditProfile({
   profile,
   interests,
   onInterestsChange,
   onSaved,
+  saveRef,
 }: {
   profile: Profile | null | undefined;
   interests: Chip[];
@@ -61,6 +67,7 @@ export function EditProfile({
     rating_icon: string;
     genres: string[];
   }) => Promise<void>;
+  saveRef?: React.RefObject<EditProfileHandle | null>;
 }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -127,6 +134,18 @@ export function EditProfile({
       setIsSaving(false);
     }
   }
+
+  // Keep ref in sync every render so parent always has the latest closure
+  const handleSaveRef = useRef(handleSave);
+  handleSaveRef.current = handleSave;
+  useEffect(() => {
+    if (saveRef) {
+      (saveRef as React.MutableRefObject<EditProfileHandle>).current = {
+        save: () => handleSaveRef.current(),
+        isSaving,
+      };
+    }
+  }, [saveRef, isSaving]);
 
   return (
     <View>
@@ -221,17 +240,6 @@ export function EditProfile({
         variant="dark"
         onToggle={(i) => setGenres((prev) => prev.map((c, idx) => (idx === i ? { ...c, on: !c.on } : c)))}
       />
-
-      <Pressable style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
-        {isSaving ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveBtnText}>Save profile</Text>}
-      </Pressable>
-
-      <View style={styles.footerRow}>
-        <Pressable style={styles.footerBtn} onPress={() => router.push('/watch-parties-modal')}>
-          <SymbolView name="popcorn" size={15} tintColor={Brand.muted} type="monochrome" />
-          <Text style={styles.footerText}>Watch parties</Text>
-        </Pressable>
-      </View>
 
       <Pressable style={styles.logoutBtn} onPress={() => signOut()}>
         <Text style={styles.logoutText}>Log out</Text>

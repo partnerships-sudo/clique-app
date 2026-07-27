@@ -48,10 +48,11 @@ async function searchTMDB(query: string): Promise<SearchResult[]> {
       const isTV = r.media_type === 'tv';
       const year = (r.release_date || r.first_air_date || '').slice(0, 4);
       const genreMap = isTV ? TMDB_TV_GENRES : TMDB_MOVIE_GENRES;
-      const genreName = r.genre_ids?.[0] ? genreMap[r.genre_ids[0]] : null;
+      const genreNames = (r.genre_ids ?? []).slice(0, 2).map((id: number) => genreMap[id]).filter(Boolean);
+      const genrePart = genreNames.length ? ` · ${genreNames.join(' · ')}` : '';
       const sub = isTV
-        ? `TV Series${year ? ` · ${year}` : ''}${genreName ? ` · ${genreName}` : ''}`
-        : `Film${year ? ` · ${year}` : ''}${genreName ? ` · ${genreName}` : ''}`;
+        ? `TV Series${year ? ` · ${year}` : ''}${genrePart}`
+        : `Film${year ? ` · ${year}` : ''}${genrePart}`;
       return {
         title: r.title || r.name,
         sub,

@@ -8,6 +8,7 @@ import type { Message } from '@/features/chats/api';
 import { parseChatImage } from '@/features/chat-media/upload';
 import { parseRec } from '@/features/dms/rec';
 import { parseStoryReply } from '@/features/dms/story-reply';
+import { parseWatchPartyInvite } from '@/features/dms/watch-party-invite';
 import { timeAgo } from '@/features/feed/time-ago';
 import { compatColor, compatEmoji } from '@/features/friends/compatibility';
 import { useAddLibraryItem } from '@/features/library/api';
@@ -55,9 +56,10 @@ export function MessageBubble({
 
   const storyReply = parseStoryReply(message.content);
   const rec = storyReply ? null : parseRec(message.content);
-  const chatImage = (!storyReply && !rec) ? parseChatImage(message.content) : null;
+  const watchPartyInvite = (!storyReply && !rec) ? parseWatchPartyInvite(message.content) : null;
+  const chatImage = (!storyReply && !rec && !watchPartyInvite) ? parseChatImage(message.content) : null;
   const premiereId = (() => {
-    if (storyReply || rec || chatImage) return null;
+    if (storyReply || rec || watchPartyInvite || chatImage) return null;
     const m = message.content.match(/thecliqueapp:\/\/premiere\/([a-zA-Z0-9_-]+)/);
     return m ? m[1] : null;
   })();
@@ -226,6 +228,42 @@ export function MessageBubble({
         ) : gifUrl ? (
           /* ── GIF bubble ── */
           <Image source={{ uri: gifUrl }} style={styles.gifImage} resizeMode="cover" />
+        ) : watchPartyInvite ? (
+          /* ── Rich watch party invite card ── */
+          <Pressable
+            style={styles.wpInviteCard}
+            onPress={() =>
+              router.push({ pathname: '/premiere-waiting-room', params: { id: watchPartyInvite.id } })
+            }>
+            <View style={styles.wpInviteTop}>
+              {watchPartyInvite.poster ? (
+                <Image source={{ uri: watchPartyInvite.poster }} style={styles.wpInvitePoster} resizeMode="cover" />
+              ) : (
+                <View style={[styles.wpInvitePoster, styles.wpInvitePosterFallback]}>
+                  <Text style={{ fontSize: 28 }}>🎬</Text>
+                </View>
+              )}
+              <View style={styles.wpInviteInfo}>
+                <View style={styles.wpInvitePill}>
+                  <Text style={styles.wpInvitePillText}>WATCH PARTY</Text>
+                </View>
+                <Text style={styles.wpInviteTitle} numberOfLines={2}>{watchPartyInvite.title}</Text>
+                {watchPartyInvite.episode ? (
+                  <Text style={styles.wpInviteEpisode} numberOfLines={1}>{watchPartyInvite.episode}</Text>
+                ) : null}
+                {watchPartyInvite.tagline ? (
+                  <Text style={styles.wpInviteTagline} numberOfLines={1}>"{watchPartyInvite.tagline}"</Text>
+                ) : null}
+                {watchPartyInvite.date ? (
+                  <Text style={styles.wpInviteDate}>📅 {watchPartyInvite.date}{watchPartyInvite.time ? ` · ${watchPartyInvite.time}` : ''}</Text>
+                ) : null}
+                <Text style={styles.wpInviteHost}>Hosted by {watchPartyInvite.hostName}</Text>
+              </View>
+            </View>
+            <View style={styles.wpInviteJoinBtn}>
+              <Text style={styles.wpInviteJoinText}>Join on Clique →</Text>
+            </View>
+          </Pressable>
         ) : premiereId ? (
           /* ── Watch party invite card ── */
           <Pressable
@@ -530,6 +568,40 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: Brand.paper,
     },
     premiereJoin: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
+
+    // Rich watch party invite card
+    wpInviteCard: {
+      width: 260,
+      borderRadius: 14,
+      overflow: 'hidden',
+      backgroundColor: '#0f0f1a',
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.08)',
+    },
+    wpInviteTop: { flexDirection: 'row', gap: 10, padding: 12 },
+    wpInvitePoster: { width: 64, height: 90, borderRadius: 8 },
+    wpInvitePosterFallback: { backgroundColor: '#1a1a2e', alignItems: 'center', justifyContent: 'center' },
+    wpInviteInfo: { flex: 1, minWidth: 0, gap: 3 },
+    wpInvitePill: {
+      alignSelf: 'flex-start',
+      backgroundColor: Brand.trust,
+      borderRadius: 4,
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      marginBottom: 2,
+    },
+    wpInvitePillText: { fontFamily: BrandFonts.syneBold, fontSize: 8, color: '#fff', letterSpacing: 1 },
+    wpInviteTitle: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff', lineHeight: 18 },
+    wpInviteEpisode: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.trust },
+    wpInviteTagline: { fontFamily: BrandFonts.interRegular, fontStyle: 'italic', fontSize: 11, color: 'rgba(255,255,255,0.55)' },
+    wpInviteDate: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#FFD700' },
+    wpInviteHost: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: 'rgba(255,255,255,0.5)' },
+    wpInviteJoinBtn: {
+      backgroundColor: Brand.trust,
+      paddingVertical: 10,
+      alignItems: 'center',
+    },
+    wpInviteJoinText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#fff' },
 
     // Photo bubble
     photoImage: {

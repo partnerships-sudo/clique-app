@@ -180,6 +180,13 @@ function parseGoodreads(text: string): ParsedRow[] {
 
 // ── API lookups ───────────────────────────────────────────────────────────────
 
+function tmdbTitleMatches(input: string, result: any): boolean {
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const a = normalize(input);
+  const b = normalize(result.title ?? result.name ?? '');
+  return a === b || a.includes(b) || b.includes(a);
+}
+
 async function lookupTMDB(title: string, year: string): Promise<{ externalId: string; poster: string | null; sub: string; mediaType: string } | null> {
   try {
     const yearParam = year ? `&year=${year}` : '';
@@ -188,7 +195,9 @@ async function lookupTMDB(title: string, year: string): Promise<{ externalId: st
       { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
     );
     const data = await res.json();
-    const hit = (data.results ?? []).find((r: any) => r.media_type === 'movie' || r.media_type === 'tv');
+    const hit = (data.results ?? []).find(
+      (r: any) => (r.media_type === 'movie' || r.media_type === 'tv') && tmdbTitleMatches(title, r),
+    );
     if (!hit) return null;
     const isTV = hit.media_type === 'tv';
     const hitYear = (hit.release_date || hit.first_air_date || '').slice(0, 4);

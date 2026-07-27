@@ -13,19 +13,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RatingPicker } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useAddToCollection, type CollectionFormat, type CollectionType } from '@/features/collection/api';
+import { useAddToCollection, type CollectionType } from '@/features/collection/api';
 import { useTitleSearch, type SearchResult } from '@/features/search/api';
 import { useBrand } from '@/hooks/use-brand';
 
-const WATCH_FORMAT_OPTIONS: { value: CollectionFormat; label: string }[] = [
-  { value: 'dvd', label: 'DVD' },
-  { value: 'bluray', label: 'Blu-ray' },
-  { value: '4k', label: '4K' },
-];
-const MUSIC_FORMAT_OPTIONS: { value: CollectionFormat; label: string }[] = [
-  { value: 'cd', label: 'CD' },
-  { value: 'vinyl', label: 'Vinyl' },
-];
 
 export default function CollectionAddModal() {
   const Brand = useBrand();
@@ -36,8 +27,8 @@ export default function CollectionAddModal() {
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [selected, setSelected] = useState<SearchResult | null>(null);
-  const [format, setFormat] = useState<CollectionFormat>('dvd');
   const [rating, setRating] = useState(0);
+  const [note, setNote] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => setDebouncedQuery(query), 400);
@@ -52,21 +43,14 @@ export default function CollectionAddModal() {
     setDebouncedQuery('');
     setSelected(null);
     setRating(0);
-    setFormat(next === 'listen' ? 'cd' : next === 'play' ? 'game' : 'dvd');
+    setNote('');
   }
-
-  const formatOptions =
-    collectionType === 'watch' || collectionType === 'tv'
-      ? WATCH_FORMAT_OPTIONS
-      : collectionType === 'listen'
-        ? MUSIC_FORMAT_OPTIONS
-        : null;
 
   async function handleAdd() {
     if (!selected) return;
     await addToCollection.mutateAsync({
       type: collectionType,
-      format: formatOptions ? format : collectionType === 'play' ? 'game' : collectionType === 'podcast' || collectionType === 'tv' ? null : 'book',
+      format: collectionType === 'play' ? 'game' : collectionType === 'podcast' || collectionType === 'tv' ? null : 'book',
       title: selected.title,
       sub: selected.sub,
       poster: selected.img,
@@ -74,6 +58,7 @@ export default function CollectionAddModal() {
       mediaType: selected.mediaType,
       extRating: selected.rating,
       userRating: rating || null,
+      note: note.trim() || null,
     });
     router.back();
   }
@@ -183,28 +168,25 @@ export default function CollectionAddModal() {
           </View>
         )}
 
-        {selected && formatOptions ? (
-          <View style={styles.formatSection}>
-            <Text style={styles.formatLabel}>Format</Text>
-            <View style={styles.formatRow}>
-              {formatOptions.map((opt) => (
-                <Pressable
-                  key={opt.value}
-                  style={[styles.formatBtn, format === opt.value && styles.formatBtnActive]}
-                  onPress={() => setFormat(opt.value)}>
-                  <Text style={[styles.formatBtnText, format === opt.value && styles.formatBtnTextActive]}>
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
-            </View>
-          </View>
-        ) : null}
-
         {selected ? (
           <View style={styles.ratingSection}>
             <Text style={styles.formatLabel}>Your rating</Text>
             <RatingPicker value={rating} iconStyle="stars" onChange={setRating} size={30} />
+          </View>
+        ) : null}
+
+        {selected ? (
+          <View style={styles.reviewSection}>
+            <Text style={styles.formatLabel}>Your review</Text>
+            <TextInput
+              style={styles.reviewInput}
+              placeholder="What did you think? (optional)"
+              placeholderTextColor={Brand.muted}
+              value={note}
+              onChangeText={setNote}
+              multiline
+              maxLength={500}
+            />
           </View>
         ) : null}
 
@@ -308,7 +290,19 @@ function createStyles(Brand: BrandPalette) {
     selectedTitle: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.ink },
     selectedSub: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, marginTop: 2 },
     changeText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.trust },
-    formatSection: { marginBottom: 16 },
+    reviewSection: { marginBottom: 16 },
+    reviewInput: {
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      borderRadius: 12,
+      padding: 12,
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 14,
+      color: Brand.ink,
+      minHeight: 90,
+      textAlignVertical: 'top',
+    },
     formatLabel: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 11,
@@ -317,19 +311,6 @@ function createStyles(Brand: BrandPalette) {
       letterSpacing: 1,
       marginBottom: 8,
     },
-    formatRow: { flexDirection: 'row', gap: 8 },
-    formatBtn: {
-      flex: 1,
-      paddingVertical: 10,
-      borderRadius: 12,
-      borderWidth: 1.5,
-      borderColor: Brand.border,
-      backgroundColor: Brand.card,
-      alignItems: 'center',
-    },
-    formatBtnActive: { borderColor: Brand.trust, backgroundColor: Brand.tlight },
-    formatBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
-    formatBtnTextActive: { color: Brand.trust },
     ratingSection: { marginBottom: 16 },
     submit: {
       backgroundColor: Brand.trust,

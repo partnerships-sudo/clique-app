@@ -101,20 +101,26 @@ export default function NewsScreen() {
 
         {/* Category icon chips (headlines only) */}
         {mode === 'headlines' ? (
-          <View style={styles.catRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.catScroll}
+            contentContainerStyle={styles.catRow}>
             {CATEGORY_FILTERS.map((cat) => {
               const active = filter === cat.value;
               return (
                 <Pressable
                   key={cat.value}
-                  style={[styles.catChip, active && styles.catChipActive]}
+                  style={styles.catItem}
                   onPress={() => setFilter(cat.value)}>
-                  <SymbolView name={cat.sf as any} size={17} tintColor={active ? '#fff' : '#888'} type="monochrome" />
+                  <View style={[styles.catChip, active && styles.catChipActive]}>
+                    <SymbolView name={cat.sf as any} size={26} tintColor={active ? '#fff' : '#888'} type="monochrome" />
+                  </View>
                   <Text style={[styles.catChipLabel, active && styles.catChipLabelActive]}>{cat.label}</Text>
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         ) : null}
       </View>
 
@@ -357,28 +363,33 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: Brand.trust,
     },
 
-    // Category chips
+    // Category chips — same spec as FilterChips tiles
     catScroll: { marginBottom: 14 },
-    catRow: { flexDirection: 'row', gap: 7, paddingHorizontal: Spacing.three, justifyContent: 'center', marginBottom: 14 },
+    catRow: { flexGrow: 1, justifyContent: 'center', gap: 4 },
+    catItem: { alignItems: 'center', gap: 6 },
     catChip: {
+      width: 58,
+      height: 58,
+      borderRadius: 16,
+      backgroundColor: Brand.card,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
       alignItems: 'center',
       justifyContent: 'center',
-      width: 54,
-      paddingVertical: 7,
-      borderRadius: 12,
-      backgroundColor: Brand.card,
-      borderWidth: 1,
-      borderColor: Brand.border,
-      gap: 3,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.08,
+      shadowRadius: 6,
+      elevation: 3,
     },
-    catChipActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
+    catChipActive: { backgroundColor: Brand.trust, borderColor: Brand.trust, shadowOpacity: 0.22, shadowRadius: 10 },
     catChipLabel: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 8.5,
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 11,
       color: Brand.muted,
       textAlign: 'center',
     },
-    catChipLabelActive: { color: '#fff' },
+    catChipLabelActive: { fontFamily: BrandFonts.syneBold, color: Brand.trust },
 
     // Section labels
     section: { marginBottom: 8 },
@@ -550,10 +561,10 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.syneBold,
       fontSize: 15,
       color: Brand.ink,
-      marginBottom: 12,
+      marginBottom: 9,
       paddingHorizontal: Spacing.three,
     },
-    circleRow: { paddingHorizontal: Spacing.three, paddingBottom: Spacing.four },
+    circleRow: { paddingHorizontal: Spacing.three, paddingBottom: 12 },
     empty: {
       textAlign: 'center',
       paddingVertical: 40,

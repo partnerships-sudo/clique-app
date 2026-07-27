@@ -1,24 +1,20 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { FlatList, Pressable, RefreshControl, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SymbolView } from 'expo-symbols';
 
-import { ChatListItem } from '@/components/chat/chat-list-item';
 import { DmListItem } from '@/components/chat/dm-list-item';
 import { GroupListItem } from '@/components/chat/group-list-item';
 import { SwipeableChatRow } from '@/components/chat/swipeable-chat-row';
-import { FilterChips } from '@/components/feed/filter-chips';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useChatThreads, type ChatThread } from '@/features/chats/api';
 import { useArchivedChats } from '@/features/chats/archive';
 import { useDmThreads, type DmThread } from '@/features/dms/api';
-import { type FeedFilterValue } from '@/features/feed/api';
 import { useGroupThreads, type GroupThread } from '@/features/groups/api';
 import { useBrand } from '@/hooks/use-brand';
 
-type ChatsMode = 'content' | 'private' | 'requests';
+type ChatsMode = 'private' | 'requests';
 
 type PrivateItem =
   | { kind: 'dm'; data: DmThread }
@@ -27,28 +23,14 @@ type PrivateItem =
 export default function ChatsScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const [mode, setMode] = useState<ChatsMode>('content');
-  const [filter, setFilter] = useState<FeedFilterValue>('all');
+  const [mode, setMode] = useState<ChatsMode>('private');
   const [query, setQuery] = useState('');
-  const { threads, isLoading, isFetching, refetch, markRead } = useChatThreads();
   const { threads: dmThreads, requestThreads, markRead: markDmRead } = useDmThreads();
   const { threads: groupThreads, markRead: markGroupRead } = useGroupThreads();
   const { archived, archive, softDelete } = useArchivedChats();
   const trimmedQuery = query.trim().toLowerCase();
-  const filteredThreads = threads
-    .filter((t) => !archived.has(`content:${t.title}`))
-    .filter((t) => filter === 'all' || t.type === filter)
-    .filter(
-      (t) =>
-        !trimmedQuery ||
-        t.title.toLowerCase().includes(trimmedQuery) ||
-        t.lastUser.toLowerCase().includes(trimmedQuery) ||
-        t.lastText.toLowerCase().includes(trimmedQuery),
-    );
-  const isPrivate = mode === 'private';
   const isRequests = mode === 'requests';
 
-  const contentUnread = threads.reduce((sum, t) => sum + t.unreadCount, 0);
   const privateUnread =
     dmThreads.reduce((sum, t) => sum + t.unreadCount, 0) +
     groupThreads.reduce((sum, t) => sum + t.unreadCount, 0);
@@ -83,14 +65,6 @@ export default function ChatsScreen() {
       t.lastText.toLowerCase().includes(trimmedQuery),
   );
 
-  function openThread(thread: ChatThread) {
-    markRead(thread.title);
-    router.push({
-      pathname: '/chat-modal',
-      params: { title: thread.title, type: thread.type, poster: thread.poster ?? undefined },
-    });
-  }
-
   function openDm(thread: DmThread) {
     markDmRead(thread.friendId);
     router.push({
@@ -124,26 +98,10 @@ export default function ChatsScreen() {
         </View>
       </View>
       <View style={styles.modeRow}>
-        <Pressable style={styles.modeTab} onPress={() => setMode('content')}>
-          <Text style={[styles.modeTabText, mode === 'content' && styles.modeTabTextActive]}>
-            Content
-          </Text>
-          {contentUnread > 0 && (
-            <View style={styles.modeBadge}>
-              <Text style={styles.modeBadgeText}>{contentUnread > 99 ? '99+' : String(contentUnread)}</Text>
-            </View>
-          )}
-          {mode === 'content' && <View style={styles.modeTabUnderline} />}
-        </Pressable>
         <Pressable style={styles.modeTab} onPress={() => setMode('private')}>
           <Text style={[styles.modeTabText, mode === 'private' && styles.modeTabTextActive]}>
-            Private
+            DMs
           </Text>
-          {privateUnread > 0 && (
-            <View style={styles.modeBadge}>
-              <Text style={styles.modeBadgeText}>{privateUnread > 99 ? '99+' : String(privateUnread)}</Text>
-            </View>
-          )}
           {mode === 'private' && <View style={styles.modeTabUnderline} />}
         </Pressable>
         <View style={styles.modeTabSpacer} />
@@ -163,7 +121,7 @@ export default function ChatsScreen() {
         <SymbolView name="magnifyingglass" size={15} tintColor="#999" style={{ width: 16, height: 16, marginRight: 8 }} />
         <TextInput
           style={styles.searchInput}
-          placeholder={isPrivate ? 'Search private chats…' : 'Search content chats…'}
+          placeholder="Search chats…"
           placeholderTextColor={Brand.muted}
           value={query}
           onChangeText={setQuery}
@@ -175,13 +133,12 @@ export default function ChatsScreen() {
           </Pressable>
         ) : null}
       </View>
-      {mode === 'content' && <FilterChips value={filter} onChange={setFilter} compact />}
     </View>
   );
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      {isPrivate ? (
+      {mode === 'private' ? (
         <FlatList
           contentContainerStyle={styles.content}
           data={privateItems}
@@ -237,47 +194,7 @@ export default function ChatsScreen() {
             </View>
           }
         />
-      ) : (
-        <FlatList
-          contentContainerStyle={styles.content}
-          data={filteredThreads}
-          keyExtractor={(item) => item.title}
-          refreshControl={
-            <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={Brand.trust} />
-          }
-          ListHeaderComponent={headerContent}
-          renderItem={({ item }) => (
-            <SwipeableChatRow
-              onArchive={() => archive(`content:${item.title}`)}
-              onDelete={() => softDelete(`content:${item.title}`)}>
-              <ChatListItem thread={item} onPress={() => openThread(item)} />
-            </SwipeableChatRow>
-          )}
-          ListEmptyComponent={
-            !isLoading ? (
-              <View style={styles.empty}>
-                {trimmedQuery
-                  ? <SymbolView name="magnifyingglass" size={40} tintColor="#999" style={{ width: 44, height: 44, marginBottom: 12 }} />
-                  : <Text style={styles.emptyEmoji}>💬</Text>}
-                <Text style={styles.emptyTitle}>
-                  {trimmedQuery
-                    ? `No matches for "${query.trim()}"`
-                    : threads.length && filter !== 'all'
-                      ? 'No chats in this category'
-                      : 'No channels yet'}
-                </Text>
-                <Text style={styles.emptyBody}>
-                  {trimmedQuery
-                    ? 'Try a different name or search term.'
-                    : threads.length && filter !== 'all'
-                      ? 'Try a different filter, or tap "All" to see every channel.'
-                      : 'Channels appear here when you or a friend logs something and starts chatting.'}
-                </Text>
-              </View>
-            ) : null
-          }
-        />
-      )}
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -290,7 +207,7 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'flex-start',
       justifyContent: 'space-between',
-      marginBottom: Spacing.three,
+      marginBottom: 2,
     },
     screenTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, color: Brand.ink, marginBottom: 2 },
     screenSub: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted },
@@ -301,7 +218,7 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 26,
       paddingLeft: 16,
       paddingRight: 16,
-      marginBottom: Spacing.three,
+      marginBottom: 8,
       shadowColor: '#000',
       shadowOpacity: 0.04,
       shadowRadius: 8,
@@ -311,8 +228,8 @@ function createStyles(Brand: BrandPalette) {
     searchIcon: { fontSize: 15, marginRight: 8 },
     searchInput: {
       flex: 1,
-      paddingVertical: 13,
-      fontSize: 14.5,
+      paddingVertical: 8,
+      fontSize: 14,
       fontFamily: BrandFonts.interRegular,
       color: Brand.ink,
     },
@@ -322,7 +239,7 @@ function createStyles(Brand: BrandPalette) {
       alignItems: 'center',
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: Brand.border,
-      marginBottom: Spacing.three,
+      marginBottom: 8,
     },
     modeTab: {
       flexDirection: 'row',

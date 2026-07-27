@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FilterChips } from '@/components/feed/filter-chips';
 import { CollectionItemCard } from '@/components/library/collection-item-card';
 import { LibCard } from '@/components/library/lib-card';
+import { ListCard } from '@/components/library/list-card';
 import { SortRow, type LibrarySort } from '@/components/library/sort-row';
 import { WatchlistCard } from '@/components/library/watchlist-card';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -22,10 +23,11 @@ import {
   useRemoveLibraryItem,
   type LibraryItem,
 } from '@/features/library/api';
+import { useLists, type ListSummary } from '@/features/lists/api';
 import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 
-type LibTab = 'logged' | 'watchlist' | 'collection';
+type LibTab = 'logged' | 'watchlist' | 'collection' | 'lists';
 type WatchlistView = 'mine' | 'friends' | 'their-watchlist';
 type CollectionView = 'read' | 'watch' | 'tv' | 'listen' | 'play' | 'podcast';
 type CollectionSort = 'recent' | 'rating' | 'alpha';
@@ -55,7 +57,7 @@ export default function LibraryScreen() {
   // straight into a specific sub-tab — a plain useState initializer wouldn't
   // pick this up if the Library tab screen was already mounted.
   useEffect(() => {
-    if (params.tab === 'logged' || params.tab === 'watchlist' || params.tab === 'collection') {
+    if (params.tab === 'logged' || params.tab === 'watchlist' || params.tab === 'collection' || params.tab === 'lists') {
       setTab(params.tab);
     }
   }, [params.tab]);
@@ -122,6 +124,7 @@ export default function LibraryScreen() {
   const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
   const [ratingValue, setRatingValue] = useState<number | null>(null);
   const [ratingNote, setRatingNote] = useState('');
+  const { data: listsData = [], isLoading: isListsLoading, isFetching: isListsFetching, refetch: refetchLists } = useLists();
   const { items: collectionItems, isLoading: isCollectionLoading, isFetching: isCollectionFetching, refetch: refetchCollection } = useCollectionItems();
   const removeFromCollection = useRemoveFromCollection();
 
@@ -188,6 +191,13 @@ export default function LibraryScreen() {
             onPress={() => handleTabChange('collection')}>
             <Text style={[styles.tabText, tab === 'collection' && styles.tabTextActive]}>
               📦 Collection
+            </Text>
+          </Pressable>
+          <Pressable
+            style={[styles.tab, tab === 'lists' && styles.tabActive]}
+            onPress={() => handleTabChange('lists')}>
+            <Text style={[styles.tabText, tab === 'lists' && styles.tabTextActive]}>
+              📋 Lists
             </Text>
           </Pressable>
         </View>
@@ -339,7 +349,7 @@ export default function LibraryScreen() {
             ) : null
           }
         />
-      ) : (
+      ) : tab === 'collection' ? (
         <FlatList
           key="collection"
           contentContainerStyle={styles.content}
@@ -447,6 +457,67 @@ export default function LibraryScreen() {
                 <Text style={styles.emptyBody}>{COLLECTION_EMPTY[collectionView].body}</Text>
                 <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'log' } })}>
                   <Text style={styles.emptyBtnText}>Log something →</Text>
+                </Pressable>
+              </View>
+            ) : null
+          }
+        />
+      ) : (
+        <FlatList
+          key="lists"
+          contentContainerStyle={styles.content}
+          data={listsData}
+          keyExtractor={(l: ListSummary) => l.id}
+          refreshControl={
+            <RefreshControl
+              refreshing={isListsFetching && !isListsLoading}
+              onRefresh={refetchLists}
+              tintColor={Brand.trust}
+            />
+          }
+          ListHeaderComponent={
+            <Pressable
+              style={styles.addBtn}
+              onPress={() => router.push('/create-list-modal')}>
+              <Text style={styles.addBtnText}>+ Create a new list</Text>
+            </Pressable>
+          }
+          renderItem={({ item }: { item: ListSummary }) => (
+            <ListCard
+              list={item}
+              Brand={Brand}
+              onPress={() =>
+                router.push({
+                  pathname: '/list-detail-modal',
+                  params: {
+                    listId: item.id,
+                    listTitle: item.title,
+                    listDesc: item.description ?? undefined,
+                    listPublic: item.is_public ? 'true' : 'false',
+                  },
+                })
+              }
+              onLongPress={() =>
+                router.push({
+                  pathname: '/create-list-modal',
+                  params: {
+                    listId: item.id,
+                    listTitle: item.title,
+                    listDesc: item.description ?? undefined,
+                    listPublic: item.is_public ? 'true' : 'false',
+                  },
+                })
+              }
+            />
+          )}
+          ListEmptyComponent={
+            !isListsLoading ? (
+              <View style={styles.emptyWrap}>
+                <Text style={styles.emptyEmoji}>📋</Text>
+                <Text style={styles.emptyTitle}>Your first list awaits.</Text>
+                <Text style={styles.emptyBody}>Group your favourite films, books, or games into shareable lists — like Letterboxd but for everything.</Text>
+                <Pressable style={styles.emptyBtn} onPress={() => router.push('/create-list-modal')}>
+                  <Text style={styles.emptyBtnText}>Create a list →</Text>
                 </Pressable>
               </View>
             ) : null

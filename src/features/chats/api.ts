@@ -20,6 +20,7 @@ export interface Message {
   ep_season: number | null;
   ep_episode: number | null;
   created_at: string;
+  parent_id: string | null;
 }
 
 export interface ChatThread {
@@ -160,6 +161,7 @@ export function useSendMessage() {
       content: string;
       epSeason?: number;
       epEpisode?: number;
+      parentId?: string | null;
     }) => {
       const userName = user?.user_metadata?.full_name ?? user?.email ?? 'You';
       const { error } = await supabase.from('messages').insert({
@@ -170,6 +172,7 @@ export function useSendMessage() {
         post_type: input.type,
         ep_season: input.epSeason ?? null,
         ep_episode: input.epEpisode ?? null,
+        parent_id: input.parentId ?? null,
       });
       if (error) throw error;
     },

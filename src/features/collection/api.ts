@@ -101,6 +101,7 @@ export type AddToCollectionInput = {
   mediaType?: string | null;
   extRating?: string | null;
   userRating?: number | null;
+  note?: string | null;
 };
 
 export function useAddToCollection() {
@@ -119,6 +120,7 @@ export function useAddToCollection() {
         media_type: input.mediaType ?? null,
         ext_rating: input.extRating ?? null,
         user_rating: input.userRating ?? null,
+        note: input.note ?? null,
       });
       if (error) throw error;
     },

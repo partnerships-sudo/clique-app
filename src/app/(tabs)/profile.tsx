@@ -1,10 +1,10 @@
-import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { type Chip } from '@/components/profile/chip-row';
-import { DEFAULT_INTERESTS, EditProfile } from '@/components/profile/edit-profile';
+import { DEFAULT_INTERESTS, EditProfile, type EditProfileHandle } from '@/components/profile/edit-profile';
 import { ProfileCard } from '@/components/profile/profile-card';
 import { ShareProfileModal } from '@/components/profile/share-profile-modal';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -18,6 +18,12 @@ type ProfileView = 'card' | 'edit';
 
 export default function ProfileTab() {
   const [view, setView] = useState<ProfileView>('card');
+  const [cardKey, setCardKey] = useState(0);
+  const editSaveRef = useRef<EditProfileHandle | null>(null);
+
+  useFocusEffect(useCallback(() => {
+    setCardKey((k) => k + 1);
+  }, []));
   const [shareVisible, setShareVisible] = useState(false);
   const [interests, setInterests] = useState<Chip[]>(DEFAULT_INTERESTS);
   const { data: profile } = useProfile();
@@ -36,24 +42,27 @@ export default function ProfileTab() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-<ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
+      <KeyboardAvoidingView style={styles.keyboardAvoid} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+<ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled">
         {view === 'edit' ? (
           <View style={styles.editWrap}>
             <Pressable onPress={() => setView('card')} style={styles.editBack} hitSlop={16}>
               <Text style={styles.editBackText}>‹ Back</Text>
             </Pressable>
             <EditProfile
-            profile={profile}
-            interests={interests}
-            onInterestsChange={setInterests}
-            onSaved={async (input) => {
-              await updateProfile.mutateAsync(input);
-              setView('card');
-            }}
-          />
+              profile={profile}
+              interests={interests}
+              onInterestsChange={setInterests}
+              saveRef={editSaveRef}
+              onSaved={async (input) => {
+                await updateProfile.mutateAsync(input);
+                setView('card');
+              }}
+            />
           </View>
         ) : (
           <ProfileCard
+            key={cardKey}
             profile={profile}
             library={allLibrary ?? []}
             followersCount={followersCount ?? 0}
@@ -78,6 +87,19 @@ export default function ProfileTab() {
           />
         )}
       </ScrollView>
+      {view === 'edit' && (
+        <View style={styles.stickyFooter}>
+          <Pressable
+            style={styles.stickySaveBtn}
+            onPress={() => editSaveRef.current?.save()}
+            disabled={editSaveRef.current?.isSaving}>
+            {editSaveRef.current?.isSaving
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.stickySaveBtnText}>Save profile</Text>}
+          </Pressable>
+        </View>
+      )}
+      </KeyboardAvoidingView>
       <ShareProfileModal visible={shareVisible} onClose={() => setShareVisible(false)} profile={profile} />
     </SafeAreaView>
   );
@@ -86,10 +108,25 @@ export default function ProfileTab() {
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
-scroll: { flex: 1 },
+    keyboardAvoid: { flex: 1 },
+    scroll: { flex: 1 },
     content: { paddingBottom: Spacing.three },
     editWrap: { paddingHorizontal: 12 },
     editBack: { paddingVertical: 12 },
     editBackText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.trust },
+    stickyFooter: {
+      paddingHorizontal: 16,
+      paddingVertical: 10,
+      borderTopWidth: 1,
+      borderTopColor: Brand.border,
+      backgroundColor: Brand.paper,
+    },
+    stickySaveBtn: {
+      backgroundColor: Brand.trust,
+      borderRadius: 14,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    stickySaveBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#fff' },
   });
 }

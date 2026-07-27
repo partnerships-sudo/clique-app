@@ -52,6 +52,7 @@ type RawMessage = {
   ep_season: number | null;
   ep_episode: number | null;
   created_at: string;
+  parent_id?: string | null;
   avatar_url?: string | null;
   user_handle?: string;
 };
@@ -188,7 +189,7 @@ export default function ChatModal() {
   const type = TypeColors[params.type as EntryType] ?? TypeColors.watch;
 
   // Gate visible on first visit (no checkpoint yet) OR when user taps to update
-  const isGateVisible = needsSpoilerGuard && checkpointLoaded && (!checkpoint || forceShowGate) && !searchVisible;
+  const isGateVisible = !isContentChat && needsSpoilerGuard && checkpointLoaded && (!checkpoint || forceShowGate) && !searchVisible;
 
   const messages: RawMessage[] = isGroup
     ? (groupMessages.data ?? []).map((m) => ({
@@ -361,92 +362,94 @@ export default function ChatModal() {
     });
   }
 
+  function handleSendReply(parentId: string, content: string) {
+    if (!params.title) return;
+    sendMessage.mutate({
+      title: params.title,
+      type: params.type as EntryType,
+      content,
+      parentId,
+    });
+  }
+
+  const uniqueUsers = useMemo(() => new Set(messages.map((m) => m.user_id)).size, [messages]);
+  const [threadFilter, setThreadFilter] = useState<ThreadFilter>('All');
+
+  const topLevelPosts = useMemo(() => messages.filter((m) => !m.parent_id), [messages]);
+  const repliesByParent = useMemo(() => {
+    const map = new Map<string, RawMessage[]>();
+    for (const m of messages) {
+      if (m.parent_id) {
+        const arr = map.get(m.parent_id) ?? [];
+        arr.push(m);
+        map.set(m.parent_id, arr);
+      }
+    }
+    return map;
+  }, [messages]);
+
+  const filteredPosts = useMemo(() => {
+    if (!isContentChat) return topLevelPosts;
+    if (threadFilter === 'Mine') return topLevelPosts.filter((m) => m.user_id === user?.id);
+    if (threadFilter === 'Recent') return [...topLevelPosts].sort((a, b) => b.created_at.localeCompare(a.created_at));
+    return topLevelPosts;
+  }, [topLevelPosts, threadFilter, isContentChat, user?.id]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <KeyboardAvoidingWrapper style={styles.sheet}>
-        <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={16}>
-            <Text style={styles.backText}>←</Text>
-          </Pressable>
-          <Pressable
-            style={styles.headerInfo}
-            onPress={
-              isGroup
-                ? () =>
-                    router.push({
-                      pathname: '/group-info-modal',
-                      params: { groupId: params.groupId!, groupName: params.groupName ?? 'Group Chat' },
-                    })
-                : needsSpoilerGuard && checkpoint
-                ? () => { setForceShowGate(true); setCautionExpanded(false); }
-                : undefined
-            }
-            disabled={!isGroup && !(needsSpoilerGuard && checkpoint)}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {isGroup ? (params.groupName ?? 'Group Chat') : isDm ? (params.friendName ?? 'Friend') : params.title}
-            </Text>
-            <Text style={styles.headerSub}>
-              {isGroup
-                ? 'Tap to see members ›'
-                : isDm
-                ? (friendLastSeenLabel || 'Private chat')
-                : needsSpoilerGuard && checkpoint
-                ? checkpoint.finished
-                  ? 'Fully caught up · tap to update ›'
-                  : isBookChat
-                    ? `Chapter ${checkpoint.episode} · tap to update ›`
-                    : `S${checkpoint.season}E${checkpoint.episode} · tap to update ›`
-                : `Chatting about this ${type.label.toLowerCase()}`}
-            </Text>
-          </Pressable>
-          {isContentChat && (
+        {/* Compact header for DMs and group chats only */}
+        {!isContentChat && (
+          <View style={styles.header}>
+            <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={16}>
+              <Text style={styles.backText}>←</Text>
+            </Pressable>
             <Pressable
-              onPress={() => setMembersVisible(true)}
-              hitSlop={10}
-              style={styles.searchToggleBtn}
-              accessibilityLabel="See who's in this chat"
-              accessibilityRole="button">
+              style={styles.headerInfo}
+              onPress={
+                isGroup
+                  ? () =>
+                      router.push({
+                        pathname: '/group-info-modal',
+                        params: { groupId: params.groupId!, groupName: params.groupName ?? 'Group Chat' },
+                      })
+                  : undefined
+              }
+              disabled={!isGroup}>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {isGroup ? (params.groupName ?? 'Group Chat') : (params.friendName ?? 'Friend')}
+              </Text>
+              <Text style={styles.headerSub}>
+                {isGroup ? 'Tap to see members ›' : (friendLastSeenLabel || 'Private chat')}
+              </Text>
+            </Pressable>
+            <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
               <SymbolView
-                name="person.2"
+                name={searchVisible ? 'xmark' : 'magnifyingglass'}
                 size={16}
-                tintColor={Brand.muted}
+                tintColor={searchVisible ? Brand.trust : Brand.muted}
                 type="monochrome"
-                style={{ width: 20, height: 16 }}
+                style={{ width: 18, height: 18 }}
               />
             </Pressable>
-          )}
-          <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
-            <SymbolView
-              name={searchVisible ? 'xmark' : 'magnifyingglass'}
-              size={16}
-              tintColor={searchVisible ? Brand.trust : Brand.muted}
-              type="monochrome"
-              style={{ width: 18, height: 18 }}
-            />
-          </Pressable>
-          {isGroup ? (
-            <View style={[styles.headerIconBox, { backgroundColor: Brand.tlight }]}>
-              <Text style={styles.headerIcon}>👥</Text>
-            </View>
-          ) : isDm ? (
-            <Pressable
-              onPress={() =>
-                router.push({ pathname: '/friend-profile-modal', params: { userId: params.friendId! } })
-              }
-              hitSlop={16}>
-              <Avatar name={params.friendName ?? 'Friend'} size={38} avatarUrl={params.friendAvatar} />
-            </Pressable>
-          ) : params.poster ? (
-            <Image source={{ uri: params.poster }} style={styles.headerIconBox} />
-          ) : (
-            <View style={[styles.headerIconBox, { backgroundColor: type.bg }]}>
-              <Text style={styles.headerIcon}>{type.icon}</Text>
-            </View>
-          )}
-        </View>
+            {isDm ? (
+              <Pressable
+                onPress={() =>
+                  router.push({ pathname: '/friend-profile-modal', params: { userId: params.friendId! } })
+                }
+                hitSlop={16}>
+                <Avatar name={params.friendName ?? 'Friend'} size={38} avatarUrl={params.friendAvatar} />
+              </Pressable>
+            ) : (
+              <View style={[styles.headerIconBox, { backgroundColor: Brand.tlight }]}>
+                <Text style={styles.headerIcon}>👥</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {searchVisible && (
-          <View style={styles.searchBar}>
+          <View style={[styles.searchBar, isContentChat && { backgroundColor: Brand.paper }]}>
             <SymbolView
               name="magnifyingglass"
               size={14}
@@ -474,6 +477,13 @@ export default function ChatModal() {
           </View>
         )}
 
+        {isContentChat && isGateVisible && (
+          <View style={[cb.topBar, { position: 'relative', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, backgroundColor: Brand.paper }]}>
+            <Pressable onPress={() => router.back()} hitSlop={16} style={[cb.iconBtn, { backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border }]}>
+              <SymbolView name="chevron.left" size={16} tintColor={Brand.ink} type="monochrome" style={{ width: 16, height: 16 }} />
+            </Pressable>
+          </View>
+        )}
         {isDmLocked ? (
           <View style={styles.gate}>
             <Avatar name={params.friendName ?? 'Someone'} size={64} avatarUrl={params.friendAvatar} />
@@ -574,9 +584,23 @@ export default function ChatModal() {
           <FlatList
             ref={listRef}
             style={styles.messages}
-            contentContainerStyle={styles.messagesContent}
-            data={displayItems}
+            contentContainerStyle={isContentChat ? { paddingTop: 12, paddingBottom: 20 } : styles.messagesContent}
+            data={isContentChat ? filteredPosts.map((m) => ({ kind: 'message' as const, data: m })) : displayItems}
             keyExtractor={(item) => (item.kind === 'divider' ? '__spoiler_divider__' : item.data.id)}
+            ListHeaderComponent={isContentChat ? (
+              <ContentBanner
+                poster={params.poster}
+                title={params.title}
+                type={type}
+                messageCount={messages.length}
+                uniqueUsers={uniqueUsers}
+                onBack={() => router.back()}
+                onSearch={toggleSearch}
+                onMembers={() => setMembersVisible(true)}
+                filter={threadFilter}
+                onFilter={setThreadFilter}
+              />
+            ) : null}
             renderItem={({ item }) => {
               if (item.kind === 'divider') {
                 return (
@@ -586,9 +610,19 @@ export default function ChatModal() {
                     count={item.count}
                     onExpand={() => {
                       setCautionExpanded(true);
-                      // scroll to end so the revealed messages are visible
                       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 80);
                     }}
+                  />
+                );
+              }
+              const isMine = item.data.user_id === user?.id;
+              if (isContentChat) {
+                return (
+                  <ContentPost
+                    post={item.data}
+                    replies={repliesByParent.get(item.data.id) ?? []}
+                    isMine={isMine}
+                    onSendReply={handleSendReply}
                   />
                 );
               }
@@ -597,12 +631,12 @@ export default function ChatModal() {
                 <View>
                   <MessageBubble
                     message={item.data}
-                    isMine={item.data.user_id === user?.id}
+                    isMine={isMine}
                     avatarUrl={item.data.avatar_url}
                     userHandle={item.data.user_handle}
                     isSpoiler={
                       needsSpoilerGuard &&
-                      item.data.user_id !== user?.id &&
+                      !isMine &&
                       !!checkpoint &&
                       !checkpoint.finished &&
                       isAhead(item.data, checkpoint)
@@ -614,10 +648,14 @@ export default function ChatModal() {
                 </View>
               );
             }}
-            ItemSeparatorComponent={() => <View style={{ height: 14 }} />}
+            ItemSeparatorComponent={isContentChat ? null : () => <View style={{ height: 14 }} />}
             onContentSizeChange={() => { if (!searchActive) listRef.current?.scrollToEnd({ animated: false }); }}
             ListEmptyComponent={
-              !isLoading ? <Text style={styles.empty}>Say something to kick off the chat.</Text> : null
+              !isLoading ? (
+                <Text style={[styles.empty, isContentChat && { marginTop: 40 }]}>
+                  Say something to kick off the chat.
+                </Text>
+              ) : null
             }
           />
         )}
@@ -633,7 +671,7 @@ export default function ChatModal() {
               </Pressable>
               <TextInput
                 style={styles.input}
-                placeholder="Say something…"
+                placeholder={isContentChat ? 'Write a post…' : 'Say something…'}
                 placeholderTextColor={Brand.muted}
                 value={input}
                 onChangeText={setInput}
@@ -771,6 +809,284 @@ export default function ChatModal() {
     </SafeAreaView>
   );
 }
+
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
+const THREAD_FILTERS = ['All', 'Recent', 'Mine'] as const;
+type ThreadFilter = typeof THREAD_FILTERS[number];
+
+function ContentBanner({
+  poster, title, type, messageCount, uniqueUsers,
+  onBack, onSearch, onMembers, filter, onFilter,
+}: {
+  poster?: string; title?: string; type: ReturnType<typeof useTypeColors>[keyof ReturnType<typeof useTypeColors>];
+  messageCount: number; uniqueUsers: number;
+  onBack: () => void; onSearch: () => void; onMembers: () => void;
+  filter: ThreadFilter; onFilter: (f: ThreadFilter) => void;
+}) {
+  const Brand = useBrand();
+  return (
+    <View>
+      {/* Compact card-style header */}
+      <View style={[cb.header, { backgroundColor: Brand.card, borderBottomColor: Brand.border }]}>
+        <Pressable onPress={onBack} hitSlop={16} style={cb.backBtn}>
+          <SymbolView name="chevron.left" size={18} tintColor={Brand.ink} type="monochrome" style={{ width: 18, height: 18 }} />
+        </Pressable>
+
+        {/* Poster thumbnail */}
+        <View style={[cb.thumb, { borderColor: Brand.border }]}>
+          {poster ? (
+            <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: type.bg, alignItems: 'center', justifyContent: 'center' }]}>
+              <Text style={{ fontSize: 22 }}>{type.icon}</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Info */}
+        <View style={cb.info}>
+          <Text style={[cb.titleText, { color: Brand.ink }]} numberOfLines={2}>{title}</Text>
+          <View style={cb.metaRow}>
+            <View style={[cb.typeBadge, { backgroundColor: type.color + '18', borderColor: type.color + '55' }]}>
+              <Text style={[cb.typeBadgeText, { color: type.color }]}>{type.label}</Text>
+            </View>
+            <Text style={[cb.statText, { color: Brand.muted }]}>
+              {uniqueUsers} {uniqueUsers === 1 ? 'member' : 'members'} · {messageCount} posts
+            </Text>
+          </View>
+        </View>
+
+        {/* Actions */}
+        <View style={cb.actions}>
+          <Pressable onPress={onMembers} hitSlop={10} style={cb.actionBtn}>
+            <SymbolView name="person.2" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 20, height: 16 }} />
+          </Pressable>
+          <Pressable onPress={onSearch} hitSlop={10} style={cb.actionBtn}>
+            <SymbolView name="magnifyingglass" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Filter chips */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={[cb.filterRow, { backgroundColor: Brand.paper, borderBottomColor: Brand.border }]} contentContainerStyle={cb.filterContent}>
+        {THREAD_FILTERS.map((f) => {
+          const active = filter === f;
+          return (
+            <Pressable key={f} onPress={() => onFilter(f)} style={[cb.filterChip, active && { backgroundColor: Brand.trust, borderColor: Brand.trust }, !active && { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+              <Text style={[cb.filterChipText, { color: active ? '#fff' : Brand.muted }]}>{f}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
+const cb = StyleSheet.create({
+  header: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 14, paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  backBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    alignItems: 'center', justifyContent: 'center',
+    flexShrink: 0,
+  },
+  thumb: {
+    width: 42, height: 56, borderRadius: 8,
+    overflow: 'hidden', borderWidth: 1, flexShrink: 0,
+  },
+  info: { flex: 1, minWidth: 0, gap: 5 },
+  titleText: { fontFamily: BrandFonts.syneExtraBold, fontSize: 14, lineHeight: 18 },
+  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 7, flexWrap: 'wrap' },
+  typeBadge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 6, paddingVertical: 2 },
+  typeBadgeText: { fontFamily: BrandFonts.interMedium, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4 },
+  statText: { fontFamily: BrandFonts.interRegular, fontSize: 11 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 4, flexShrink: 0 },
+  actionBtn: { width: 32, height: 32, alignItems: 'center', justifyContent: 'center' },
+  filterRow: { borderBottomWidth: StyleSheet.hairlineWidth, paddingVertical: 10 },
+  filterContent: { gap: 8, paddingHorizontal: 16 },
+  filterChip: { height: 32, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  filterChipText: { fontFamily: BrandFonts.interMedium, fontSize: 13 },
+});
+
+function PostAvatar({ handle, size = 34, bg, color }: { handle: string; size?: number; bg: string; color: string }) {
+  const letter = handle.replace(/^@/, '')[0]?.toUpperCase() ?? '?';
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: bg, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: size * 0.4, color }}>{letter}</Text>
+    </View>
+  );
+}
+
+function ReplyRow({ reply, isMine, Brand }: { reply: RawMessage; isMine: boolean; Brand: BrandPalette }) {
+  const isImg = reply.content.startsWith('__img:');
+  const isGif = reply.content.startsWith('__gif:');
+  const mediaUrl = isImg ? reply.content.slice(6) : isGif ? reply.content.slice(6, -2) : null;
+  const displayContent = isImg || isGif ? null : reply.content;
+  const handle = reply.user_handle ?? reply.user_name;
+
+  return (
+    <View style={[cp.replyRow, { borderLeftColor: Brand.trust + '55', borderBottomColor: Brand.border }]}>
+      <PostAvatar handle={handle} size={26} bg={Brand.tlight} color={Brand.trust} />
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <View style={cp.meta}>
+          <Text style={[cp.username, { color: isMine ? Brand.trust : Brand.ink, fontSize: 12 }]}>
+            {isMine ? 'You' : handle}
+          </Text>
+          <Text style={[cp.time, { color: Brand.muted }]}>{timeAgo(reply.created_at)}</Text>
+        </View>
+        {displayContent ? (
+          <Text style={[cp.content, { color: Brand.ink, fontSize: 13 }]}>{displayContent}</Text>
+        ) : mediaUrl ? (
+          <Image source={{ uri: mediaUrl }} style={[cp.mediaImg, { marginTop: 4 }]} resizeMode="cover" />
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+function ContentPost({
+  post, replies, isMine, onSendReply,
+}: {
+  post: RawMessage;
+  replies: RawMessage[];
+  isMine: boolean;
+  onSendReply: (parentId: string, content: string) => void;
+}) {
+  const Brand = useBrand();
+  const { user } = useSession();
+  const [repliesOpen, setRepliesOpen] = useState(false);
+  const [replyText, setReplyText] = useState('');
+  const replyInputRef = useRef<TextInput>(null);
+
+  const isImg = post.content.startsWith('__img:');
+  const isGif = post.content.startsWith('__gif:');
+  const mediaUrl = isImg ? post.content.slice(6) : isGif ? post.content.slice(6, -2) : null;
+  const displayContent = isImg || isGif ? null : post.content;
+  const handle = post.user_handle ?? post.user_name;
+
+  function openReplies() {
+    setRepliesOpen(true);
+    setTimeout(() => replyInputRef.current?.focus(), 80);
+  }
+
+  function submitReply() {
+    const text = replyText.trim();
+    if (!text) return;
+    onSendReply(post.id, text);
+    setReplyText('');
+  }
+
+  return (
+    <View style={[cp.post, { borderBottomColor: Brand.border, backgroundColor: Brand.card }]}>
+      <View style={cp.postInner}>
+        <View style={cp.meta}>
+          <PostAvatar handle={handle} size={32} bg={Brand.tlight} color={Brand.trust} />
+          <Text style={[cp.username, { color: isMine ? Brand.trust : Brand.ink }]}>
+            {isMine ? 'You' : handle}
+          </Text>
+          <Text style={[cp.time, { color: Brand.muted }]}>{timeAgo(post.created_at)}</Text>
+        </View>
+        {displayContent ? (
+          <Text style={[cp.content, { color: Brand.ink }]}>{displayContent}</Text>
+        ) : mediaUrl ? (
+          <Image source={{ uri: mediaUrl }} style={cp.mediaImg} resizeMode="cover" />
+        ) : null}
+        <View style={[cp.actions, { borderTopColor: Brand.border }]}>
+          <Pressable
+            style={cp.actionBtn}
+            onPress={repliesOpen ? () => setRepliesOpen(false) : openReplies}>
+            <SymbolView name="bubble.left" size={14} tintColor={repliesOpen ? Brand.trust : Brand.muted} type="monochrome" style={{ width: 14, height: 14 }} />
+            <Text style={[cp.actionText, { color: repliesOpen ? Brand.trust : Brand.muted }]}>
+              {replies.length > 0 ? `${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}` : 'Reply'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      {repliesOpen && (
+        <View style={[cp.repliesSection, { borderTopColor: Brand.border }]}>
+          {replies.map((r) => (
+            <ReplyRow key={r.id} reply={r} isMine={r.user_id === user?.id} Brand={Brand} />
+          ))}
+          <View style={[cp.replyInputRow, { borderTopColor: Brand.border }]}>
+            <PostAvatar handle="You" size={26} bg={Brand.tlight} color={Brand.trust} />
+            <TextInput
+              ref={replyInputRef}
+              style={[cp.replyInput, { color: Brand.ink, borderColor: Brand.border, backgroundColor: Brand.paper }]}
+              placeholder="Write a reply…"
+              placeholderTextColor={Brand.muted}
+              value={replyText}
+              onChangeText={setReplyText}
+              onSubmitEditing={submitReply}
+              returnKeyType="send"
+              multiline={false}
+            />
+            {replyText.trim().length > 0 && (
+              <Pressable onPress={submitReply} style={[cp.replySubmit, { backgroundColor: Brand.trust }]}>
+                <SymbolView name="arrow.up" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
+              </Pressable>
+            )}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const cp = StyleSheet.create({
+  post: {
+    borderWidth: 1,
+    borderRadius: 16,
+    marginHorizontal: 14,
+    marginBottom: 10,
+    overflow: 'hidden',
+  },
+  postInner: {
+    padding: 14, gap: 10,
+  },
+  meta: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  username: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
+  time: { fontFamily: BrandFonts.interRegular, fontSize: 11 },
+  content: { fontFamily: BrandFonts.interRegular, fontSize: 14.5, lineHeight: 21 },
+  mediaImg: { width: '100%', aspectRatio: 16 / 9, borderRadius: 10 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 16, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+  actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  actionText: { fontFamily: BrandFonts.interMedium, fontSize: 12.5 },
+  repliesSection: { borderTopWidth: StyleSheet.hairlineWidth },
+  replyRow: {
+    flexDirection: 'row', gap: 9,
+    paddingVertical: 10, paddingRight: 14,
+    paddingLeft: 14,
+    borderLeftWidth: 2.5,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  replyInputRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    padding: 10, paddingLeft: 14,
+    borderTopWidth: StyleSheet.hairlineWidth,
+  },
+  replyInput: {
+    flex: 1, borderWidth: 1, borderRadius: 18,
+    paddingHorizontal: 12, paddingVertical: 7,
+    fontFamily: BrandFonts.interRegular, fontSize: 13,
+  },
+  replySubmit: {
+    width: 28, height: 28, borderRadius: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+});
 
 function SpoilerDivider({
   checkpoint,

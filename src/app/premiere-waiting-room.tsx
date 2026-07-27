@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
@@ -33,36 +34,40 @@ export default function PremiereWaitingRoom() {
   const { user } = useSession();
   const params = useLocalSearchParams<{ id: string }>();
 
+  const queryClient = useQueryClient();
   const { data: premiere } = usePremiere(params.id ?? null);
   const joinPremiere = useJoinPremiere();
   const sendMsg = useSendPremiereMessage();
-  const { data: dbMessages = [], isSuccess: messagesLoaded } = useWaitingRoomMessages(params.id ?? null);
+  const { data: dbMessages = [] } = useWaitingRoomMessages(params.id ?? null);
 
-  const [messages, setMessages] = useState<PremiereMessage[]>([]);
+  const [extraMessages, setExtraMessages] = useState<PremiereMessage[]>([]);
   const [text, setText] = useState('');
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [channelError, setChannelError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const flatListRef = useRef<FlatList>(null);
-  const initializedRef = useRef(false);
   const redirectedRef = useRef(false);
   const isHost = premiere?.host_user_id === user?.id;
+
+  // Merge DB messages with any realtime extras not yet in DB result
+  const messages = [
+    ...dbMessages,
+    ...extraMessages.filter((m) => !dbMessages.some((d) => d.id === m.id)),
+  ];
 
   // Join on mount
   useEffect(() => {
     if (params.id) joinPremiere.mutate(params.id);
   }, [params.id]);
 
-  // Seed messages from DB once on first load
+  // Scroll to bottom when messages first load
+  const didScrollRef = useRef(false);
   useEffect(() => {
-    if (messagesLoaded && !initializedRef.current) {
-      initializedRef.current = true;
-      setMessages(dbMessages);
-      if (dbMessages.length > 0) {
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 50);
-      }
+    if (dbMessages.length > 0 && !didScrollRef.current) {
+      didScrollRef.current = true;
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 50);
     }
-  }, [messagesLoaded]);
+  }, [dbMessages.length]);
 
   // Realtime: new waiting room messages written to DB
   useEffect(() => {
@@ -81,7 +86,9 @@ export default function PremiereWaitingRoom() {
         (payload) => {
           const msg = payload.new as PremiereMessage;
           if (msg.relative_ms === null) {
-            setMessages((prev) => {
+            // Invalidate so React Query picks it up; also append immediately for instant display
+            queryClient.invalidateQueries({ queryKey: ['waiting-room-messages', params.id] });
+            setExtraMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev;
               return [...prev, msg];
             });
@@ -130,17 +137,24 @@ export default function PremiereWaitingRoom() {
     if (!premiere?.air_date) return;
     const timeSuffix = (() => {
       const raw = premiere.air_time;
-      if (!raw) return 'T20:00:00';
-      const m = raw.match(/^(\d+):(\d+)\s*(AM|PM)/i);
-      if (!m) return 'T20:00:00';
-      let h = parseInt(m[1], 10);
-      const min = m[2];
-      const period = m[3].toUpperCase();
-      if (period === 'PM' && h !== 12) h += 12;
-      if (period === 'AM' && h === 12) h = 0;
-      return `T${String(h).padStart(2, '0')}:${min}:00`;
+      if (!raw) return null;
+      // Match formats like "8:00 PM", "8:00 PM ET", "20:00"
+      const ampm = raw.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+      if (ampm) {
+        let h = parseInt(ampm[1], 10);
+        const min = ampm[2];
+        const period = ampm[3].toUpperCase();
+        if (period === 'PM' && h !== 12) h += 12;
+        if (period === 'AM' && h === 12) h = 0;
+        return `T${String(h).padStart(2, '0')}:${min}:00`;
+      }
+      const h24 = raw.match(/^(\d{1,2}):(\d{2})/);
+      if (h24) return `T${String(parseInt(h24[1], 10)).padStart(2, '0')}:${h24[2]}:00`;
+      return null;
     })();
+    if (!timeSuffix) return;
     const target = new Date(premiere.air_date + timeSuffix).getTime();
+    if (isNaN(target)) return;
     const tick = () => {
       const diff = Math.max(0, Math.floor((target - Date.now()) / 1000));
       setSecondsLeft(diff);

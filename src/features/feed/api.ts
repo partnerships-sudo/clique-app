@@ -355,3 +355,92 @@ export function useMostReviewed(period: MostReviewedPeriod) {
     staleTime: 10 * 60 * 1000,
   });
 }
+
+export interface HotThread {
+  title: string;
+  post_type: string;
+  message_count: number;
+  last_text: string;
+  last_user: string;
+  poster: string | null;
+}
+
+export function useHotThreads(typeFilter: FeedFilterValue = 'all') {
+  return useQuery({
+    queryKey: ['hot-threads', typeFilter],
+    queryFn: async () => {
+      // Fetch threads with message count from last 7 days
+      const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      let query = supabase
+        .from('messages')
+        .select('title, post_type, content, user_name, created_at')
+        .gte('created_at', since)
+        .order('created_at', { ascending: false })
+        .limit(500);
+      if (typeFilter !== 'all') {
+        query = query.eq('post_type', typeFilter);
+      }
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Group by title and count
+      const map = new Map<string, { post_type: string; message_count: number; last_text: string; last_user: string }>();
+      for (const row of (data ?? []) as any[]) {
+        const existing = map.get(row.title);
+        if (!existing) {
+          map.set(row.title, { post_type: row.post_type, message_count: 1, last_text: row.content, last_user: row.user_name });
+        } else {
+          existing.message_count += 1;
+        }
+      }
+
+      const titles = Array.from(map.keys());
+      let posterByTitle = new Map<string, string | null>();
+      if (titles.length > 0) {
+        const { data: postsData } = await supabase
+          .from('posts')
+          .select('title, poster')
+          .in('title', titles);
+        posterByTitle = new Map((postsData ?? []).map((p: any) => [p.title, p.poster ?? null]));
+      }
+
+      return Array.from(map.entries())
+        .map(([title, v]) => ({ title, ...v, poster: posterByTitle.get(title) ?? null } as HotThread))
+        .sort((a, b) => b.message_count - a.message_count)
+        .slice(0, 20);
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useThreadSearch(query: string) {
+  return useQuery({
+    queryKey: ['thread-search', query],
+    queryFn: async () => {
+      if (!query.trim()) return [];
+      const { data, error } = await supabase
+        .from('messages')
+        .select('title, post_type, user_name, created_at')
+        .ilike('title', `%${query.trim()}%`)
+        .order('created_at', { ascending: false })
+        .limit(200);
+      if (error) throw error;
+
+      const map = new Map<string, { post_type: string; count: number }>();
+      for (const row of (data ?? []) as any[]) {
+        const existing = map.get(row.title);
+        if (!existing) {
+          map.set(row.title, { post_type: row.post_type, count: 1 });
+        } else {
+          existing.count += 1;
+        }
+      }
+      return Array.from(map.entries())
+        .map(([title, v]) => ({ title, post_type: v.post_type, message_count: v.count }))
+        .sort((a, b) => b.message_count - a.message_count)
+        .slice(0, 8);
+    },
+    enabled: query.trim().length >= 2,
+    staleTime: 30_000,
+  });
+}

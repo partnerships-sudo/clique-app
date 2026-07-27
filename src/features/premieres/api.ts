@@ -165,6 +165,9 @@ export function useMyPremieres() {
   });
 }
 
+export type RsvpStatus = 'invited' | 'attending' | 'not_attending';
+export type PremiereWithRsvp = Premiere & { rsvp_status: RsvpStatus };
+
 export function useAttendingPremieres() {
   const { user } = useSession();
   return useQuery({
@@ -172,11 +175,14 @@ export function useAttendingPremieres() {
     queryFn: async () => {
       const { data: members, error: membErr } = await supabase
         .from('premiere_members')
-        .select('premiere_id')
+        .select('premiere_id, rsvp_status')
         .eq('user_id', user!.id);
       if (membErr) throw membErr;
-      const ids = (members ?? []).map((m: any) => m.premiere_id);
-      if (ids.length === 0) return [];
+      const memberMap = new Map<string, RsvpStatus>(
+        (members ?? []).map((m: any) => [m.premiere_id, m.rsvp_status ?? 'attending'])
+      );
+      const ids = [...memberMap.keys()];
+      if (ids.length === 0) return [] as PremiereWithRsvp[];
       const { data, error } = await supabase
         .from('premieres')
         .select('*')
@@ -184,9 +190,30 @@ export function useAttendingPremieres() {
         .neq('host_user_id', user!.id)
         .order('created_at', { ascending: false });
       if (error) throw error;
-      return data as Premiere[];
+      return (data as Premiere[]).map((p) => ({
+        ...p,
+        rsvp_status: memberMap.get(p.id) ?? 'attending',
+      })) as PremiereWithRsvp[];
     },
     enabled: !!user,
+  });
+}
+
+export function useUpdateRsvp() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ premiereId, status }: { premiereId: string; status: RsvpStatus }) => {
+      const { error } = await supabase
+        .from('premiere_members')
+        .update({ rsvp_status: status })
+        .eq('premiere_id', premiereId)
+        .eq('user_id', user!.id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['premieres-attending', user?.id] });
+    },
   });
 }
 

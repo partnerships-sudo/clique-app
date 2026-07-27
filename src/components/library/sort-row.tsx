@@ -60,7 +60,7 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.muted,
     },
     btnTextActive: {
-      color: '#fff',
+      color: Brand.paper,
     },
   });
 }

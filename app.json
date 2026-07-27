@@ -11,7 +11,9 @@
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.lanapolitano.thecliqueapp",
       "buildNumber": "10",
-      "associatedDomains": ["applinks:vaultedmediagroup.com"],
+      "associatedDomains": [
+        "applinks:vaultedmediagroup.com"
+      ],
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "LSApplicationQueriesSchemes": [
@@ -78,7 +80,13 @@
       "expo-asset",
       "expo-notifications",
       "expo-localization",
-      ["@stripe/stripe-react-native", { "merchantIdentifier": "merchant.com.thecliqueapp" }]
+      [
+        "@stripe/stripe-react-native",
+        {
+          "merchantIdentifier": "merchant.com.thecliqueapp"
+        }
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true

@@ -1,3 +1,4 @@
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
@@ -6,7 +7,9 @@ import {
   Alert,
   FlatList,
   Image,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -201,12 +204,16 @@ export default function WatchPartiesModal() {
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [editTagline, setEditTagline] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [pickerDate, setPickerDate] = useState(new Date());
 
   const updatePremiere = useUpdatePremiere();
   const deletePremiere = useDeletePremiere();
 
   function openEdit(p: Premiere) {
     setEditingPremiere(p);
+    const existing = p.air_date ? new Date(p.air_date + 'T12:00:00') : new Date();
+    setPickerDate(existing);
     setEditDate(p.air_date ?? '');
     setEditTime(p.air_time ?? '');
     setEditTagline(p.tagline ?? '');
@@ -314,11 +321,13 @@ export default function WatchPartiesModal() {
           <Text style={styles.back}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>Watch Parties</Text>
-        <Pressable
-          onPress={() => tab === 'screening' ? router.push('/create-screening-room-modal') : router.push('/premiere-modal')}
-          hitSlop={16}>
-          <SymbolView name="plus" size={20} tintColor={Brand.trust} type="monochrome" />
-        </Pressable>
+        {tab !== 'attending' ? (
+          <Pressable
+            onPress={() => tab === 'screening' ? router.push('/create-screening-room-modal') : router.push('/premiere-modal')}
+            hitSlop={16}>
+            <SymbolView name="plus" size={20} tintColor={Brand.trust} type="monochrome" />
+          </Pressable>
+        ) : <View style={{ width: 24 }} />}
       </View>
 
       {/* Tabs */}
@@ -377,6 +386,9 @@ export default function WatchPartiesModal() {
 
       {/* Edit modal */}
       <Modal visible={!!editingPremiere} transparent animationType="slide">
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
         <Pressable style={styles.editBackdrop} onPress={() => setEditingPremiere(null)}>
           <Pressable style={styles.editSheet} onPress={() => {}}>
             <View style={styles.editGrabber} />
@@ -388,17 +400,33 @@ export default function WatchPartiesModal() {
               </Text>
             ) : null}
 
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.fieldLabel}>Date (YYYY-MM-DD)</Text>
-              <TextInput
+            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+              <Text style={styles.fieldLabel}>Date</Text>
+              <Pressable
                 style={styles.fieldInput}
-                value={editDate}
-                onChangeText={setEditDate}
-                placeholder="e.g. 2025-08-10"
-                placeholderTextColor={Brand.muted}
-                keyboardType="numbers-and-punctuation"
-                autoCorrect={false}
-              />
+                onPress={() => setShowDatePicker(!showDatePicker)}>
+                <Text style={editDate ? { color: Brand.ink, fontFamily: BrandFonts.interRegular, fontSize: 15 } : { color: Brand.muted, fontFamily: BrandFonts.interRegular, fontSize: 15 }}>
+                  {editDate ? formatPartyDate(editDate) : 'Select a date…'}
+                </Text>
+              </Pressable>
+              {showDatePicker ? (
+                <DateTimePicker
+                  value={pickerDate}
+                  mode="date"
+                  display="inline"
+                  minimumDate={new Date()}
+                  onChange={(_e, date) => {
+                    if (date) {
+                      setPickerDate(date);
+                      const y = date.getFullYear();
+                      const m = String(date.getMonth() + 1).padStart(2, '0');
+                      const d = String(date.getDate()).padStart(2, '0');
+                      setEditDate(`${y}-${m}-${d}`);
+                      setShowDatePicker(false);
+                    }
+                  }}
+                />
+              ) : null}
 
               <Text style={styles.fieldLabel}>Start time</Text>
               <View style={styles.timeRow}>
@@ -443,6 +471,7 @@ export default function WatchPartiesModal() {
             </Pressable>
           </Pressable>
         </Pressable>
+        </KeyboardAvoidingView>
       </Modal>
     </SafeAreaView>
   );

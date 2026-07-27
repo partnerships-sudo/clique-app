@@ -128,6 +128,14 @@ export default function FriendProfileModal() {
               })
             }
             mutualFollowers={mutualFollowers}
+            onMessage={() => router.push({
+              pathname: '/chat-modal',
+              params: {
+                friendId: params.userId,
+                friendName: profile?.full_name ?? profile?.username ?? 'Friend',
+                friendAvatar: profile?.avatar_url ?? undefined,
+              },
+            })}
             friendAction={friendAction}
             closeFriendAction={followStatus?.kind === 'accepted' ? {
               isCloseFriend,

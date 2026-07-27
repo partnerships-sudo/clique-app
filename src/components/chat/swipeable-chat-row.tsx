@@ -9,11 +9,13 @@ function RightActions({
   onArchive,
   onDelete,
   close,
+  archiveLabel = 'Archive',
 }: {
   progress: Animated.AnimatedInterpolation<number>;
   onArchive: () => void;
   onDelete: () => void;
   close: () => void;
+  archiveLabel?: string;
 }) {
   const translateArchive = progress.interpolate({
     inputRange: [0, 1],
@@ -30,7 +32,7 @@ function RightActions({
         <Pressable
           style={styles.archiveBtn}
           onPress={() => { close(); onArchive(); }}>
-          <Text style={styles.btnText}>Archive</Text>
+          <Text style={styles.btnText}>{archiveLabel}</Text>
         </Pressable>
       </Animated.View>
       <Animated.View style={{ transform: [{ translateX: translateDelete }] }}>
@@ -48,10 +50,12 @@ export function SwipeableChatRow({
   children,
   onArchive,
   onDelete,
+  archiveLabel = 'Archive',
 }: {
   children: ReactNode;
   onArchive: () => void;
   onDelete: () => void;
+  archiveLabel?: string;
 }) {
   const swipeableRef = useRef<Swipeable>(null);
 
@@ -66,6 +70,7 @@ export function SwipeableChatRow({
           onArchive={onArchive}
           onDelete={onDelete}
           close={() => swipeableRef.current?.close()}
+          archiveLabel={archiveLabel}
         />
       )}>
       {children}

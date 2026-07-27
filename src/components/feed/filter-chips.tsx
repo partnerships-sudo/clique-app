@@ -23,6 +23,7 @@ export function FilterChips({
   onHide,
   onShow,
   compact,
+  labelsOnly,
 }: {
   value: FeedFilterValue;
   onChange: (value: FeedFilterValue) => void;
@@ -32,6 +33,8 @@ export function FilterChips({
   onShow?: (type: EntryType) => void;
   /** Render slim pill chips (icon + label inline) instead of large square tiles. */
   compact?: boolean;
+  /** Render text-only pill chips with no icons — used on Global tab. */
+  labelsOnly?: boolean;
 }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -42,6 +45,28 @@ export function FilterChips({
     ? FILTERS.filter((f) => f.value === 'all' || !hiddenTypes!.has(f.value as EntryType))
     : FILTERS;
   const hiddenFilters = customizable ? FILTERS.filter((f) => hiddenTypes!.has(f.value as EntryType)) : [];
+
+  if (labelsOnly) {
+    return (
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={styles.compactRow}
+        contentContainerStyle={styles.labelsOnlyContent}>
+        {visibleFilters.map((filter) => {
+          const active = filter.value === value;
+          return (
+            <Pressable
+              key={filter.value}
+              onPress={() => onChange(filter.value)}
+              style={[styles.labelPill, active && styles.labelPillActive]}>
+              <Text style={[styles.labelPillText, active && styles.labelPillTextActive]}>{filter.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    );
+  }
 
   function handleLongPress(filter: (typeof FILTERS)[number]) {
     if (!customizable || filter.value === 'all') return;
@@ -99,7 +124,7 @@ export function FilterChips({
               <View style={[styles.tile, active && styles.tileActive]}>
                 <SymbolView
                   name={filter.symbol as any}
-                  size={22}
+                  size={26}
                   tintColor={active ? '#fff' : Brand.muted}
                   type="monochrome"
                 />
@@ -184,7 +209,7 @@ function RestoreSheet({
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     row: { marginBottom: 14 },
-    content: { gap: 6, paddingRight: 16 },
+    content: { flexGrow: 1, justifyContent: 'center', gap: 4 },
 
     // Compact pill variant
     compactRow: { marginBottom: 14 },
@@ -215,9 +240,9 @@ function createStyles(Brand: BrandPalette) {
     },
     item: { alignItems: 'center', gap: 6 },
     tile: {
-      width: 52,
-      height: 52,
-      borderRadius: 14,
+      width: 58,
+      height: 58,
+      borderRadius: 16,
       backgroundColor: Brand.card,
       borderWidth: 1.5,
       borderColor: Brand.border,
@@ -243,6 +268,33 @@ function createStyles(Brand: BrandPalette) {
     labelActive: {
       fontFamily: BrandFonts.syneBold,
       color: Brand.trust,
+    },
+
+    // Labels-only pill row
+    labelsOnlyContent: { gap: 8, paddingRight: 4 },
+    labelPill: {
+      paddingHorizontal: 16,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    labelPillActive: {
+      backgroundColor: Brand.trust,
+      borderColor: Brand.trust,
+    },
+    labelPillText: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 14,
+      color: Brand.muted,
+    },
+    labelPillTextActive: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: '#fff',
     },
 
     // Restore sheet

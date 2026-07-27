@@ -23,7 +23,8 @@ import { InviteSheet } from '@/components/friends/invite-sheet';
 import { SuggestedUserCard } from '@/components/friends/suggested-user-card';
 import { UserSearch, type UserSearchHandle } from '@/components/friends/user-search';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useDmThreads } from '@/features/dms/api';
+import { useDmThreads, useSendDm } from '@/features/dms/api';
+import { buildWatchPartyInvite } from '@/features/dms/watch-party-invite';
 import { useFeedPosts } from '@/features/feed/api';
 import {
   useAcceptFollowRequest,
@@ -42,7 +43,9 @@ import {
   useDeletePremiere,
   useMyPremieres,
   useUpdatePremiere,
+  useUpdateRsvp,
   type Premiere,
+  type PremiereWithRsvp,
 } from '@/features/premieres/api';
 import {
   useMyScreeningRooms,
@@ -124,12 +127,61 @@ function ScreeningRoomCard({ item, Brand, styles, deleteScreeningRoom }: {
 function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: any }) {
   const [wpTab, setWpTab] = useState<WatchPartyTab>('hosting');
   const { data: hosted = [], isLoading: hostedLoading } = useMyPremieres();
-  const { data: attending = [], isLoading: attendingLoading } = useAttendingPremieres();
+  const { data: attending = [], isLoading: attendingLoading } = useAttendingPremieres() as { data: PremiereWithRsvp[]; isLoading: boolean };
+  const updateRsvp = useUpdateRsvp();
   const { data: screeningRooms = [], isLoading: screeningLoading } = useMyScreeningRooms();
   const deleteScreeningRoom = useDeleteScreeningRoom();
   const updatePremiere = useUpdatePremiere();
   const deletePremiere = useDeletePremiere();
   const [editingPremiere, setEditingPremiere] = useState<Premiere | null>(null);
+
+  // Watch party invite picker
+  const [invitingParty, setInvitingParty] = useState<Premiere | null>(null);
+  const [selectedFriends, setSelectedFriends] = useState<Set<string>>(new Set());
+  const [sendingInvites, setSendingInvites] = useState(false);
+  const { data: following = [] } = useFollowing();
+  const { user } = useSession();
+  const sendDm = useSendDm();
+
+  function openInvite(p: Premiere) {
+    setInvitingParty(p);
+    setSelectedFriends(new Set());
+  }
+
+  function toggleFriend(id: string) {
+    setSelectedFriends((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  async function sendInvites() {
+    if (!invitingParty || selectedFriends.size === 0) return;
+    setSendingInvites(true);
+    const hostName = user?.user_metadata?.full_name ?? user?.email ?? 'Your friend';
+    const content = buildWatchPartyInvite({
+      id: invitingParty.id,
+      title: invitingParty.show_title,
+      poster: invitingParty.show_poster ?? null,
+      episode: invitingParty.episode_name
+        ? `S${invitingParty.season_number}E${invitingParty.episode_number} · ${invitingParty.episode_name}`
+        : null,
+      date: invitingParty.air_date ?? null,
+      time: invitingParty.air_time ?? null,
+      tagline: invitingParty.tagline ?? null,
+      hostName,
+    });
+    try {
+      await Promise.all([...selectedFriends].map((friendId) => sendDm.mutateAsync({ friendId, content })));
+      setInvitingParty(null);
+    } catch {
+      Alert.alert('Could not send invites', 'Please check your connection and try again.');
+    } finally {
+      setSendingInvites(false);
+    }
+  }
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [editTagline, setEditTagline] = useState('');
@@ -162,8 +214,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
       {/* Sub-tabs */}
       <View style={styles.wpTabRow}>
         {([
-          { id: 'hosting' as const, label: 'Parties', count: hosted.length },
-          { id: 'attending' as const, label: 'Attending', count: attending.length },
+          { id: 'hosting' as const, label: 'Host', count: hosted.length },
+          { id: 'attending' as const, label: "RSVP's", count: attending.length },
           { id: 'screening' as const, label: '🎬 Screenings', count: screeningRooms.length },
         ]).map((t) => (
           <Pressable key={t.id} style={[styles.wpSubTab, wpTab === t.id && styles.wpSubTabActive]} onPress={() => setWpTab(t.id)}>
@@ -174,16 +226,18 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
         ))}
       </View>
 
-      {/* Create button */}
-      <View style={styles.wpCreateRow}>
-        <Pressable
-          style={[styles.wpCreateBtn, wpTab === 'screening' && { backgroundColor: '#F59E0B' }]}
-          onPress={() => wpTab === 'screening' ? router.push('/create-screening-room-modal') : router.push('/premiere-modal')}>
-          <Text style={styles.wpCreateBtnText}>
-            {wpTab === 'screening' ? '+ New Screening Room' : '+ Host a Watch Party'}
-          </Text>
-        </Pressable>
-      </View>
+      {/* Create button — only on hosting/screening tabs */}
+      {wpTab !== 'attending' ? (
+        <View style={styles.wpCreateRow}>
+          <Pressable
+            style={[styles.wpCreateBtn, wpTab === 'screening' && { backgroundColor: '#F59E0B' }]}
+            onPress={() => wpTab === 'screening' ? router.push('/create-screening-room-modal') : router.push('/premiere-modal')}>
+            <Text style={styles.wpCreateBtnText}>
+              {wpTab === 'screening' ? '+ New Screening Room' : '+ Host a Watch Party'}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {/* Content */}
       {wpTab === 'screening' ? (
@@ -221,15 +275,101 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
         </>
       ) : loading ? (
         <ActivityIndicator style={{ marginTop: 24 }} color={Brand.trust} />
+      ) : wpTab === 'attending' ? (
+        (() => {
+          const invites = attending.filter((p) => p.rsvp_status === 'invited');
+          const going = attending.filter((p) => p.rsvp_status === 'attending');
+          const notGoing = attending.filter((p) => p.rsvp_status === 'not_attending');
+          if (attending.length === 0) {
+            return (
+              <View style={styles.wpEmpty}>
+                <Text style={styles.wpEmptyEmoji}>🎬</Text>
+                <Text style={styles.wpEmptyTitle}>No RSVPs yet</Text>
+                <Text style={styles.wpEmptySub}>Accept an invite or ask a friend to host one.</Text>
+              </View>
+            );
+          }
+          const renderRsvpCard = (item: PremiereWithRsvp) => {
+            const canEnter = item.status === 'waiting' || item.status === 'live';
+            return (
+              <View key={item.id} style={[styles.wpCard, { marginBottom: 12 }]}>
+                <Pressable style={styles.wpCardMain} onPress={() =>
+                  canEnter
+                    ? router.push({ pathname: '/premiere-waiting-room', params: { id: item.id } })
+                    : router.push({ pathname: '/premiere/[id]', params: { id: item.id } })}>
+                  {item.show_poster ? (
+                    <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
+                  ) : (
+                    <View style={[styles.wpPoster, styles.wpPosterFallback]}>
+                      <Text style={styles.wpPosterEmoji}>🎬</Text>
+                    </View>
+                  )}
+                  <View style={styles.wpCardInfo}>
+                    <View style={styles.wpStatusRow}>
+                      <View style={[styles.wpStatusDot, { backgroundColor: WP_STATUS_COLOR[item.status] ?? '#6B7280' }]} />
+                      <Text style={[styles.wpStatusText, { color: WP_STATUS_COLOR[item.status] ?? Brand.muted }]}>
+                        {WP_STATUS_LABEL[item.status] ?? item.status}
+                      </Text>
+                    </View>
+                    <Text style={styles.wpShowTitle} numberOfLines={1}>{item.show_title}</Text>
+                    {item.episode_name ? <Text style={styles.wpEpisodeTitle} numberOfLines={1}>S{item.season_number}E{item.episode_number} · {item.episode_name}</Text> : null}
+                    {item.air_date ? <Text style={styles.wpDate}>📅 {formatPartyDate(item.air_date)}{item.air_time ? ` · ${item.air_time}` : ''}</Text> : null}
+                    {item.tagline ? <Text style={styles.wpTagline} numberOfLines={1}>"{item.tagline}"</Text> : null}
+                    <Text style={styles.wpHostedBy}>Hosted by {item.host_name}</Text>
+                  </View>
+                </Pressable>
+                {item.rsvp_status === 'invited' ? (
+                  <View style={styles.wpCardActions}>
+                    <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'attending' })}>
+                      <Text style={styles.wpActionBtnText}>✓ Going</Text>
+                    </Pressable>
+                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} hitSlop={16} onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'not_attending' })}>
+                      <Text style={[styles.wpActionBtnText, { color: '#E84F4F' }]}>✕ Can't go</Text>
+                    </Pressable>
+                  </View>
+                ) : (
+                  <View style={styles.wpCardActions}>
+                    <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => updateRsvp.mutate({ premiereId: item.id, status: item.rsvp_status === 'attending' ? 'not_attending' : 'attending' })}>
+                      <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'attending' ? Brand.trust : '#E84F4F' }]}>
+                        {item.rsvp_status === 'attending' ? '✓ Going' : '✕ Not going'}
+                      </Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            );
+          };
+          return (
+            <>
+              {invites.length > 0 && (
+                <>
+                  <Text style={styles.wpSectionHeader}>Invites</Text>
+                  {invites.map(renderRsvpCard)}
+                </>
+              )}
+              {going.length > 0 && (
+                <>
+                  <Text style={styles.wpSectionHeader}>Attending</Text>
+                  {going.map(renderRsvpCard)}
+                </>
+              )}
+              {notGoing.length > 0 && (
+                <>
+                  <Text style={styles.wpSectionHeader}>Not Attending</Text>
+                  {notGoing.map(renderRsvpCard)}
+                </>
+              )}
+            </>
+          );
+        })()
       ) : list.length === 0 ? (
         <View style={styles.wpEmpty}>
           <Text style={styles.wpEmptyEmoji}>🎬</Text>
-          <Text style={styles.wpEmptyTitle}>{wpTab === 'hosting' ? 'No watch parties yet' : "You haven't joined any yet"}</Text>
-          <Text style={styles.wpEmptySub}>{wpTab === 'hosting' ? 'Host one and invite your friends.' : 'Accept an invite or ask a friend to host one.'}</Text>
+          <Text style={styles.wpEmptyTitle}>No watch parties yet</Text>
+          <Text style={styles.wpEmptySub}>Host one and invite your friends.</Text>
         </View>
       ) : (
         list.map((item, i) => {
-          const isHost = wpTab === 'hosting';
           const canEnter = item.status === 'waiting' || item.status === 'live';
           return (
             <View key={item.id}>
@@ -257,11 +397,14 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     {item.episode_name ? <Text style={styles.wpEpisodeTitle} numberOfLines={1}>S{item.season_number}E{item.episode_number} · {item.episode_name}</Text> : null}
                     {item.air_date ? <Text style={styles.wpDate}>📅 {formatPartyDate(item.air_date)}{item.air_time ? ` · ${item.air_time}` : ''}</Text> : null}
                     {item.tagline ? <Text style={styles.wpTagline} numberOfLines={1}>"{item.tagline}"</Text> : null}
-                    {!isHost ? <Text style={styles.wpHostedBy}>Hosted by {item.host_name}</Text> : null}
                   </View>
                 </Pressable>
-                {isHost && item.status !== 'ended' ? (
+                {item.status !== 'ended' ? (
                   <View style={styles.wpCardActions}>
+                    <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => openInvite(item)}>
+                      <SymbolView name="paperplane.fill" size={15} tintColor={Brand.trust} type="monochrome" />
+                      <Text style={styles.wpActionBtnText}>Invite</Text>
+                    </Pressable>
                     <Pressable style={styles.wpActionBtn} onPress={() => openEdit(item)} hitSlop={16}>
                       <SymbolView name="pencil" size={15} tintColor={Brand.trust} type="monochrome" />
                       <Text style={styles.wpActionBtnText}>Edit</Text>
@@ -302,6 +445,70 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
             </ScrollView>
             <Pressable style={[styles.wpSaveBtn, updatePremiere.isPending && { opacity: 0.5 }]} onPress={handleSaveEdit} disabled={updatePremiere.isPending}>
               {updatePremiere.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.wpSaveBtnText}>Save changes</Text>}
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Watch party invite picker */}
+      <Modal visible={!!invitingParty} transparent animationType="slide" onRequestClose={() => setInvitingParty(null)}>
+        <Pressable style={styles.wpEditBackdrop} onPress={() => setInvitingParty(null)}>
+          <Pressable style={styles.wpEditSheet} onPress={() => {}}>
+            <View style={styles.wpEditGrabber} />
+            <Text style={styles.wpEditTitle}>Invite to Watch Party</Text>
+            {invitingParty ? (
+              <Text style={styles.wpEditShow} numberOfLines={1}>
+                {invitingParty.show_title}{invitingParty.episode_name ? ` · ${invitingParty.episode_name}` : ''}
+              </Text>
+            ) : null}
+            {following.length === 0 ? (
+              <View style={{ paddingVertical: 32, alignItems: 'center' }}>
+                <Text style={[styles.wpEditShow, { color: Brand.muted }]}>You're not following anyone yet</Text>
+              </View>
+            ) : (
+              <FlatList
+                data={following}
+                keyExtractor={(f) => f.id}
+                style={{ maxHeight: 340 }}
+                contentContainerStyle={{ gap: 2, paddingVertical: 8 }}
+                renderItem={({ item: f }) => {
+                  const selected = selectedFriends.has(f.id);
+                  return (
+                    <Pressable
+                      onPress={() => toggleFriend(f.id)}
+                      style={[styles.wpInviteRow, selected && styles.wpInviteRowSelected]}>
+                      <View style={styles.wpInviteAvatar}>
+                        {f.avatar_url ? (
+                          <Image source={{ uri: f.avatar_url }} style={styles.wpInviteAvatarImg} />
+                        ) : (
+                          <Text style={styles.wpInviteAvatarFallback}>
+                            {(f.full_name ?? f.username ?? '?')[0].toUpperCase()}
+                          </Text>
+                        )}
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        {f.full_name ? <Text style={styles.wpInviteName}>{f.full_name}</Text> : null}
+                        <Text style={styles.wpInviteUsername}>@{f.username}</Text>
+                      </View>
+                      {selected && (
+                        <SymbolView name="checkmark.circle.fill" size={20} tintColor={Brand.trust} type="monochrome" />
+                      )}
+                    </Pressable>
+                  );
+                }}
+              />
+            )}
+            <Pressable
+              style={[styles.wpSaveBtn, (selectedFriends.size === 0 || sendingInvites) && { opacity: 0.4 }]}
+              disabled={selectedFriends.size === 0 || sendingInvites}
+              onPress={sendInvites}>
+              {sendingInvites ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.wpSaveBtnText}>
+                  {selectedFriends.size === 0 ? 'Select friends' : `Send to ${selectedFriends.size} friend${selectedFriends.size === 1 ? '' : 's'}`}
+                </Text>
+              )}
             </Pressable>
           </Pressable>
         </Pressable>
@@ -590,5 +797,28 @@ function createStyles(Brand: BrandPalette) {
     wpTimeChipText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
     wpSaveBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 15, alignItems: 'center', marginTop: 20 },
     wpSaveBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: '#fff' },
+
+    wpInviteRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingVertical: 10,
+      paddingHorizontal: 4,
+      borderRadius: 12,
+    },
+    wpInviteRowSelected: { backgroundColor: Brand.tlight },
+    wpInviteAvatar: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      backgroundColor: Brand.card,
+      alignItems: 'center',
+      justifyContent: 'center',
+      overflow: 'hidden',
+    },
+    wpInviteAvatarImg: { width: 40, height: 40, borderRadius: 20 },
+    wpInviteAvatarFallback: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink },
+    wpInviteName: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
+    wpInviteUsername: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
   });
 }

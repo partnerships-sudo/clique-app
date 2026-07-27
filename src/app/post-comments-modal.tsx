@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   FlatList,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -208,11 +209,18 @@ function CommentRow({
 }
 
 export default function PostCommentsModal() {
-  const { postId, postTitle, postAuthorId } = useLocalSearchParams<{
-    postId: string;
-    postTitle: string;
-    postAuthorId: string;
-  }>();
+  const { postId, postTitle, postAuthorId, postPoster, postSub, postRating, postNote, postUserName, postUserAvatar } =
+    useLocalSearchParams<{
+      postId: string;
+      postTitle: string;
+      postAuthorId: string;
+      postPoster?: string;
+      postSub?: string;
+      postRating?: string;
+      postNote?: string;
+      postUserName?: string;
+      postUserAvatar?: string;
+    }>();
   const { user } = useSession();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -249,12 +257,69 @@ export default function PostCommentsModal() {
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        {/* Header */}
+        {/* Post context card */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>Comments</Text>
-          {postTitle ? <Text style={styles.headerSub} numberOfLines={1}>{postTitle}</Text> : null}
+          <Text style={styles.headerLabel}>Comments</Text>
+          <View style={styles.postCard}>
+            {postPoster ? (
+              <Image source={{ uri: postPoster }} style={styles.postPoster} resizeMode="cover" />
+            ) : null}
+            <View style={styles.postInfo}>
+              {postUserName ? (
+                <View style={styles.postAuthorRow}>
+                  {postUserAvatar ? (
+                    <Image source={{ uri: postUserAvatar }} style={styles.postAvatar} />
+                  ) : null}
+                  <Text style={styles.postAuthor}>@{postUserName}</Text>
+                </View>
+              ) : null}
+              <Text style={styles.postTitle} numberOfLines={1}>{postTitle}</Text>
+              {postSub ? <Text style={styles.postSub} numberOfLines={1}>{postSub}</Text> : null}
+              {postRating ? (
+                <Text style={styles.postRating}>{'★'.repeat(Math.round(Number(postRating)))}{'☆'.repeat(5 - Math.round(Number(postRating)))}</Text>
+              ) : null}
+              {postNote ? <Text style={styles.postNote} numberOfLines={2}>&ldquo;{postNote}&rdquo;</Text> : null}
+            </View>
+          </View>
         </View>
 
+        {/* Input bar — top */}
+        <View style={styles.inputBar}>
+          <TextInput
+            ref={inputRef}
+            style={styles.input}
+            placeholder="Add a comment…"
+            placeholderTextColor={Brand.muted}
+            value={text}
+            onChangeText={setText}
+            multiline
+            maxLength={500}
+            returnKeyType="default"
+          />
+          <Pressable
+            onPress={submit}
+            disabled={!text.trim() || addComment.isPending}
+            hitSlop={8}
+            style={[styles.sendBtn, (!text.trim() || addComment.isPending) && styles.sendBtnDisabled]}>
+            {addComment.isPending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Text style={styles.sendBtnText}>Post</Text>
+            )}
+          </Pressable>
+        </View>
+
+        {/* Reply context pill */}
+        {replyTo && (
+          <View style={styles.replyContext}>
+            <Text style={styles.replyContextText}>Replying to @{replyTo.username}</Text>
+            <Pressable hitSlop={8} onPress={() => { setReplyTo(null); setText(''); }}>
+              <SymbolView name="xmark.circle.fill" size={16} tintColor={Brand.muted} />
+            </Pressable>
+          </View>
+        )}
+
+        {/* Comments list */}
         {isLoading ? (
           <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
         ) : comments.length === 0 ? (
@@ -280,43 +345,6 @@ export default function PostCommentsModal() {
             )}
           />
         )}
-
-        {/* Reply context pill */}
-        {replyTo && (
-          <View style={styles.replyContext}>
-            <Text style={styles.replyContextText}>Replying to @{replyTo.username}</Text>
-            <Pressable hitSlop={8} onPress={() => { setReplyTo(null); setText(''); }}>
-              <SymbolView name="xmark.circle.fill" size={16} tintColor={Brand.muted} />
-            </Pressable>
-          </View>
-        )}
-
-        {/* Input bar */}
-        <View style={styles.inputBar}>
-          <Avatar name={user?.email ?? 'You'} size={32} />
-          <TextInput
-            ref={inputRef}
-            style={styles.input}
-            placeholder="Add a comment…"
-            placeholderTextColor={Brand.muted}
-            value={text}
-            onChangeText={setText}
-            multiline
-            maxLength={500}
-            returnKeyType="default"
-          />
-          <Pressable
-            onPress={submit}
-            disabled={!text.trim() || addComment.isPending}
-            hitSlop={8}
-            style={[styles.sendBtn, (!text.trim() || addComment.isPending) && styles.sendBtnDisabled]}>
-            {addComment.isPending ? (
-              <ActivityIndicator size="small" color="#fff" />
-            ) : (
-              <Text style={styles.sendBtnText}>Post</Text>
-            )}
-          </Pressable>
-        </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -327,12 +355,23 @@ function createStyles(Brand: BrandPalette) {
     safe: { flex: 1, backgroundColor: Brand.paper },
     header: {
       paddingHorizontal: Spacing.three,
-      paddingVertical: 12,
+      paddingTop: 14,
+      paddingBottom: 12,
       borderBottomWidth: 1,
       borderBottomColor: Brand.border,
+      gap: 10,
     },
-    headerTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink },
-    headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, marginTop: 2 },
+    headerLabel: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink },
+    postCard: { flexDirection: 'row', gap: 10, alignItems: 'flex-start' },
+    postPoster: { width: 48, height: 68, borderRadius: 6 },
+    postInfo: { flex: 1, gap: 2 },
+    postAuthorRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 },
+    postAvatar: { width: 18, height: 18, borderRadius: 9 },
+    postAuthor: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted },
+    postTitle: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.ink },
+    postSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted },
+    postRating: { fontSize: 12, color: '#F59E0B', letterSpacing: 1, marginTop: 1 },
+    postNote: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, fontStyle: 'italic', marginTop: 2 },
 
     list: { padding: Spacing.three, gap: 4, paddingBottom: 16 },
 
@@ -379,8 +418,8 @@ function createStyles(Brand: BrandPalette) {
       gap: 10,
       padding: 12,
       paddingHorizontal: Spacing.three,
-      borderTopWidth: 1,
-      borderTopColor: Brand.border,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
       backgroundColor: Brand.paper,
     },
     input: {

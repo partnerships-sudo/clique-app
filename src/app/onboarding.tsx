@@ -212,6 +212,9 @@ export default function OnboardingScreen() {
           <Pressable style={styles.primaryBtn} onPress={next}>
             <Text style={styles.primaryBtnText}>Let's get started</Text>
           </Pressable>
+          <Pressable style={styles.skipBtn} onPress={() => router.replace('/(auth)')} hitSlop={16}>
+            <Text style={styles.skipBtnText}>Already have an account? Sign in</Text>
+          </Pressable>
         </View>
       )}
 
