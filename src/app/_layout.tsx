@@ -64,6 +64,7 @@ function RootNavigator() {
       <Stack.Screen name="dm-requests-modal" options={{ headerShown: false }} />
       <Stack.Screen name="archived-chats-modal" options={{ headerShown: false }} />
       <Stack.Screen name="post-reactions-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="post-comments-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="news-share-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.85], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="account-info" options={{ headerShown: false }} />
       <Stack.Screen name="privacy-policy" options={{ headerShown: false }} />
@@ -75,8 +76,14 @@ function RootNavigator() {
       <Stack.Screen name="rate-watchlist-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-item-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="export-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.55], sheetGrabberVisible: true, headerShown: false }} />
-      <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.42, 0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
       <Stack.Screen name="get-verified-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="create-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
+      <Stack.Screen name="list-detail-modal" options={{ headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
+      <Stack.Screen name="add-to-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
+      <Stack.Screen name="create-screening-room-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.85], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
+      <Stack.Screen name="screening-room-analytics-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="screening-room-live" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="watch-parties-modal" options={{ headerShown: false }} />
     </Stack>
   );

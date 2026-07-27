@@ -103,11 +103,13 @@ Deno.serve(async (req) => {
           .select('name')
           .eq('id', record.chat_id)
           .single();
-        const { data: members } = await supabase
-          .from('group_chat_members')
+        // Only notify users who have previously posted in this group chat
+        const { data: posters } = await supabase
+          .from('group_chat_messages')
           .select('user_id')
-          .eq('chat_id', record.chat_id);
-        const recipients = (members ?? []).map((m) => m.user_id).filter((id) => id !== record.user_id);
+          .eq('chat_id', record.chat_id)
+          .neq('user_id', record.user_id);
+        const recipients = [...new Set((posters ?? []).map((p) => p.user_id))];
         await Promise.all(
           recipients.map((id) =>
             pushTo(id, 'messages', `${senderName} in ${group?.name ?? 'Group Chat'}`, record.text, {
@@ -135,6 +137,45 @@ Deno.serve(async (req) => {
             }),
           ),
         );
+        break;
+      }
+
+      case 'post_comments': {
+        if (type !== 'INSERT') break;
+        const commenterName = await getName(record.user_id);
+        const { data: post } = await supabase
+          .from('posts')
+          .select('user_id, title')
+          .eq('id', record.post_id)
+          .single();
+        if (!post) break;
+
+        if (record.parent_id) {
+          // Reply — notify the parent comment author (if different from replier)
+          const { data: parent } = await supabase
+            .from('post_comments')
+            .select('user_id')
+            .eq('id', record.parent_id)
+            .single();
+          if (parent && parent.user_id !== record.user_id) {
+            await pushTo(
+              parent.user_id,
+              'reactions',
+              `${commenterName} replied to your comment`,
+              `On ${post.title}: "${record.content.slice(0, 80)}"`,
+              { type: 'post_comment', postId: record.post_id },
+            );
+          }
+        } else if (post.user_id !== record.user_id) {
+          // Top-level comment — notify post author
+          await pushTo(
+            post.user_id,
+            'reactions',
+            `${commenterName} commented on your post`,
+            `${post.title}: "${record.content.slice(0, 80)}"`,
+            { type: 'post_comment', postId: record.post_id },
+          );
+        }
         break;
       }
 

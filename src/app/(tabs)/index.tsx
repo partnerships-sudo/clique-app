@@ -40,6 +40,7 @@ import { useCollectionItems, useFollowingCollections } from '@/features/collecti
 import { useCompatItems, useFollowing } from '@/features/follows/api';
 import { useProfile } from '@/features/profile/api';
 import { useCloseFriendsPosts } from '@/features/close-friends/posts';
+import { usePostCommentCounts } from '@/features/comments/api';
 import { useUnreadCount } from '@/features/notifications/inbox';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -84,6 +85,7 @@ export default function FeedScreen() {
   // Long-press-removed categories (see filter-chips.tsx) drop out of the feed
   // entirely, not just the chip row — same treatment as the active filter.
   const posts = rawPosts.filter((p) => !hiddenCategories.has(p.type));
+  const { data: commentCounts } = usePostCommentCounts(posts.map((p) => p.id));
   const { data: globalPosts } = useGlobalPosts();
   const deletePost = useDeletePost();
   const { logged } = useLibraryItems();
@@ -551,6 +553,7 @@ export default function FeedScreen() {
                   reactions={reactions}
                   emojiReactions={emojiByPost.get(item.id)}
                   compatScore={item.user_id === user?.id ? undefined : compatScores.get(item.user_id)}
+                  commentCount={commentCounts?.get(item.id) ?? 0}
                   onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
                   onDelete={() => deletePost.mutate(item.id)}
                   onEdit={item.user_id === user?.id ? () => router.push({

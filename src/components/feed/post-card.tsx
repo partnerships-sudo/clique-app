@@ -48,6 +48,7 @@ export function PostCard({
   reactions,
   emojiReactions,
   compatScore,
+  commentCount,
   onToggleReaction,
   onDelete,
   onEdit,
@@ -58,6 +59,7 @@ export function PostCard({
   reactions: Reaction[];
   emojiReactions?: EmojiReactionSummary;
   compatScore?: number;
+  commentCount?: number;
   onToggleReaction: () => void;
   onDelete: () => void;
   onEdit?: () => void;
@@ -261,11 +263,20 @@ export function PostCard({
               </Pressable>
               <View style={styles.shareDivider} />
               <Pressable
-                onPress={() => router.push({ pathname: '/chat-modal', params: { title: post.title, type: post.type } })}
-                accessibilityLabel={`Open group chat for ${post.title}`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/post-comments-modal',
+                    params: { postId: post.id, postTitle: post.title, postAuthorId: post.user_id },
+                  })
+                }
+                accessibilityLabel={`Comments for ${post.title}`}
                 accessibilityRole="button"
-                hitSlop={16}>
+                hitSlop={16}
+                style={styles.commentBtn}>
                 <SymbolView name="bubble.left" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
+                {commentCount != null && commentCount > 0 && (
+                  <Text style={styles.commentCount}>{commentCount > 99 ? '99+' : commentCount}</Text>
+                )}
               </Pressable>
             </View>
           </View>
@@ -518,6 +529,12 @@ function createStyles(Brand: BrandPalette) {
       width: 1,
       height: 16,
       backgroundColor: Brand.border,
+    },
+    commentBtn: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    commentCount: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 11,
+      color: Brand.muted,
     },
   });
 }
