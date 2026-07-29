@@ -204,6 +204,14 @@ Deno.serve(async (req) => {
       }
 
       case 'rating_reminder': {
+        // Skip if the post has already been rated since the reminder was queued
+        const { data: ratedPost } = await supabase
+          .from('posts')
+          .select('rating')
+          .eq('id', record.post_id)
+          .maybeSingle();
+        if (ratedPost?.rating != null) break;
+
         const titles: Record<string, string[]> = {
           movie: [
             `How was ${record.post_title}? Drop a quick rating!`,
