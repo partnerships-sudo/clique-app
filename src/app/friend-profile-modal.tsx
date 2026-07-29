@@ -133,7 +133,7 @@ export default function FriendProfileModal() {
               params: {
                 friendId: params.userId,
                 friendName: profile?.full_name ?? profile?.username ?? 'Friend',
-                friendAvatar: profile?.avatar_url ?? undefined,
+                friendAvatar: profile?.avatar_url ?? '',
               },
             })}
             friendAction={friendAction}

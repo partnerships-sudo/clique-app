@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -10,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import * as Haptics from 'expo-haptics';
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -19,11 +21,13 @@ import {
   usePremiere,
   usePremiereMessages,
   useJoinPremiere,
+  useInviteToPremiere,
   useSendPremiereMessage,
   useEndPremiere,
   usePremiereViewerCount,
   type PremiereMessage,
 } from '@/features/premieres/api';
+import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
@@ -48,8 +52,12 @@ export default function PremiereLive() {
 
   const [messages, setMessages] = useState<PremiereMessage[]>([]);
   const [text, setText] = useState('');
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
   const initializedRef = useRef(false);
+  const { threads: dmThreads } = useDmThreads();
+  const inviteToPremiere = useInviteToPremiere();
 
   const isHost = premiere?.host_user_id === user?.id;
   const isEnded = premiere?.status === 'ended';
@@ -88,6 +96,7 @@ export default function PremiereLive() {
           if (msg.relative_ms !== null) {
             setMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev;
+              if (msg.user_id !== user?.id) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               return [...prev, msg];
             });
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -99,11 +108,27 @@ export default function PremiereLive() {
   }, [params.id]);
 
   function handleSend() {
-    if (!text.trim() || !params.id || !premiere?.live_started_at) return;
-    const relativeMs = Date.now() - new Date(premiere.live_started_at).getTime();
+    if (!text.trim() || !params.id) return;
+    const relativeMs = premiere?.live_started_at
+      ? Date.now() - new Date(premiere.live_started_at).getTime()
+      : 0;
     const content = text.trim();
     setText('');
-    sendMsg.mutate({ premiereId: params.id, content, relativeMs });
+    const optimistic: PremiereMessage = {
+      id: `optimistic-${Date.now()}`,
+      premiere_id: params.id,
+      user_id: user?.id ?? '',
+      user_name: premiere?.host_name ?? 'You',
+      user_avatar_url: null,
+      content,
+      relative_ms: relativeMs,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+    sendMsg.mutate({ premiereId: params.id, content, relativeMs }, {
+      onError: () => setMessages((prev) => prev.filter((m) => m.id !== optimistic.id)),
+    });
   }
 
   function handleEnd() {
@@ -133,14 +158,14 @@ export default function PremiereLive() {
           <Pressable
             style={styles.rateBtn}
             onPress={() =>
-              router.replace({
+              router.push({
                 pathname: '/log-modal',
                 params: {
                   prefillTitle: premiere?.show_title,
                   prefillType: 'tv',
                   prefillSub: `S${premiere?.season_number} E${premiere?.episode_number}${premiere?.episode_name ? ` · ${premiere.episode_name}` : ''}`,
-                  prefillPoster: premiere?.show_poster ?? undefined,
-                  prefillExternalId: premiere?.external_id ?? undefined,
+                  prefillPoster: premiere?.show_poster ?? '',
+                  prefillExternalId: premiere?.external_id ?? '',
                 },
               })
             }
@@ -185,15 +210,25 @@ export default function PremiereLive() {
               <Text style={styles.viewerCount}>{viewerCount} watching</Text>
             )}
           </View>
-          {isHost ? (
-            <Pressable onPress={handleEnd} hitSlop={16}>
-              <Text style={styles.endText}>End</Text>
+          <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+            <Pressable onPress={() => setInviteOpen(true)} hitSlop={16}>
+              <Text style={styles.addBtn}>＋</Text>
             </Pressable>
-          ) : (
-            <Pressable onPress={() => router.back()} hitSlop={16}>
-              <Text style={styles.leaveText}>Leave</Text>
-            </Pressable>
-          )}
+            {isHost ? (
+              <>
+                <Pressable onPress={() => router.back()} hitSlop={16}>
+                  <Text style={styles.leaveText}>Back</Text>
+                </Pressable>
+                <Pressable onPress={handleEnd} hitSlop={16}>
+                  <Text style={styles.endText}>End</Text>
+                </Pressable>
+              </>
+            ) : (
+              <Pressable onPress={() => router.back()} hitSlop={16}>
+                <Text style={styles.leaveText}>Leave</Text>
+              </Pressable>
+            )}
+          </View>
         </View>
 
         {/* Messages */}
@@ -250,6 +285,39 @@ export default function PremiereLive() {
         </View>
 
       </KeyboardAvoidingWrapper>
+
+      <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)}>
+        <Pressable style={styles.inviteBackdrop} onPress={() => setInviteOpen(false)}>
+          <Pressable style={styles.inviteSheet} onPress={() => {}}>
+            <View style={styles.inviteGrabber} />
+            <Text style={styles.inviteTitle}>Invite friends</Text>
+            <FlatList
+              data={dmThreads}
+              keyExtractor={(t) => t.friendId}
+              style={styles.inviteList}
+              renderItem={({ item }) => {
+                const sent = invitedIds.has(item.friendId);
+                return (
+                  <Pressable
+                    style={styles.inviteRow}
+                    onPress={async () => {
+                      if (sent || !params.id || !premiere) return;
+                      await inviteToPremiere.mutateAsync({ premiereId: params.id, friendId: item.friendId, showTitle: premiere.show_title });
+                      setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                    }}>
+                    <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
+                    <Text style={styles.inviteName}>{item.name}</Text>
+                    <Text style={[styles.inviteAction, sent && styles.inviteActionSent]}>
+                      {sent ? '✓ Invited' : 'Invite'}
+                    </Text>
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.inviteEmpty}>No friends yet.</Text>}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -291,6 +359,17 @@ const styles = StyleSheet.create({
   },
   endText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#EF4444' },
   leaveText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: 'rgba(255,255,255,0.5)' },
+  addBtn: { fontFamily: BrandFonts.syneBold, fontSize: 22, color: 'rgba(255,255,255,0.7)' },
+  inviteBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'flex-end' },
+  inviteSheet: { backgroundColor: '#1A1826', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingBottom: 40, maxHeight: '70%' },
+  inviteGrabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'center', marginBottom: 16 },
+  inviteTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: '#fff', textAlign: 'center', marginBottom: 12 },
+  inviteList: { paddingHorizontal: 16 },
+  inviteRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
+  inviteName: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 15, color: '#fff' },
+  inviteAction: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#7C3AED' },
+  inviteActionSent: { color: 'rgba(255,255,255,0.35)' },
+  inviteEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: 'rgba(255,255,255,0.4)', textAlign: 'center', padding: 24 },
 
   // Messages
   messageList: { padding: 16, gap: 10, flexGrow: 1 },

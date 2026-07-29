@@ -80,13 +80,13 @@
       "expo-asset",
       "expo-notifications",
       "expo-localization",
+      "expo-calendar",
       [
         "@stripe/stripe-react-native",
         {
           "merchantIdentifier": "merchant.com.thecliqueapp"
         }
-      ],
-      "@react-native-community/datetimepicker"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

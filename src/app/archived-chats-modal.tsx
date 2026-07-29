@@ -79,7 +79,7 @@ export default function ArchivedChatsModal() {
                     thread={thread}
                     onPress={() => {
                       markContentRead(thread.title);
-                      router.push({ pathname: '/chat-modal', params: { title: thread.title, type: thread.type, poster: thread.poster ?? undefined } });
+                      router.push({ pathname: '/chat-modal', params: { title: thread.title, type: thread.type, poster: thread.poster ?? '' } });
                     }}
                   />
                 </SwipeableChatRow>
@@ -97,7 +97,7 @@ export default function ArchivedChatsModal() {
                     thread={thread}
                     onPress={() => {
                       markDmRead(thread.friendId);
-                      router.push({ pathname: '/chat-modal', params: { friendId: thread.friendId, friendName: thread.name, friendAvatar: thread.avatarUrl ?? undefined } });
+                      router.push({ pathname: '/chat-modal', params: { friendId: thread.friendId, friendName: thread.name, friendAvatar: thread.avatarUrl ?? '' } });
                     }}
                   />
                 </SwipeableChatRow>

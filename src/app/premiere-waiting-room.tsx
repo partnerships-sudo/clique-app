@@ -1,9 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
   Alert,
   FlatList,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -19,11 +21,13 @@ import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import {
   usePremiere,
   useJoinPremiere,
+  useInviteToPremiere,
   useSendPremiereMessage,
   useWaitingRoomMessages,
   type PremiereMessage,
 } from '@/features/premieres/api';
 import { addPremiereToCalendar } from '@/features/premieres/use-add-to-calendar';
+import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
 import { useBrand } from '@/hooks/use-brand';
 import { supabase } from '@/lib/supabase';
@@ -45,9 +49,14 @@ export default function PremiereWaitingRoom() {
   const [secondsLeft, setSecondsLeft] = useState<number | null>(null);
   const [channelError, setChannelError] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
   const flatListRef = useRef<FlatList>(null);
   const redirectedRef = useRef(false);
   const isHost = premiere?.host_user_id === user?.id;
+  const { threads: dmThreads } = useDmThreads();
+  const inviteToPremiere = useInviteToPremiere();
 
   // Merge DB messages with any realtime extras not yet in DB result
   const messages = [
@@ -59,6 +68,14 @@ export default function PremiereWaitingRoom() {
   useEffect(() => {
     if (params.id) joinPremiere.mutate(params.id);
   }, [params.id]);
+
+  // Fallback redirect: usePremiere polls every 5s — catch the live status even if realtime missed it
+  useEffect(() => {
+    if (premiere?.status === 'live' && !redirectedRef.current) {
+      redirectedRef.current = true;
+      router.replace({ pathname: '/premiere-live', params: { id: params.id } });
+    }
+  }, [premiere?.status]);
 
   // Scroll to bottom when messages first load
   const didScrollRef = useRef(false);
@@ -90,6 +107,7 @@ export default function PremiereWaitingRoom() {
             queryClient.invalidateQueries({ queryKey: ['waiting-room-messages', params.id] });
             setExtraMessages((prev) => {
               if (prev.some((m) => m.id === msg.id)) return prev;
+              if (msg.user_id !== user?.id) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               return [...prev, msg];
             });
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -97,11 +115,19 @@ export default function PremiereWaitingRoom() {
         },
       )
       .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        if (status === 'SUBSCRIBED') {
+          setChannelError(false);
+          if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+        } else if (status === 'TIMED_OUT' || status === 'CLOSED') {
+          reconnectTimerRef.current = setTimeout(() => setRetryKey((k) => k + 1), 3000);
+        } else if (status === 'CHANNEL_ERROR') {
           setChannelError(true);
         }
       });
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+      if (reconnectTimerRef.current) clearTimeout(reconnectTimerRef.current);
+    };
   }, [params.id, retryKey]);
 
   // Realtime: redirect participants when host starts premiere
@@ -125,7 +151,9 @@ export default function PremiereWaitingRoom() {
         },
       )
       .subscribe((status) => {
-        if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+        if (status === 'TIMED_OUT' || status === 'CLOSED') {
+          reconnectTimerRef.current = setTimeout(() => setRetryKey((k) => k + 1), 3000);
+        } else if (status === 'CHANNEL_ERROR') {
           setChannelError(true);
         }
       });
@@ -168,7 +196,21 @@ export default function PremiereWaitingRoom() {
     if (!text.trim() || !params.id) return;
     const content = text.trim();
     setText('');
-    sendMsg.mutate({ premiereId: params.id, content, relativeMs: null });
+    const optimistic: PremiereMessage = {
+      id: `optimistic-${Date.now()}`,
+      premiere_id: params.id,
+      user_id: user?.id ?? '',
+      user_name: premiere?.host_name ?? 'You',
+      user_avatar_url: null,
+      content,
+      relative_ms: null,
+      created_at: new Date().toISOString(),
+    };
+    setExtraMessages((prev) => [...prev, optimistic]);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+    sendMsg.mutate({ premiereId: params.id, content, relativeMs: null }, {
+      onError: () => setExtraMessages((prev) => prev.filter((m) => m.id !== optimistic.id)),
+    });
   }
 
   async function goLive() {
@@ -214,11 +256,16 @@ export default function PremiereWaitingRoom() {
               S{premiere?.season_number} E{premiere?.episode_number}
             </Text>
           </View>
-          {isHost ? (
-            <Pressable style={styles.goLiveBtn} onPress={goLive}>
-              <Text style={styles.goLiveBtnText}>Go Live</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Pressable onPress={() => setInviteOpen(true)} hitSlop={16}>
+              <Text style={styles.addBtn}>＋</Text>
             </Pressable>
-          ) : <View style={{ width: 60 }} />}
+            {isHost ? (
+              <Pressable style={styles.goLiveBtn} onPress={goLive}>
+                <Text style={styles.goLiveBtnText}>Go Live</Text>
+              </Pressable>
+            ) : <View style={{ width: 60 }} />}
+          </View>
         </View>
 
         {/* Countdown */}
@@ -303,6 +350,39 @@ export default function PremiereWaitingRoom() {
         </View>
 
       </KeyboardAvoidingWrapper>
+
+      <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)}>
+        <Pressable style={styles.inviteBackdrop} onPress={() => setInviteOpen(false)}>
+          <Pressable style={styles.inviteSheet} onPress={() => {}}>
+            <View style={styles.inviteGrabber} />
+            <Text style={styles.inviteTitle}>Invite friends</Text>
+            <FlatList
+              data={dmThreads}
+              keyExtractor={(t) => t.friendId}
+              style={styles.inviteList}
+              renderItem={({ item }) => {
+                const sent = invitedIds.has(item.friendId);
+                return (
+                  <Pressable
+                    style={styles.inviteRow}
+                    onPress={async () => {
+                      if (sent || !params.id || !premiere) return;
+                      await inviteToPremiere.mutateAsync({ premiereId: params.id, friendId: item.friendId, showTitle: premiere.show_title });
+                      setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                    }}>
+                    <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
+                    <Text style={styles.inviteName}>{item.name}</Text>
+                    <Text style={[styles.inviteAction, sent && styles.inviteActionSent]}>
+                      {sent ? '✓ Invited' : 'Invite'}
+                    </Text>
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.inviteEmpty}>No friends yet.</Text>}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -320,6 +400,17 @@ function createStyles(Brand: BrandPalette) {
       borderBottomColor: Brand.border,
     },
     back: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust, width: 60 },
+    addBtn: { fontFamily: BrandFonts.syneBold, fontSize: 22, color: Brand.trust },
+    inviteBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+    inviteSheet: { backgroundColor: Brand.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '70%' },
+    inviteGrabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: Brand.border, alignSelf: 'center', marginBottom: 16 },
+    inviteTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, textAlign: 'center', marginBottom: 12 },
+    inviteList: { paddingHorizontal: 16 },
+    inviteRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
+    inviteName: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 15, color: Brand.ink },
+    inviteAction: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.trust },
+    inviteActionSent: { color: Brand.muted },
+    inviteEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, textAlign: 'center', padding: 24 },
     headerCenter: { flex: 1, alignItems: 'center' },
     headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
     headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted },

@@ -132,9 +132,9 @@ export default function CollectionItemDetailModal() {
               params: {
                 title: params.title,
                 type: entryType,
-                poster: params.poster ?? undefined,
-                sub: params.sub ?? undefined,
-                externalId: params.externalId ?? undefined,
+                poster: params.poster ?? "",
+                sub: params.sub ?? "",
+                externalId: params.externalId ?? "",
                 mediaType: params.mediaType,
               },
             })

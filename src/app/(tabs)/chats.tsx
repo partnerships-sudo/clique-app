@@ -69,7 +69,7 @@ export default function ChatsScreen() {
     markDmRead(thread.friendId);
     router.push({
       pathname: '/chat-modal',
-      params: { friendId: thread.friendId, friendName: thread.name, friendAvatar: thread.avatarUrl ?? undefined },
+      params: { friendId: thread.friendId, friendName: thread.name, friendAvatar: thread.avatarUrl ?? '' },
     });
   }
 

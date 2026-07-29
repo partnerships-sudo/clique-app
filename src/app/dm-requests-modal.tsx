@@ -23,7 +23,7 @@ export default function DmRequestsModal() {
     markRead(friendId);
     router.push({
       pathname: '/chat-modal',
-      params: { friendId, friendName, friendAvatar: friendAvatar ?? undefined },
+      params: { friendId, friendName, friendAvatar: friendAvatar ?? "" },
     });
   }
 

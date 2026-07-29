@@ -49,7 +49,7 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
       });
     } else if (item.kind === 'message') {
       router.back();
-      router.push({ pathname: '/chat-modal', params: { friendId: item.fromUserId, friendName: item.fromUserName, friendAvatar: item.fromAvatarUrl ?? undefined } });
+      router.push({ pathname: '/chat-modal', params: { friendId: item.fromUserId, friendName: item.fromUserName, friendAvatar: item.fromAvatarUrl ?? '' } });
     } else if ((item.kind === 'reaction' || item.kind === 'story_like') && item.postTitle) {
       router.back();
       router.push({
@@ -57,7 +57,7 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
         params: {
           title: item.postTitle,
           type: item.postType ?? 'watch',
-          poster: item.postPoster ?? undefined,
+          poster: item.postPoster ?? '',
         },
       });
     } else if (item.kind === 'reaction' || item.kind === 'story_like') {

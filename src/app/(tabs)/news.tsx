@@ -68,7 +68,7 @@ export default function NewsScreen() {
   function openMovie(movie: NowAndComingMovie) {
     router.push({
       pathname: '/where-to-find-modal',
-      params: { title: movie.title, type: 'cinema', poster: movie.poster ?? undefined, tmdbId: String(movie.id) },
+      params: { title: movie.title, type: 'cinema', poster: movie.poster ?? '', tmdbId: String(movie.id) },
     });
   }
 

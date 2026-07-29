@@ -14,6 +14,7 @@ let configured = false;
 export function configureRevenueCat(userId?: string) {
   try {
     if (!isNativeAvailable()) return;
+    if (RC_API_KEY?.startsWith('test_')) return;
     if (!configured) {
       Purchases.setLogLevel(LOG_LEVEL.ERROR);
       Purchases.configure({ apiKey: RC_API_KEY, appUserID: userId });

@@ -1,4 +1,3 @@
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
@@ -204,16 +203,12 @@ export default function WatchPartiesModal() {
   const [editDate, setEditDate] = useState('');
   const [editTime, setEditTime] = useState('');
   const [editTagline, setEditTagline] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [pickerDate, setPickerDate] = useState(new Date());
 
   const updatePremiere = useUpdatePremiere();
   const deletePremiere = useDeletePremiere();
 
   function openEdit(p: Premiere) {
     setEditingPremiere(p);
-    const existing = p.air_date ? new Date(p.air_date + 'T12:00:00') : new Date();
-    setPickerDate(existing);
     setEditDate(p.air_date ?? '');
     setEditTime(p.air_time ?? '');
     setEditTagline(p.tagline ?? '');
@@ -402,31 +397,15 @@ export default function WatchPartiesModal() {
 
             <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               <Text style={styles.fieldLabel}>Date</Text>
-              <Pressable
+              <TextInput
                 style={styles.fieldInput}
-                onPress={() => setShowDatePicker(!showDatePicker)}>
-                <Text style={editDate ? { color: Brand.ink, fontFamily: BrandFonts.interRegular, fontSize: 15 } : { color: Brand.muted, fontFamily: BrandFonts.interRegular, fontSize: 15 }}>
-                  {editDate ? formatPartyDate(editDate) : 'Select a date…'}
-                </Text>
-              </Pressable>
-              {showDatePicker ? (
-                <DateTimePicker
-                  value={pickerDate}
-                  mode="date"
-                  display="inline"
-                  minimumDate={new Date()}
-                  onChange={(_e, date) => {
-                    if (date) {
-                      setPickerDate(date);
-                      const y = date.getFullYear();
-                      const m = String(date.getMonth() + 1).padStart(2, '0');
-                      const d = String(date.getDate()).padStart(2, '0');
-                      setEditDate(`${y}-${m}-${d}`);
-                      setShowDatePicker(false);
-                    }
-                  }}
-                />
-              ) : null}
+                placeholder="YYYY-MM-DD"
+                placeholderTextColor={Brand.muted}
+                value={editDate}
+                onChangeText={setEditDate}
+                keyboardType="numbers-and-punctuation"
+                maxLength={10}
+              />
 
               <Text style={styles.fieldLabel}>Start time</Text>
               <View style={styles.timeRow}>

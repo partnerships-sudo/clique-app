@@ -87,7 +87,7 @@ export function FriendCard({
             onPress={() =>
               router.push({
                 pathname: '/chat-modal',
-                params: { friendId: profile.id, friendName: name, friendAvatar: profile.avatar_url ?? undefined },
+                params: { friendId: profile.id, friendName: name, friendAvatar: profile.avatar_url ?? "" },
               })
             }>
             <SymbolView name="bubble.left" size={16} tintColor={Brand.trust} style={{ width: 18, height: 18 }} />

@@ -125,7 +125,10 @@ function ScreeningRoomCard({ item, Brand, styles, deleteScreeningRoom }: {
 }
 
 function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: any }) {
-  const [wpTab, setWpTab] = useState<WatchPartyTab>('hosting');
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [wpTab, setWpTab] = useState<WatchPartyTab>(() =>
+    params.tab === 'attending' ? 'attending' : 'hosting'
+  );
   const { data: hosted = [], isLoading: hostedLoading } = useMyPremieres();
   const { data: attending = [], isLoading: attendingLoading } = useAttendingPremieres() as { data: PremiereWithRsvp[]; isLoading: boolean };
   const updateRsvp = useUpdateRsvp();

@@ -60,7 +60,7 @@ export async function addPremiereToCalendar({
       endDate,
       notes,
       alarms: [{ relativeOffset: -15 }], // 15 min reminder
-      timeZone: Calendar.TimeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     });
 
     Alert.alert('Added to calendar! 📅', `"${eventTitle}" has been added with a 15-minute reminder.`);

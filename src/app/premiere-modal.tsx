@@ -5,11 +5,9 @@ import {
   Alert,
   FlatList,
   Image,
-  Linking,
   Modal,
   Pressable,
   ScrollView,
-  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -24,17 +22,16 @@ import { useCreatePremiere } from '@/features/premieres/api';
 import { addPremiereToCalendar } from '@/features/premieres/use-add-to-calendar';
 import { useProfile } from '@/features/profile/api';
 import { useTitleSearch, useTVSeasons, useTVEpisodes, type SearchResult, type TvSeason, type TvEpisode } from '@/features/search/api';
-import { useDmThreads, useSendDm } from '@/features/dms/api';
+import { useDmThreads } from '@/features/dms/api';
+import { useInviteToPremiere } from '@/features/premieres/api';
 import { Avatar } from '@/components/avatar';
 import { useBrand } from '@/hooks/use-brand';
-import { useShareIcons } from '@/hooks/use-share-icons';
 
 type Step = 'search' | 'seasons' | 'episodes' | 'form';
 
 export default function PremiereModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const ic = useShareIcons();
   const { data: profile } = useProfile();
   const createPremiere = useCreatePremiere();
 
@@ -96,10 +93,9 @@ export default function PremiereModal() {
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
   const [createdPremiereId, setCreatedPremiereId] = useState<string | null>(null);
-  const [cliquePicker, setCliquePicker] = useState(false);
   const [sentToIds, setSentToIds] = useState<Set<string>>(new Set());
   const { threads: dmThreads } = useDmThreads();
-  const sendDm = useSendDm();
+  const inviteToPremiere = useInviteToPremiere();
 
   const tzAbbr = useMemo(() => {
     try {
@@ -456,99 +452,42 @@ export default function PremiereModal() {
         }}>
           <Pressable style={styles.shareSheet} onPress={() => {}}>
             <View style={styles.shareGrabber} />
-            {cliquePicker ? (
-              /* ── Clique DM friend picker ── */
-              <>
-                <View style={styles.sharePickerHeader}>
-                  <Pressable onPress={() => setCliquePicker(false)} hitSlop={10}>
-                    <Text style={styles.sharePickerBack}>← Back</Text>
+            <Text style={styles.shareTitle}>Invite friends</Text>
+            <FlatList
+              data={dmThreads}
+              keyExtractor={(t) => t.friendId}
+              style={styles.sharePickerList}
+              renderItem={({ item: thread }) => {
+                const sent = sentToIds.has(thread.friendId);
+                return (
+                  <Pressable
+                    style={styles.sharePickerRow}
+                    onPress={async () => {
+                      if (sent || !createdPremiereId) return;
+                      await inviteToPremiere.mutateAsync({ premiereId: createdPremiereId, friendId: thread.friendId, showTitle });
+                      setSentToIds((prev) => new Set([...prev, thread.friendId]));
+                    }}>
+                    <Avatar name={thread.name} size={36} avatarUrl={thread.avatarUrl} />
+                    <Text style={styles.sharePickerName}>{thread.name}</Text>
+                    <Text style={[styles.sharePickerSend, sent && styles.sharePickerSent]}>
+                      {sent ? '✓ Invited' : 'Invite'}
+                    </Text>
                   </Pressable>
-                  <Text style={styles.shareTitle}>Send in Clique</Text>
-                  <View style={{ width: 50 }} />
-                </View>
-                <FlatList
-                  data={dmThreads}
-                  keyExtractor={(t) => t.friendId}
-                  style={styles.sharePickerList}
-                  renderItem={({ item: thread }) => {
-                    const sent = sentToIds.has(thread.friendId);
-                    return (
-                      <Pressable
-                        style={styles.sharePickerRow}
-                        onPress={async () => {
-                          if (sent) return;
-                          const inviteText = `Join my ${showTitle} watch party on Clique! 🎬\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`;
-                          await sendDm.mutateAsync({ friendId: thread.friendId, content: inviteText });
-                          setSentToIds((prev) => new Set([...prev, thread.friendId]));
-                        }}>
-                        <Avatar name={thread.name} size={36} avatarUrl={thread.avatarUrl} />
-                        <Text style={styles.sharePickerName}>{thread.name}</Text>
-                        <Text style={[styles.sharePickerSend, sent && styles.sharePickerSent]}>
-                          {sent ? '✓ Sent' : 'Send'}
-                        </Text>
-                      </Pressable>
-                    );
-                  }}
-                  ListEmptyComponent={<Text style={styles.sharePickerEmpty}>No DMs yet — follow someone and start a conversation first.</Text>}
-                />
-              </>
-            ) : (
-              /* ── Default share options ── */
-              <>
-                <Text style={styles.shareTitle}>Share your watch party invite</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.shareRow}>
-                  <Pressable style={styles.shareItem} onPress={() => setCliquePicker(true)}>
-                    <View style={styles.cliqueShareIcon}>
-                      <Text style={styles.cliqueShareIconText}>C</Text>
-                    </View>
-                    <Text style={styles.shareLabel}>Clique</Text>
-                  </Pressable>
-                  {[
-                    { label: 'Messages', icon: ic.messages,
-                      onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}` }); } },
-                    { label: 'WhatsApp', icon: ic.whatsapp,
-                      onPress: async () => {
-                        if (capturedUri) {
-                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}` });
-                        } else {
-                          const msg = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`);
-                          const ok = await Linking.canOpenURL('whatsapp://send');
-                          if (ok) Linking.openURL(`whatsapp://send?text=${msg}`); else Alert.alert('WhatsApp not installed');
-                        }
-                      } },
-                    { label: 'Mail', icon: ic.mail,
-                      onPress: async () => {
-                        if (capturedUri) {
-                          await Share.share({ url: capturedUri, message: `Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`, title: `Join my ${showTitle} watch party on Clique` });
-                        } else {
-                          const subject = encodeURIComponent(`Join my ${showTitle} watch party on Clique`);
-                          const body = encodeURIComponent(`Join my ${showTitle} watch party on Clique!\n\nhttps://vaultedmediagroup.com/premiere/${createdPremiereId}`);
-                          Linking.openURL(`mailto:?subject=${subject}&body=${body}`);
-                        }
-                      } },
-                    { label: 'AirDrop', icon: ic.airdrop,
-                      onPress: async () => { if (capturedUri) await Share.share({ url: capturedUri }); } },
-                  ].map(({ label, icon, onPress }) => (
-                    <Pressable key={label} style={styles.shareItem} onPress={async () => { await onPress(); }}>
-                      <Image source={icon} style={styles.shareIcon} />
-                      <Text style={styles.shareLabel}>{label}</Text>
-                    </Pressable>
-                  ))}
-                </ScrollView>
-                <Pressable
-                  style={styles.calendarBtn}
-                  onPress={() => addPremiereToCalendar({
-                    showTitle, episodeName, episodeNumber, seasonNumber,
-                    airDate: partyDate, airTime: airTime.trim() || null,
-                    hostName, premiereId: createdPremiereId!,
-                  })}>
-                  <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
-                </Pressable>
-              </>
-            )}
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.sharePickerEmpty}>No friends yet — follow someone first.</Text>}
+            />
+            <Pressable
+              style={styles.calendarBtn}
+              onPress={() => addPremiereToCalendar({
+                showTitle, episodeName, episodeNumber, seasonNumber,
+                airDate: partyDate, airTime: airTime.trim() || null,
+                hostName, premiereId: createdPremiereId!,
+              })}>
+              <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
+            </Pressable>
             <Pressable style={styles.shareCancelBtn} onPress={() => {
               setShareSheetVisible(false);
-              setCliquePicker(false);
               setSentToIds(new Set());
               router.replace({ pathname: '/premiere-waiting-room', params: { id: createdPremiereId! } });
             }}>

@@ -204,7 +204,21 @@ export default function ScreeningRoomLive() {
     const relativeMs = room?.live_started_at ? Date.now() - new Date(room.live_started_at).getTime() : null;
     const content = text.trim();
     setText('');
-    sendMsg.mutate({ roomId: id, content, relativeMs });
+    const optimistic: ScreeningRoomMessage = {
+      id: `optimistic-${Date.now()}`,
+      room_id: id,
+      user_id: user?.id ?? '',
+      user_name: room?.host_name ?? 'You',
+      user_avatar_url: null,
+      content,
+      relative_ms: relativeMs,
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimistic]);
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 50);
+    sendMsg.mutate({ roomId: id, content, relativeMs }, {
+      onError: () => setMessages((prev) => prev.filter((m) => m.id !== optimistic.id)),
+    });
   }
 
   async function handleGoLive() {

@@ -128,11 +128,13 @@ function RootLayoutInner() {
     } catch { /* storage failure — still process the notification */ }
 
     const data = response.notification.request.content.data;
-    if (data?.type === 'badge') {
+    if (data?.type === 'watch_party_invite') {
+      router.push({ pathname: '/(tabs)/friends', params: { tab: 'attending' } });
+    } else if (data?.type === 'badge') {
       router.push('/achievements-modal');
     } else if (data?.type === 'dm' && data?.friendId) {
       let friendName = (data.friendName as string | undefined) ?? '';
-      let friendAvatar = (data.friendAvatar as string | undefined) ?? undefined;
+      let friendAvatar = (data.friendAvatar as string | undefined) ?? '';
       if (!friendName) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -140,7 +142,7 @@ function RootLayoutInner() {
           .eq('id', data.friendId as string)
           .single();
         friendName = profile?.full_name ?? profile?.username ?? 'Unknown';
-        friendAvatar = profile?.avatar_url ?? undefined;
+        friendAvatar = profile?.avatar_url ?? '';
       }
       router.push({ pathname: '/chat-modal', params: { friendId: data.friendId as string, friendName, friendAvatar } });
     } else if (data?.type === 'rating_reminder' && data?.postId) {
@@ -150,7 +152,7 @@ function RootLayoutInner() {
         .eq('id', data.postId as string)
         .single();
       if (post) {
-        router.push({ pathname: '/log-modal', params: { intent: 'log', prefillTitle: post.title, prefillType: post.type, prefillPoster: post.poster ?? undefined } });
+        router.push({ pathname: '/log-modal', params: { intent: 'log', prefillTitle: post.title, prefillType: post.type, prefillPoster: post.poster ?? '' } });
       } else {
         router.push('/notifications-modal');
       }
@@ -185,7 +187,7 @@ function RootLayoutInner() {
     const match = url.match(/\/premiere\/([a-zA-Z0-9_-]+)/);
     if (match) {
       const premiereId = match[1];
-      router.push({ pathname: '/premiere-waiting-room', params: { premiereId } });
+      router.push({ pathname: '/premiere-waiting-room', params: { id: premiereId } });
     }
   }
 

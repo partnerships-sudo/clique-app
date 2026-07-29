@@ -36,7 +36,7 @@ export function ShareSheet({ visible, onClose, post, isMine, onWatchlist }: Prop
 
   function handleRecommend() {
     close();
-    router.push({ pathname: '/recommend-modal', params: { title: post.title, type: post.type, sub: post.sub, poster: post.poster, extRating: post.extRating != null ? String(post.extRating) : undefined, mediaType: post.mediaType } });
+    router.push({ pathname: '/recommend-modal', params: { title: post.title, type: post.type, sub: post.sub, poster: post.poster, extRating: post.extRating != null ? String(post.extRating) : '', mediaType: post.mediaType } });
   }
 
   function handleLogIt() {

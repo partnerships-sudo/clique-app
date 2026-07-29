@@ -63,7 +63,7 @@ export default function NewsArticleModal() {
                 pathname: '/news-share-modal',
                 params: {
                   title: params.title,
-                  thumbnail: params.thumbnail ?? undefined,
+                  thumbnail: params.thumbnail ?? "",
                   url: params.url,
                   section: params.section,
                 },

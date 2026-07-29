@@ -16,13 +16,6 @@ export function useSendPremiereMessage() {
       content: string;
       relativeMs: number | null;
     }) => {
-      // Reject writes to ended premieres
-      const { data: premiere } = await supabase
-        .from('premieres')
-        .select('status')
-        .eq('id', premiereId)
-        .single();
-      if (premiere?.status === 'ended') throw new Error('This watch party has ended.');
       const { error } = await supabase.from('premiere_messages').insert({
         premiere_id: premiereId,
         user_id: user!.id,
@@ -278,6 +271,35 @@ export function useJoinPremiere() {
         .from('premiere_members')
         .upsert({ premiere_id: premiereId, user_id: user!.id }, { ignoreDuplicates: true });
       if (error) throw error;
+    },
+  });
+}
+
+export function useInviteToPremiere() {
+  const { user } = useSession();
+  const { data: profile } = useProfile();
+  return useMutation({
+    mutationFn: async ({ premiereId, friendId, showTitle }: { premiereId: string; friendId: string; showTitle: string }) => {
+      const { error } = await supabase
+        .from('premiere_members')
+        .upsert({ premiere_id: premiereId, user_id: friendId, rsvp_status: 'invited' }, { onConflict: 'premiere_id,user_id', ignoreDuplicates: true });
+      if (error) throw error;
+
+      const hostName = profile?.full_name ?? profile?.username ?? 'Someone';
+      const { data: tokens } = await supabase.from('push_tokens').select('token').eq('user_id', friendId);
+      if (tokens && tokens.length > 0) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tokens.map((t) => ({
+            to: t.token,
+            title: `${hostName} invited you to a watch party 🎬`,
+            body: showTitle,
+            data: { type: 'watch_party_invite', premiereId },
+            sound: 'default',
+          }))),
+        });
+      }
     },
   });
 }
