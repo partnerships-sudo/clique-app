@@ -21,7 +21,7 @@ export function WatchlistCard({
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand, TypeColors), [Brand, TypeColors]);
-  const type = TypeColors[item.type];
+  const type = TypeColors[item.type] ?? TypeColors.watch;
   const artistName = item.type === 'listen' ? extractArtistName(item.sub) : null;
 
   return (
@@ -60,7 +60,7 @@ export function WatchlistCard({
             onPress={() =>
               router.push({
                 pathname: '/where-to-find-modal',
-                params: { title: item.title, type: item.type, sub: item.sub ?? undefined, poster: item.poster ?? undefined, externalId: item.external_id ?? undefined },
+                params: { title: item.title, type: item.type, sub: item.sub ?? '', poster: item.poster ?? '', externalId: item.external_id ?? '' },
               })
             }>
             <Text style={styles.whereBtnText}>{WHERE_TO_FIND_CTA[item.type]}</Text>

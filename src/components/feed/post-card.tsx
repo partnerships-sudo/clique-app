@@ -68,7 +68,7 @@ export function PostCard({
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const ratingIcon = (post.user_rating_icon as RatingIconStyle) ?? 'stars';
-  const type = TypeColors[post.type];
+  const type = TypeColors[post.type as keyof typeof TypeColors] ?? { color: '#888', bg: '#EEE', icon: '📝', label: post.type };
   const meReacted = reactions.some((r) => r.user_id === currentUserId);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiSummary = emojiReactions ?? { counts: {}, mine: new Set<string>() };

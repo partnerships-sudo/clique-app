@@ -59,8 +59,8 @@ function TopPickCard({
         />
       ) : (
         <View
-          style={[StyleSheet.absoluteFill, styles.posterFallback, { backgroundColor: TypeColors[entry.type].bg }]}>
-          <Text style={{ fontSize: 34 }}>{TypeColors[entry.type].icon}</Text>
+          style={[StyleSheet.absoluteFill, styles.posterFallback, { backgroundColor: (TypeColors[entry.type] ?? TypeColors.watch).bg }]}>
+          <Text style={{ fontSize: 34 }}>{(TypeColors[entry.type] ?? TypeColors.watch).icon}</Text>
         </View>
       )}
 

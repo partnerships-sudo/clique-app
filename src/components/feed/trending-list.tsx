@@ -57,9 +57,9 @@ function Top10Card({
         <View
           style={[
             StyleSheet.absoluteFill,
-            { backgroundColor: TypeColors[entry.type].bg, alignItems: 'center', justifyContent: 'center' },
+            { backgroundColor: (TypeColors[entry.type] ?? TypeColors.watch).bg, alignItems: 'center', justifyContent: 'center' },
           ]}>
-          <Text style={{ fontSize: 40 }}>{TypeColors[entry.type].icon}</Text>
+          <Text style={{ fontSize: 40 }}>{(TypeColors[entry.type] ?? TypeColors.watch).icon}</Text>
         </View>
       )}
       <Text style={{
@@ -164,7 +164,7 @@ export function TrendingList({
         <>
           {showTop10Banner && <Text style={styles.restTitle}>More trending</Text>}
           {listEntries.map((entry, i) => {
-            const type = TypeColors[entry.type];
+            const type = TypeColors[entry.type] ?? TypeColors.watch;
             const rank = i + rankOffset + 1;
             const isHot = rank === 1 && entry.count > 1;
             const shownLoggers = entry.loggers.slice(0, MAX_AVATARS);

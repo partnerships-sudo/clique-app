@@ -18,7 +18,7 @@ export function FriendRecCard({
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand, TypeColors), [Brand, TypeColors]);
-  const type = TypeColors[item.type];
+  const type = TypeColors[item.type] ?? TypeColors.watch;
   const artistName = item.type === 'listen' ? extractArtistName(item.sub) : null;
 
   return (
@@ -41,7 +41,7 @@ export function FriendRecCard({
             onPress={() =>
               router.push({
                 pathname: '/where-to-find-modal',
-                params: { title: item.title, type: item.type, poster: item.poster ?? undefined },
+                params: { title: item.title, type: item.type, poster: item.poster ?? "" },
               })
             }>
             <Text style={styles.whereBtnText}>{WHERE_TO_FIND_CTA[item.type]}</Text>

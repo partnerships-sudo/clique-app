@@ -44,7 +44,7 @@ export function TrendingNowList({
   return (
     <View style={styles.list}>
       {visible.map((entry, i) => {
-        const type = TypeColors[entry.type];
+        const type = TypeColors[entry.type] ?? TypeColors.watch;
         const rank = rankOffset + i + 1;
         const rating = avgRating(entry);
         const todayCount = Math.max(1, Math.round(entry.count * 0.15));

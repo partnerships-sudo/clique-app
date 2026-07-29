@@ -156,7 +156,7 @@ export function SearchStep({
             />
           ) : (
             <View style={[styles.selectedImg, selected.square && styles.selectedImgSquare, styles.selectedImgFallback]}>
-              <Text style={styles.selectedImgIcon}>{TypeColors[type].icon}</Text>
+              <Text style={styles.selectedImgIcon}>{(TypeColors[type] ?? TypeColors.watch).icon}</Text>
             </View>
           )}
           <View style={styles.selectedInfo}>
@@ -220,7 +220,7 @@ export function SearchStep({
                     />
                   ) : (
                     <View style={[styles.resultImg, result.square && styles.resultImgSquare, styles.resultImgFallback]}>
-                      <Text style={styles.resultImgIcon}>{TypeColors[type].icon}</Text>
+                      <Text style={styles.resultImgIcon}>{(TypeColors[type] ?? TypeColors.watch).icon}</Text>
                     </View>
                   )}
                   <View style={styles.resultInfo}>

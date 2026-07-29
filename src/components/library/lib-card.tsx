@@ -23,7 +23,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
   const styles = useMemo(() => createStyles(Brand, TypeColors), [Brand, TypeColors]);
   const { data: profile } = useProfile();
   const ratingIcon = (profile?.rating_icon as RatingIconStyle) ?? 'stars';
-  const type = TypeColors[item.type];
+  const type = TypeColors[item.type] ?? TypeColors.watch;
   const statusMeta = STATUS_META[item.status as Exclude<LibraryStatus, 'watchlist'>] ?? STATUS_META.watching;
   function openRateModal() {
     router.push({
@@ -91,7 +91,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
             onPress={() =>
               router.push({
                 pathname: '/recommend-modal',
-                params: { title: item.title, type: item.type, sub: item.sub ?? undefined, poster: item.poster ?? undefined, extRating: item.ext_rating ?? undefined, mediaType: item.media_type ?? undefined },
+                params: { title: item.title, type: item.type, sub: item.sub ?? '', poster: item.poster ?? '', extRating: item.ext_rating != null ? String(item.ext_rating) : '', mediaType: item.media_type ?? '' },
               })
             }
             hitSlop={16}>

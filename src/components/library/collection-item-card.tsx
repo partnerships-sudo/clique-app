@@ -29,7 +29,7 @@ export function CollectionItemCard({
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   // 'tv' shares the same palette as 'watch'; 'podcast' uses its own entry
   const typeKey = item.type === 'tv' ? 'watch' : item.type === 'podcast' ? 'podcast' : item.type;
-  const type = TypeColors[typeKey as keyof typeof TypeColors];
+  const type = TypeColors[typeKey as keyof typeof TypeColors] ?? TypeColors.watch;
   // Album covers are square, unlike book/DVD covers which are natively 2:3 —
   // matching the tile shape to the art avoids cropping either one.
   const isSquareArt = item.type === 'listen';

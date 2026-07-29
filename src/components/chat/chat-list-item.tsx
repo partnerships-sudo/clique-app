@@ -10,7 +10,7 @@ export function ChatListItem({ thread, onPress }: { thread: ChatThread; onPress:
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const type = TypeColors[thread.type];
+  const type = TypeColors[thread.type] ?? TypeColors.watch;
 
   return (
     <Pressable style={styles.card} onPress={onPress}>

@@ -70,7 +70,7 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
       ) : (
         <View style={styles.list}>
           {visible.map((entry, i) => {
-            const type = TypeColors[entry.type];
+            const type = TypeColors[entry.type] ?? TypeColors.watch;
             const rating = entry.avgRating ? Math.round(entry.avgRating) : null;
             return (
               <Pressable key={`${entry.type}:${entry.title}`} style={styles.item} onPress={() => openEntry(entry)}>

@@ -71,8 +71,8 @@ export function BecauseYouRow({
               />
             ) : (
               <View
-                style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: TypeColors[item.type].bg }]}>
-                <Text style={{ fontSize: 28 }}>{TypeColors[item.type].icon}</Text>
+                style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: (TypeColors[item.type] ?? TypeColors.watch).bg }]}>
+                <Text style={{ fontSize: 28 }}>{(TypeColors[item.type] ?? TypeColors.watch).icon}</Text>
               </View>
             )}
           </Pressable>
