@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
+import { ListCard } from '@/components/library/list-card';
 import { useRemoveLibraryItem, useAddLibraryItem, type LibraryItem } from '@/features/library/api';
+import { useLists } from '@/features/lists/api';
 import { supabase } from '@/lib/supabase';
 import { AvatarSizes, BrandFonts } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
@@ -52,6 +54,7 @@ export function ProfileWatchlistTab({ watchlist, unratedLogged, isOwnProfile, on
   const [editing, setEditing] = useState(false);
   const removeLibraryItem = useRemoveLibraryItem();
   const addLibraryItem = useAddLibraryItem();
+  const { data: lists = [] } = useLists();
 
   const visibleItems = watchlistView === 'mine' ? watchlist : watchlist.filter((i) => !!i.rec_from_user_name);
 
@@ -195,6 +198,34 @@ export function ProfileWatchlistTab({ watchlist, unratedLogged, isOwnProfile, on
           })}
         </View>
       )}
+
+      {/* Custom lists section */}
+      {isOwnProfile && (
+        <View style={local.listsSection}>
+          <View style={local.listsSectionHeader}>
+            <Text style={local.listsSectionTitle}>My Lists</Text>
+            <Pressable
+              onPress={() => router.push('/create-list-modal')}
+              hitSlop={12}>
+              <Text style={local.listsCreateBtn}>+ Create</Text>
+            </Pressable>
+          </View>
+          {lists.length === 0 ? (
+            <Text style={styles.emptyText}>
+              Create a list to organize anything — "Want to Read", "Summer Picks", "Favorites"…
+            </Text>
+          ) : (
+            lists.map((list) => (
+              <ListCard
+                key={list.id}
+                list={list}
+                Brand={Brand}
+                onPress={() => router.push({ pathname: '/list-detail-modal', params: { listId: list.id, listTitle: list.title } })}
+              />
+            ))
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -227,6 +258,28 @@ function createLocalStyles(Brand: ReturnType<typeof useBrand>) {
     borderColor: Brand.trust,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  listsSection: {
+    marginTop: 28,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: Brand.border,
+  },
+  listsSectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  listsSectionTitle: {
+    fontFamily: BrandFonts.syneExtraBold,
+    fontSize: 17,
+    color: Brand.ink,
+  },
+  listsCreateBtn: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 14,
+    color: Brand.trust,
   },
   recAvatar: {
     position: 'absolute',

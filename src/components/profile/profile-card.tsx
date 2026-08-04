@@ -28,7 +28,7 @@ type ProfileTab = 'feed' | 'watchlist' | 'collection' | 'stats';
 
 const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
   { key: 'feed', label: 'Feed' },
-  { key: 'watchlist', label: 'Watchlist' },
+  { key: 'watchlist', label: 'Lists' },
   { key: 'collection', label: 'Collection' },
   { key: 'stats', label: 'Stats' },
 ];
