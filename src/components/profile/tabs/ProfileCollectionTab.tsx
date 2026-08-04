@@ -133,11 +133,11 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
                     <Text style={styles.collGridImgPlaceholderText} numberOfLines={2}>{item.title}</Text>
                   </View>
                 )}
-                {stars > 0 ? (
-                  <View style={styles.collGridStars}>
-                    <Text style={styles.collGridStarText}>{'★'.repeat(stars)}</Text>
-                  </View>
-                ) : null}
+                <View style={styles.collGridStars}>
+                  <Text style={[styles.collGridStarText, stars === 0 && { opacity: 0.2 }]}>
+                    {stars > 0 ? '★'.repeat(stars) : '★★★★★'}
+                  </Text>
+                </View>
               </Pressable>
             );
           })}

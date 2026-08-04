@@ -12,7 +12,7 @@ CREATE OR REPLACE FUNCTION rate_and_move_to_collection(
   p_external_id TEXT,
   p_media_type  TEXT,
   p_ext_rating  TEXT,
-  p_rating      NUMERIC
+  p_rating      NUMERIC DEFAULT NULL  -- nullable: items go to collection even without a rating
 ) RETURNS void LANGUAGE plpgsql SECURITY DEFINER AS $$
 BEGIN
   INSERT INTO collection_items (
@@ -25,11 +25,14 @@ BEGIN
 
   DELETE FROM library WHERE id = p_library_id;
 
-  UPDATE posts
-  SET rating = p_rating
-  WHERE user_id = p_user_id
-    AND title   = p_title
-    AND type    = p_type;
+  -- Only update the post rating if a rating was actually provided
+  IF p_rating IS NOT NULL THEN
+    UPDATE posts
+    SET rating = p_rating
+    WHERE user_id = p_user_id
+      AND title   = p_title
+      AND type    = p_type;
+  END IF;
 END;
 $$;
 

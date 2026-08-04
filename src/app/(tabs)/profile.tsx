@@ -1,4 +1,4 @@
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -17,6 +17,7 @@ import { useBrand } from '@/hooks/use-brand';
 type ProfileView = 'card' | 'edit';
 
 export default function ProfileTab() {
+  const { initialTab } = useLocalSearchParams<{ initialTab?: string }>();
   const [view, setView] = useState<ProfileView>('card');
   const [cardKey, setCardKey] = useState(0);
   const editSaveRef = useRef<EditProfileHandle | null>(null);
@@ -63,6 +64,7 @@ export default function ProfileTab() {
         ) : (
           <ProfileCard
             key={cardKey}
+            initialTab={initialTab as any}
             profile={profile}
             library={allLibrary ?? []}
             followersCount={followersCount ?? 0}

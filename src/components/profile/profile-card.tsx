@@ -36,6 +36,7 @@ const PROFILE_TABS: { key: ProfileTab; label: string }[] = [
 export function ProfileCard({
   profile,
   library,
+  initialTab,
   followersCount,
   followingCount,
   onLoggedPress,
@@ -55,6 +56,7 @@ export function ProfileCard({
 }: {
   profile: Profile | null | undefined;
   library: LibraryItem[];
+  initialTab?: string;
   followersCount: number;
   followingCount: number;
   onLoggedPress?: () => void;
@@ -78,7 +80,9 @@ export function ProfileCard({
   const name = profile?.full_name || profile?.username || 'Someone';
   const rateItem = useRateLibraryItem();
 
-  const [profileTab, setProfileTab] = useState<ProfileTab>('feed');
+  const [profileTab, setProfileTab] = useState<ProfileTab>(
+    initialTab && PROFILE_TABS.some((t) => t.key === initialTab) ? (initialTab as ProfileTab) : 'feed'
+  );
   const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
   const [ratingValue, setRatingValue] = useState<number | null>(null);
   const [ratingNote, setRatingNote] = useState('');
@@ -207,12 +211,14 @@ export function ProfileCard({
         ) : profileTab === 'watchlist' ? (
           <ProfileWatchlistTab
             watchlist={watchlist}
-            unratedLogged={unratedLogged}
             isOwnProfile={isOwnProfile}
             onOpenRating={openRating}
           />
         ) : profileTab === 'collection' ? (
-          <ProfileCollectionTab isOwnProfile={isOwnProfile} profileId={profile?.id} />
+          <ProfileCollectionTab
+            isOwnProfile={isOwnProfile}
+            profileId={profile?.id}
+          />
         ) : (
           <ProfileStatsTab
             logged={logged}

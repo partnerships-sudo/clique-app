@@ -143,6 +143,24 @@ export default function CollectionItemDetailModal() {
         </Pressable>
         {isOwner ? (
           <Pressable
+            style={styles.infoBtn}
+            onPress={() =>
+              router.push({
+                pathname: '/add-to-list-modal',
+                params: {
+                  libraryItemId: params.id,
+                  title: params.title,
+                  sub: params.sub ?? '',
+                  poster: params.poster ?? '',
+                  type: params.type,
+                },
+              })
+            }>
+            <Text style={styles.infoBtnText}>Add to a list ›</Text>
+          </Pressable>
+        ) : null}
+        {isOwner ? (
+          <Pressable
             style={styles.removeBtn}
             onPress={handleRemove}
             disabled={removeItem.isPending}>

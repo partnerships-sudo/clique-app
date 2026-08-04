@@ -14,7 +14,6 @@ import { createStyles } from '../profile-styles';
 
 interface Props {
   watchlist: LibraryItem[];
-  unratedLogged: LibraryItem[];
   isOwnProfile: boolean;
   onOpenRating: (item: LibraryItem) => void;
 }
@@ -46,7 +45,7 @@ function useRecProfiles(usernames: string[]) {
   return profiles;
 }
 
-export function ProfileWatchlistTab({ watchlist, unratedLogged, isOwnProfile, onOpenRating }: Props) {
+export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const local = useMemo(() => createLocalStyles(Brand), [Brand]);
@@ -90,7 +89,10 @@ export function ProfileWatchlistTab({ watchlist, unratedLogged, isOwnProfile, on
       {isOwnProfile && watchlistView === 'mine' ? (
         <View style={local.actionRow}>
           <Pressable style={[styles.wlAddBtn, { flex: 1 }]} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })}>
-            <Text style={styles.wlAddBtnText}>+ Add to watchlist</Text>
+            <Text style={styles.wlAddBtnText}>+ Watchlist</Text>
+          </Pressable>
+          <Pressable style={[styles.wlAddBtn, { flex: 1 }]} onPress={() => router.push('/create-list-modal')}>
+            <Text style={styles.wlAddBtnText}>+ Create list</Text>
           </Pressable>
           {visibleItems.length > 0 && (
             <Pressable
@@ -104,32 +106,6 @@ export function ProfileWatchlistTab({ watchlist, unratedLogged, isOwnProfile, on
         </View>
       ) : null}
 
-      {isOwnProfile && watchlistView === 'mine' && unratedLogged.length > 0 ? (
-        <View style={styles.unratedSection}>
-          <View style={styles.unratedHeader}>
-            <Text style={styles.unratedHeaderTitle}>Rate to add to Collection</Text>
-            <Text style={styles.unratedHeaderSub}>You finished these but haven't rated them yet</Text>
-          </View>
-          <View style={styles.wlGrid}>
-            {unratedLogged.map((item) => (
-              <View key={item.id} style={styles.wlGridItem}>
-                <View style={[styles.wlPosterWrap, styles.unratedPosterWrap]}>
-                  {item.poster ? (
-                    <Image source={{ uri: item.poster }} style={[styles.wlPoster, styles.unratedPoster]} resizeMode="cover" />
-                  ) : (
-                    <View style={[styles.wlPoster, styles.wlPosterFallback, styles.unratedPoster]}>
-                      <Text style={styles.wlPosterFallbackText} numberOfLines={2}>{item.title}</Text>
-                    </View>
-                  )}
-                </View>
-                <Pressable style={styles.wlRateBtn} onPress={() => onOpenRating(item)}>
-                  <Text style={styles.wlRateBtnText}>★ Rate it</Text>
-                </Pressable>
-              </View>
-            ))}
-          </View>
-        </View>
-      ) : null}
 
       {visibleItems.length === 0 ? (
         <Text style={styles.emptyText}>
@@ -199,31 +175,18 @@ export function ProfileWatchlistTab({ watchlist, unratedLogged, isOwnProfile, on
         </View>
       )}
 
-      {/* Custom lists section */}
-      {isOwnProfile && (
+      {/* Custom lists section — only visible on My Watchlist tab */}
+      {isOwnProfile && watchlistView === 'mine' && lists.length > 0 && (
         <View style={local.listsSection}>
-          <View style={local.listsSectionHeader}>
-            <Text style={local.listsSectionTitle}>My Lists</Text>
-            <Pressable
-              onPress={() => router.push('/create-list-modal')}
-              hitSlop={12}>
-              <Text style={local.listsCreateBtn}>+ Create</Text>
-            </Pressable>
-          </View>
-          {lists.length === 0 ? (
-            <Text style={styles.emptyText}>
-              Create a list to organize anything — "Want to Read", "Summer Picks", "Favorites"…
-            </Text>
-          ) : (
-            lists.map((list) => (
-              <ListCard
-                key={list.id}
-                list={list}
-                Brand={Brand}
-                onPress={() => router.push({ pathname: '/list-detail-modal', params: { listId: list.id, listTitle: list.title } })}
-              />
-            ))
-          )}
+          <Text style={local.listsSectionTitle}>My Lists</Text>
+          {lists.map((list) => (
+            <ListCard
+              key={list.id}
+              list={list}
+              Brand={Brand}
+              onPress={() => router.push({ pathname: '/list-detail-modal', params: { listId: list.id, listTitle: list.title } })}
+            />
+          ))}
         </View>
       )}
     </View>

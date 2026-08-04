@@ -149,10 +149,31 @@ export function useAddLibraryItem() {
         .select()
         .single();
       if (error) throw error;
-      return data as LibraryItem;
+      const item = data as LibraryItem;
+
+      // Always move logged items to collection immediately (rating is optional).
+      // Watchlist entries stay in library until the user logs them.
+      if (input.intent !== 'watchlist') {
+        const { error: rpcError } = await supabase.rpc('rate_and_move_to_collection', {
+          p_library_id:  item.id,
+          p_user_id:     user!.id,
+          p_type:        input.type,
+          p_title:       input.title,
+          p_sub:         input.sub ?? null,
+          p_poster:      input.poster ?? null,
+          p_external_id: input.externalId ?? null,
+          p_media_type:  input.mediaType ?? null,
+          p_ext_rating:  input.extRating ?? null,
+          p_rating:      input.rating ?? null,
+        });
+        if (rpcError) throw rpcError;
+      }
+
+      return item;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: libraryQueryKey(user?.id) });
+      queryClient.invalidateQueries({ queryKey: ['collection-items'] });
     },
   });
 }

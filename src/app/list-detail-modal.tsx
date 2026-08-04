@@ -68,7 +68,7 @@ export default function ListDetailModal() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.navigate({ pathname: '/(tabs)/profile', params: { initialTab: 'watchlist' } })} hitSlop={12}>
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
         <View style={styles.headerCenter}>
@@ -79,6 +79,14 @@ export default function ListDetailModal() {
           <SymbolView name="ellipsis" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
       </View>
+
+      {/* Add items bar */}
+      <Pressable
+        style={styles.addBar}
+        onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}>
+        <SymbolView name="plus" size={13} tintColor={Brand.trust} style={{ width: 14, height: 14 }} />
+        <Text style={styles.addBarText}>Search &amp; add items</Text>
+      </Pressable>
 
       <FlatList
         data={items}
@@ -93,7 +101,11 @@ export default function ListDetailModal() {
             <View style={styles.empty}>
               <SymbolView name="list.bullet" size={40} tintColor={Brand.border} type="monochrome" />
               <Text style={styles.emptyTitle}>No items yet</Text>
-              <Text style={styles.emptyHint}>Add items from your library using the ⋯ menu on any item.</Text>
+              <Pressable
+                style={styles.emptyBtn}
+                onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}>
+                <Text style={styles.emptyBtnText}>+ Search &amp; add items</Text>
+              </Pressable>
             </View>
           )
         }
@@ -176,8 +188,11 @@ function createStyles(Brand: BrandPalette) {
     itemSub: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
     itemMore: { padding: 4 },
     separator: { height: 1, backgroundColor: Brand.border, marginLeft: 22 + 44 + 12 * 2 },
-    empty: { alignItems: 'center', paddingTop: 60, gap: 10 },
+    empty: { alignItems: 'center', paddingTop: 60, gap: 14 },
     emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 17, color: Brand.ink },
-    emptyHint: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, textAlign: 'center', lineHeight: 20, maxWidth: 260 },
+    emptyBtn: { backgroundColor: Brand.trust, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 24 },
+    emptyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
+    addBar: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: Spacing.three, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: Brand.border, backgroundColor: Brand.card },
+    addBarText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
   });
 }

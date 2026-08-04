@@ -76,7 +76,11 @@ export default function LogModal() {
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="on-drag"
         automaticallyAdjustKeyboardInsets>
-        {!hasPrefill && <Text style={styles.heading}>What are you into right now?</Text>}
+        {!hasPrefill && (
+          <Text style={styles.heading}>
+            {intent === 'watchlist' ? 'What do you want to get to?' : 'What are you into right now?'}
+          </Text>
+        )}
         {!hasPrefill && <TypePickerStep value={type} onSelect={(t) => { setUniversalPrefill(null); setType(t); }} onUniversalPick={handleUniversalPick} />}
         {type ? (
           <View style={hasPrefill ? undefined : styles.entrySection}>
