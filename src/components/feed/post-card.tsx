@@ -1,9 +1,11 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
+import { useUpdateCollectionItemPage } from '@/features/collection/api';
+import { fetchBookPageCount } from '@/features/search/api';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
 import { SwipeableRow } from '@/components/swipeable-row';
@@ -41,6 +43,100 @@ function formatLoggedDate(isoDate: string) {
 }
 
 
+function PageTracker({
+  libraryItemId,
+  currentPage,
+  totalPages: initialTotalPages,
+  externalId,
+}: {
+  libraryItemId: string;
+  currentPage: number | null;
+  totalPages: number | null;
+  externalId: string;
+}) {
+  const updateProgress = useUpdateCollectionItemPage();
+  const Brand = useBrand();
+  const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const [open, setOpen] = useState(false);
+  const [pageVal, setPageVal] = useState(currentPage ?? 0);
+  const [totalPages, setTotalPages] = useState<number | null>(initialTotalPages);
+
+  // Lazily fetch total pages from Hardcover if not stored yet
+  useEffect(() => {
+    if (!open || totalPages) return;
+    fetchBookPageCount(externalId).then((p) => { if (p) setTotalPages(p); });
+  }, [open, totalPages, externalId]);
+
+  function nudge(delta: number) {
+    setPageVal((v) => Math.max(0, Math.min(v + delta, totalPages ?? 9999)));
+  }
+
+  function handleSave() {
+    if (pageVal > 0) {
+      updateProgress.mutate({ id: libraryItemId, page: pageVal, ...(totalPages ? { totalPages } : {}) });
+    }
+    setOpen(false);
+  }
+
+  const pct = currentPage && totalPages ? Math.min(currentPage / totalPages, 1) : null;
+
+  return (
+    <>
+      <Pressable style={styles.pageTrackerRow} onPress={() => { setPageVal(currentPage ?? 0); setOpen(true); }} hitSlop={8}>
+        <SymbolView name="book.pages" size={12} tintColor={Brand.muted} style={{ width: 13, height: 13 }} />
+        {currentPage && totalPages ? (
+          <View style={styles.pageTrackerBarWrap}>
+            <View style={styles.pageTrackerBar}>
+              <View style={[styles.pageTrackerFill, { width: `${Math.round(pct! * 100)}%` as any }]} />
+            </View>
+            <Text style={styles.pageTrackerText}>p.{currentPage} / {totalPages}</Text>
+          </View>
+        ) : currentPage ? (
+          <Text style={styles.pageTrackerText}>Page <Text style={styles.pageTrackerBtn}>{currentPage}</Text> · tap to update</Text>
+        ) : (
+          <Text style={styles.pageTrackerBtn}>+ Log current page</Text>
+        )}
+      </Pressable>
+
+      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+        <Pressable style={styles.pageModalOverlay} onPress={() => setOpen(false)} />
+        <View style={styles.pageModalSheet}>
+          <Text style={styles.pageModalTitle}>What page are you on?</Text>
+          {totalPages ? (
+            <View style={styles.pageModalProgressWrap}>
+              <View style={styles.pageModalProgressBar}>
+                <View style={[styles.pageModalProgressFill, { width: `${Math.round(Math.min(pageVal / totalPages, 1) * 100)}%` as any }]} />
+              </View>
+              <Text style={styles.pageModalSub}>{totalPages} pages total</Text>
+            </View>
+          ) : null}
+
+          {/* Big page display */}
+          <Text style={styles.pageModalBigNum}>{pageVal > 0 ? pageVal : '—'}</Text>
+
+          {/* ±1 / ±10 / ±50 stepper row */}
+          <View style={styles.stepperRow}>
+            {[-50, -10, -1, +1, +10, +50].map((delta) => (
+              <Pressable key={delta} style={styles.stepperBtn} onPress={() => nudge(delta)}>
+                <Text style={styles.stepperBtnText}>{delta > 0 ? `+${delta}` : delta}</Text>
+              </Pressable>
+            ))}
+          </View>
+
+          <View style={styles.pageModalActions}>
+            <Pressable style={styles.pageModalCancel} onPress={() => setOpen(false)}>
+              <Text style={styles.pageModalCancelText}>Cancel</Text>
+            </Pressable>
+            <Pressable style={styles.pageModalSave} onPress={handleSave}>
+              <Text style={styles.pageModalSaveText}>Save</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
+    </>
+  );
+}
+
 export function PostCard({
   post,
   isMine,
@@ -52,6 +148,7 @@ export function PostCard({
   onToggleReaction,
   onDelete,
   onEdit,
+  pageProgress,
 }: {
   post: Post;
   isMine: boolean;
@@ -63,6 +160,7 @@ export function PostCard({
   onToggleReaction: () => void;
   onDelete: () => void;
   onEdit?: () => void;
+  pageProgress?: { libraryItemId: string; currentPage: number | null; totalPages: number | null; externalId: string };
 }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
@@ -171,6 +269,15 @@ export function PostCard({
               ) : null}
             </>
           )}
+          {/* Page tracker — shown on reading posts for the owner */}
+          {isMine && post.type === 'read' && pageProgress ? (
+            <PageTracker
+              libraryItemId={pageProgress.libraryItemId}
+              currentPage={pageProgress.currentPage}
+              totalPages={pageProgress.totalPages}
+              externalId={pageProgress.externalId}
+            />
+          ) : null}
 
           {/* Emoji picker popover — hidden on own posts */}
           {showEmojiPicker && !isMine && (
@@ -432,6 +539,134 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 12,
       color: Brand.muted,
       marginTop: 4,
+    },
+    pageTrackerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 5,
+    },
+    pageTrackerBarWrap: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      flex: 1,
+    },
+    pageTrackerBar: {
+      flex: 1,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Brand.border,
+      overflow: 'hidden',
+    },
+    pageTrackerFill: {
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: Brand.trust,
+    },
+    pageTrackerText: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 11,
+      color: Brand.muted,
+    },
+    pageTrackerBtn: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 12,
+      color: Brand.trust,
+    },
+    pageModalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.4)',
+    },
+    pageModalSheet: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: Brand.card,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      padding: 24,
+      paddingBottom: 40,
+      gap: 12,
+    },
+    pageModalTitle: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 18,
+      color: Brand.ink,
+    },
+    pageModalProgressWrap: { gap: 6 },
+    pageModalProgressBar: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: Brand.border,
+      overflow: 'hidden',
+    },
+    pageModalProgressFill: {
+      height: 6,
+      borderRadius: 3,
+      backgroundColor: Brand.trust,
+    },
+    pageModalSub: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12,
+      color: Brand.muted,
+    },
+    pageModalBigNum: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 52,
+      color: Brand.ink,
+      textAlign: 'center',
+      marginVertical: 4,
+    },
+    stepperRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 6,
+    },
+    stepperBtn: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      backgroundColor: Brand.paper,
+      alignItems: 'center',
+    },
+    stepperBtnText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 13,
+      color: Brand.ink,
+    },
+    pageModalActions: {
+      flexDirection: 'row',
+      gap: 10,
+      marginTop: 4,
+    },
+    pageModalCancel: {
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: 12,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      alignItems: 'center',
+    },
+    pageModalCancelText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 15,
+      color: Brand.muted,
+    },
+    pageModalSave: {
+      flex: 1,
+      paddingVertical: 13,
+      borderRadius: 12,
+      backgroundColor: Brand.trust,
+      alignItems: 'center',
+    },
+    pageModalSaveText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 15,
+      color: '#fff',
     },
     emojiPickerWrap: {
       flexDirection: 'row',

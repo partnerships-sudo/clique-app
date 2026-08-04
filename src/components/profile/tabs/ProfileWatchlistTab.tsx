@@ -50,7 +50,6 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const local = useMemo(() => createLocalStyles(Brand), [Brand]);
   const [watchlistView, setWatchlistView] = useState<'mine' | 'friends'>('mine');
-  const [editing, setEditing] = useState(false);
   const removeLibraryItem = useRemoveLibraryItem();
   const addLibraryItem = useAddLibraryItem();
   const { data: lists = [] } = useLists();
@@ -77,10 +76,10 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
     <View style={styles.tabContent}>
       {isOwnProfile && (
         <View style={styles.wlToggleRow}>
-          <Pressable style={[styles.wlToggleBtn, watchlistView === 'mine' && styles.wlToggleBtnActive]} onPress={() => { setWatchlistView('mine'); setEditing(false); }}>
+          <Pressable style={[styles.wlToggleBtn, watchlistView === 'mine' && styles.wlToggleBtnActive]} onPress={() => setWatchlistView('mine')}>
             <Text style={[styles.wlToggleTxt, watchlistView === 'mine' && styles.wlToggleTxtActive]}>My Watchlist</Text>
           </Pressable>
-          <Pressable style={[styles.wlToggleBtn, watchlistView === 'friends' && styles.wlToggleBtnActive]} onPress={() => { setWatchlistView('friends'); setEditing(false); }}>
+          <Pressable style={[styles.wlToggleBtn, watchlistView === 'friends' && styles.wlToggleBtnActive]} onPress={() => setWatchlistView('friends')}>
             <Text style={[styles.wlToggleTxt, watchlistView === 'friends' && styles.wlToggleTxtActive]}>From Friends</Text>
           </Pressable>
         </View>
@@ -94,15 +93,6 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
           <Pressable style={[styles.wlAddBtn, { flex: 1 }]} onPress={() => router.push('/create-list-modal')}>
             <Text style={styles.wlAddBtnText}>+ Create list</Text>
           </Pressable>
-          {visibleItems.length > 0 && (
-            <Pressable
-              style={[local.editBtn, { borderColor: editing ? Brand.trust : Brand.border, backgroundColor: editing ? Brand.tlight : 'transparent' }]}
-              onPress={() => setEditing((e) => !e)}>
-              <Text style={[local.editBtnText, { color: editing ? Brand.trust : Brand.muted }]}>
-                {editing ? 'Done' : 'Edit'}
-              </Text>
-            </Pressable>
-          )}
         </View>
       ) : null}
 
@@ -121,7 +111,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
             const recProfile = item.rec_from_user_name ? recProfiles[item.rec_from_user_name] : null;
             return (
               <View key={item.id} style={styles.wlGridItem}>
-                <View style={styles.wlPosterWrap}>
+                <Pressable style={styles.wlPosterWrap} onLongPress={() => isOwnProfile && confirmRemove(item)} delayLongPress={400}>
                   {item.poster ? (
                     <Image source={{ uri: item.poster }} style={styles.wlPoster} resizeMode="cover" />
                   ) : (
@@ -147,15 +137,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
                     </Pressable>
                   ) : null}
 
-                  {editing && isOwnProfile && (
-                    <Pressable
-                      style={local.deleteBtn}
-                      onPress={() => confirmRemove(item)}
-                      hitSlop={8}>
-                      <SymbolView name="minus.circle.fill" size={22} tintColor="#E84F4F" type="monochrome" />
-                    </Pressable>
-                  )}
-                </View>
+                </Pressable>
                 {isOwnProfile ? (
                   <Pressable style={styles.wlLogBtn} onPress={() => onOpenRating(item)}>
                     <SymbolView name="checkmark" size={10} tintColor="#fff" style={{ width: 11, height: 11 }} />

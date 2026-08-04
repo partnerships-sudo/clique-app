@@ -82,9 +82,12 @@ export default function LogModal() {
           </Text>
         )}
         {!hasPrefill && <TypePickerStep value={type} onSelect={(t) => { setUniversalPrefill(null); setType(t); }} onUniversalPick={handleUniversalPick} />}
-        {type ? (
+        {/* For watchlist intent, only show SearchStep once the user has picked a result (universalPrefill set).
+            For log intent (or hasPrefill), show SearchStep as soon as a type is selected. */}
+        {type && (hasPrefill || intent === 'log' || universalPrefill) ? (
           <View style={hasPrefill ? undefined : styles.entrySection}>
-            {!hasPrefill && <IntentToggle value={intent} onChange={setIntent} />}
+            {/* Hide intent toggle when intent is locked from params (e.g. opened via + Watchlist) */}
+            {!hasPrefill && !params.intent && <IntentToggle value={intent} onChange={setIntent} />}
             <SearchStep
               type={type}
               intent={intent}

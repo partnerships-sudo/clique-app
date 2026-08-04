@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
-import { type SearchResult, useUniversalSearch } from '@/features/search/api';
+import { type SearchResult, useTitleSearch, useUniversalSearch } from '@/features/search/api';
 import { useBrand } from '@/hooks/use-brand';
 
 const TYPES: { value: EntryType; label: string; symbol: string }[] = [
@@ -24,6 +24,7 @@ export function TypePickerStep({
   value: EntryType | null;
   onSelect: (type: EntryType) => void;
   onUniversalPick: (type: EntryType, result: SearchResult) => void;
+  hideSearch?: boolean;
 }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -36,7 +37,11 @@ export function TypePickerStep({
     return () => clearTimeout(t);
   }, [query]);
 
-  const { data: universalResults, isFetching } = useUniversalSearch(debouncedQuery);
+  // When a type is selected, search that type specifically; otherwise search everything
+  const { data: universalResults, isFetching: universalFetching } = useUniversalSearch(value ? '' : debouncedQuery);
+  const { data: typeResults, isFetching: typeFetching } = useTitleSearch(value ?? null, value ? debouncedQuery : '');
+  const results = value ? typeResults : universalResults;
+  const isFetching = value ? typeFetching : universalFetching;
   const hasQuery = query.trim().length >= 2;
 
   const row1 = TYPES.slice(0, 3);
@@ -61,12 +66,12 @@ export function TypePickerStep({
 
   return (
     <View style={styles.wrap}>
-      {/* Universal search bar */}
+      {/* Single adaptive search bar — universal when no type, type-specific when one is selected */}
       <View style={styles.searchRow}>
         <SymbolView name="magnifyingglass" size={14} tintColor={Brand.muted} style={{ width: 16, height: 16 }} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search everything…"
+          placeholder={value ? `Search ${TYPES.find(t => t.value === value)?.label.toLowerCase()}…` : 'Search everything…'}
           placeholderTextColor={Brand.muted}
           value={query}
           onChangeText={setQuery}
@@ -76,36 +81,30 @@ export function TypePickerStep({
         {isFetching ? <ActivityIndicator size="small" color={Brand.trust} /> : null}
       </View>
 
-      {/* Universal results */}
-      {hasQuery ? (
+      {hasQuery && (
         <View style={styles.results}>
-          {!isFetching && (universalResults?.length ?? 0) === 0 ? (
+          {!isFetching && (results?.length ?? 0) === 0 ? (
             <Text style={styles.emptyText}>No results found.</Text>
-          ) : (universalResults ?? []).map((result, i) => {
-            const typeConfig = TYPES.find((t) => t.value === result.entryType);
+          ) : (results ?? []).map((result, i) => {
+            const entryType = (result as any).entryType ?? value;
+            const typeConfig = TYPES.find((t) => t.value === entryType);
             return (
               <Pressable
-                key={`${result.entryType}-${i}`}
+                key={`${entryType}-${i}`}
                 style={styles.resultRow}
-                onPress={() => { setQuery(''); onUniversalPick(result.entryType, result); }}>
+                onPress={() => { setQuery(''); onUniversalPick(entryType, result); }}>
                 {result.img ? (
-                  <Image
-                    source={{ uri: result.img }}
-                    style={[styles.resultImg, result.square && styles.resultImgSquare]}
-                    resizeMode="cover"
-                  />
+                  <Image source={{ uri: result.img }} style={[styles.resultImg, result.square && styles.resultImgSquare]} resizeMode="cover" />
                 ) : (
                   <View style={[styles.resultImg, result.square && styles.resultImgSquare, styles.resultImgFallback]}>
-                    {typeConfig ? (
-                      <SymbolView name={typeConfig.symbol as any} size={18} tintColor={Brand.muted} type="monochrome" />
-                    ) : null}
+                    {typeConfig ? <SymbolView name={typeConfig.symbol as any} size={18} tintColor={Brand.muted} type="monochrome" /> : null}
                   </View>
                 )}
                 <View style={styles.resultInfo}>
                   <Text style={styles.resultTitle} numberOfLines={1}>{result.title}</Text>
                   <Text style={styles.resultSub} numberOfLines={1}>{result.sub}</Text>
                 </View>
-                {typeConfig ? (
+                {!value && typeConfig ? (
                   <View style={styles.typeBadge}>
                     <SymbolView name={typeConfig.symbol as any} size={11} tintColor={Brand.trust} type="monochrome" style={{ width: 12, height: 12 }} />
                     <Text style={styles.typeBadgeText}>{typeConfig.label}</Text>
@@ -115,13 +114,11 @@ export function TypePickerStep({
             );
           })}
         </View>
-      ) : (
-        /* Type icons — browse by category */
-        <>
-          <View style={styles.row}>{row1.map(renderTypeItem)}</View>
-          <View style={[styles.row, styles.rowCenter]}>{row2.map(renderTypeItem)}</View>
-        </>
       )}
+
+      {/* Type icons — always big circles, selected one highlights */}
+      <View style={styles.row}>{row1.map(renderTypeItem)}</View>
+      <View style={[styles.row, styles.rowCenter]}>{row2.map(renderTypeItem)}</View>
     </View>
   );
 }
@@ -182,6 +179,11 @@ function createStyles(Brand: BrandPalette) {
     typeBadgeText: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.trust },
     row: { flexDirection: 'row', justifyContent: 'space-around' },
     rowCenter: { justifyContent: 'center', gap: 40 },
+    chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 20, borderWidth: 1.5, borderColor: Brand.border, backgroundColor: Brand.card },
+    chipSelected: { borderColor: Brand.trust, backgroundColor: Brand.tlight },
+    chipLabel: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
+    chipLabelSelected: { color: Brand.trust },
     item: { alignItems: 'center', gap: 6, width: CIRCLE },
     circle: {
       width: CIRCLE,

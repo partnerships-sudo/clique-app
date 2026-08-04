@@ -1,11 +1,13 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { DiscussionCard } from '@/components/feed/discussion-card';
 import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { BrandFonts, TypeColorsLight, type BrandPalette, type EntryType } from '@/constants/theme';
-import { type FeedFilterValue, useHotThreads, useThreadSearch } from '@/features/feed/api';
+import { type FeedFilterValue, useThreadSearch } from '@/features/feed/api';
+import { type DiscussionType, useDiscussionSearch, useDiscussions } from '@/features/discussions/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const TYPE_MAP: Record<string, EntryType> = {
@@ -16,90 +18,64 @@ function openThread(title: string, postType: string, poster?: string | null) {
   router.push({ pathname: '/chat-modal', params: { title, type: postType, ...(poster ? { poster } : {}) } });
 }
 
-function HotCard({ title, post_type, message_count, poster }: { title: string; post_type: string; message_count: number; poster: string | null }) {
-  const Brand = useBrand();
-  const TypeColors = useTypeColors();
-  const type = TYPE_MAP[post_type];
-  const colors = type ? TypeColors[type] : TypeColorsLight.watch;
-  return (
-    <Pressable style={[styles.hotCard, { borderColor: Brand.border, backgroundColor: Brand.card }]} onPress={() => openThread(title, post_type, poster)}>
-      <View style={styles.hotCardImg}>
-        {poster ? (
-          <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={{ fontSize: 32 }}>{colors.icon}</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.hotCardBody}>
-        <Text style={[styles.hotCardType, { color: colors.color }]}>{colors.label}</Text>
-        <Text style={[styles.hotCardTitle, { color: Brand.ink }]} numberOfLines={2}>{title}</Text>
-        <View style={styles.hotCardMeta}>
-          <View style={styles.liveDot} />
-          <Text style={[styles.hotCardCount, { color: Brand.muted }]}>{message_count} {message_count === 1 ? 'comment' : 'comments'}</Text>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-function ThreadRow({ title, post_type, message_count, last_text, last_user, poster }: {
-  title: string; post_type: string; message_count: number; last_text: string; last_user: string; poster: string | null;
-}) {
-  const Brand = useBrand();
-  const TypeColors = useTypeColors();
-  const type = TYPE_MAP[post_type];
-  const colors = type ? TypeColors[type] : TypeColorsLight.watch;
-  return (
-    <Pressable style={[styles.threadCard, { backgroundColor: Brand.card, borderColor: Brand.border }]} onPress={() => openThread(title, post_type, poster)}>
-      <View style={styles.threadThumb}>
-        {poster ? (
-          <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
-        ) : (
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.bg, borderRadius: 8, alignItems: 'center', justifyContent: 'center' }]}>
-            <Text style={{ fontSize: 22 }}>{colors.icon}</Text>
-          </View>
-        )}
-      </View>
-      <View style={styles.threadBody}>
-        <Text style={[styles.threadTitle, { color: Brand.ink }]} numberOfLines={1}>{title}</Text>
-        <Text style={[styles.threadSnippet, { color: Brand.muted }]} numberOfLines={1}>
-          {last_user ? `${last_user}: ` : ''}{last_text}
-        </Text>
-        <View style={styles.threadFoot}>
-          <SymbolView name="bubble.left" size={12} tintColor={Brand.muted} type="monochrome" style={{ width: 12, height: 12 }} />
-          <Text style={[styles.threadStat, { color: Brand.muted }]}>{message_count}</Text>
-        </View>
-      </View>
-      <SymbolView name="chevron.right" size={14} tintColor={Brand.border} type="monochrome" style={{ width: 14, height: 14 }} />
-    </Pressable>
-  );
-}
+const DISCUSSION_TYPE_LABELS: Record<string, string> = {
+  read: 'Books', watch: 'TV & Film', play: 'Games',
+  listen: 'Music', podcast: 'Podcasts', general: 'General',
+};
 
 function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette }) {
-  const { data = [], isLoading } = useThreadSearch(query);
+  const { data: threads = [], isLoading: tLoading } = useThreadSearch(query);
+  const { data: discussions = [], isLoading: dLoading } = useDiscussionSearch(query);
   const TypeColors = useTypeColors();
 
+  const isLoading = tLoading || dLoading;
+  const hasResults = threads.length > 0 || discussions.length > 0;
+
   if (isLoading) return <ActivityIndicator style={{ marginTop: 12 }} />;
-  if (data.length === 0 && query.trim().length >= 2) {
+  if (!hasResults && query.trim().length >= 2) {
     return (
       <View style={[styles.searchResults, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-        <Text style={[styles.searchEmpty, { color: Brand.muted }]}>No threads found for "{query}"</Text>
+        <Text style={[styles.searchEmpty, { color: Brand.muted }]}>Nothing found for "{query}"</Text>
       </View>
     );
   }
-  if (data.length === 0) return null;
+  if (!hasResults) return null;
+
+  const allItems = [
+    ...discussions.map((d) => ({ kind: 'discussion' as const, ...d })),
+    ...threads.map((t) => ({ kind: 'thread' as const, ...t })),
+  ];
 
   return (
     <View style={[styles.searchResults, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-      {data.map((row, i) => {
+      {allItems.map((row, i) => {
+        const isLast = i === allItems.length - 1;
+        if (row.kind === 'discussion') {
+          const typeColors = (TypeColors as any)[row.type] ?? { color: '#6B7280', bg: '#F3F4F6' };
+          const typeLabel = DISCUSSION_TYPE_LABELS[row.type] ?? row.type;
+          return (
+            <Pressable
+              key={`d-${row.id}`}
+              style={[styles.searchRow, !isLast && { borderBottomWidth: 0.5, borderBottomColor: Brand.border }]}
+              onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: row.id } })}>
+              <View style={[styles.srThumb, { backgroundColor: typeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
+                <SymbolView name="bubble.left.and.bubble.right" size={16} tintColor={typeColors.color} type="monochrome" style={{ width: 16, height: 16 }} />
+              </View>
+              <View style={styles.srBody}>
+                <Text style={[styles.srType, { color: typeColors.color }]}>{typeLabel.toUpperCase()}</Text>
+                <Text style={[styles.srTitle, { color: Brand.ink }]} numberOfLines={1}>{row.title}</Text>
+                <Text style={[styles.srCount, { color: Brand.muted }]}>{row.comment_count} {row.comment_count === 1 ? 'comment' : 'comments'} · Discussion</Text>
+              </View>
+              <SymbolView name="chevron.right" size={14} tintColor={Brand.border} type="monochrome" style={{ width: 14, height: 14 }} />
+            </Pressable>
+          );
+        }
         const type = TYPE_MAP[row.post_type];
         const colors = type ? TypeColors[type] : TypeColorsLight.watch;
         return (
           <Pressable
-            key={`${row.title}-${i}`}
-            style={[styles.searchRow, i < data.length - 1 && { borderBottomWidth: 0.5, borderBottomColor: Brand.border }]}
+            key={`t-${row.title}-${i}`}
+            style={[styles.searchRow, !isLast && { borderBottomWidth: 0.5, borderBottomColor: Brand.border }]}
             onPress={() => openThread(row.title, row.post_type, null)}>
             <View style={[styles.srThumb, { backgroundColor: colors.bg }]}>
               <Text style={{ fontSize: 18 }}>{colors.icon}</Text>
@@ -122,10 +98,8 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
   const [searchQuery, setSearchQuery] = useState('');
   const isSearching = searchQuery.trim().length >= 2;
 
-  const { data: hotThreads = [], isLoading: hotLoading } = useHotThreads(filter);
-  const hotCards = hotThreads.slice(0, 5);
-  const threadRows = hotThreads.slice(5, 10);
-
+  const discussionType = filter === 'all' ? 'all' : filter as DiscussionType;
+  const { data: discussions = [], isLoading: dLoading } = useDiscussions(discussionType);
   const typeFilter = filter === 'all' ? 'all' : filter;
 
   return (
@@ -151,37 +125,29 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
       {/* Main content — hidden while searching */}
       {!isSearching && (
         <>
-          {/* Hot discussions */}
+          {/* Discussions board */}
           <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: Brand.ink }]}>🔥 Hot discussions</Text>
-            <Pressable><Text style={[styles.seeAll, { color: Brand.trust }]}>See all</Text></Pressable>
+            <Text style={[styles.sectionTitle, { color: Brand.ink }]}>💬 Discussions</Text>
+            <Pressable
+              style={[styles.newDiscussionBtn, { backgroundColor: Brand.trust }]}
+              onPress={() => router.push('/create-discussion-modal')}>
+              <SymbolView name="plus" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
+              <Text style={styles.newDiscussionText}>Start one</Text>
+            </Pressable>
           </View>
 
-          {hotLoading ? (
+          {dLoading ? (
             <ActivityIndicator style={{ marginVertical: 20 }} color={Brand.trust} />
-          ) : hotCards.length === 0 ? (
-            <Text style={[styles.emptyText, { color: Brand.muted }]}>
-              No active discussions yet. Start one by posting in a content chat.
-            </Text>
+          ) : discussions.length === 0 ? (
+            <Pressable
+              style={[styles.emptyBoard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
+              onPress={() => router.push('/create-discussion-modal')}>
+              <Text style={styles.emptyBoardIcon}>💬</Text>
+              <Text style={[styles.emptyBoardTitle, { color: Brand.ink }]}>No discussions yet</Text>
+              <Text style={[styles.emptyBoardSub, { color: Brand.muted }]}>Be the first to start one</Text>
+            </Pressable>
           ) : (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hotScroll}>
-              {hotCards.map((t) => (
-                <HotCard key={t.title} {...t} />
-              ))}
-            </ScrollView>
-          )}
-
-          {/* Community threads */}
-          {threadRows.length > 0 && (
-            <>
-              <View style={[styles.sectionRow, { paddingTop: 20 }]}>
-                <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Community threads</Text>
-                <Pressable><Text style={[styles.seeAll, { color: Brand.trust }]}>Browse all</Text></Pressable>
-              </View>
-              {threadRows.map((t) => (
-                <ThreadRow key={t.title} {...t} />
-              ))}
-            </>
+            discussions.map((d) => <DiscussionCard key={d.id} item={d} />)
           )}
 
           {/* Most Reviewed — filtered by active chip */}
@@ -249,49 +215,32 @@ const styles = StyleSheet.create({
   sectionTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 17, letterSpacing: -0.3 },
   seeAll: { fontFamily: BrandFonts.interMedium, fontSize: 13 },
 
-  hotScroll: { gap: 10, paddingRight: 4 },
-  hotCard: {
-    width: 120,
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
-  hotCardImg: {
-    width: '100%',
-    aspectRatio: 2 / 3,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hotCardBody: { padding: 10 },
-  hotCardType: { fontFamily: BrandFonts.interMedium, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.3, marginBottom: 2 },
-  hotCardTitle: { fontFamily: BrandFonts.syneBold, fontSize: 12, lineHeight: 16, marginBottom: 6 },
-  hotCardMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  liveDot: { width: 5, height: 5, borderRadius: 3, backgroundColor: '#ef4444' },
-  hotCardCount: { fontFamily: BrandFonts.interRegular, fontSize: 11 },
-
-  threadCard: {
+  newDiscussionBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-    borderWidth: 1,
-    borderRadius: 16,
-    padding: 12,
-    marginBottom: 8,
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  threadThumb: {
-    width: 44, height: 58,
-    borderRadius: 8,
-    overflow: 'hidden',
+  newDiscussionText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 12,
+    color: '#fff',
+  },
+
+  emptyBoard: {
     alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
+    borderWidth: 1,
+    borderRadius: 18,
+    borderStyle: 'dashed',
+    padding: 32,
+    marginBottom: 8,
+    gap: 6,
   },
-  threadBody: { flex: 1, minWidth: 0 },
-  threadTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13, marginBottom: 3 },
-  threadSnippet: { fontFamily: BrandFonts.interRegular, fontSize: 11, marginBottom: 5 },
-  threadFoot: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  threadStat: { fontFamily: BrandFonts.interRegular, fontSize: 11 },
+  emptyBoardIcon: { fontSize: 32 },
+  emptyBoardTitle: { fontFamily: BrandFonts.syneBold, fontSize: 15 },
+  emptyBoardSub: { fontFamily: BrandFonts.interRegular, fontSize: 13 },
 
   emptyText: {
     fontFamily: BrandFonts.interRegular,

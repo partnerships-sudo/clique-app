@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { ActionSheetIOS, ActivityIndicator, Alert, Image, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 
 import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
@@ -37,6 +37,7 @@ export function ProfileCard({
   profile,
   library,
   initialTab,
+  onTabChange,
   followersCount,
   followingCount,
   onLoggedPress,
@@ -63,6 +64,7 @@ export function ProfileCard({
   onFollowersPress?: () => void;
   onFollowingPress?: () => void;
   onEditPress?: () => void;
+  onTabChange?: (tab: string) => void;
   onCollectionPress?: () => void;
   collectionLabel?: string;
   featuredBadges?: ProfileCardBadge[];
@@ -80,9 +82,15 @@ export function ProfileCard({
   const name = profile?.full_name || profile?.username || 'Someone';
   const rateItem = useRateLibraryItem();
 
-  const [profileTab, setProfileTab] = useState<ProfileTab>(
-    initialTab && PROFILE_TABS.some((t) => t.key === initialTab) ? (initialTab as ProfileTab) : 'feed'
-  );
+  const validInitial = initialTab && PROFILE_TABS.some((t) => t.key === initialTab) ? (initialTab as ProfileTab) : 'feed';
+  const [profileTab, setProfileTab] = useState<ProfileTab>(validInitial);
+
+  // Sync when parent updates initialTab (e.g. navigating back from a list)
+  const prevInitialTab = useRef(validInitial);
+  if (initialTab && initialTab !== prevInitialTab.current && PROFILE_TABS.some((t) => t.key === initialTab)) {
+    prevInitialTab.current = initialTab as ProfileTab;
+    setProfileTab(initialTab as ProfileTab);
+  }
   const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
   const [ratingValue, setRatingValue] = useState<number | null>(null);
   const [ratingNote, setRatingNote] = useState('');
@@ -199,7 +207,7 @@ export function ProfileCard({
         {/* Tab bar */}
         <View style={styles.tabRow}>
           {PROFILE_TABS.map((tab) => (
-            <Pressable key={tab.key} style={[styles.tab, profileTab === tab.key && styles.tabActive]} onPress={() => setProfileTab(tab.key)}>
+            <Pressable key={tab.key} style={[styles.tab, profileTab === tab.key && styles.tabActive]} onPress={() => { setProfileTab(tab.key); onTabChange?.(tab.key); }}>
               <Text style={[styles.tabLabel, profileTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
             </Pressable>
           ))}

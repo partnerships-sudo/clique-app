@@ -20,6 +20,8 @@ export interface CollectionItem {
   ext_rating: string | null;
   user_rating: number | null;
   note: string | null;
+  current_page: number | null;
+  total_pages: number | null;
   created_at: string;
 }
 
@@ -139,6 +141,24 @@ export function useUpdateCollectionItemRating() {
         .from('collection_items')
         .update({ user_rating: rating })
         .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: collectionQueryKey(user?.id) });
+    },
+  });
+}
+
+export function useUpdateCollectionItemPage() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, page, totalPages }: { id: string; page: number; totalPages?: number }) => {
+      const { error } = await supabase
+        .from('collection_items')
+        .update({ current_page: page, ...(totalPages != null ? { total_pages: totalPages } : {}) })
+        .eq('id', id)
+        .eq('user_id', user!.id);
       if (error) throw error;
     },
     onSuccess: () => {

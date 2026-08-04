@@ -19,12 +19,14 @@ type ProfileView = 'card' | 'edit';
 export default function ProfileTab() {
   const { initialTab } = useLocalSearchParams<{ initialTab?: string }>();
   const [view, setView] = useState<ProfileView>('card');
-  const [cardKey, setCardKey] = useState(0);
+  const [cardKey] = useState(0);
+  const [activeTab, setActiveTab] = useState<string>(initialTab ?? 'feed');
   const editSaveRef = useRef<EditProfileHandle | null>(null);
 
+  // Keep activeTab in sync when navigating back with an explicit initialTab param
   useFocusEffect(useCallback(() => {
-    setCardKey((k) => k + 1);
-  }, []));
+    if (initialTab) setActiveTab(initialTab);
+  }, [initialTab]));
   const [shareVisible, setShareVisible] = useState(false);
   const [interests, setInterests] = useState<Chip[]>(DEFAULT_INTERESTS);
   const { data: profile } = useProfile();
@@ -64,7 +66,8 @@ export default function ProfileTab() {
         ) : (
           <ProfileCard
             key={cardKey}
-            initialTab={initialTab as any}
+            initialTab={activeTab}
+            onTabChange={setActiveTab}
             profile={profile}
             library={allLibrary ?? []}
             followersCount={followersCount ?? 0}

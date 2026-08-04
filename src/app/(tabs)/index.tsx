@@ -90,6 +90,12 @@ export default function FeedScreen() {
   const deletePost = useDeletePost();
   const { logged } = useLibraryItems();
   const { items: collectionItems } = useCollectionItems();
+  // Build a map of external_id → collection item for page tracking
+  const collectionByExternalId = useMemo(() => {
+    const map = new Map<string, typeof collectionItems[number]>();
+    for (const item of collectionItems) if (item.external_id) map.set(item.external_id, item);
+    return map;
+  }, [collectionItems]);
   const { data: followingCollections = [] } = useFollowingCollections();
   const { data: followingProfiles = [] } = useFollowing();
   const { data: compatItemsMap } = useCompatItems();
@@ -556,6 +562,9 @@ export default function FeedScreen() {
                   commentCount={commentCounts?.get(item.id) ?? 0}
                   onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
                   onDelete={() => deletePost.mutate(item.id)}
+                  pageProgress={item.user_id === user?.id && item.type === 'read' && item.external_id
+                    ? (() => { const ci = collectionByExternalId.get(item.external_id!); return ci ? { libraryItemId: ci.id, currentPage: ci.current_page, totalPages: ci.total_pages, externalId: item.external_id! } : undefined; })()
+                    : undefined}
                   onEdit={item.user_id === user?.id ? () => router.push({
                     pathname: '/edit-post-modal',
                     params: {

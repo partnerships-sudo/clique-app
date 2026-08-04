@@ -48,7 +48,7 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
       </View>
 
       {/* Period pills */}
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.pillsRow} contentContainerStyle={styles.pills}>
+      <View style={styles.pillsRow}>
         {PERIODS.map((p) => {
           const active = period === p.value;
           return (
@@ -60,7 +60,7 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
             </Pressable>
           );
         })}
-      </ScrollView>
+      </View>
 
       {/* List */}
       {isLoading ? (
@@ -128,17 +128,18 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 18,
       color: Brand.ink,
     },
-    pillsRow: { marginBottom: 14 },
-    pills: {
+    pillsRow: {
       flexDirection: 'row',
       gap: 8,
+      marginBottom: 14,
     },
     pill: {
+      flex: 1,
       borderRadius: 20,
       borderWidth: 1.5,
       borderColor: Brand.border,
       paddingVertical: 5,
-      paddingHorizontal: 12,
+      alignItems: 'center',
       backgroundColor: Brand.card,
     },
     pillActive: {

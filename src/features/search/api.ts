@@ -159,6 +159,22 @@ export async function searchBookByIsbn(isbn: string): Promise<SearchResult | nul
   };
 }
 
+export async function fetchBookPageCount(hardcoverBookId: string): Promise<number | null> {
+  try {
+    const data = await hardcoverQuery(
+      `query BookPages($id: Int!) {
+        books(where: { id: { _eq: $id } }, limit: 1) {
+          default_physical_edition { pages }
+        }
+      }`,
+      { id: parseInt(hardcoverBookId, 10) },
+    );
+    return data?.books?.[0]?.default_physical_edition?.pages ?? null;
+  } catch {
+    return null;
+  }
+}
+
 async function searchGames(query: string): Promise<SearchResult[]> {
   const games = await igdbSearch(query);
   return games.map((g) => ({
