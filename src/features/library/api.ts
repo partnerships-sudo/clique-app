@@ -26,6 +26,7 @@ export interface LibraryItem {
   rec_compat_score: number | null;
   ep_season: number | null;
   ep_episode: number | null;
+  current_page: number | null;
 }
 
 const STATUS_BY_TYPE: Record<EntryType, LibraryStatus> = {
@@ -263,6 +264,24 @@ export function useBulkRemoveLibraryItems() {
   return useMutation({
     mutationFn: async (ids: string[]) => {
       const { error } = await supabase.from('library').delete().in('id', ids);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: libraryQueryKey(user?.id) });
+    },
+  });
+}
+
+export function useUpdateBookProgress() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { id: string; page: number }) => {
+      const { error } = await supabase
+        .from('library')
+        .update({ current_page: input.page })
+        .eq('id', input.id)
+        .eq('user_id', user!.id);
       if (error) throw error;
     },
     onSuccess: () => {

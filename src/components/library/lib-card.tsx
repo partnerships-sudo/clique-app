@@ -82,6 +82,28 @@ export function LibCard({ item }: { item: LibraryItem }) {
               </Text>
             </Pressable>
           ) : null}
+          {item.type === 'read' && item.status === 'reading' ? (
+            <Pressable
+              style={styles.epBadge}
+              hitSlop={16}
+              onPress={() => {
+                // Parse total pages out of the runtime field ("412 pages") if stored
+                router.push({
+                  pathname: '/book-progress-modal',
+                  params: {
+                    itemId: item.id,
+                    title: item.title,
+                    poster: item.poster ?? undefined,
+                    currentPage: item.current_page?.toString() ?? '1',
+                    externalId: item.external_id ?? undefined,
+                  },
+                });
+              }}>
+              <Text style={styles.epBadgeText}>
+                {item.current_page != null ? `p. ${item.current_page}` : '📖 Set page'}
+              </Text>
+            </Pressable>
+          ) : null}
           {item.rating ? (
             <RatingIcons rating={item.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
           ) : null}
