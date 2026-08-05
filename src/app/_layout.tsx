@@ -80,7 +80,7 @@ function RootNavigator() {
       <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.42, 0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
       <Stack.Screen name="get-verified-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="create-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
-      <Stack.Screen name="create-discussion-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="create-discussion-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92, 1.0], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="discussion-detail-modal" options={{ headerShown: false }} />
       <Stack.Screen name="content-room-modal" options={{ headerShown: false }} />
       <Stack.Screen name="pick-for-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />

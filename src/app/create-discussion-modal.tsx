@@ -1,11 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Image,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -175,6 +173,8 @@ export default function CreateDiscussionModal() {
   const discussionType = mediaTypeToDiscussionType(linked?.mediaType ?? null);
   const typeColors = linked ? ((TypeColors as any)[discussionType] ?? { color: '#6B7280', bg: '#F3F4F6' }) : null;
 
+  const scrollRef = useRef<ScrollView>(null);
+
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
 
@@ -227,7 +227,7 @@ export default function CreateDiscussionModal() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={{ flex: 1 }}>
         {/* Header */}
         <View style={styles.header}>
           <Pressable
@@ -259,9 +259,11 @@ export default function CreateDiscussionModal() {
           </View>
         ) : (
           <ScrollView
+            ref={scrollRef}
             style={styles.scroll}
             contentContainerStyle={styles.content}
-            keyboardShouldPersistTaps="handled">
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}>
 
             {/* Linked content card */}
             {linked ? (
@@ -305,6 +307,7 @@ export default function CreateDiscussionModal() {
                 value={title}
                 onChangeText={setTitle}
                 multiline
+                scrollEnabled={false}
                 maxLength={300}
                 returnKeyType="next"
                 autoFocus={step === 'write'}
@@ -322,6 +325,7 @@ export default function CreateDiscussionModal() {
                 value={body}
                 onChangeText={setBody}
                 multiline
+                scrollEnabled={false}
                 maxLength={10000}
                 textAlignVertical="top"
               />
@@ -331,7 +335,10 @@ export default function CreateDiscussionModal() {
             {/* Poll toggle */}
             <Pressable
               style={[styles.pollToggleRow, { borderColor: pollEnabled ? Brand.trust : Brand.border, backgroundColor: pollEnabled ? Brand.tlight : Brand.card }]}
-              onPress={() => setPollEnabled((v) => !v)}>
+              onPress={() => {
+                setPollEnabled((v) => !v);
+                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+              }}>
               <Text style={[styles.pollToggleIcon, { color: pollEnabled ? Brand.trust : Brand.muted }]}>📊</Text>
               <Text style={[styles.pollToggleLabel, { color: pollEnabled ? Brand.trust : Brand.ink }]}>
                 {pollEnabled ? 'Poll added' : 'Add a poll'}
@@ -350,6 +357,7 @@ export default function CreateDiscussionModal() {
                     placeholderTextColor={Brand.muted}
                     value={pollQuestion}
                     onChangeText={setPollQuestion}
+                    scrollEnabled={false}
                     maxLength={200}
                   />
                 </View>
@@ -393,7 +401,7 @@ export default function CreateDiscussionModal() {
             )}
           </ScrollView>
         )}
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -416,7 +424,7 @@ function createStyles(Brand: BrandPalette) {
     postDisabled: { opacity: 0.35 },
     stepContent: { flex: 1, padding: 16 },
     scroll: { flex: 1 },
-    content: { padding: 16, gap: 8, paddingBottom: 40 },
+    content: { padding: 16, gap: 8, paddingBottom: 120 },
 
     linkedCard: {
       flexDirection: 'row',
