@@ -1,12 +1,13 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DiscussionCard } from '@/components/feed/discussion-card';
 import { BrandFonts } from '@/constants/theme';
-import { useContentRoomDiscussions } from '@/features/discussions/api';
+import { useContentRoomDiscussions, useRoomFollowState, useToggleRoomFollow, useMuteRoomFollow } from '@/features/discussions/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
+import { useSession } from '@/hooks/use-session';
 
 const MEDIA_TYPE_LABELS: Record<string, string> = {
   movie: 'Film',
@@ -26,7 +27,11 @@ export default function ContentRoomModal() {
   }>();
   const Brand = useBrand();
   const TypeColors = useTypeColors();
+  const { user } = useSession();
   const { data: discussions = [], isLoading } = useContentRoomDiscussions(externalId, mediaType);
+  const { data: followState = { following: false, muted: false, rowId: null } } = useRoomFollowState(externalId, mediaType);
+  const toggleFollow = useToggleRoomFollow();
+  const muteFollow = useMuteRoomFollow();
 
   const typeLabel = MEDIA_TYPE_LABELS[mediaType ?? ''] ?? mediaType ?? '';
   // Map mediaType → TypeColors key
@@ -53,7 +58,43 @@ export default function ContentRoomModal() {
           <SymbolView name="chevron.left" size={18} tintColor={Brand.trust} type="monochrome" style={{ width: 18, height: 18 }} />
           <Text style={[styles.backText, { color: Brand.trust }]}>Back</Text>
         </Pressable>
-        <View style={{ width: 60 }} />
+        <View style={styles.navRight}>
+          {followState.following && followState.rowId && followState.rowId !== 'optimistic' && (
+            <Pressable
+              hitSlop={12}
+              style={[styles.muteBtn, { borderColor: Brand.border }]}
+              onPress={() => muteFollow.mutate(
+                {
+                  rowId: followState.rowId!,
+                  muted: !followState.muted,
+                  externalId: externalId!,
+                  mediaType: mediaType!,
+                  userId: user?.id,
+                },
+                { onError: (err: any) => Alert.alert('Mute error', err?.message ?? JSON.stringify(err)) },
+              )}
+              disabled={muteFollow.isPending}>
+              <SymbolView
+                name={followState.muted ? 'bell.slash.fill' : 'bell.fill'}
+                size={14}
+                tintColor={followState.muted ? Brand.muted : Brand.trust}
+                type="monochrome"
+                style={{ width: 14, height: 14 }}
+              />
+            </Pressable>
+          )}
+          <Pressable
+            hitSlop={12}
+            style={[styles.followBtn, followState.following
+              ? { backgroundColor: Brand.trust }
+              : { backgroundColor: 'transparent', borderWidth: 1, borderColor: Brand.trust }]}
+            onPress={() => toggleFollow.mutate({ externalId: externalId!, mediaType: mediaType!, following: followState.following })}
+            disabled={toggleFollow.isPending}>
+            <Text style={[styles.followBtnText, { color: followState.following ? '#fff' : Brand.trust }]}>
+              {followState.following ? 'Following' : 'Follow'}
+            </Text>
+          </Pressable>
+        </View>
       </View>
 
       <FlatList
@@ -120,6 +161,24 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, width: 60 },
+  navRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  muteBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  followBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
   backText: { fontFamily: BrandFonts.interMedium, fontSize: 15 },
   list: { padding: 16, paddingBottom: 40 },
   header: { gap: 14, marginBottom: 8 },

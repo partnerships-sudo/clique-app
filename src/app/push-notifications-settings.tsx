@@ -14,6 +14,7 @@ const NOTIFICATION_ROWS: { key: keyof NotificationSettings; label: string; sub: 
   { key: 'recommendations', label: 'Recommendations', sub: 'When a friend sends you a rec' },
   { key: 'daily_nudge', label: 'Daily reminder', sub: 'An evening nudge to log something' },
   { key: 'rating_reminders', label: 'Rating reminders', sub: 'Nudges to rate movies, shows, and games after you log them' },
+  { key: 'discussions', label: 'Discussions', sub: 'Replies to your comments and new activity on discussions you joined' },
 ];
 
 export default function PushNotificationsSettingsScreen() {

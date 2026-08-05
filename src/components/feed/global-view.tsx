@@ -1,13 +1,13 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DiscussionCard } from '@/components/feed/discussion-card';
 import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { BrandFonts, TypeColorsLight, type BrandPalette, type EntryType } from '@/constants/theme';
 import { type FeedFilterValue, useThreadSearch } from '@/features/feed/api';
-import { type DiscussionType, useDiscussionSearch, useDiscussions } from '@/features/discussions/api';
+import { type DiscussionType, useDiscussionSearch, useTrendingDiscussions, usePersonalizedRooms, useFollowedRoomsFeed, type PersonalizedRoom } from '@/features/discussions/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const TYPE_MAP: Record<string, EntryType> = {
@@ -93,13 +93,79 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
   );
 }
 
+function PersonalizedRoomRow({ room, Brand }: { room: PersonalizedRoom; Brand: ReturnType<typeof useBrand> }) {
+  const TypeColors = useTypeColors();
+  const tcKey = room.mediaType === 'movie' || room.mediaType === 'tv' ? 'watch'
+    : room.mediaType === 'book' ? 'read'
+    : room.mediaType === 'game' ? 'play'
+    : room.mediaType === 'album' ? 'listen'
+    : room.mediaType === 'podcast' ? 'podcast' : null;
+  const typeColors = tcKey ? (TypeColors as any)[tcKey] : { color: '#6B7280', bg: '#F3F4F6' };
+
+  return (
+    <View style={styles.roomSection}>
+      {/* Room header — tappable to open content room */}
+      <Pressable
+        style={styles.roomHeader}
+        onPress={() => router.push({
+          pathname: '/content-room-modal',
+          params: { externalId: room.externalId, mediaType: room.mediaType, title: room.contentTitle, poster: room.contentPoster ?? '' },
+        })}>
+        <View style={styles.roomHeaderLeft}>
+          {room.contentPoster ? (
+            <Image source={{ uri: room.contentPoster }} style={styles.roomPoster} resizeMode="cover" />
+          ) : (
+            <View style={[styles.roomPoster, { backgroundColor: typeColors.bg }]} />
+          )}
+          <View style={styles.roomHeaderText}>
+            <Text style={[styles.roomBecause, { color: Brand.muted }]}>Because you logged</Text>
+            <Text style={[styles.roomContentTitle, { color: Brand.ink }]} numberOfLines={1}>{room.contentTitle}</Text>
+          </View>
+        </View>
+        <SymbolView name="chevron.right" size={13} tintColor={Brand.muted} type="monochrome" style={{ width: 13, height: 13 }} />
+      </Pressable>
+
+      {/* Horizontal scroll of discussion cards */}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomCards}>
+        {room.discussions.map((d) => (
+          <Pressable
+            key={d.id}
+            style={[styles.miniCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
+            onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: d.id } })}>
+            <Text style={[styles.miniTitle, { color: Brand.ink }]} numberOfLines={2}>{d.title}</Text>
+            {d.body ? <Text style={[styles.miniBody, { color: Brand.muted }]} numberOfLines={2}>{d.body}</Text> : null}
+            <View style={styles.miniFooter}>
+              <Text style={[styles.miniMeta, { color: Brand.muted }]}>💬 {d.comment_count}  ↑ {d.upvote_count}</Text>
+            </View>
+          </Pressable>
+        ))}
+        <Pressable
+          style={[styles.miniCardSeeAll, { backgroundColor: Brand.tlight, borderColor: Brand.border }]}
+          onPress={() => router.push({
+            pathname: '/content-room-modal',
+            params: { externalId: room.externalId, mediaType: room.mediaType, title: room.contentTitle, poster: room.contentPoster ?? '' },
+          })}>
+          <Text style={[styles.miniSeeAll, { color: Brand.trust }]}>See all →</Text>
+        </Pressable>
+      </ScrollView>
+    </View>
+  );
+}
+
 export function GlobalView({ filter }: { filter: FeedFilterValue }) {
   const Brand = useBrand();
   const [searchQuery, setSearchQuery] = useState('');
   const isSearching = searchQuery.trim().length >= 2;
 
   const discussionType = filter === 'all' ? 'all' : filter as DiscussionType;
-  const { data: discussions = [], isLoading: dLoading } = useDiscussions(discussionType);
+  const [showAll, setShowAll] = useState(false);
+  const { data: trending = [], isLoading: dLoading } = useTrendingDiscussions(showAll ? 50 : 5, discussionType);
+  const { data: personalizedRooms = [] } = usePersonalizedRooms();
+  const { data: followedFeed = [] } = useFollowedRoomsFeed();
+
+  // Hide "Because you logged" rooms the user already follows
+  const followedKeys = new Set(followedFeed.map((d) => `${d.content_external_id}|${d.content_media_type}`));
+  const unfollowedRooms = personalizedRooms.filter((r) => !followedKeys.has(`${r.externalId}|${r.mediaType}`));
   const typeFilter = filter === 'all' ? 'all' : filter;
 
   return (
@@ -125,7 +191,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
       {/* Main content — hidden while searching */}
       {!isSearching && (
         <>
-          {/* Discussions board */}
+          {/* Trending discussions */}
           <View style={styles.sectionRow}>
             <Text style={[styles.sectionTitle, { color: Brand.ink }]}>💬 Discussions</Text>
             <Pressable
@@ -138,7 +204,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
 
           {dLoading ? (
             <ActivityIndicator style={{ marginVertical: 20 }} color={Brand.trust} />
-          ) : discussions.length === 0 ? (
+          ) : trending.length === 0 ? (
             <Pressable
               style={[styles.emptyBoard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
               onPress={() => router.push('/create-discussion-modal')}>
@@ -147,8 +213,51 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
               <Text style={[styles.emptyBoardSub, { color: Brand.muted }]}>Be the first to start one</Text>
             </Pressable>
           ) : (
-            discussions.map((d) => <DiscussionCard key={d.id} item={d} />)
+            <>
+              {trending.map((d) => <DiscussionCard key={d.id} item={d} />)}
+              {trending.length >= 5 && (
+                <Pressable
+                  style={[styles.viewMoreBtn, { backgroundColor: Brand.tlight }]}
+                  onPress={() => setShowAll((v) => !v)}>
+                  <Text style={[styles.viewMoreText, { color: Brand.trust }]}>
+                    {showAll ? 'Show less' : 'View more discussions'}
+                  </Text>
+                </Pressable>
+              )}
+            </>
           )}
+
+          {/* Followed rooms feed */}
+          {followedFeed.length > 0 && (
+            <>
+              <Text style={[styles.sectionTitle, { color: Brand.ink, marginTop: 6 }]}>Rooms you follow</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.followedScroll}>
+                {followedFeed.slice(0, 10).map((d) => (
+                  <Pressable
+                    key={d.id}
+                    style={[styles.followedCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
+                    onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: d.id } })}>
+                    {d.content_poster ? (
+                      <Image source={{ uri: d.content_poster }} style={styles.followedPoster} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.followedPoster, { backgroundColor: Brand.tlight }]} />
+                    )}
+                    <Text style={[styles.followedRoom, { color: Brand.muted }]} numberOfLines={1}>{d.content_title}</Text>
+                    <Text style={[styles.followedTitle, { color: Brand.ink }]} numberOfLines={3}>{d.title}</Text>
+                    <Text style={[styles.followedMeta, { color: Brand.muted }]}>💬 {d.comment_count}  ↑ {d.upvote_count}</Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </>
+          )}
+
+          {/* Personalized content rooms */}
+          {unfollowedRooms.map((room) => (
+            <PersonalizedRoomRow key={room.externalId} room={room} Brand={Brand} />
+          ))}
 
           {/* Most Reviewed — filtered by active chip */}
           <MostReviewedSection typeFilter={typeFilter as EntryType | 'all'} />
@@ -249,5 +358,60 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     lineHeight: 20,
   },
+
+  viewMoreBtn: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderRadius: 14,
+    marginBottom: 4,
+  },
+  viewMoreText: { fontFamily: BrandFonts.syneBold, fontSize: 13.5 },
+
+  // Personalized room rows
+  roomSection: { marginTop: 20, gap: 10 },
+  roomHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  roomHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
+  roomPoster: { width: 36, height: 48, borderRadius: 6, flexShrink: 0 },
+  roomHeaderText: { flex: 1 },
+  roomBecause: { fontFamily: BrandFonts.interRegular, fontSize: 11, marginBottom: 2 },
+  roomContentTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15 },
+  roomCards: { flexDirection: 'row', gap: 10, paddingRight: 4 },
+  miniCard: {
+    width: 180,
+    borderWidth: 1,
+    borderRadius: 14,
+    padding: 12,
+    gap: 6,
+    justifyContent: 'space-between',
+  },
+  miniTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13, lineHeight: 18 },
+  miniBody: { fontFamily: BrandFonts.interRegular, fontSize: 12, lineHeight: 16, flex: 1 },
+  miniFooter: {},
+  miniMeta: { fontFamily: BrandFonts.interRegular, fontSize: 11 },
+  miniCardSeeAll: {
+    width: 100,
+    borderWidth: 1,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  miniSeeAll: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
+  // followed rooms feed
+  followedScroll: { flexDirection: 'row', gap: 8, paddingRight: 4, paddingBottom: 4 },
+  followedCard: {
+    width: 110,
+    borderWidth: 1,
+    borderRadius: 12,
+    padding: 8,
+    gap: 4,
+  },
+  followedPoster: { width: '100%' as any, height: 58, borderRadius: 6 },
+  followedRoom: { fontFamily: BrandFonts.interRegular, fontSize: 9 },
+  followedTitle: { fontFamily: BrandFonts.syneBold, fontSize: 11, lineHeight: 14, flex: 1 },
+  followedMeta: { fontFamily: BrandFonts.interRegular, fontSize: 9 },
 });
 

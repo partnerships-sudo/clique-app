@@ -16,6 +16,7 @@ import { useContentDetails, type ContentDetails } from '@/features/content/api';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
 import { ShareSheet } from '@/components/feed/share-sheet';
 import { useBecauseYouRecs } from '@/features/feed/for-you';
+import { useFriendsWhoLogged } from '@/features/social/friends-logged';
 import { useStudioFilms } from '@/features/ads/api';
 import { useTVEpisodes } from '@/features/search/api';
 import { getWhereToFindConfig } from '@/features/where-to-find/links';
@@ -309,6 +310,8 @@ export default function ContentDetailModal() {
     isTvShow && activeSeason !== null ? (params.externalId ?? null) : null,
     activeSeason,
   );
+
+  const { data: friendsWhoLogged = [] } = useFriendsWhoLogged(params.title, resolvedType);
 
   const { data: similarTitles = [] } = useBecauseYouRecs({
     title: params.title,
@@ -682,6 +685,55 @@ export default function ContentDetailModal() {
             ))}
           </View>
 
+          {/* Friends who logged this */}
+          {friendsWhoLogged.length > 0 ? (
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Your friends logged this</Text>
+              <View style={styles.friendsLoggedRow}>
+                {/* Avatar stack — up to 5 overlapping */}
+                <View style={styles.avatarStack}>
+                  {friendsWhoLogged.slice(0, 5).map((f, i) => (
+                    <View key={f.userId} style={[styles.avatarWrap, { zIndex: 5 - i, marginLeft: i === 0 ? 0 : -10 }]}>
+                      {f.avatarUrl ? (
+                        <Image source={{ uri: f.avatarUrl }} style={styles.friendAvatar} />
+                      ) : (
+                        <View style={[styles.friendAvatar, styles.friendAvatarFallback]}>
+                          <Text style={styles.friendAvatarInitial}>
+                            {(f.username ?? f.fullName ?? '?')[0].toUpperCase()}
+                          </Text>
+                        </View>
+                      )}
+                      {f.isCloseFriend && <View style={styles.closeFriendDot} />}
+                    </View>
+                  ))}
+                </View>
+
+                {/* Summary text */}
+                <View style={styles.friendsLoggedInfo}>
+                  <Text style={styles.friendsLoggedNames} numberOfLines={1}>
+                    {friendsWhoLogged.length === 1
+                      ? (friendsWhoLogged[0].username ?? 'A friend')
+                      : friendsWhoLogged.length === 2
+                      ? `${friendsWhoLogged[0].username ?? 'A friend'} & ${friendsWhoLogged[1].username ?? 'another'}`
+                      : `${friendsWhoLogged[0].username ?? 'A friend'} & ${friendsWhoLogged.length - 1} others`}
+                  </Text>
+                  {(() => {
+                    const rated = friendsWhoLogged.filter((f) => f.rating !== null);
+                    if (rated.length === 0) return <Text style={styles.friendsLoggedSub}>logged this</Text>;
+                    const avg = rated.reduce((sum, f) => sum + f.rating!, 0) / rated.length;
+                    const icon = rated[0].ratingIcon ?? '⭐';
+                    const iconChar = icon === 'star' ? '⭐' : icon === 'popcorn' ? '🍿' : icon === 'hotdog' ? '🌭' : icon === 'soda' ? '🥤' : '⭐';
+                    return (
+                      <Text style={styles.friendsLoggedSub}>
+                        avg {iconChar.repeat(Math.round(avg))} {avg.toFixed(1)} · {rated.length === friendsWhoLogged.length ? 'all rated' : `${rated.length} rated`}
+                      </Text>
+                    );
+                  })()}
+                </View>
+              </View>
+            </View>
+          ) : null}
+
           {/* Similar titles */}
           {recEntries.length > 0 ? (
             <View style={styles.section}>
@@ -1022,6 +1074,68 @@ function createStyles(Brand: BrandPalette) {
     fontFamily: BrandFonts.syneBold,
     fontSize: 12,
     color: Brand.trust,
+  },
+
+  // Friends who logged
+  friendsLoggedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 12,
+    padding: 12,
+  },
+  avatarStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatarWrap: {
+    position: 'relative',
+  },
+  friendAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 2,
+    borderColor: Brand.card,
+  },
+  friendAvatarFallback: {
+    backgroundColor: Brand.tlight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendAvatarInitial: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 13,
+    color: Brand.trust,
+  },
+  closeFriendDot: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: '#4ADE80',
+    borderWidth: 1.5,
+    borderColor: Brand.card,
+  },
+  friendsLoggedInfo: {
+    flex: 1,
+    minWidth: 0,
+  },
+  friendsLoggedNames: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 13,
+    color: Brand.ink,
+  },
+  friendsLoggedSub: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 11.5,
+    color: Brand.muted,
+    marginTop: 2,
   },
 
   // Store links

@@ -11,7 +11,7 @@ const WEBHOOK_SECRET = Deno.env.get('NOTIFY_WEBHOOK_SECRET')!;
 
 const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY);
 
-type Category = 'messages' | 'friend_requests' | 'reactions' | 'recommendations' | 'daily_nudge' | 'rating_reminders';
+type Category = 'messages' | 'friend_requests' | 'reactions' | 'recommendations' | 'daily_nudge' | 'rating_reminders' | 'discussions';
 
 // Rotated randomly so it doesn't feel like the same canned message every
 // night — same title throughout since it's always from the app itself.
@@ -137,6 +137,97 @@ Deno.serve(async (req) => {
             }),
           ),
         );
+        break;
+      }
+
+      case 'discussions': {
+        // New discussion posted — notify followers of this content room
+        if (type !== 'INSERT') break;
+        if (!record.content_external_id || !record.content_media_type) break;
+        const authorName = await getName(record.user_id);
+
+        const { data: followers } = await supabase
+          .from('content_room_follows')
+          .select('user_id')
+          .eq('external_id', record.content_external_id)
+          .eq('media_type', record.content_media_type)
+          .eq('muted', false)
+          .neq('user_id', record.user_id); // don't notify the author
+
+        await Promise.all(
+          (followers ?? []).map((f) =>
+            pushTo(
+              f.user_id,
+              'discussions',
+              `${authorName} posted in ${record.content_title ?? 'a room you follow'}`,
+              record.title,
+              { type: 'discussion_detail', discussionId: record.id },
+            ),
+          ),
+        );
+        break;
+      }
+
+      case 'discussion_comments': {
+        if (type !== 'INSERT') break;
+        const commenterName = await getName(record.user_id);
+
+        // Fetch the parent discussion
+        const { data: discussion } = await supabase
+          .from('discussions')
+          .select('user_id, title')
+          .eq('id', record.discussion_id)
+          .single();
+        if (!discussion) break;
+
+        if (record.parent_id) {
+          // Reply to a comment — notify the parent comment author
+          const { data: parent } = await supabase
+            .from('discussion_comments')
+            .select('user_id')
+            .eq('id', record.parent_id)
+            .single();
+          if (parent && parent.user_id !== record.user_id) {
+            await pushTo(
+              parent.user_id,
+              'discussions',
+              `${commenterName} replied to your comment`,
+              `On "${discussion.title}": "${record.content.slice(0, 80)}"`,
+              { type: 'discussion_comment', discussionId: record.discussion_id },
+            );
+          }
+        } else {
+          // Top-level comment — notify the discussion author
+          if (discussion.user_id !== record.user_id) {
+            await pushTo(
+              discussion.user_id,
+              'discussions',
+              `${commenterName} commented on your discussion`,
+              `"${discussion.title}": "${record.content.slice(0, 80)}"`,
+              { type: 'discussion_comment', discussionId: record.discussion_id },
+            );
+          }
+
+          // Also notify anyone else who has previously commented (minus the new commenter)
+          const { data: prevCommenters } = await supabase
+            .from('discussion_comments')
+            .select('user_id')
+            .eq('discussion_id', record.discussion_id)
+            .neq('user_id', record.user_id)
+            .neq('user_id', discussion.user_id); // already notified above
+          const otherIds = [...new Set((prevCommenters ?? []).map((c) => c.user_id))];
+          await Promise.all(
+            otherIds.map((id) =>
+              pushTo(
+                id,
+                'discussions',
+                `${commenterName} also commented`,
+                `On "${discussion.title}": "${record.content.slice(0, 80)}"`,
+                { type: 'discussion_comment', discussionId: record.discussion_id },
+              ),
+            ),
+          );
+        }
         break;
       }
 

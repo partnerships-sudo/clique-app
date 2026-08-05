@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -275,8 +275,12 @@ export default function DiscussionDetailModal() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
-          await deleteDiscussion.mutateAsync(discussion.id);
-          router.back();
+          try {
+            await deleteDiscussion.mutateAsync(discussion.id);
+            router.back();
+          } catch (err: any) {
+            Alert.alert('Error', `Could not delete discussion: ${err?.message ?? 'Unknown error'}`);
+          }
         },
       },
     ]);
@@ -286,7 +290,7 @@ export default function DiscussionDetailModal() {
   const typeLabel = TYPE_LABELS[discussion?.type ?? 'general'] ?? 'General';
 
   // Header rendered inside FlatList for scrolling continuity
-  const ListHeader = useCallback(() => {
+  const ListHeader = () => {
     if (!discussion) return null;
     const isOwn = user?.id === discussion.user_id;
 
@@ -423,7 +427,7 @@ export default function DiscussionDetailModal() {
         </Text>
       </View>
     );
-  }, [discussion, Brand, typeColor, typeLabel]);
+  };
 
   return (
     <SafeAreaView style={[styles_.safe, { backgroundColor: Brand.paper }]} edges={['top']}>

@@ -116,58 +116,58 @@ export function DiscussionCard({ item }: { item: Discussion }) {
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 18,
-    padding: 14,
-    gap: 10,
-    marginBottom: 10,
+    borderRadius: 14,
+    padding: 10,
+    gap: 6,
+    marginBottom: 8,
   },
   typePill: {
     alignSelf: 'flex-start',
     borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
   },
   typeText: {
     fontFamily: BrandFonts.interMedium,
-    fontSize: 10,
+    fontSize: 9,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },
   contentRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     alignItems: 'flex-start',
   },
   textBlock: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
   title: {
     fontFamily: BrandFonts.syneExtraBold,
-    fontSize: 15,
-    lineHeight: 20,
+    fontSize: 13,
+    lineHeight: 17,
   },
   body: {
     fontFamily: BrandFonts.interRegular,
-    fontSize: 13,
-    lineHeight: 18,
+    fontSize: 12,
+    lineHeight: 16,
   },
   linkedTag: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    marginTop: 2,
+    borderRadius: 7,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    marginTop: 1,
   },
   linkedText: {
     fontFamily: BrandFonts.interMedium,
-    fontSize: 11,
+    fontSize: 10,
   },
   poster: {
-    width: 52,
-    height: 72,
-    borderRadius: 8,
+    width: 42,
+    height: 58,
+    borderRadius: 7,
     flexShrink: 0,
   },
   footer: {
@@ -178,17 +178,17 @@ const styles = StyleSheet.create({
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     flex: 1,
   },
   meta: {
     fontFamily: BrandFonts.interRegular,
-    fontSize: 12,
+    fontSize: 11,
   },
   footerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
   stat: {
     flexDirection: 'row',
@@ -197,6 +197,6 @@ const styles = StyleSheet.create({
   },
   statText: {
     fontFamily: BrandFonts.interMedium,
-    fontSize: 12,
+    fontSize: 11,
   },
 });

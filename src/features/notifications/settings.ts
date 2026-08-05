@@ -10,6 +10,7 @@ export interface NotificationSettings {
   recommendations: boolean;
   daily_nudge: boolean;
   rating_reminders: boolean;
+  discussions: boolean;
 }
 
 const DEFAULT_SETTINGS: NotificationSettings = {
@@ -19,6 +20,7 @@ const DEFAULT_SETTINGS: NotificationSettings = {
   recommendations: true,
   daily_nudge: true,
   rating_reminders: true,
+  discussions: true,
 };
 
 export function useNotificationSettings() {
@@ -31,7 +33,7 @@ export function useNotificationSettings() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('notification_settings')
-        .select('messages, friend_requests, reactions, recommendations, daily_nudge, rating_reminders')
+        .select('messages, friend_requests, reactions, recommendations, daily_nudge, rating_reminders, discussions')
         .eq('user_id', user!.id)
         .maybeSingle();
       if (error) throw error;

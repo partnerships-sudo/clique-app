@@ -665,3 +665,188 @@ export function useCreateDiscussionPoll() {
     },
   });
 }
+
+// ── Content room follows ───────────────────────────────────────────────────────
+
+export interface RoomFollowState {
+  following: boolean;
+  muted: boolean;
+  rowId: string | null;
+}
+
+export function useRoomFollowState(externalId: string | undefined, mediaType: string | undefined) {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['room-follow', externalId, mediaType, user?.id],
+    queryFn: async (): Promise<RoomFollowState> => {
+      if (!externalId || !mediaType || !user) return { following: false, muted: false, rowId: null };
+      const { data } = await supabase
+        .from('content_room_follows')
+        .select('id, muted')
+        .eq('user_id', user.id)
+        .eq('external_id', externalId)
+        .eq('media_type', mediaType)
+        .maybeSingle();
+      return data
+        ? { following: true, muted: (data as any).muted ?? false, rowId: data.id }
+        : { following: false, muted: false, rowId: null };
+    },
+    enabled: !!externalId && !!mediaType && !!user,
+    staleTime: 60 * 1000,
+  });
+}
+
+export function useMuteRoomFollow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ rowId, muted }: { rowId: string; muted: boolean; externalId: string; mediaType: string; userId: string | undefined }) => {
+      const { error } = await supabase
+        .from('content_room_follows')
+        .update({ muted })
+        .eq('id', rowId);
+      if (error) throw error;
+    },
+    onMutate: async ({ externalId, mediaType, userId, muted }) => {
+      const key = ['room-follow', externalId, mediaType, userId];
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<RoomFollowState>(key);
+      if (prev) queryClient.setQueryData(key, { ...prev, muted });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx: any) => {
+      if (ctx?.key) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSettled: (_data, _err, { externalId, mediaType, userId }) => {
+      queryClient.invalidateQueries({ queryKey: ['room-follow', externalId, mediaType, userId] });
+    },
+  });
+}
+
+export function useToggleRoomFollow() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ externalId, mediaType, following }: { externalId: string; mediaType: string; following: boolean }) => {
+      if (!user) throw new Error('Not signed in');
+      if (following) {
+        const { error } = await supabase
+          .from('content_room_follows')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('external_id', externalId)
+          .eq('media_type', mediaType);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('content_room_follows')
+          .insert({ user_id: user.id, external_id: externalId, media_type: mediaType });
+        if (error) throw error;
+      }
+    },
+    onMutate: async ({ externalId, mediaType, following }) => {
+      const key = ['room-follow', externalId, mediaType, user?.id];
+      await queryClient.cancelQueries({ queryKey: key });
+      const prev = queryClient.getQueryData<RoomFollowState>(key);
+      queryClient.setQueryData(key, following
+        ? { following: false, muted: false, rowId: null }
+        : { following: true, muted: false, rowId: 'optimistic' });
+      return { prev, key };
+    },
+    onError: (_err, _vars, ctx: any) => {
+      if (ctx?.key) queryClient.setQueryData(ctx.key, ctx.prev);
+    },
+    onSettled: (_data, _err, { externalId, mediaType }) => {
+      queryClient.invalidateQueries({ queryKey: ['room-follow', externalId, mediaType, user?.id] });
+      queryClient.invalidateQueries({ queryKey: ['followed-rooms-feed'] });
+    },
+  });
+}
+
+export interface FollowedRoomDiscussion {
+  id: string;
+  title: string;
+  body: string | null;
+  type: DiscussionType;
+  upvote_count: number;
+  comment_count: number;
+  created_at: string;
+  author_name: string;
+  author_avatar: string | null;
+  content_title: string | null;
+  content_poster: string | null;
+  content_external_id: string | null;
+  content_media_type: string | null;
+  has_voted: boolean;
+}
+
+export function useFollowedRoomsFeed() {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['followed-rooms-feed', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+
+      // Get rooms this user follows
+      const { data: follows } = await supabase
+        .from('content_room_follows')
+        .select('external_id, media_type')
+        .eq('user_id', user.id);
+      if (!follows || follows.length === 0) return [];
+
+      // Fetch recent discussions for those rooms
+      const results: any[] = [];
+      for (const f of follows) {
+        const { data } = await supabase
+          .from('discussions')
+          .select('*, discussion_votes(user_id)')
+          .eq('content_external_id', f.external_id)
+          .eq('content_media_type', f.media_type)
+          .order('created_at', { ascending: false })
+          .limit(5);
+        if (data) results.push(...data as any[]);
+      }
+
+      // Sort by activity: most comments + votes first, then most recent
+      results.sort((a, b) => {
+        const scoreA = (a.comment_count ?? 0) + (a.upvote_count ?? 0);
+        const scoreB = (b.comment_count ?? 0) + (b.upvote_count ?? 0);
+        if (scoreB !== scoreA) return scoreB - scoreA;
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+      // Hydrate author profiles
+      const userIds = [...new Set(results.map((r) => r.user_id))];
+      const profileMap = new Map<string, { full_name: string; username: string; avatar_url: string | null }>();
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, username, avatar_url')
+          .in('id', userIds);
+        for (const p of profiles ?? []) profileMap.set(p.id, p);
+      }
+
+      return results.map((row: any) => {
+        const profile = profileMap.get(row.user_id);
+        const votes: any[] = row.discussion_votes ?? [];
+        return {
+          id: row.id,
+          title: row.title,
+          body: row.body,
+          type: row.type,
+          upvote_count: row.upvote_count ?? 0,
+          comment_count: row.comment_count ?? 0,
+          created_at: row.created_at,
+          author_name: profile?.full_name ?? profile?.username ?? 'Someone',
+          author_avatar: profile?.avatar_url ?? null,
+          content_title: row.content_title,
+          content_poster: row.content_poster,
+          content_external_id: row.content_external_id,
+          content_media_type: row.content_media_type,
+          has_voted: votes.some((v) => v.user_id === user?.id),
+        } as FollowedRoomDiscussion;
+      });
+    },
+    enabled: !!user,
+    staleTime: 60 * 1000,
+  });
+}
