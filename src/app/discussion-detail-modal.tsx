@@ -351,21 +351,6 @@ export default function DiscussionDetailModal() {
           <Text style={[styles_.discussionBody, { color: Brand.ink }]}>{discussion.body}</Text>
         ) : null}
 
-        {/* Poll */}
-        {poll ? (
-          <PollBlock
-            poll={poll}
-            Brand={Brand}
-            onVote={(optionIndex) => {
-              if (poll.my_vote !== null) return;
-              voteOnPoll.mutate(
-                { pollId: poll.id, optionIndex, discussionId: id },
-                { onError: (err) => Alert.alert('Error', `Could not save vote: ${(err as any)?.message ?? 'unknown error'}`) },
-              );
-            }}
-          />
-        ) : null}
-
         {/* Linked content — taps into content room */}
         {discussion.content_title && discussion.content_external_id && (
           <Pressable
@@ -387,6 +372,21 @@ export default function DiscussionDetailModal() {
             </Text>
           </Pressable>
         )}
+
+        {/* Poll */}
+        {poll ? (
+          <PollBlock
+            poll={poll}
+            Brand={Brand}
+            onVote={(optionIndex) => {
+              if (poll.my_vote !== null) return;
+              voteOnPoll.mutate(
+                { pollId: poll.id, optionIndex, discussionId: id },
+                { onError: (err) => Alert.alert('Error', `Could not save vote: ${(err as any)?.message ?? 'unknown error'}`) },
+              );
+            }}
+          />
+        ) : null}
 
         {/* Author row + vote */}
         <View style={styles_.authorRow}>
