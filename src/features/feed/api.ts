@@ -25,6 +25,8 @@ export interface Post {
   media_type: string | null;
   created_at: string;
   visibility: 'everyone' | 'close_friends';
+  watch_count: number; // 1 = first log, 2 = rewatch/re-read, etc.
+  is_spoiler: boolean;
 }
 
 export type FeedFilterValue = EntryType | 'all';
@@ -198,6 +200,7 @@ type CreatePostInput = {
   externalId?: string;
   mediaType?: string;
   visibility?: 'everyone' | 'close_friends';
+  isSpoiler?: boolean;
 };
 
 export function useCreatePost() {
@@ -206,6 +209,22 @@ export function useCreatePost() {
   return useMutation({
     mutationFn: async (input: CreatePostInput) => {
       const userName = user?.user_metadata?.username ?? user?.email?.split('@')[0] ?? 'You';
+
+      // Count how many times the user has already logged this title so we can
+      // label the new post as "2nd watch", "3rd read", etc.
+      const priorQ = supabase
+        .from('posts')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', user!.id)
+        .eq('type', input.type);
+      if (input.externalId) {
+        priorQ.eq('external_id', input.externalId);
+      } else {
+        priorQ.eq('title', input.title);
+      }
+      const { count: priorCount } = await priorQ;
+      const watch_count = (priorCount ?? 0) + 1;
+
       const { data, error } = await supabase
         .from('posts')
         .insert({
@@ -221,6 +240,8 @@ export function useCreatePost() {
           external_id: input.externalId ?? null,
           media_type: input.mediaType ?? null,
           visibility: input.visibility ?? 'everyone',
+          watch_count,
+          is_spoiler: input.isSpoiler ?? false,
         })
         .select()
         .single();

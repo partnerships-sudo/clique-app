@@ -96,7 +96,7 @@ function ContentSearchStep({
                   <View style={[searchStyles.thumb, { backgroundColor: colors.bg }]} />
                 )}
                 <View style={searchStyles.rowBody}>
-                  <Text style={[searchStyles.rowType, { color: colors.color }]}>{colors.label?.toUpperCase()}</Text>
+                  <Text style={[searchStyles.rowType, { color: colors.color }]}>{r.mediaType === 'tv' ? 'TV SERIES' : r.mediaType === 'movie' ? 'FILM' : r.entryType?.toUpperCase()}</Text>
                   <Text style={[searchStyles.rowTitle, { color: Brand.ink }]} numberOfLines={1}>{r.title}</Text>
                   {r.sub ? <Text style={[searchStyles.rowSub, { color: Brand.muted }]} numberOfLines={1}>{r.sub}</Text> : null}
                 </View>

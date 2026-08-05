@@ -36,6 +36,7 @@ export interface DiscussionComment {
   author_name: string;
   author_handle: string;
   author_avatar: string | null;
+  is_spoiler: boolean;
 }
 
 // ── List ────────────────────────────────────────────────────────────────────
@@ -170,6 +171,7 @@ export function useDiscussionComments(discussionId: string | undefined) {
           author_name: profile?.username || profile?.full_name || 'Someone',
           author_handle: profile?.username ?? '',
           author_avatar: profile?.avatar_url ?? null,
+          is_spoiler: row.is_spoiler ?? false,
         } as DiscussionComment;
       });
     },
@@ -276,16 +278,19 @@ export function useAddDiscussionComment() {
       discussionId,
       body,
       parentId,
+      isSpoiler,
     }: {
       discussionId: string;
       body: string;
       parentId?: string | null;
+      isSpoiler?: boolean;
     }) => {
       const { error } = await supabase.from('discussion_comments').insert({
         discussion_id: discussionId,
         user_id: user!.id,
         body: body.trim(),
         parent_id: parentId ?? null,
+        is_spoiler: isSpoiler ?? false,
       });
       if (error) throw error;
     },

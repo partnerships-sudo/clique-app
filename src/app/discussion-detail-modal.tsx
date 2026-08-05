@@ -61,6 +61,11 @@ const commentStyles = StyleSheet.create({
   text: { fontFamily: BrandFonts.interRegular, fontSize: 14, lineHeight: 20 },
   actions: { flexDirection: 'row', gap: 12, marginTop: 2 },
   btn: { fontFamily: BrandFonts.interMedium, fontSize: 12 },
+  spoilerBadge: { fontFamily: BrandFonts.interMedium, fontSize: 10 },
+  spoilerWrap: { position: 'relative' },
+  spoilerBlurred: { color: 'transparent', textShadowColor: 'rgba(0,0,0,0.3)', textShadowRadius: 8 },
+  spoilerOverlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  spoilerReveal: { fontFamily: BrandFonts.interMedium, fontSize: 12 },
 });
 
 function CommentRow({
@@ -78,6 +83,8 @@ function CommentRow({
 }) {
   const { user } = useSession();
   const isOwn = user?.id === comment.user_id;
+  const [spoilerRevealed, setSpoilerRevealed] = useState(false);
+  const showBlur = comment.is_spoiler && !spoilerRevealed;
 
   return (
     <View style={[commentStyles.row, isReply && commentStyles.rowReply, { borderColor: Brand.border }]}>
@@ -86,9 +93,21 @@ function CommentRow({
       <View style={commentStyles.body}>
         <View style={commentStyles.header}>
           <Text style={[commentStyles.author, { color: Brand.ink }]}>{comment.author_name}</Text>
+          {comment.is_spoiler && (
+            <Text style={[commentStyles.spoilerBadge, { color: Brand.muted }]}>🔒 spoiler</Text>
+          )}
           <Text style={[commentStyles.time, { color: Brand.muted }]}>{timeAgo(comment.created_at)}</Text>
         </View>
-        <Text style={[commentStyles.text, { color: Brand.ink }]}>{comment.body}</Text>
+        {showBlur ? (
+          <Pressable onPress={() => setSpoilerRevealed(true)} style={commentStyles.spoilerWrap}>
+            <Text style={[commentStyles.text, commentStyles.spoilerBlurred]} numberOfLines={2}>{comment.body}</Text>
+            <View style={commentStyles.spoilerOverlay}>
+              <Text style={[commentStyles.spoilerReveal, { color: Brand.muted }]}>Tap to reveal</Text>
+            </View>
+          </Pressable>
+        ) : (
+          <Text style={[commentStyles.text, { color: Brand.ink }]}>{comment.body}</Text>
+        )}
         <View style={commentStyles.actions}>
           <Pressable onPress={() => onReply(comment)} hitSlop={8}>
             <Text style={[commentStyles.btn, { color: Brand.muted }]}>Reply</Text>
@@ -191,6 +210,7 @@ export default function DiscussionDetailModal() {
   const deleteComment = useDeleteDiscussionComment();
 
   const [text, setText] = useState('');
+  const [isSpoiler, setIsSpoiler] = useState(false);
   const [replyTo, setReplyTo] = useState<DiscussionComment | null>(null);
   const inputRef = useRef<TextInput>(null);
 
@@ -250,8 +270,9 @@ export default function DiscussionDetailModal() {
   async function handleSend() {
     if (!text.trim() || !id) return;
     try {
-      await addComment.mutateAsync({ discussionId: id, body: text.trim(), parentId: replyTo?.id });
+      await addComment.mutateAsync({ discussionId: id, body: text.trim(), parentId: replyTo?.id, isSpoiler });
       setText('');
+      setIsSpoiler(false);
       setReplyTo(null);
     } catch {
       Alert.alert('Error', 'Could not post comment.');
@@ -494,6 +515,14 @@ export default function DiscussionDetailModal() {
             multiline
             maxLength={5000}
           />
+          {text.trim().length > 0 && (
+            <Pressable
+              onPress={() => setIsSpoiler((v) => !v)}
+              hitSlop={8}
+              style={[styles_.spoilerToggle, isSpoiler && { backgroundColor: Brand.tlight, borderColor: Brand.trust }]}>
+              <Text style={[styles_.spoilerToggleText, { color: isSpoiler ? Brand.trust : Brand.muted }]}>🔒</Text>
+            </Pressable>
+          )}
           <Pressable
             onPress={handleSend}
             disabled={!text.trim() || addComment.isPending}
@@ -609,5 +638,15 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 14,
       maxHeight: 100,
     },
+    spoilerToggle: {
+      width: 32,
+      height: 32,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'transparent',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    spoilerToggleText: { fontSize: 16 },
   });
 }

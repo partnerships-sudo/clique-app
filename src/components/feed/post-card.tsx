@@ -42,6 +42,20 @@ function formatLoggedDate(isoDate: string) {
   return new Date(isoDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 }
 
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] ?? s[v] ?? s[0]);
+}
+
+const REWATCH_VERB: Partial<Record<string, string>> = {
+  watch: 'watch',
+  read: 'read',
+  play: 'playthrough',
+  listen: 'listen',
+  podcast: 'listen',
+};
+
 
 function PageTracker({
   libraryItemId,
@@ -137,6 +151,26 @@ function PageTracker({
   );
 }
 
+function NoteBlock({ note, isSpoiler, revealed, onReveal, styles }: {
+  note: string;
+  isSpoiler: boolean;
+  revealed: boolean;
+  onReveal: () => void;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  if (!isSpoiler || revealed) {
+    return <Text style={styles.note} numberOfLines={isSpoiler ? undefined : 3}>&ldquo;{note}&rdquo;</Text>;
+  }
+  return (
+    <Pressable onPress={onReveal} style={styles.spoilerWrap}>
+      <Text style={styles.spoilerBlurred} numberOfLines={2}>&ldquo;{note}&rdquo;</Text>
+      <View style={styles.spoilerOverlay}>
+        <Text style={styles.spoilerLabel}>🔒 Spoiler — tap to reveal</Text>
+      </View>
+    </Pressable>
+  );
+}
+
 export function PostCard({
   post,
   isMine,
@@ -169,6 +203,7 @@ export function PostCard({
   const type = TypeColors[post.type as keyof typeof TypeColors] ?? { color: '#888', bg: '#EEE', icon: '📝', label: post.type };
   const meReacted = reactions.some((r) => r.user_id === currentUserId);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [spoilerRevealed, setSpoilerRevealed] = useState(false);
   const emojiSummary = emojiReactions ?? { counts: {}, mine: new Set<string>() };
   const toggleEmoji = useToggleEmojiReaction();
   const topEmojis = Object.entries(emojiSummary.counts)
@@ -244,12 +279,21 @@ export function PostCard({
             <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
           </View>
 
+          {/* Rewatch / re-read badge */}
+          {(post.watch_count ?? 1) > 1 && (
+            <View style={styles.rewatchBadge}>
+              <Text style={styles.rewatchText}>
+                {ordinal(post.watch_count)} {REWATCH_VERB[post.type] ?? 'time'}
+              </Text>
+            </View>
+          )}
+
           {isMine && onEdit ? (
             <Pressable onPress={onEdit} accessibilityLabel="Edit rating and review" accessibilityRole="button">
               <Text style={styles.title} numberOfLines={isSquareType ? 1 : 3}>{post.title}</Text>
               {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={2}>{post.sub}</Text> : null}
               {!isSquareType && post.note ? (
-                <Text style={styles.note} numberOfLines={3}>&ldquo;{post.note}&rdquo;</Text>
+                <NoteBlock note={post.note} isSpoiler={post.is_spoiler} revealed={spoilerRevealed} onReveal={() => setSpoilerRevealed(true)} styles={styles} />
               ) : null}
               {post.rating ? (
                 <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
@@ -262,7 +306,7 @@ export function PostCard({
               <Text style={styles.title} numberOfLines={isSquareType ? 1 : 3}>{post.title}</Text>
               {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={2}>{post.sub}</Text> : null}
               {!isSquareType && post.note ? (
-                <Text style={styles.note} numberOfLines={3}>&ldquo;{post.note}&rdquo;</Text>
+                <NoteBlock note={post.note} isSpoiler={post.is_spoiler} revealed={spoilerRevealed} onReveal={() => setSpoilerRevealed(true)} styles={styles} />
               ) : null}
               {post.rating ? (
                 <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
@@ -539,6 +583,43 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 12,
       color: Brand.muted,
       marginTop: 4,
+    },
+    spoilerWrap: {
+      marginTop: 4,
+      borderRadius: 8,
+      overflow: 'hidden',
+    },
+    spoilerBlurred: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 13,
+      lineHeight: 18,
+      color: 'transparent',
+      textShadowColor: Brand.muted,
+      textShadowRadius: 8,
+    },
+    spoilerOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: 'transparent',
+    },
+    spoilerLabel: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 12,
+      color: Brand.muted,
+    },
+    rewatchBadge: {
+      alignSelf: 'flex-start',
+      backgroundColor: Brand.tlight,
+      borderRadius: 6,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      marginBottom: 3,
+    },
+    rewatchText: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 11,
+      color: Brand.trust,
     },
     pageTrackerRow: {
       flexDirection: 'row',
