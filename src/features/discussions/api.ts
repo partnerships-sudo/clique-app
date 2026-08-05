@@ -219,6 +219,25 @@ export function useCreateDiscussion() {
   });
 }
 
+// ── Update ────────────────────────────────────────────────────────────────────
+
+export function useUpdateDiscussion() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, title, body }: { id: string; title: string; body: string | null }) => {
+      const { error } = await supabase
+        .from('discussions')
+        .update({ title: title.trim(), body: body?.trim() || null })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { id }) => {
+      queryClient.invalidateQueries({ queryKey: ['discussion', id] });
+      queryClient.invalidateQueries({ queryKey: ['discussions'] });
+    },
+  });
+}
+
 // ── Vote (toggle) ─────────────────────────────────────────────────────────────
 
 export function useToggleDiscussionVote() {

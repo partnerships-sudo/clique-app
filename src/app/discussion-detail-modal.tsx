@@ -30,6 +30,7 @@ import {
   useDiscussionComments,
   useDiscussionPoll,
   useToggleDiscussionVote,
+  useUpdateDiscussion,
   useVoteOnPoll,
 } from '@/features/discussions/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
@@ -184,6 +185,7 @@ export default function DiscussionDetailModal() {
   const { data: poll } = useDiscussionPoll(id);
   const vote = useToggleDiscussionVote();
   const voteOnPoll = useVoteOnPoll();
+  const updateDiscussion = useUpdateDiscussion();
   const addComment = useAddDiscussionComment();
   const deleteDiscussion = useDeleteDiscussion();
   const deleteComment = useDeleteDiscussionComment();
@@ -191,6 +193,28 @@ export default function DiscussionDetailModal() {
   const [text, setText] = useState('');
   const [replyTo, setReplyTo] = useState<DiscussionComment | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  // Inline edit state
+  const [editing, setEditing] = useState(false);
+  const [editTitle, setEditTitle] = useState('');
+  const [editBody, setEditBody] = useState('');
+
+  function startEdit() {
+    if (!discussion) return;
+    setEditTitle(discussion.title);
+    setEditBody(discussion.body ?? '');
+    setEditing(true);
+  }
+
+  async function saveEdit() {
+    if (!discussion || editTitle.trim().length < 3) return;
+    try {
+      await updateDiscussion.mutateAsync({ id: discussion.id, title: editTitle, body: editBody || null });
+      setEditing(false);
+    } catch {
+      Alert.alert('Error', 'Could not save changes. Please try again.');
+    }
+  }
 
   // Build flat list: top-level + their replies grouped together
   const flatItems = useMemo(() => {
@@ -268,23 +292,62 @@ export default function DiscussionDetailModal() {
 
     return (
       <View style={styles_.discussionHeader}>
-        {/* Type + delete */}
+        {/* Type + edit + delete */}
         <View style={styles_.headerTopRow}>
           <View style={[styles_.typePill, { backgroundColor: typeColor.bg }]}>
             <Text style={[styles_.typeText, { color: typeColor.color }]}>{typeLabel.toUpperCase()}</Text>
           </View>
-          {isOwn && (
-            <Pressable onPress={handleDeleteDiscussion} hitSlop={8}>
-              <SymbolView name="trash" size={16} tintColor="#EF4444" type="monochrome" style={{ width: 16, height: 16 }} />
-            </Pressable>
+          {isOwn && !editing && (
+            <View style={{ flexDirection: 'row', gap: 14 }}>
+              <Pressable onPress={startEdit} hitSlop={8}>
+                <SymbolView name="pencil" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
+              </Pressable>
+              <Pressable onPress={handleDeleteDiscussion} hitSlop={8}>
+                <SymbolView name="trash" size={16} tintColor="#EF4444" type="monochrome" style={{ width: 16, height: 16 }} />
+              </Pressable>
+            </View>
+          )}
+          {isOwn && editing && (
+            <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+              <Pressable onPress={() => setEditing(false)} hitSlop={8}>
+                <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted }}>Cancel</Text>
+              </Pressable>
+              <Pressable onPress={saveEdit} disabled={updateDiscussion.isPending || editTitle.trim().length < 3} hitSlop={8}>
+                {updateDiscussion.isPending
+                  ? <ActivityIndicator size="small" color={Brand.trust} />
+                  : <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust, opacity: editTitle.trim().length < 3 ? 0.4 : 1 }}>Save</Text>}
+              </Pressable>
+            </View>
           )}
         </View>
 
         {/* Title */}
-        <Text style={[styles_.discussionTitle, { color: Brand.ink }]}>{discussion.title}</Text>
+        {editing ? (
+          <TextInput
+            style={[styles_.discussionTitle, styles_.editInput, { color: Brand.ink, borderColor: Brand.border, backgroundColor: Brand.card }]}
+            value={editTitle}
+            onChangeText={setEditTitle}
+            multiline
+            maxLength={300}
+            autoFocus
+          />
+        ) : (
+          <Text style={[styles_.discussionTitle, { color: Brand.ink }]}>{discussion.title}</Text>
+        )}
 
         {/* Body */}
-        {discussion.body ? (
+        {editing ? (
+          <TextInput
+            style={[styles_.discussionBody, styles_.editInput, { color: Brand.ink, borderColor: Brand.border, backgroundColor: Brand.card, minHeight: 80 }]}
+            value={editBody}
+            onChangeText={setEditBody}
+            multiline
+            maxLength={10000}
+            placeholder="Add more context… (optional)"
+            placeholderTextColor={Brand.muted}
+            textAlignVertical="top"
+          />
+        ) : discussion.body ? (
           <Text style={[styles_.discussionBody, { color: Brand.ink }]}>{discussion.body}</Text>
         ) : null}
 
@@ -468,6 +531,7 @@ function createStyles(Brand: BrandPalette) {
     typeText: { fontFamily: BrandFonts.interMedium, fontSize: 10, letterSpacing: 0.5, textTransform: 'uppercase' },
     discussionTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, lineHeight: 26 },
     discussionBody: { fontFamily: BrandFonts.interRegular, fontSize: 15, lineHeight: 22 },
+    editInput: { borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
     linkedContent: {
       flexDirection: 'row',
       alignItems: 'center',
