@@ -175,7 +175,7 @@ export default function CreateDiscussionModal() {
 
   const scrollRef = useRef<ScrollView>(null);
 
-  const [title, setTitle] = useState('');
+  const [title, setTitle] = useState(params.prefillTitle ?? '');
   const [body, setBody] = useState('');
 
   // Poll (optional)
