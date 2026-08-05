@@ -21,13 +21,16 @@ import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import {
   type Discussion,
   type DiscussionComment,
+  type DiscussionPoll,
   timeAgo,
   useAddDiscussionComment,
   useDeleteDiscussion,
   useDeleteDiscussionComment,
   useDiscussion,
   useDiscussionComments,
+  useDiscussionPoll,
   useToggleDiscussionVote,
+  useVoteOnPoll,
 } from '@/features/discussions/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -100,6 +103,72 @@ function CommentRow({
   );
 }
 
+// ── Poll block ───────────────────────────────────────────────────────────────
+
+function PollBlock({ poll, onVote, Brand }: { poll: DiscussionPoll; onVote: (optionIndex: number) => void; Brand: import('@/constants/theme').BrandPalette }) {
+  const voted = poll.my_vote !== null;
+  const total = poll.total_votes;
+
+  return (
+    <View style={[pollStyles.card, { borderColor: Brand.border, backgroundColor: Brand.card }]}>
+      <Text style={[pollStyles.question, { color: Brand.ink }]}>{poll.question}</Text>
+      {poll.options.map((opt, i) => {
+        const count = poll.vote_counts[i] ?? 0;
+        const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+        const isMyVote = poll.my_vote === i;
+        return (
+          <Pressable
+            key={i}
+            disabled={voted}
+            onPress={() => onVote(i)}
+            style={[
+              pollStyles.optionBtn,
+              { borderColor: isMyVote ? Brand.trust : Brand.border, backgroundColor: Brand.paper },
+            ]}>
+            {/* Fill bar shown after voting */}
+            {voted && (
+              <View
+                style={[
+                  pollStyles.fill,
+                  { width: `${pct}%` as any, backgroundColor: isMyVote ? Brand.tlight : Brand.card },
+                ]}
+              />
+            )}
+            <Text style={[pollStyles.optionText, { color: isMyVote ? Brand.trust : Brand.ink }]} numberOfLines={2}>
+              {opt}
+            </Text>
+            {voted && (
+              <Text style={[pollStyles.pct, { color: isMyVote ? Brand.trust : Brand.muted }]}>{pct}%</Text>
+            )}
+          </Pressable>
+        );
+      })}
+      <Text style={[pollStyles.meta, { color: Brand.muted }]}>
+        {total} {total === 1 ? 'vote' : 'votes'}{voted ? ' · tap to see results' : ' · tap to vote'}
+      </Text>
+    </View>
+  );
+}
+
+const pollStyles = StyleSheet.create({
+  card: { borderWidth: 1, borderRadius: 14, padding: 14, marginTop: 12, gap: 8 },
+  question: { fontFamily: BrandFonts.syneBold, fontSize: 15, marginBottom: 4 },
+  optionBtn: {
+    borderWidth: 1.5,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  fill: { position: 'absolute', top: 0, left: 0, bottom: 0, borderRadius: 8 },
+  optionText: { fontFamily: BrandFonts.interMedium, fontSize: 14, flex: 1 },
+  pct: { fontFamily: BrandFonts.syneBold, fontSize: 13, marginLeft: 8 },
+  meta: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, marginTop: 2 },
+});
+
 // ── Main screen ──────────────────────────────────────────────────────────────
 
 export default function DiscussionDetailModal() {
@@ -112,7 +181,9 @@ export default function DiscussionDetailModal() {
 
   const { data: discussion, isLoading: dLoading } = useDiscussion(id);
   const { data: comments = [], isLoading: cLoading } = useDiscussionComments(id);
+  const { data: poll } = useDiscussionPoll(id);
   const vote = useToggleDiscussionVote();
+  const voteOnPoll = useVoteOnPoll();
   const addComment = useAddDiscussionComment();
   const deleteDiscussion = useDeleteDiscussion();
   const deleteComment = useDeleteDiscussionComment();
@@ -215,6 +286,18 @@ export default function DiscussionDetailModal() {
         {/* Body */}
         {discussion.body ? (
           <Text style={[styles_.discussionBody, { color: Brand.ink }]}>{discussion.body}</Text>
+        ) : null}
+
+        {/* Poll */}
+        {poll ? (
+          <PollBlock
+            poll={poll}
+            Brand={Brand}
+            onVote={(optionIndex) => {
+              if (poll.my_vote !== null) return;
+              voteOnPoll.mutate({ pollId: poll.id, optionIndex, discussionId: id });
+            }}
+          />
         ) : null}
 
         {/* Linked content — taps into content room */}

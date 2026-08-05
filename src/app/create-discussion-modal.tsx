@@ -16,7 +16,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
-import { type DiscussionType, useCreateDiscussion } from '@/features/discussions/api';
+import { type DiscussionType, useCreateDiscussion, useCreateDiscussionPoll } from '@/features/discussions/api';
 import { type SearchResult, useUniversalSearch } from '@/features/search/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
@@ -148,6 +148,7 @@ export default function CreateDiscussionModal() {
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const createDiscussion = useCreateDiscussion();
+  const createPoll = useCreateDiscussionPoll();
 
   // Prefill params from content-room "Start a discussion" button
   const params = useLocalSearchParams<{
@@ -177,7 +178,16 @@ export default function CreateDiscussionModal() {
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
 
-  const canPost = title.trim().length >= 3 && !createDiscussion.isPending;
+  // Poll (optional)
+  const [pollEnabled, setPollEnabled] = useState(false);
+  const [pollQuestion, setPollQuestion] = useState('');
+  const [pollOptions, setPollOptions] = useState(['', '']);
+
+  const pollValid = !pollEnabled || (
+    pollQuestion.trim().length >= 3 &&
+    pollOptions.filter((o) => o.trim().length > 0).length >= 2
+  );
+  const canPost = title.trim().length >= 3 && pollValid && !createDiscussion.isPending;
 
   async function handlePost() {
     if (!canPost) return;
@@ -191,6 +201,13 @@ export default function CreateDiscussionModal() {
         contentExternalId: linked?.externalId,
         contentMediaType: linked?.mediaType,
       });
+      // Attach poll if enabled
+      if (pollEnabled && pollQuestion.trim()) {
+        const filledOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
+        if (filledOptions.length >= 2) {
+          await createPoll.mutateAsync({ discussionId: id, question: pollQuestion.trim(), options: filledOptions });
+        }
+      }
       router.back();
       router.push({ pathname: '/discussion-detail-modal', params: { id } });
     } catch {
@@ -310,6 +327,70 @@ export default function CreateDiscussionModal() {
               />
             </View>
             <Text style={[styles.charCount, { color: Brand.muted }]}>{body.length}/10000</Text>
+
+            {/* Poll toggle */}
+            <Pressable
+              style={[styles.pollToggleRow, { borderColor: pollEnabled ? Brand.trust : Brand.border, backgroundColor: pollEnabled ? Brand.tlight : Brand.card }]}
+              onPress={() => setPollEnabled((v) => !v)}>
+              <Text style={[styles.pollToggleIcon, { color: pollEnabled ? Brand.trust : Brand.muted }]}>📊</Text>
+              <Text style={[styles.pollToggleLabel, { color: pollEnabled ? Brand.trust : Brand.ink }]}>
+                {pollEnabled ? 'Poll added' : 'Add a poll'}
+              </Text>
+              <Text style={[styles.pollToggleSub, { color: Brand.muted }]}>optional</Text>
+            </Pressable>
+
+            {pollEnabled && (
+              <View style={[styles.pollCard, { borderColor: Brand.border, backgroundColor: Brand.card }]}>
+                {/* Question */}
+                <Text style={[styles.sectionLabel, { marginTop: 0 }]}>Poll question</Text>
+                <View style={[styles.inputWrap, { borderColor: Brand.border, backgroundColor: Brand.paper }]}>
+                  <TextInput
+                    style={[styles.titleInput, { color: Brand.ink, fontSize: 14 }]}
+                    placeholder="e.g. Which ending did you prefer?"
+                    placeholderTextColor={Brand.muted}
+                    value={pollQuestion}
+                    onChangeText={setPollQuestion}
+                    maxLength={200}
+                  />
+                </View>
+
+                {/* Options */}
+                <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Options</Text>
+                {pollOptions.map((opt, i) => (
+                  <View key={i} style={[styles.pollOptionRow, i > 0 && { marginTop: 8 }]}>
+                    <View style={[styles.inputWrap, { flex: 1, borderColor: Brand.border, backgroundColor: Brand.paper, paddingVertical: 8 }]}>
+                      <TextInput
+                        style={[styles.bodyInput, { color: Brand.ink, minHeight: 0, fontSize: 14 }]}
+                        placeholder={`Option ${i + 1}${i < 2 ? ' *' : ' (optional)'}`}
+                        placeholderTextColor={Brand.muted}
+                        value={opt}
+                        onChangeText={(text) => {
+                          const next = [...pollOptions];
+                          next[i] = text;
+                          setPollOptions(next);
+                        }}
+                        maxLength={120}
+                      />
+                    </View>
+                    {pollOptions.length > 2 && (
+                      <Pressable
+                        hitSlop={8}
+                        onPress={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
+                        style={styles.pollRemoveBtn}>
+                        <Text style={{ color: Brand.muted, fontSize: 18, lineHeight: 22 }}>×</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+                {pollOptions.length < 4 && (
+                  <Pressable
+                    style={[styles.pollAddOptionBtn, { borderColor: Brand.border }]}
+                    onPress={() => setPollOptions([...pollOptions, ''])}>
+                    <Text style={[styles.addLinkText, { color: Brand.muted }]}>+ Add option</Text>
+                  </Pressable>
+                )}
+              </View>
+            )}
           </ScrollView>
         )}
       </KeyboardAvoidingView>
@@ -397,6 +478,38 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 11,
       textAlign: 'right',
       marginTop: 2,
+    },
+
+    // Poll
+    pollToggleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      marginTop: 8,
+    },
+    pollToggleIcon: { fontSize: 16 },
+    pollToggleLabel: { fontFamily: BrandFonts.syneBold, fontSize: 14, flex: 1 },
+    pollToggleSub: { fontFamily: BrandFonts.interRegular, fontSize: 12 },
+    pollCard: {
+      borderWidth: 1,
+      borderRadius: 14,
+      padding: 14,
+      marginTop: 8,
+      gap: 4,
+    },
+    pollOptionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    pollRemoveBtn: { paddingHorizontal: 4 },
+    pollAddOptionBtn: {
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderRadius: 10,
+      paddingVertical: 9,
+      alignItems: 'center',
+      marginTop: 10,
     },
   });
 }
