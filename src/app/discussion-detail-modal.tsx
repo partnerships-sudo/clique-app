@@ -358,7 +358,10 @@ export default function DiscussionDetailModal() {
             Brand={Brand}
             onVote={(optionIndex) => {
               if (poll.my_vote !== null) return;
-              voteOnPoll.mutate({ pollId: poll.id, optionIndex, discussionId: id });
+              voteOnPoll.mutate(
+                { pollId: poll.id, optionIndex, discussionId: id },
+                { onError: (err) => Alert.alert('Error', `Could not save vote: ${(err as any)?.message ?? 'unknown error'}`) },
+              );
             }}
           />
         ) : null}
