@@ -217,22 +217,7 @@ export default function StoriesModal() {
           ratingIcon={(post.user_rating_icon as RatingIconStyle) ?? 'stars'}
           note={post.note}
           date={new Date(post.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          genre={null}
-          onPosterPress={() => {
-            animRef.current?.stop();
-            pausedAt.current = (progress as any)._value ?? 0;
-            router.push({
-              pathname: '/content-detail-modal',
-              params: {
-                title: post.title,
-                type: post.type,
-                poster: post.poster ?? undefined,
-                sub: post.sub ?? undefined,
-                externalId: post.external_id ?? undefined,
-                mediaType: post.media_type ?? undefined,
-              },
-            });
-          }}
+          genre={undefined}
         />
       </View>
 

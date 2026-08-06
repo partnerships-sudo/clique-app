@@ -918,6 +918,8 @@ const cb = StyleSheet.create({
   filterContent: { gap: 8, paddingHorizontal: 16 },
   filterChip: { height: 32, paddingHorizontal: 14, borderRadius: 16, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   filterChipText: { fontFamily: BrandFonts.interMedium, fontSize: 13 },
+  topBar: { flexDirection: 'row', alignItems: 'center' },
+  iconBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });
 
 function PostAvatar({ handle, size = 34, bg, color }: { handle: string; size?: number; bg: string; color: string }) {

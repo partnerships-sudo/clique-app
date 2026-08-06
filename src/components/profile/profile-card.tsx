@@ -220,6 +220,7 @@ export function ProfileCard({
           <ProfileWatchlistTab
             watchlist={watchlist}
             isOwnProfile={isOwnProfile}
+            profileUserId={profile?.id}
             onOpenRating={openRating}
           />
         ) : profileTab === 'collection' ? (

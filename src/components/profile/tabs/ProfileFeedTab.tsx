@@ -95,7 +95,7 @@ export function ProfileFeedTab(_props: Props) {
 
 function CollectionFeedCard({ item, Brand }: { item: CollectionItem; Brand: BrandPalette }) {
   const TypeColors = useTypeColors();
-  const type = TypeColors[item.type] ?? TypeColors.watch;
+  const type = (TypeColors as any)[item.type] ?? TypeColors.watch;
   const stars = item.user_rating ? Math.round(item.user_rating) : 0;
   const s = StyleSheet.create({
     card: { backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: 5 },

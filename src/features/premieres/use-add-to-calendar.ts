@@ -7,6 +7,7 @@ export async function addPremiereToCalendar({
   episodeNumber,
   seasonNumber,
   airDate,
+  airTime,
   hostName,
   premiereId,
 }: {

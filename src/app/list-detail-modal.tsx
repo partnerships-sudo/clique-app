@@ -5,35 +5,58 @@ import { ActionSheetIOS, Alert, FlatList, Image, Platform, Pressable, StyleSheet
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useDeleteList, useListItems, useRemoveFromList, type ListItem } from '@/features/lists/api';
+import {
+  useDeleteList,
+  useListCommentCount,
+  useListItems,
+  useListLikeState,
+  useRemoveFromList,
+  useSaveList,
+  useToggleListLike,
+  type ListItem,
+} from '@/features/lists/api';
 import { useBrand } from '@/hooks/use-brand';
+import { useSession } from '@/hooks/use-session';
 
 export default function ListDetailModal() {
-  const { listId, listTitle, listDesc, listPublic } = useLocalSearchParams<{
+  const { listId, listTitle, listDesc, listPublic, listOwnerId } = useLocalSearchParams<{
     listId: string;
     listTitle: string;
     listDesc?: string;
     listPublic?: string;
+    listOwnerId?: string;
   }>();
 
+  const { user } = useSession();
+  const isOwn = !listOwnerId || listOwnerId === user?.id;
   const { data: items = [], isLoading } = useListItems(listId);
   const deleteList = useDeleteList();
   const removeItem = useRemoveFromList();
+  const saveList = useSaveList();
+  const { data: likeState } = useListLikeState(listId);
+  const toggleLike = useToggleListLike();
+  const { data: commentCount = 0 } = useListCommentCount(listId);
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
   function handleOptions() {
-    if (Platform.OS === 'ios') {
+    if (Platform.OS !== 'ios') return;
+
+    if (isOwn) {
       ActionSheetIOS.showActionSheetWithOptions(
-        { options: ['Cancel', 'Edit list', 'Delete list'], destructiveButtonIndex: 2, cancelButtonIndex: 0 },
+        { options: ['Cancel', 'Edit list', 'Share list', 'Delete list'], destructiveButtonIndex: 3, cancelButtonIndex: 0 },
         (idx) => {
           if (idx === 1) {
-            router.push({
-              pathname: '/create-list-modal',
-              params: { listId, listTitle, listDesc, listPublic },
-            });
+            router.push({ pathname: '/create-list-modal', params: { listId, listTitle, listDesc, listPublic } });
           }
           if (idx === 2) {
+            if (listPublic === 'false') {
+              Alert.alert('Private list', 'Make this list public in Edit list before sharing.');
+              return;
+            }
+            router.push({ pathname: '/list-share-modal', params: { listId, listTitle } });
+          }
+          if (idx === 3) {
             Alert.alert('Delete list', `Delete "${listTitle}"? This cannot be undone.`, [
               { text: 'Cancel', style: 'cancel' },
               {
@@ -44,6 +67,20 @@ export default function ListDetailModal() {
                 },
               },
             ]);
+          }
+        },
+      );
+    } else {
+      ActionSheetIOS.showActionSheetWithOptions(
+        { options: ['Cancel', 'Save to my lists'], cancelButtonIndex: 0 },
+        async (idx) => {
+          if (idx === 1) {
+            try {
+              await saveList.mutateAsync({ listId, title: listTitle });
+              Alert.alert('Saved!', `"${listTitle}" has been added to your lists.`);
+            } catch {
+              Alert.alert('Error', 'Could not save list. Try again.');
+            }
           }
         },
       );
@@ -80,13 +117,46 @@ export default function ListDetailModal() {
         </Pressable>
       </View>
 
-      {/* Add items bar */}
-      <Pressable
-        style={styles.addBar}
-        onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}>
-        <SymbolView name="plus" size={13} tintColor={Brand.trust} style={{ width: 14, height: 14 }} />
-        <Text style={styles.addBarText}>Search &amp; add items</Text>
-      </Pressable>
+      {/* Like + comment bar — only show on public lists */}
+      {listPublic !== 'false' && (
+        <View style={styles.socialBar}>
+          <Pressable
+            style={styles.socialBtn}
+            onPress={() => likeState && toggleLike.mutate({ listId, liked: likeState.liked })}
+            hitSlop={10}>
+            <SymbolView
+              name={likeState?.liked ? 'heart.fill' : 'heart'}
+              size={18}
+              tintColor={likeState?.liked ? '#e05' : Brand.muted}
+              type="monochrome"
+            />
+            {(likeState?.count ?? 0) > 0 && (
+              <Text style={[styles.socialCount, likeState?.liked && styles.socialCountActive]}>
+                {likeState!.count}
+              </Text>
+            )}
+          </Pressable>
+          <Pressable
+            style={styles.socialBtn}
+            onPress={() => router.push({ pathname: '/list-comments-modal', params: { listId, listTitle } })}
+            hitSlop={10}>
+            <SymbolView name="bubble.left" size={18} tintColor={Brand.muted} type="monochrome" />
+            {commentCount > 0 && (
+              <Text style={styles.socialCount}>{commentCount}</Text>
+            )}
+          </Pressable>
+        </View>
+      )}
+
+      {/* Add items bar — own lists only */}
+      {isOwn && (
+        <Pressable
+          style={styles.addBar}
+          onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}>
+          <SymbolView name="plus" size={13} tintColor={Brand.trust} style={{ width: 14, height: 14 }} />
+          <Text style={styles.addBarText}>Search &amp; add items</Text>
+        </Pressable>
+      )}
 
       <FlatList
         data={items}
@@ -192,6 +262,19 @@ function createStyles(Brand: BrandPalette) {
     emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 17, color: Brand.ink },
     emptyBtn: { backgroundColor: Brand.trust, borderRadius: 12, paddingVertical: 11, paddingHorizontal: 24 },
     emptyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
+    socialBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 20,
+      paddingHorizontal: Spacing.three,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+      backgroundColor: Brand.card,
+    },
+    socialBtn: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+    socialCount: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
+    socialCountActive: { color: '#e05' },
     addBar: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: Spacing.three, paddingVertical: 11, borderBottomWidth: 1, borderBottomColor: Brand.border, backgroundColor: Brand.card },
     addBarText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
   });

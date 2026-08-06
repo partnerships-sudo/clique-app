@@ -223,9 +223,13 @@ export default function ScreeningRoomLive() {
 
   async function handleGoLive() {
     if (!id) return;
-    await goLive.mutateAsync(id);
-    setIsPlaying(false);
-    setPositionMs(0);
+    try {
+      await goLive.mutateAsync(id);
+      setIsPlaying(false);
+      setPositionMs(0);
+    } catch {
+      Alert.alert('Could not go live', 'Please check your connection and try again.');
+    }
   }
 
   function handleEnd() {

@@ -4,6 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Image, Pressable, Text, View } from 'react-native';
 import { TIER_COLORS } from '@/features/badges/catalog';
+import { useMyPostCounts } from '@/features/feed/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
 import { type LibraryItem } from '@/features/library/api';
 import { useBrand } from '@/hooks/use-brand';
@@ -32,6 +33,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: top4 = [] } = useMyTasteTop4();
   const { user } = useSession();
+  const { data: postCounts } = useMyPostCounts(user?.id);
   const [weeklyTarget, setWeeklyTarget] = useState(DEFAULT_WEEKLY_TARGET);
 
   useEffect(() => {
@@ -59,14 +61,20 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
     );
   }
 
-  const counts: Record<string, number> = { watch: 0, tv: 0, read: 0, play: 0, listen: 0, podcast: 0 };
-  logged.forEach((item) => {
-    if (item.type === 'watch' && item.media_type === 'tv') {
-      counts.tv += 1;
-    } else {
-      counts[item.type] = (counts[item.type] ?? 0) + 1;
-    }
-  });
+  // Use library data when available, fall back to posts when library is empty
+  const usePostsFallback = logged.length === 0 && !!postCounts;
+  const counts: Record<string, number> = usePostsFallback
+    ? { watch: postCounts!.watch, tv: postCounts!.tv, read: postCounts!.read, play: postCounts!.play, listen: postCounts!.listen, podcast: postCounts!.podcast }
+    : { watch: 0, tv: 0, read: 0, play: 0, listen: 0, podcast: 0 };
+  if (!usePostsFallback) {
+    logged.forEach((item) => {
+      if (item.type === 'watch' && item.media_type === 'tv') {
+        counts.tv += 1;
+      } else {
+        counts[item.type] = (counts[item.type] ?? 0) + 1;
+      }
+    });
+  }
   const maxCount = Math.max(1, ...Object.values(counts));
 
   const loggedDates = new Set(logged.map((i) => {
@@ -145,14 +153,18 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
   ]);
 
   const genreCounts = new Map<string, number>();
-  for (const item of logged) {
+  // Use posts sub data as fallback when library is empty
+  const genreSource: { type: string; media_type?: string | null; sub: string | null }[] = usePostsFallback
+    ? postCounts!.subs
+    : logged.map((i) => ({ type: i.type, media_type: i.media_type, sub: i.sub ?? null }));
+  for (const item of genreSource) {
     if (!item.sub) continue;
     const parts = item.sub.split('·').map((s) => s.trim()).filter(Boolean);
     if (!parts.length) continue;
     if (item.type === 'play') {
       const first = parts[0];
       if (GENRE_ALLOWLIST.has(first)) genreCounts.set(first, (genreCounts.get(first) ?? 0) + 1);
-    } else if (item.type === 'watch' || item.type === 'tv' || item.type === 'read') {
+    } else if (item.type === 'watch' || item.type === 'read') {
       for (const part of parts) {
         if (GENRE_ALLOWLIST.has(part)) genreCounts.set(part, (genreCounts.get(part) ?? 0) + 1);
       }

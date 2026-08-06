@@ -433,7 +433,7 @@ export default function FeedScreen() {
   const { data: listenRecs = [] } = useBecauseYouRecs(toSeedParam(seedByType.listen));
   const { data: podcastRecs = [] } = useBecauseYouRecs(toSeedParam(seedByType.podcast));
 
-  const filterRecs = (recs: typeof watchRecs, seed: (typeof logged)[0] | null) =>
+  const filterRecs = (recs: typeof watchRecs, seed: { title: string } | null) =>
     recs
       .filter(
         (e) =>

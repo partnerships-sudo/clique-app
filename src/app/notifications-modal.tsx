@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useEffect, useMemo } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -9,7 +9,7 @@ import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { type ActivityItem, useInbox, useMarkAllRead } from '@/features/notifications/inbox';
 import { useBrand } from '@/hooks/use-brand';
 
-type KindSymbol = { name: string; color: string };
+type KindSymbol = { name: SymbolViewProps['name']; color: string };
 const KIND_SYMBOL: Record<string, KindSymbol> = {
   new_follower:    { name: 'person.fill',    color: '#5B8DEF' },
   follow_request:  { name: 'bell.fill',      color: '#F4A340' },

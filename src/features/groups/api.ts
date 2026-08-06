@@ -189,8 +189,8 @@ export function useGroupMessages(groupId: string | null) {
         user_id: m.user_id,
         text: m.text,
         created_at: m.created_at,
-        sender_name: (m.profiles as any)?.full_name ?? 'Someone',
-        sender_avatar: (m.profiles as any)?.avatar_url ?? null,
+        sender_name: (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles)?.full_name ?? 'Someone',
+        sender_avatar: (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles)?.avatar_url ?? null,
       })) as GroupMessage[];
     },
     enabled: !!groupId,

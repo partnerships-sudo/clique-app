@@ -554,19 +554,32 @@ export function useContentRoomDiscussions(externalId: string | undefined, mediaT
 
 // ── Search discussions ────────────────────────────────────────────────────────
 
+export interface DiscussionSearchResult {
+  id: string;
+  title: string;
+  type: DiscussionType;
+  comment_count: number;
+  content_title: string | null;
+  content_poster: string | null;
+  content_external_id: string | null;
+  content_media_type: string | null;
+}
+
 export function useDiscussionSearch(query: string) {
   return useQuery({
     queryKey: ['discussion-search', query],
-    queryFn: async () => {
+    queryFn: async (): Promise<DiscussionSearchResult[]> => {
       if (!query.trim()) return [];
+      // Match on discussion title OR linked content title
+      const q = query.trim();
       const { data, error } = await supabase
         .from('discussions')
-        .select('id, title, type, comment_count')
-        .ilike('title', `%${query.trim()}%`)
+        .select('id, title, type, comment_count, content_title, content_poster, content_external_id, content_media_type')
+        .or(`title.ilike.%${q}%,content_title.ilike.%${q}%`)
         .order('created_at', { ascending: false })
-        .limit(20);
+        .limit(30);
       if (error) throw error;
-      return (data ?? []) as { id: string; title: string; type: DiscussionType; comment_count: number }[];
+      return (data ?? []) as DiscussionSearchResult[];
     },
     enabled: query.trim().length >= 2,
     staleTime: 30 * 1000,
@@ -620,7 +633,11 @@ export function useDiscussionPoll(discussionId: string | undefined) {
         .select('option_index, user_id')
         .eq('poll_id', poll.id);
 
-      const options: string[] = Array.isArray(poll.options) ? poll.options : JSON.parse(poll.options as any);
+      const options: string[] = Array.isArray(poll.options)
+        ? poll.options
+        : typeof poll.options === 'string'
+          ? JSON.parse(poll.options)
+          : [];
       const vote_counts = options.map((_, i) => (votes ?? []).filter((v) => v.option_index === i).length);
       const my_vote = user ? ((votes ?? []).find((v) => v.user_id === user.id)?.option_index ?? null) : null;
 

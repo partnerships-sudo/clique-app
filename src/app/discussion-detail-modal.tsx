@@ -520,7 +520,13 @@ export default function DiscussionDetailModal() {
               onPress={() => setIsSpoiler((v) => !v)}
               hitSlop={8}
               style={[styles_.spoilerToggle, isSpoiler && { backgroundColor: Brand.tlight, borderColor: Brand.trust }]}>
-              <Text style={[styles_.spoilerToggleText, { color: isSpoiler ? Brand.trust : Brand.muted }]}>🔒</Text>
+              <SymbolView
+                name={isSpoiler ? 'eye.slash.fill' : 'eye.slash'}
+                size={17}
+                tintColor={isSpoiler ? Brand.trust : Brand.muted}
+                type="monochrome"
+                style={{ width: 17, height: 17 }}
+              />
             </Pressable>
           )}
           <Pressable

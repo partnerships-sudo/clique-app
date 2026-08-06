@@ -6,7 +6,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { ListCard } from '@/components/library/list-card';
 import { useRemoveLibraryItem, useAddLibraryItem, type LibraryItem } from '@/features/library/api';
-import { useLists } from '@/features/lists/api';
+import { useLists, useListsByUser } from '@/features/lists/api';
 import { supabase } from '@/lib/supabase';
 import { AvatarSizes, BrandFonts } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
@@ -15,6 +15,7 @@ import { createStyles } from '../profile-styles';
 interface Props {
   watchlist: LibraryItem[];
   isOwnProfile: boolean;
+  profileUserId?: string;
   onOpenRating: (item: LibraryItem) => void;
 }
 
@@ -45,7 +46,7 @@ function useRecProfiles(usernames: string[]) {
   return profiles;
 }
 
-export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: Props) {
+export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, onOpenRating }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const local = useMemo(() => createLocalStyles(Brand), [Brand]);
@@ -53,6 +54,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
   const removeLibraryItem = useRemoveLibraryItem();
   const addLibraryItem = useAddLibraryItem();
   const { data: lists = [] } = useLists();
+  const { data: friendLists = [] } = useListsByUser(isOwnProfile ? undefined : profileUserId);
 
   const visibleItems = watchlistView === 'mine' ? watchlist : watchlist.filter((i) => !!i.rec_from_user_name);
 
@@ -157,7 +159,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
         </View>
       )}
 
-      {/* Custom lists section — only visible on My Watchlist tab */}
+      {/* Own lists */}
       {isOwnProfile && watchlistView === 'mine' && lists.length > 0 && (
         <View style={local.listsSection}>
           <Text style={local.listsSectionTitle}>My Lists</Text>
@@ -166,7 +168,22 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, onOpenRating }: P
               key={list.id}
               list={list}
               Brand={Brand}
-              onPress={() => router.push({ pathname: '/list-detail-modal', params: { listId: list.id, listTitle: list.title } })}
+              onPress={() => router.push({ pathname: '/list-detail-modal', params: { listId: list.id, listTitle: list.title, listDesc: list.description ?? '', listPublic: String(list.is_public), listOwnerId: list.user_id } })}
+            />
+          ))}
+        </View>
+      )}
+
+      {/* Friend's public lists */}
+      {!isOwnProfile && friendLists.length > 0 && (
+        <View style={local.listsSection}>
+          <Text style={local.listsSectionTitle}>Lists</Text>
+          {friendLists.map((list) => (
+            <ListCard
+              key={list.id}
+              list={list}
+              Brand={Brand}
+              onPress={() => router.push({ pathname: '/list-detail-modal', params: { listId: list.id, listTitle: list.title, listDesc: list.description ?? '', listPublic: String(list.is_public), listOwnerId: list.user_id } })}
             />
           ))}
         </View>

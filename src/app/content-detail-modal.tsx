@@ -296,10 +296,11 @@ export default function ContentDetailModal() {
 
   // Some entries (especially from friend collections) store 'tv' or 'movie'
   // as the type instead of the app's EntryType 'watch'. Normalise here.
+  const rawType = params.type as string;
   const resolvedType: EntryType =
-    params.type === 'tv' || params.type === 'movie' ? 'watch' : (params.type as EntryType);
+    rawType === 'tv' || rawType === 'movie' ? 'watch' : (rawType as EntryType);
   const resolvedMediaType: string | undefined =
-    params.type === 'tv' ? 'tv' : params.type === 'movie' ? 'movie' : params.mediaType;
+    rawType === 'tv' ? 'tv' : rawType === 'movie' ? 'movie' : params.mediaType;
 
   const { data: details, isLoading } = useContentDetails(params.title, resolvedType, params.externalId, resolvedMediaType);
 

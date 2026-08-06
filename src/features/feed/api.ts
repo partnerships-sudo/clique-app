@@ -465,3 +465,37 @@ export function useThreadSearch(query: string) {
     staleTime: 30_000,
   });
 }
+
+// Counts by type + media_type from the user's own posts — used for Top Categories
+// when library data is sparse (e.g. the user logged posts before library was populated).
+export interface PostTypeCounts {
+  watch: number; // movies (type=watch, media_type=movie or null)
+  tv: number;    // TV shows (type=watch, media_type=tv)
+  read: number;
+  play: number;
+  listen: number;
+  podcast: number;
+  subs: { type: string; media_type: string | null; sub: string | null }[];
+}
+
+export function useMyPostCounts(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['my-post-counts', userId],
+    queryFn: async (): Promise<PostTypeCounts> => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('type, media_type, sub')
+        .eq('user_id', userId!);
+      if (error) throw error;
+      const counts: PostTypeCounts = { watch: 0, tv: 0, read: 0, play: 0, listen: 0, podcast: 0, subs: [] };
+      for (const row of (data ?? []) as { type: string; media_type: string | null; sub: string | null }[]) {
+        counts.subs.push({ type: row.type, media_type: row.media_type, sub: row.sub });
+        if (row.type === 'watch' && row.media_type === 'tv') counts.tv += 1;
+        else if (row.type === 'watch') counts.watch += 1;
+        else if (row.type in counts) (counts as any)[row.type] += 1;
+      }
+      return counts;
+    },
+    enabled: !!userId,
+  });
+}

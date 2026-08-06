@@ -216,7 +216,7 @@ async function lookupTMDB(title: string, year: string): Promise<{ externalId: st
   } catch { return null; }
 }
 
-async function lookupHardcover(title: string, author: string): Promise<{ externalId: string; poster: string | null; sub: string } | null> {
+async function lookupHardcover(title: string, author: string): Promise<{ externalId: string; poster: string | null; sub: string; mediaType: string } | null> {
   try {
     const query = author ? `${title} ${author}` : title;
     const res = await fetch('https://api.hardcover.app/v1/graphql', {
@@ -236,6 +236,7 @@ async function lookupHardcover(title: string, author: string): Promise<{ externa
       externalId: String(hit.id),
       poster: hit.image?.url ?? null,
       sub: `${hitAuthor}${hitYear}`,
+      mediaType: 'book',
     };
   } catch { return null; }
 }
@@ -620,7 +621,7 @@ export default function ImportLibraryModal() {
             <>
               <View style={styles.statDivider} />
               <View style={styles.stat}>
-                <Text style={[styles.statNum, { color: Brand.trust }]}>{result.updated}</Text>
+                <Text style={[styles.statNum, { color: Brand.trust }]}>{result?.updated}</Text>
                 <Text style={styles.statLabel}>Ratings added</Text>
               </View>
             </>

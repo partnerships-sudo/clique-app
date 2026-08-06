@@ -225,105 +225,110 @@ export function PostCard({
 
   return (
     <SwipeableRow enabled={isMine} onDelete={confirmDelete}>
-      <View style={[styles.card, isSquareType && styles.cardCompact]}>
-        {/* ── Left: poster (tappable) — 2:3 for movies/TV/books/games, 1:1 for music/podcasts ── */}
-        <Pressable
-          onPress={() =>
-            router.push({
-              pathname: '/content-detail-modal',
-              params: {
-                title: post.title,
-                type: post.type,
-                poster: post.poster ?? undefined,
-                sub: post.sub ?? undefined,
-                externalId: post.external_id ?? undefined,
-                mediaType: post.media_type ?? (post.sub?.includes('Film') ? 'movie' : post.sub?.includes('TV') ? 'tv' : undefined),
-              },
-            })
-          }
-          accessibilityLabel={`View details for ${post.title}`}
-          accessibilityRole="button"
-          style={[styles.posterPress, isSquareType && styles.posterPressSquare]}>
-          {post.poster ? (
-            <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} resizeMode="cover" />
-          ) : (
-            <View style={[styles.poster, isSquareType && styles.posterSquare, styles.posterFallback, { backgroundColor: type.bg }]}>
-              <Text style={styles.posterFallbackEmoji}>{type.icon}</Text>
-            </View>
-          )}
-          {post.type === 'read' ? <BookPageCurl /> : null}
-        </Pressable>
+      <View style={styles.card}>
 
-        {/* ── Right: content ── */}
-        <View style={[styles.body, isSquareType && styles.bodyCompact]}>
-          {/* avatar · username · pill · compat · time */}
-          <View style={[styles.metaRow, isSquareType && styles.metaRowCompact]}>
-            <Pressable
-              style={styles.identity}
-              hitSlop={4}
-              accessibilityLabel={`View @${post.user_name}'s profile`}
-              accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } })}>
-              <Avatar name={post.user_name} size={AvatarSizes.md} avatarUrl={post.user_avatar_url} />
-              <Text style={styles.userName} numberOfLines={1}>@{post.user_name}</Text>
-              {post.user_verified_tier ? <VerifiedBadge tier={post.user_verified_tier} size={12} /> : null}
-            </Pressable>
-            <View style={[styles.pill, { backgroundColor: type.bg }]}>
-              <Text style={[styles.pillText, { color: type.color }]}>{type.label}</Text>
-            </View>
-            {post.visibility === 'close_friends' ? (
-              <View style={styles.closeFriendsPill}>
-                <Text style={styles.closeFriendsPillText}>💚 Friends</Text>
+        {/* ── TOP ROW: poster (fixed size) + content ── */}
+        <View style={[styles.topRow, isSquareType && styles.topRowSquare]}>
+          {/* Poster — fixed width & height, never stretches */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/content-detail-modal',
+                params: {
+                  title: post.title,
+                  type: post.type,
+                  poster: post.poster ?? undefined,
+                  sub: post.sub ?? undefined,
+                  externalId: post.external_id ?? undefined,
+                  mediaType: post.media_type ?? (post.sub?.includes('Film') ? 'movie' : post.sub?.includes('TV') ? 'tv' : undefined),
+                },
+              })
+            }
+            accessibilityLabel={`View details for ${post.title}`}
+            accessibilityRole="button"
+            style={[styles.posterPress, isSquareType && styles.posterPressSquare]}>
+            {post.poster ? (
+              <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} resizeMode="cover" />
+            ) : (
+              <View style={[styles.poster, isSquareType && styles.posterSquare, styles.posterFallback, { backgroundColor: type.bg }]}>
+                <Text style={styles.posterFallbackEmoji}>{type.icon}</Text>
               </View>
-            ) : null}
-            <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
-          </View>
+            )}
+            {post.type === 'read' ? <BookPageCurl /> : null}
+          </Pressable>
 
-          {/* Rewatch / re-read badge */}
-          {(post.watch_count ?? 1) > 1 && (
-            <View style={styles.rewatchBadge}>
-              <Text style={styles.rewatchText}>
-                {ordinal(post.watch_count)} {REWATCH_VERB[post.type] ?? 'time'}
-              </Text>
+          {/* Right: meta + title + sub + note + rating — clipped to poster height */}
+          <View style={styles.body}>
+            <View style={[styles.metaRow, isSquareType && styles.metaRowCompact]}>
+              <Pressable
+                style={styles.identity}
+                hitSlop={4}
+                accessibilityLabel={`View @${post.user_name}'s profile`}
+                accessibilityRole="button"
+                onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } })}>
+                <Avatar name={post.user_name} size={AvatarSizes.md} avatarUrl={post.user_avatar_url} />
+                <Text style={styles.userName} numberOfLines={1}>@{post.user_name}</Text>
+                {post.user_verified_tier ? <VerifiedBadge tier={post.user_verified_tier} size={12} /> : null}
+              </Pressable>
+              <View style={[styles.pill, { backgroundColor: type.bg }]}>
+                <Text style={[styles.pillText, { color: type.color }]}>{type.label}</Text>
+              </View>
+              {post.visibility === 'close_friends' ? (
+                <View style={styles.closeFriendsPill}>
+                  <Text style={styles.closeFriendsPillText}>💚 Friends</Text>
+                </View>
+              ) : null}
+              <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
             </View>
-          )}
 
-          {isMine && onEdit ? (
-            <Pressable onPress={onEdit} accessibilityLabel="Edit rating and review" accessibilityRole="button">
-              <Text style={styles.title} numberOfLines={isSquareType ? 1 : 3}>{post.title}</Text>
-              {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={2}>{post.sub}</Text> : null}
-              {!isSquareType && post.note ? (
-                <NoteBlock note={post.note} isSpoiler={post.is_spoiler} revealed={spoilerRevealed} onReveal={() => setSpoilerRevealed(true)} styles={styles} />
-              ) : null}
-              {post.rating ? (
-                <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
-              ) : (
-                <Text style={styles.tapToRate}>Tap to rate ›</Text>
-              )}
-            </Pressable>
-          ) : (
-            <>
-              <Text style={styles.title} numberOfLines={isSquareType ? 1 : 3}>{post.title}</Text>
-              {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={2}>{post.sub}</Text> : null}
-              {!isSquareType && post.note ? (
-                <NoteBlock note={post.note} isSpoiler={post.is_spoiler} revealed={spoilerRevealed} onReveal={() => setSpoilerRevealed(true)} styles={styles} />
-              ) : null}
-              {post.rating ? (
-                <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
-              ) : null}
-            </>
-          )}
-          {/* Page tracker — shown on reading posts for the owner */}
-          {isMine && post.type === 'read' && pageProgress ? (
-            <PageTracker
-              libraryItemId={pageProgress.libraryItemId}
-              currentPage={pageProgress.currentPage}
-              totalPages={pageProgress.totalPages}
-              externalId={pageProgress.externalId}
-            />
-          ) : null}
+            {(post.watch_count ?? 1) > 1 && (
+              <View style={styles.rewatchBadge}>
+                <Text style={styles.rewatchText}>
+                  {ordinal(post.watch_count)} {REWATCH_VERB[post.type] ?? 'time'}
+                </Text>
+              </View>
+            )}
 
-          {/* Emoji picker popover — hidden on own posts */}
+            {isMine && onEdit ? (
+              <Pressable onPress={onEdit} accessibilityLabel="Edit rating and review" accessibilityRole="button">
+                <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
+                {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
+                {!isSquareType && post.note ? (
+                  <Text style={styles.noteSummary} numberOfLines={1}>&ldquo;{post.note}&rdquo;</Text>
+                ) : null}
+                {post.rating ? (
+                  <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
+                ) : (
+                  <Text style={styles.tapToRate}>Tap to rate ›</Text>
+                )}
+              </Pressable>
+            ) : (
+              <>
+                <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
+                {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
+                {!isSquareType && post.note ? (
+                  <Text style={styles.noteSummary} numberOfLines={1}>&ldquo;{post.note}&rdquo;</Text>
+                ) : null}
+                {post.rating ? (
+                  <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
+                ) : null}
+              </>
+            )}
+
+            {isMine && post.type === 'read' && pageProgress ? (
+              <PageTracker
+                libraryItemId={pageProgress.libraryItemId}
+                currentPage={pageProgress.currentPage}
+                totalPages={pageProgress.totalPages}
+                externalId={pageProgress.externalId}
+              />
+            ) : null}
+          </View>
+        </View>
+
+        {/* ── BOTTOM BAR: emoji picker + reactions + me too + share + comment ── */}
+        <View style={styles.bottomBar}>
+          {/* Emoji picker popover */}
           {showEmojiPicker && !isMine && (
             <View style={styles.emojiPickerWrap}>
               {EMOJI_OPTIONS.map((e) => (
@@ -340,8 +345,8 @@ export function PostCard({
             </View>
           )}
 
-          {/* Emoji reactions row */}
-          <View style={styles.emojiRow}>
+          {/* Left: emoji reactions + me too */}
+          <View style={styles.reactCol}>
             {topEmojis.map(([emoji, count]) => (
               <Pressable
                 key={emoji}
@@ -357,91 +362,83 @@ export function PostCard({
               </Pressable>
             ))}
             {!isMine && (
-              <Pressable
-                style={styles.emojiAddBtn}
-                onPress={() => setShowEmojiPicker((v) => !v)}
-                hitSlop={16}>
+              <Pressable style={styles.emojiAddBtn} onPress={() => setShowEmojiPicker((v) => !v)} hitSlop={16}>
                 <Text style={styles.emojiAddText}>+</Text>
+              </Pressable>
+            )}
+            {!isMine && (
+              <Pressable
+                onPress={onToggleReaction}
+                accessibilityLabel={meReacted ? `Remove Me too` : `Me too`}
+                accessibilityRole="button"
+                style={[styles.reactBtn, meReacted && styles.reactBtnActive]}>
+                <Text style={[styles.reactText, meReacted && styles.reactTextActive]}>✦ Me too!</Text>
+              </Pressable>
+            )}
+            {reactions.length > 0 && (
+              <Pressable
+                style={styles.reactorRow}
+                onPress={() => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}>
+                {reactions.slice(0, 4).map((r, i) => (
+                  <View key={r.user_id} style={[styles.reactorAvatar, i > 0 && { marginLeft: -6 }]}>
+                    <Avatar name={r.user_name} avatarUrl={r.avatar_url} size={18} />
+                  </View>
+                ))}
               </Pressable>
             )}
           </View>
 
-          {/* Me too + share + comment row */}
-          <View style={[styles.actionsRow, isSquareType && styles.actionsRowCompact]}>
-            <View style={styles.reactCol}>
-              {!isMine ? (
-                <Pressable
-                  onPress={onToggleReaction}
-                  accessibilityLabel={meReacted ? `Remove Me too reaction, ${reactions.length} reactions` : `Me too — ${reactions.length} reactions`}
-                  accessibilityRole="button"
-                  style={[styles.reactBtn, meReacted && styles.reactBtnActive]}>
-                  <Text style={[styles.reactText, meReacted && styles.reactTextActive]}>
-                    ✦ Me too!
-                  </Text>
-                </Pressable>
-              ) : null}
-              {reactions.length > 0 && (
-                <Pressable
-                  style={styles.reactorRow}
-                  onPress={() => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}>
-                  {reactions.slice(0, 4).map((r, i) => (
-                    <View key={r.user_id} style={[styles.reactorAvatar, i > 0 && { marginLeft: -6 }]}>
-                      <Avatar name={r.user_name} avatarUrl={r.avatar_url} size={18} />
-                    </View>
-                  ))}
-                </Pressable>
+          {/* Right: share + comment */}
+          <View style={styles.shareChatRow}>
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/post-share-modal',
+                  params: {
+                    title: post.title,
+                    type: post.type,
+                    sub: post.sub ?? undefined,
+                    poster: post.poster ?? undefined,
+                    extRating: post.ext_rating ?? undefined,
+                    mediaType: post.media_type ?? undefined,
+                  },
+                })
+              }
+              accessibilityLabel={`Share ${post.title}`}
+              accessibilityRole="button"
+              hitSlop={16}>
+              <SymbolView name="paperplane" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
+            </Pressable>
+            <View style={styles.shareDivider} />
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/post-comments-modal',
+                  params: {
+                    postId: post.id,
+                    postTitle: post.title,
+                    postAuthorId: post.user_id,
+                    postPoster: post.poster ?? undefined,
+                    postSub: post.sub ?? undefined,
+                    postRating: post.rating != null ? String(post.rating) : undefined,
+                    postNote: post.note ?? undefined,
+                    postUserName: post.user_name,
+                    postUserAvatar: post.user_avatar_url ?? undefined,
+                  },
+                })
+              }
+              accessibilityLabel={`Comments for ${post.title}`}
+              accessibilityRole="button"
+              hitSlop={16}
+              style={styles.commentBtn}>
+              <SymbolView name="bubble.left" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
+              {commentCount != null && commentCount > 0 && (
+                <Text style={styles.commentCount}>{commentCount > 99 ? '99+' : commentCount}</Text>
               )}
-            </View>
-            <View style={styles.shareChatRow}>
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: '/post-share-modal',
-                    params: {
-                      title: post.title,
-                      type: post.type,
-                      sub: post.sub ?? undefined,
-                      poster: post.poster ?? undefined,
-                      extRating: post.ext_rating ?? undefined,
-                      mediaType: post.media_type ?? undefined,
-                    },
-                  })
-                }
-                accessibilityLabel={`Share ${post.title}`}
-                accessibilityRole="button"
-                hitSlop={16}>
-                <SymbolView name="paperplane" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
-              </Pressable>
-              <View style={styles.shareDivider} />
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: '/post-comments-modal',
-                    params: {
-                      postId: post.id,
-                      postTitle: post.title,
-                      postAuthorId: post.user_id,
-                      postPoster: post.poster ?? undefined,
-                      postSub: post.sub ?? undefined,
-                      postRating: post.rating != null ? String(post.rating) : undefined,
-                      postNote: post.note ?? undefined,
-                      postUserName: post.user_name,
-                      postUserAvatar: post.user_avatar_url ?? undefined,
-                    },
-                  })
-                }
-                accessibilityLabel={`Comments for ${post.title}`}
-                accessibilityRole="button"
-                hitSlop={16}
-                style={styles.commentBtn}>
-                <SymbolView name="bubble.left" size={17} tintColor={Brand.muted} style={{ width: 18, height: 18 }} />
-                {commentCount != null && commentCount > 0 && (
-                  <Text style={styles.commentCount}>{commentCount > 99 ? '99+' : commentCount}</Text>
-                )}
-              </Pressable>
-            </View>
+            </Pressable>
           </View>
         </View>
+
       </View>
     </SwipeableRow>
   );
@@ -454,29 +451,18 @@ function createStyles(Brand: BrandPalette) {
       borderWidth: 1,
       borderColor: Brand.border,
       borderRadius: 16,
-      flexDirection: 'row',
-      alignItems: 'stretch',
       overflow: 'hidden',
-      minHeight: POSTER_H,
     },
-    // Music/podcast posts use a square poster instead of the tall 2:3 one, so
-    // the card only needs to be as tall as that photo (90) rather than the
-    // full poster height (135) — but it's a floor, not a hard cap: the body
-    // column (meta row + title + actions row) is allowed to grow past 90 if
-    // its content needs more room, instead of being clipped by the card's
-    // `overflow: hidden`.
-    cardCompact: { minHeight: POSTER_W },
+    // Top row: poster + body, fixed to poster height — image never stretches
+    topRow: { flexDirection: 'row', height: POSTER_H },
+    topRowSquare: { height: POSTER_W },
+    cardCompact: {},
 
-    // Poster
-    posterPress: { width: POSTER_W },
-    posterPressSquare: { height: POSTER_W, alignSelf: 'flex-start' },
-    poster: {
-      width: POSTER_W,
-      height: POSTER_H,
-      alignSelf: 'flex-start',
-      backgroundColor: Brand.border,
-    },
-    posterSquare: { height: POSTER_W },
+    // Poster — fixed size, never stretches or distorts
+    posterPress: { width: POSTER_W, height: POSTER_H },
+    posterPressSquare: { width: POSTER_W, height: POSTER_W },
+    poster: { width: POSTER_W, height: POSTER_H },
+    posterSquare: { width: POSTER_W, height: POSTER_W },
     posterFallback: {
       alignItems: 'center',
       justifyContent: 'center',
@@ -497,9 +483,18 @@ function createStyles(Brand: BrandPalette) {
     ratingBadgeStar: { color: '#FFD700', fontSize: 10 },
     ratingBadgeText: { color: '#fff', fontSize: 10, fontFamily: BrandFonts.syneBold },
 
-    // Body
-    body: { flex: 1, minWidth: 0, padding: 12, paddingTop: 8, paddingBottom: 10 },
-    bodyCompact: { padding: 8, paddingTop: 8, paddingBottom: 6 },
+    // Body — right column in the top row, clipped to poster height via topRow height
+    body: { flex: 1, minWidth: 0, padding: 10, paddingTop: 8, paddingBottom: 8, overflow: 'hidden' },
+    bodyCompact: { padding: 8, paddingTop: 7, paddingBottom: 7 },
+    // Bottom bar — below the poster, spans full card width
+    bottomBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderTopWidth: StyleSheet.hairlineWidth,
+      borderTopColor: Brand.border,
+    },
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -572,6 +567,14 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.muted,
       marginTop: 5,
       lineHeight: 17,
+    },
+    noteSummary: {
+      fontFamily: BrandFonts.interRegular,
+      fontStyle: 'italic',
+      fontSize: 12,
+      color: Brand.muted,
+      marginTop: 3,
+      lineHeight: 16,
     },
     stars: {
       color: Brand.warm,
@@ -778,7 +781,6 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      marginTop: 8,
     },
     emojiPill: {
       flexDirection: 'row',
@@ -808,13 +810,8 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.muted,
       lineHeight: 18,
     },
-    actionsRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      marginTop: 8,
-    },
-    actionsRowCompact: { paddingTop: 4 },
+    actionsRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    actionsRowCompact: {},
     reactBtn: {
       alignSelf: 'flex-start',
       backgroundColor: Brand.tlight,

@@ -166,7 +166,8 @@ export function useAddLibraryItem() {
           p_ext_rating:  input.extRating ?? null,
           p_rating:      input.rating ?? null,
         });
-        if (rpcError) throw rpcError;
+        // 23505 = unique_violation — item already in collection, safe to ignore
+        if (rpcError && (rpcError as any).code !== '23505') throw rpcError;
       }
 
       return item;

@@ -111,7 +111,7 @@ export function useToggleReaction() {
         if (!data || !(key as string[]).includes(postId)) continue;
         queryClient.setQueryData<Reaction[]>(
           key,
-          reacted
+          (reacted
             ? data.filter((r) => !(r.post_id === postId && r.user_id === user!.id))
             : [...data, {
                 id: `optimistic-${postId}`,
@@ -120,7 +120,7 @@ export function useToggleReaction() {
                 user_name: userName,
                 avatar_url: null,
                 created_at: new Date().toISOString(),
-              }],
+              }]) as Reaction[],
         );
       }
       return { snapshots };

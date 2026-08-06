@@ -8,6 +8,7 @@ import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { BrandFonts, TypeColorsLight, type BrandPalette, type EntryType } from '@/constants/theme';
 import { type FeedFilterValue, useThreadSearch } from '@/features/feed/api';
 import { type DiscussionType, useDiscussionSearch, useTrendingDiscussions, usePersonalizedRooms, useFollowedRoomsFeed, type PersonalizedRoom } from '@/features/discussions/api';
+import { useContentSearch } from '@/features/search/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const TYPE_MAP: Record<string, EntryType> = {
@@ -26,10 +27,11 @@ const DISCUSSION_TYPE_LABELS: Record<string, string> = {
 function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette }) {
   const { data: threads = [], isLoading: tLoading } = useThreadSearch(query);
   const { data: discussions = [], isLoading: dLoading } = useDiscussionSearch(query);
+  const { data: contentResults = [], isLoading: cLoading } = useContentSearch(query);
   const TypeColors = useTypeColors();
 
-  const isLoading = tLoading || dLoading;
-  const hasResults = threads.length > 0 || discussions.length > 0;
+  const isLoading = tLoading || dLoading || cLoading;
+  const hasResults = threads.length > 0 || discussions.length > 0 || contentResults.length > 0;
 
   if (isLoading) return <ActivityIndicator style={{ marginTop: 12 }} />;
   if (!hasResults && query.trim().length >= 2) {
@@ -41,8 +43,40 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
   }
   if (!hasResults) return null;
 
+  // Group discussions that share the same content room
+  const roomMap = new Map<string, { externalId: string; mediaType: string; title: string; poster: string | null; count: number }>();
+  const standaloneDiscussions: typeof discussions = [];
+
+  for (const d of discussions) {
+    if (d.content_external_id && d.content_media_type && d.content_title) {
+      const key = `${d.content_external_id}|${d.content_media_type}`;
+      if (roomMap.has(key)) {
+        roomMap.get(key)!.count += 1;
+      } else {
+        roomMap.set(key, {
+          externalId: d.content_external_id,
+          mediaType: d.content_media_type,
+          title: d.content_title,
+          poster: d.content_poster ?? null,
+          count: 1,
+        });
+      }
+    } else {
+      standaloneDiscussions.push(d);
+    }
+  }
+
+  const rooms = [...roomMap.values()];
+
+  // TMDB results that don't already have a discussion room entry
+  const tmdbItems = contentResults
+    .filter((c) => !roomMap.has(`${c.externalId}|${c.mediaType}`))
+    .map((c) => ({ kind: 'room' as const, ...c, count: 0 }));
+
   const allItems = [
-    ...discussions.map((d) => ({ kind: 'discussion' as const, ...d })),
+    ...rooms.map((r) => ({ kind: 'room' as const, ...r })),
+    ...tmdbItems,
+    ...standaloneDiscussions.map((d) => ({ kind: 'discussion' as const, ...d })),
     ...threads.map((t) => ({ kind: 'thread' as const, ...t })),
   ];
 
@@ -50,13 +84,50 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
     <View style={[styles.searchResults, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
       {allItems.map((row, i) => {
         const isLast = i === allItems.length - 1;
+        const sep = !isLast && { borderBottomWidth: 0.5, borderBottomColor: Brand.border };
+
+        if (row.kind === 'room') {
+          const tcKey = row.mediaType === 'movie' || row.mediaType === 'tv' ? 'watch'
+            : row.mediaType === 'book' ? 'read'
+            : row.mediaType === 'game' ? 'play'
+            : row.mediaType === 'album' ? 'listen'
+            : row.mediaType === 'podcast' ? 'podcast' : null;
+          const typeColors = tcKey ? (TypeColors as any)[tcKey] : { color: '#6B7280', bg: '#F3F4F6' };
+          const mediaLabel = DISCUSSION_TYPE_LABELS[tcKey ?? ''] ?? row.mediaType;
+          return (
+            <Pressable
+              key={`room-${row.externalId}`}
+              style={[styles.searchRow, sep]}
+              onPress={() => router.push({
+                pathname: '/content-room-modal',
+                params: { externalId: row.externalId, mediaType: row.mediaType, title: row.title, poster: row.poster ?? '' },
+              })}>
+              {row.poster ? (
+                <Image source={{ uri: row.poster }} style={styles.srPoster} resizeMode="cover" />
+              ) : (
+                <View style={[styles.srThumb, { backgroundColor: typeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
+                  <SymbolView name="film" size={16} tintColor={typeColors.color} type="monochrome" style={{ width: 16, height: 16 }} />
+                </View>
+              )}
+              <View style={styles.srBody}>
+                <Text style={[styles.srType, { color: typeColors.color }]}>{mediaLabel.toUpperCase()} · ROOM</Text>
+                <Text style={[styles.srTitle, { color: Brand.ink }]} numberOfLines={1}>{row.title}</Text>
+                <Text style={[styles.srCount, { color: row.count === 0 ? Brand.trust : Brand.muted }]}>
+                  {row.count === 0 ? 'No discussions yet · Start one' : `${row.count} ${row.count === 1 ? 'discussion' : 'discussions'}`}
+                </Text>
+              </View>
+              <SymbolView name="chevron.right" size={14} tintColor={Brand.border} type="monochrome" style={{ width: 14, height: 14 }} />
+            </Pressable>
+          );
+        }
+
         if (row.kind === 'discussion') {
           const typeColors = (TypeColors as any)[row.type] ?? { color: '#6B7280', bg: '#F3F4F6' };
           const typeLabel = DISCUSSION_TYPE_LABELS[row.type] ?? row.type;
           return (
             <Pressable
               key={`d-${row.id}`}
-              style={[styles.searchRow, !isLast && { borderBottomWidth: 0.5, borderBottomColor: Brand.border }]}
+              style={[styles.searchRow, sep]}
               onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: row.id } })}>
               <View style={[styles.srThumb, { backgroundColor: typeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
                 <SymbolView name="bubble.left.and.bubble.right" size={16} tintColor={typeColors.color} type="monochrome" style={{ width: 16, height: 16 }} />
@@ -70,12 +141,14 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
             </Pressable>
           );
         }
+
+        // thread (chat room)
         const type = TYPE_MAP[row.post_type];
         const colors = type ? TypeColors[type] : TypeColorsLight.watch;
         return (
           <Pressable
             key={`t-${row.title}-${i}`}
-            style={[styles.searchRow, !isLast && { borderBottomWidth: 0.5, borderBottomColor: Brand.border }]}
+            style={[styles.searchRow, sep]}
             onPress={() => openThread(row.title, row.post_type, null)}>
             <View style={[styles.srThumb, { backgroundColor: colors.bg }]}>
               <Text style={{ fontSize: 18 }}>{colors.icon}</Text>
@@ -310,6 +383,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   srBody: { flex: 1, minWidth: 0 },
+  srPoster: { width: 36, height: 48, borderRadius: 6, flexShrink: 0 },
   srType: { fontFamily: BrandFonts.interMedium, fontSize: 10, textTransform: 'uppercase', letterSpacing: 0.4, marginBottom: 1 },
   srTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13, marginBottom: 2 },
   srCount: { fontFamily: BrandFonts.interRegular, fontSize: 11 },

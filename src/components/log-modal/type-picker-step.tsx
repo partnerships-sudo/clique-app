@@ -66,22 +66,25 @@ export function TypePickerStep({
 
   return (
     <View style={styles.wrap}>
-      {/* Single adaptive search bar — universal when no type, type-specific when one is selected */}
-      <View style={styles.searchRow}>
-        <SymbolView name="magnifyingglass" size={14} tintColor={Brand.muted} style={{ width: 16, height: 16 }} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder={value ? `Search ${TYPES.find(t => t.value === value)?.label.toLowerCase()}…` : 'Search everything…'}
-          placeholderTextColor={Brand.muted}
-          value={query}
-          onChangeText={setQuery}
-          returnKeyType="search"
-          clearButtonMode="while-editing"
-        />
-        {isFetching ? <ActivityIndicator size="small" color={Brand.trust} /> : null}
-      </View>
+      {/* Search bar only shown when no type is selected — once a type is tapped,
+          SearchStep renders its own type-specific bar below */}
+      {!value && (
+        <View style={styles.searchRow}>
+          <SymbolView name="magnifyingglass" size={14} tintColor={Brand.muted} style={{ width: 16, height: 16 }} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search everything…"
+            placeholderTextColor={Brand.muted}
+            value={query}
+            onChangeText={setQuery}
+            returnKeyType="search"
+            clearButtonMode="while-editing"
+          />
+          {isFetching ? <ActivityIndicator size="small" color={Brand.trust} /> : null}
+        </View>
+      )}
 
-      {hasQuery && (
+      {!value && hasQuery && (
         <View style={styles.results}>
           {!isFetching && (results?.length ?? 0) === 0 ? (
             <Text style={styles.emptyText}>No results found.</Text>

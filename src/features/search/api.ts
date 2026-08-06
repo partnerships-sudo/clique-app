@@ -288,6 +288,85 @@ export interface UniversalSearchResult extends SearchResult {
   entryType: EntryType;
 }
 
+// Lightweight content search for the Global feed search bar — returns results
+// from TMDB (film/TV), Hardcover (books), and Spotify (music, podcasts) so
+// users can navigate to a content room even with zero discussions.
+export interface ContentSearchResult {
+  title: string;
+  poster: string | null;
+  externalId: string;
+  mediaType: string; // 'movie' | 'tv' | 'book' | 'album' | 'podcast'
+  year: string | null;
+}
+
+export function useContentSearch(query: string) {
+  const trimmed = query.trim();
+  return useQuery({
+    queryKey: ['content-search', trimmed],
+    queryFn: async (): Promise<ContentSearchResult[]> => {
+      const [tmdbRes, booksRes, albumsRes, podcastsRes] = await Promise.allSettled([
+        // TMDB — movies & TV
+        fetch(
+          `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(trimmed)}&include_adult=false`,
+          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+        ).then((r) => r.json()),
+        // Hardcover — books
+        searchBooks(trimmed),
+        // Spotify — albums / music
+        searchSpotifyAlbums(trimmed),
+        // Spotify — podcasts
+        searchSpotifyPodcasts(trimmed),
+      ]);
+
+      const results: ContentSearchResult[] = [];
+
+      // TMDB
+      if (tmdbRes.status === 'fulfilled') {
+        const raw = ((tmdbRes.value.results ?? []) as any[])
+          .filter((r: any) => r.media_type === 'movie' || r.media_type === 'tv')
+          .slice(0, 4);
+        for (const r of raw) {
+          results.push({
+            title: r.title ?? r.name ?? '',
+            poster: r.poster_path ? `https://image.tmdb.org/t/p/w185${r.poster_path}` : null,
+            externalId: String(r.id),
+            mediaType: r.media_type,
+            year: (r.release_date ?? r.first_air_date ?? '').slice(0, 4) || null,
+          });
+        }
+      }
+
+      // Books
+      if (booksRes.status === 'fulfilled') {
+        for (const b of booksRes.value.slice(0, 3)) {
+          if (!b.externalId) continue;
+          results.push({ title: b.title, poster: b.img, externalId: b.externalId, mediaType: 'book', year: null });
+        }
+      }
+
+      // Albums
+      if (albumsRes.status === 'fulfilled') {
+        for (const a of albumsRes.value.slice(0, 2)) {
+          if (!a.externalId) continue;
+          results.push({ title: a.title, poster: a.img, externalId: a.externalId, mediaType: 'album', year: null });
+        }
+      }
+
+      // Podcasts
+      if (podcastsRes.status === 'fulfilled') {
+        for (const p of podcastsRes.value.slice(0, 2)) {
+          if (!p.externalId) continue;
+          results.push({ title: p.title, poster: p.img, externalId: p.externalId, mediaType: 'podcast', year: null });
+        }
+      }
+
+      return results;
+    },
+    enabled: trimmed.length >= 2,
+    staleTime: 60_000,
+  });
+}
+
 export function useUniversalSearch(query: string) {
   const trimmed = query.trim();
   return useQuery({

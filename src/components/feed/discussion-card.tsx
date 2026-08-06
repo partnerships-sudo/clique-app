@@ -116,15 +116,15 @@ export function DiscussionCard({ item }: { item: Discussion }) {
 const styles = StyleSheet.create({
   card: {
     borderWidth: 1,
-    borderRadius: 14,
-    padding: 10,
-    gap: 6,
-    marginBottom: 8,
+    borderRadius: 12,
+    padding: 8,
+    gap: 4,
+    marginBottom: 6,
   },
   typePill: {
     alignSelf: 'flex-start',
     borderRadius: 20,
-    paddingHorizontal: 8,
+    paddingHorizontal: 7,
     paddingVertical: 2,
   },
   typeText: {
@@ -140,7 +140,7 @@ const styles = StyleSheet.create({
   },
   textBlock: {
     flex: 1,
-    gap: 3,
+    gap: 2,
   },
   title: {
     fontFamily: BrandFonts.syneExtraBold,
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
   },
   body: {
     fontFamily: BrandFonts.interRegular,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
   },
   linkedTag: {
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderRadius: 7,
-    paddingHorizontal: 7,
+    borderRadius: 6,
+    paddingHorizontal: 6,
     paddingVertical: 2,
     marginTop: 1,
   },
@@ -165,9 +165,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
   },
   poster: {
-    width: 42,
-    height: 58,
-    borderRadius: 7,
+    width: 36,
+    height: 50,
+    borderRadius: 6,
     flexShrink: 0,
   },
   footer: {
@@ -178,12 +178,12 @@ const styles = StyleSheet.create({
   authorRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
+    gap: 4,
     flex: 1,
   },
   meta: {
     fontFamily: BrandFonts.interRegular,
-    fontSize: 11,
+    fontSize: 10,
   },
   footerRight: {
     flexDirection: 'row',

@@ -46,13 +46,14 @@ function RootNavigator() {
       <Stack.Screen name="content-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="recommend-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="post-share-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="list-share-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="list-comments-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="friend-profile-modal" options={{ headerShown: false }} />
       <Stack.Screen name="rate-modal" options={{ headerShown: false }} />
       <Stack.Screen name="new-chat-modal" options={{ headerShown: false }} />
       <Stack.Screen name="new-group-modal" options={{ headerShown: false }} />
       <Stack.Screen name="group-info-modal" options={{ headerShown: false }} />
       <Stack.Screen name="add-group-members-modal" options={{ headerShown: false }} />
-      <Stack.Screen name="trending-users-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.55], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-add-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-scan-modal" options={{ headerShown: false }} />
       <Stack.Screen name="friend-collection-modal" options={{ headerShown: false }} />
@@ -61,7 +62,6 @@ function RootNavigator() {
       <Stack.Screen name="discover-people-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="stories-modal" options={{ headerShown: false }} />
       <Stack.Screen name="notifications-modal" options={{ headerShown: false }} />
-      <Stack.Screen name="dm-requests-modal" options={{ headerShown: false }} />
       <Stack.Screen name="archived-chats-modal" options={{ headerShown: false }} />
       <Stack.Screen name="post-reactions-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="post-comments-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
@@ -220,7 +220,7 @@ function RootLayoutInner() {
             </SessionProvider>
           </QueryClientProvider>
         </ThemeProvider>
-        {null /* AnimatedSplash temporarily disabled */}
+        {/* AnimatedSplash disabled */}
       </StripeProvider>
     </GestureHandlerRootView>
   );

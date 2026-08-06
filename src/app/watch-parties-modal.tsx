@@ -363,10 +363,6 @@ export default function WatchPartiesModal() {
             <Pressable style={styles.createBtn} onPress={() => router.push('/premiere-modal')}>
               <Text style={styles.createBtnText}>Host a watch party</Text>
             </Pressable>
-          ) : tab === 'screening' ? (
-            <Pressable style={[styles.createBtn, { backgroundColor: '#F59E0B' }]} onPress={() => router.push('/create-screening-room-modal')}>
-              <Text style={styles.createBtnText}>Create a Screening Room</Text>
-            </Pressable>
           ) : null}
         </View>
       ) : (

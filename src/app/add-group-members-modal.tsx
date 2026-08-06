@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { Alert } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useExtendedNetworkProfiles } from '@/features/follows/api';
@@ -31,8 +32,12 @@ export default function AddGroupMembersModal() {
 
   async function handleAdd() {
     if (!selected.size) return;
-    await addMembers.mutateAsync([...selected]);
-    router.back();
+    try {
+      await addMembers.mutateAsync([...selected]);
+      router.back();
+    } catch {
+      Alert.alert('Could not add members', 'Please check your connection and try again.');
+    }
   }
 
   const addLabel = selected.size === 0
