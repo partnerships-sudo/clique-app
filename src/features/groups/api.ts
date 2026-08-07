@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 export interface GroupThread {
   id: string;
   name: string | null;
+  photoUrl: string | null;
   memberCount: number;
   lastText: string | null;
   lastTime: string;
@@ -51,7 +52,7 @@ export function useGroupThreads() {
       const [groupsRes, allMembersRes, messagesRes] = await Promise.all([
         supabase
           .from('group_chats')
-          .select('id, name, created_at')
+          .select('id, name, photo_url, created_at')
           .in('id', chatIds)
           .order('created_at', { ascending: false }),
         supabase
@@ -106,6 +107,7 @@ export function useGroupThreads() {
       return {
         id: g.id,
         name: g.name,
+        photoUrl: (g as any).photo_url ?? null,
         memberCount: memberCounts[g.id] ?? 0,
         lastText: lastMsg?.text ?? null,
         lastTime: lastMsg?.created_at ?? g.created_at,
@@ -116,6 +118,24 @@ export function useGroupThreads() {
   }, [groups, memberCounts, messagesByChatId, readLoaded, isUnread, user?.id]);
 
   return { ...query, threads, markRead };
+}
+
+export function useGroupInfo(groupId: string | null) {
+  return useQuery({
+    queryKey: ['group-info', groupId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('group_chats')
+        .select('id, name, photo_url')
+        .eq('id', groupId!)
+        .single();
+      if (error) throw error;
+      return data as { id: string; name: string | null; photo_url: string | null };
+    },
+    enabled: !!groupId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  });
 }
 
 export function useGroupMembers(groupId: string | null) {
@@ -213,6 +233,44 @@ export function useSendGroupMessage(groupId: string | null) {
       queryClient.invalidateQueries({ queryKey: ['group-messages', groupId] });
       queryClient.invalidateQueries({ queryKey: ['group-threads'] });
     },
+  });
+}
+
+export function useUpdateGroup(groupId: string | null, onError?: (err: Error) => void) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { name?: string; photoUri?: string }) => {
+      let photoUrl: string | undefined;
+
+      if (input.photoUri) {
+        const response = await fetch(input.photoUri);
+        const arrayBuffer = await response.arrayBuffer();
+        const path = `group-${groupId}/photo.jpg`;
+        const { error: uploadError } = await supabase.storage
+          .from('avatars')
+          .upload(path, arrayBuffer, { contentType: 'image/jpeg', upsert: true });
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from('avatars').getPublicUrl(path);
+        photoUrl = `${data.publicUrl}?t=${Date.now()}`;
+      }
+
+      const update: Record<string, string> = {};
+      if (input.name !== undefined) update.name = input.name;
+      if (photoUrl) update.photo_url = photoUrl;
+
+      if (Object.keys(update).length > 0) {
+        const { error } = await supabase.from('group_chats').update(update).eq('id', groupId!);
+        if (error) throw error;
+      }
+
+      return photoUrl;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['group-info', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['group-members', groupId] });
+      queryClient.invalidateQueries({ queryKey: ['group-threads'] });
+    },
+    onError: (err: Error) => onError?.(err),
   });
 }
 

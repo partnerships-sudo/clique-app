@@ -34,7 +34,7 @@ import {
   useSendDm,
 } from '@/features/dms/api';
 import { useExtendedNetworkProfiles } from '@/features/follows/api';
-import { useGroupMessages, useSendGroupMessage } from '@/features/groups/api';
+import { useGroupInfo, useGroupMembers, useGroupMessages, useSendGroupMessage } from '@/features/groups/api';
 import { searchGifs, type GiphyResult } from '@/features/chat-media/giphy';
 import { pickAndUploadImage } from '@/features/chat-media/upload';
 import { formatLastSeen, useMarkDmReadReceipt, useDmReadReceipt } from '@/features/presence/api';
@@ -83,6 +83,8 @@ export default function ChatModal() {
   const threadMessages = useThreadMessages(!isDm && !isGroup ? params.title ?? null : null);
   const dmMessages = useDmMessages(isDm ? params.friendId! : null);
   const groupMessages = useGroupMessages(isGroup ? params.groupId! : null);
+  const { data: groupInfo } = useGroupInfo(isGroup ? params.groupId! : null);
+  const { data: groupMembers = [] } = useGroupMembers(isGroup ? params.groupId! : null);
   const isLoading = isGroup ? groupMessages.isLoading : isDm ? dmMessages.isLoading : threadMessages.isLoading;
   const { data: dmThreadState } = useDmThreadState(isDm ? params.friendId : undefined);
   const isDmLocked = isDm && dmThreadState?.locked === true;
@@ -417,6 +419,8 @@ export default function ChatModal() {
               }>
               {isDm ? (
                 <Avatar name={params.friendName ?? 'Friend'} size={34} avatarUrl={params.friendAvatar} />
+              ) : groupInfo?.photo_url ? (
+                <Image source={{ uri: groupInfo.photo_url }} style={styles.headerGroupPhoto} />
               ) : (
                 <View style={[styles.headerIconBox, { backgroundColor: Brand.tlight }]}>
                   <Text style={styles.headerIcon}>👥</Text>
@@ -424,15 +428,24 @@ export default function ChatModal() {
               )}
               <Text style={styles.headerTitle} numberOfLines={1}>
                 {isGroup
-                  ? (params.groupName ?? 'Group Chat')
+                  ? (groupInfo?.name ?? params.groupName ?? 'Group Chat')
                   : friendProfile?.username
                     ? `@${friendProfile.username} (${params.friendName ?? 'Friend'})`
                     : (params.friendName ?? 'Friend')}
               </Text>
             </Pressable>
             <View style={styles.headerRight}>
-              {isGroup ? (
-                <Text style={styles.headerSub}>Tap to see members ›</Text>
+              {isGroup && groupMembers.length > 0 ? (
+                <Pressable
+                  hitSlop={8}
+                  style={styles.memberAvatarStack}
+                  onPress={() => router.push({ pathname: '/group-info-modal', params: { groupId: params.groupId!, groupName: groupInfo?.name ?? params.groupName ?? 'Group Chat' } })}>
+                  {groupMembers.slice(0, 4).map((m, i) => (
+                    <View key={m.userId} style={[styles.memberAvatarWrap, { zIndex: 4 - i, marginLeft: i === 0 ? 0 : -8 }]}>
+                      <Avatar name={m.name} size={24} avatarUrl={m.avatarUrl} />
+                    </View>
+                  ))}
+                </Pressable>
               ) : null}
               <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
                 <SymbolView
@@ -1254,12 +1267,15 @@ function createStyles(Brand: BrandPalette) {
     headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
     headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 1 },
     headerIconBox: {
-      width: 38,
-      height: 38,
-      borderRadius: 10,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
       alignItems: 'center',
       justifyContent: 'center',
     },
+    headerGroupPhoto: { width: 34, height: 34, borderRadius: 17 },
+    memberAvatarStack: { flexDirection: 'row', alignItems: 'center' },
+    memberAvatarWrap: { borderWidth: 1.5, borderColor: Brand.card, borderRadius: 12 },
     headerIcon: { fontSize: 18 },
     messages: { flex: 1 },
     messagesContent: { padding: Spacing.three },

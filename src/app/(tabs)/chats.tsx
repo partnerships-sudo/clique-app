@@ -98,12 +98,6 @@ export default function ChatsScreen() {
         </View>
       </View>
       <View style={styles.modeRow}>
-        <Pressable style={styles.modeTab} onPress={() => setMode('private')}>
-          <Text style={[styles.modeTabText, mode === 'private' && styles.modeTabTextActive]}>
-            DMs
-          </Text>
-          {mode === 'private' && <View style={styles.modeTabUnderline} />}
-        </Pressable>
         <View style={styles.modeTabSpacer} />
         <Pressable style={[styles.modeTab, { marginRight: 0 }]} onPress={() => setMode('requests')}>
           <Text style={[styles.modeTabText, mode === 'requests' && styles.modeTabTextActive]}>
