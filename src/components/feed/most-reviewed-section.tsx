@@ -3,7 +3,7 @@ import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
-import { useMostReviewed, type MostReviewedEntry, type MostReviewedPeriod } from '@/features/feed/api';
+import { useMostReviewed, useMostReviewedInCircle, type MostReviewedEntry, type MostReviewedPeriod } from '@/features/feed/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const PERIODS: { label: string; value: MostReviewedPeriod }[] = [
@@ -13,7 +13,7 @@ const PERIODS: { label: string; value: MostReviewedPeriod }[] = [
   { label: 'All time', value: 'alltime' },
 ];
 
-const COLLAPSED = 5;
+const COLLAPSED = 10;
 
 function openEntry(entry: MostReviewedEntry) {
   router.push({
@@ -29,7 +29,7 @@ function openEntry(entry: MostReviewedEntry) {
   });
 }
 
-export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | 'all' }) {
+export function MostReviewedSection({ typeFilter, title = 'Most Reviewed' }: { typeFilter?: EntryType | 'all'; title?: string }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -44,11 +44,11 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
     <View style={styles.section}>
       {/* Header row */}
       <View style={styles.headerRow}>
-        <Text style={styles.heading}>Most Reviewed</Text>
+        <Text style={styles.heading}>{title}</Text>
       </View>
 
       {/* Period pills */}
-      <View style={styles.pillsRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsRow}>
         {PERIODS.map((p) => {
           const active = period === p.value;
           return (
@@ -60,7 +60,7 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
             </Pressable>
           );
         })}
-      </View>
+      </ScrollView>
 
       {/* List */}
       {isLoading ? (
@@ -119,9 +119,78 @@ export function MostReviewedSection({ typeFilter }: { typeFilter?: EntryType | '
   );
 }
 
+export function CircleRankedSection({ followingIds, title = 'Inner Circle' }: { followingIds: string[]; title?: string }) {
+  const Brand = useBrand();
+  const TypeColors = useTypeColors();
+  const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const [period, setPeriod] = useState<MostReviewedPeriod>('month');
+  const [expanded, setExpanded] = useState(false);
+  const { data = [], isLoading } = useMostReviewedInCircle(period, followingIds);
+  const visible = expanded ? data : data.slice(0, COLLAPSED);
+
+  return (
+    <View style={styles.section}>
+      <View style={styles.headerRow}>
+        <Text style={styles.heading}>{title}</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.pillsRow}>
+        {PERIODS.map((p) => {
+          const active = period === p.value;
+          return (
+            <Pressable key={p.value} onPress={() => { setPeriod(p.value); setExpanded(false); }}
+              style={[styles.pill, active && styles.pillActive]}>
+              <Text style={[styles.pillText, active && styles.pillTextActive]}>{p.label}</Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+      {isLoading ? (
+        <Text style={styles.empty}>Loading…</Text>
+      ) : data.length === 0 ? (
+        <Text style={styles.empty}>No activity from your circle yet.</Text>
+      ) : (
+        <View style={styles.list}>
+          {visible.map((entry, i) => {
+            const type = TypeColors[entry.type] ?? TypeColors.watch;
+            const rating = entry.avgRating ? Math.round(entry.avgRating) : null;
+            return (
+              <Pressable key={`${entry.type}:${entry.title}`} style={styles.item} onPress={() => openEntry(entry)}>
+                <Text style={styles.rank}>{i + 1}</Text>
+                <View style={styles.thumb}>
+                  {entry.poster ? (
+                    <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                  ) : (
+                    <View style={[StyleSheet.absoluteFill, styles.thumbFallback, { backgroundColor: type.bg }]}>
+                      <Text style={{ fontSize: 20 }}>{type.icon}</Text>
+                    </View>
+                  )}
+                </View>
+                <View style={styles.info}>
+                  <Text style={styles.title} numberOfLines={1}>{entry.title}</Text>
+                  {entry.sub ? <Text style={styles.sub} numberOfLines={1}>{entry.sub}</Text> : null}
+                  {rating ? <Text style={styles.stars}>{'★'.repeat(rating)}{'☆'.repeat(5 - rating)}</Text> : null}
+                </View>
+                <View style={styles.countCol}>
+                  <Text style={styles.count}>{entry.count}</Text>
+                  <Text style={styles.countLabel}>{entry.count === 1 ? 'log' : 'logs'}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+          {data.length > COLLAPSED && (
+            <Pressable style={styles.viewMoreBtn} onPress={() => setExpanded((v) => !v)}>
+              <Text style={styles.viewMoreText}>{expanded ? 'Show less' : `View more (${data.length - COLLAPSED})`}</Text>
+            </Pressable>
+          )}
+        </View>
+      )}
+    </View>
+  );
+}
+
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
-    section: { marginTop: 24 },
+    section: { marginTop: 12 },
     headerRow: { marginBottom: 12 },
     heading: {
       fontFamily: BrandFonts.syneExtraBold,
@@ -134,11 +203,11 @@ function createStyles(Brand: BrandPalette) {
       marginBottom: 14,
     },
     pill: {
-      flex: 1,
       borderRadius: 20,
       borderWidth: 1.5,
       borderColor: Brand.border,
       paddingVertical: 5,
+      paddingHorizontal: 14,
       alignItems: 'center',
       backgroundColor: Brand.card,
     },

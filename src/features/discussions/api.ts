@@ -801,6 +801,62 @@ export interface FollowedRoomDiscussion {
   has_voted: boolean;
 }
 
+export interface FollowedRoom {
+  externalId: string;
+  mediaType: string;
+  contentTitle: string;
+  contentPoster: string | null;
+  followerCount: number;
+}
+
+export function useFollowedRooms() {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['followed-rooms', user?.id],
+    queryFn: async (): Promise<FollowedRoom[]> => {
+      if (!user) return [];
+      // Get rooms this user follows
+      const { data: follows } = await supabase
+        .from('content_room_follows')
+        .select('external_id, media_type')
+        .eq('user_id', user.id);
+      if (!follows || follows.length === 0) return [];
+
+      // For each room, get metadata from a recent discussion + follower count
+      const rooms: FollowedRoom[] = [];
+      for (const f of follows) {
+        // Get content info from discussions table
+        const { data: disc } = await supabase
+          .from('discussions')
+          .select('content_title, content_poster')
+          .eq('content_external_id', f.external_id)
+          .eq('content_media_type', f.media_type)
+          .not('content_poster', 'is', null)
+          .limit(1)
+          .maybeSingle();
+        // Get follower count
+        const { count } = await supabase
+          .from('content_room_follows')
+          .select('id', { count: 'exact', head: true })
+          .eq('external_id', f.external_id)
+          .eq('media_type', f.media_type);
+        if (disc?.content_title) {
+          rooms.push({
+            externalId: f.external_id,
+            mediaType: f.media_type,
+            contentTitle: disc.content_title,
+            contentPoster: disc.content_poster ?? null,
+            followerCount: count ?? 0,
+          });
+        }
+      }
+      return rooms;
+    },
+    enabled: !!user,
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useFollowedRoomsFeed() {
   const { user } = useSession();
   return useQuery({

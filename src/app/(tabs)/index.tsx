@@ -9,12 +9,13 @@ import { BecauseYouRow } from '@/components/feed/because-you-row';
 import { FeedViewSwitcher, type FeedView } from '@/components/feed/feed-view-switcher';
 import { FilterChips } from '@/components/feed/filter-chips';
 import { GlobalView } from '@/components/feed/global-view';
-import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
+import { CircleRankedSection, MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { NowBanner } from '@/components/feed/now-banner';
 import { PostCard } from '@/components/feed/post-card';
 import { SponsoredCard } from '@/components/feed/sponsored-card';
 import { useActiveAd } from '@/features/ads/api';
 import { CloseFriendsButton } from '@/components/feed/stories-strip';
+import { ForYouView } from '@/components/feed/for-you-view';
 import { SectionHeader } from '@/components/feed/section-header';
 import { SectionLabel } from '@/components/feed/section-label';
 import { TopPicksRow } from '@/components/feed/top-picks-row';
@@ -386,7 +387,7 @@ export default function FeedScreen() {
         onShow={feedView === 'global' ? undefined : showCategory}
         labelsOnly={feedView === 'global'}
       />
-      {feedView !== 'foryou' && feedView !== 'feed' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
+      {feedView !== 'foryou' && feedView !== 'feed' && feedView !== 'circle' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
       {feedView === 'feed' && activeAd && !adDismissed ? (
         <View style={{ marginBottom: 6 }}>
           <SponsoredCard ad={activeAd} onDismiss={() => setAdDismissed(true)} />
@@ -442,13 +443,21 @@ export default function FeedScreen() {
       )
       .slice(0, 10);
 
-  const becauseRows = [
+  const allBecauseRows = [
     { seed: seedByType.watch, entries: filterRecs(watchRecs, seedByType.watch) },
     { seed: seedByType.read, entries: filterRecs(readRecs, seedByType.read) },
     { seed: seedByType.play, entries: filterRecs(playRecs, seedByType.play) },
     { seed: seedByType.podcast, entries: filterRecs(podcastRecs, seedByType.podcast) },
     { seed: seedByType.listen, entries: filterRecs(listenRecs, seedByType.listen) },
   ].filter(({ seed, entries }) => seed && entries.length > 0);
+
+  // Only show one row — whichever seed matches the most recently logged item
+  const mostRecentLogged = logged.find((i) => i.external_id);
+  const becauseRows = (() => {
+    if (!mostRecentLogged) return allBecauseRows.slice(0, 1);
+    const match = allBecauseRows.find(({ seed }) => seed?.title.toLowerCase() === mostRecentLogged.title.toLowerCase());
+    return match ? [match] : allBecauseRows.slice(0, 1);
+  })();
 
   // Merge "Because you..." seeded recs into the Top Picks pool at a base score
   // of 55 — real personalization signal, but below friend-backed picks.
@@ -485,47 +494,13 @@ export default function FeedScreen() {
       {feedView === 'foryou' ? (
         <ScrollView contentContainerStyle={styles.content}>
           {header}
-          {forYouLoading && topPicks.length === 0 && becauseRows.length === 0 ? (
-            <View style={styles.forYouLoader}>
-              <ActivityIndicator color={Brand.trust} />
-            </View>
-          ) : forYouLoading && (topPicks.length > 0 || becauseRows.length > 0) ? (
-            // Stale cache shown — subtle spinner in top-right to signal background refresh
-            <View style={{ position: 'absolute', top: 8, right: 16, zIndex: 10 }}>
-              <ActivityIndicator size="small" color={Brand.trust} />
-            </View>
-          ) : null}
-          {topPicks.length === 0 && becauseRows.length === 0 && !forYouLoading ? (
-            <View style={styles.forYouEmpty}>
-              <Text style={styles.forYouEmptyTitle}>Nothing here yet</Text>
-              <Text style={styles.forYouEmptyBody}>
-                Log a few movies, books, or albums and we'll build personalised picks for you.
-              </Text>
-              <Pressable
-                style={styles.forYouEmptyBtn}
-                onPress={() => router.push('/log-modal')}>
-                <Text style={styles.forYouEmptyBtnText}>Log something →</Text>
-              </Pressable>
-            </View>
-          ) : (topPicks.length > 0 || becauseRows.length > 0) ? (
-            <>
-              {topPicks.length > 0 && (
-                <View style={styles.forYouSection}>
-                  <SectionHeader title="Top picks for you" />
-                  <TopPicksRow entries={topPicks} />
-                </View>
-              )}
-              {becauseRows.map(({ seed, entries }) => (
-                <View key={`${seed!.type}:${seed!.title}`} style={styles.forYouSection}>
-                  <BecauseYouRow
-                    seedTitle={seed!.title}
-                    verb={PAST_VERBS[seed!.type]}
-                    entries={entries}
-                  />
-                </View>
-              ))}
-            </>
-          ) : null}
+          <ForYouView
+            friends={followingProfiles}
+            compatScores={compatScores}
+            loggedTitles={loggedTitles}
+            becauseRows={becauseRows}
+            forYouLoading={forYouLoading}
+          />
         </ScrollView>
       ) : feedView === 'global' ? (
         <ScrollView contentContainerStyle={styles.content}>
@@ -535,8 +510,8 @@ export default function FeedScreen() {
       ) : feedView !== 'feed' ? (
         <ScrollView contentContainerStyle={styles.content}>
           {header}
-          <TrendingList entries={entries} showTop10Banner bannerTitle="Top 10 right now" />
-          <MostReviewedSection />
+          <CircleRankedSection followingIds={[...(user?.id ? [user.id] : []), ...followingProfiles.map((p) => p.id)]} title="Inner Circle" />
+          <MostReviewedSection title="Outer Circle" />
         </ScrollView>
       ) : (
         <FlatList

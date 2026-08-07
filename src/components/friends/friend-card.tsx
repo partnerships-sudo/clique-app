@@ -60,7 +60,7 @@ export function FriendCard({
             {profile.verified_tier ? <VerifiedBadge tier={profile.verified_tier} /> : null}
           </View>
           {profile.username ? <Text style={styles.handle}>@{profile.username}</Text> : null}
-          <Text style={styles.compatLabel}>{emoji} <Text style={[styles.compatLabelText, { color }]}>{label}</Text></Text>
+          <Text style={[styles.compatLabel, styles.compatLabelText, { color }]}>{label}</Text>
         </Pressable>
 
         {/* Right column: currently watching + chat button */}

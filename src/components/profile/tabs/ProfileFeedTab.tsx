@@ -4,29 +4,37 @@ import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
-import { useCollectionItems, type CollectionItem } from '@/features/collection/api';
+import { usePostsByUser, type Post } from '@/features/feed/api';
+import { useSession } from '@/hooks/use-session';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { CAT_FILTERS, createStyles } from '../profile-styles';
 
 interface Props {
-  // kept for API compat but no longer used — feed now sources from collection
-  logged?: unknown[];
+  /** Profile user ID — current user's own ID for own profile, friend's ID for friend profiles */
+  userId?: string;
 }
 
-export function ProfileFeedTab(_props: Props) {
+export function ProfileFeedTab({ userId }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { user } = useSession();
   const [catFilter, setCatFilter] = useState<EntryType | 'all'>('all');
   const [feedSort, setFeedSort] = useState<'recent' | 'alpha'>('recent');
-  const { items: collectionItems } = useCollectionItems();
+
+  const targetId = userId ?? user?.id;
+  const { data: posts = [] } = usePostsByUser(targetId);
 
   const feedItems = useMemo(() => {
-    const items = catFilter === 'all' ? collectionItems : collectionItems.filter((i) => i.type === catFilter || (catFilter === 'watch' && i.type === 'tv'));
+    const items = catFilter === 'all'
+      ? posts
+      : posts.filter((p) => p.type === catFilter || (catFilter === 'watch' && p.type === 'tv'));
     const sorted = [...items];
     if (feedSort === 'alpha') sorted.sort((a, b) => a.title.localeCompare(b.title));
     else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     return sorted;
-  }, [collectionItems, catFilter, feedSort]);
+  }, [posts, catFilter, feedSort]);
+
+  const isOwner = !userId || userId === user?.id;
 
   return (
     <View style={styles.tabContent}>
@@ -78,14 +86,13 @@ export function ProfileFeedTab(_props: Props) {
                 sub: item.sub ?? undefined,
                 poster: item.poster ?? undefined,
                 type: item.type,
-                format: item.format ?? undefined,
-                userRating: item.user_rating?.toString() ?? undefined,
+                userRating: item.rating?.toString() ?? undefined,
                 externalId: item.external_id ?? undefined,
                 mediaType: item.media_type ?? undefined,
-                isOwner: '1',
+                isOwner: isOwner ? '1' : '0',
               },
             })}>
-            <CollectionFeedCard item={item} Brand={Brand} />
+            <FeedCard item={item} Brand={Brand} />
           </Pressable>
         ))
       )}
@@ -93,10 +100,11 @@ export function ProfileFeedTab(_props: Props) {
   );
 }
 
-function CollectionFeedCard({ item, Brand }: { item: CollectionItem; Brand: BrandPalette }) {
+function FeedCard({ item, Brand }: { item: Post; Brand: BrandPalette }) {
   const TypeColors = useTypeColors();
-  const type = (TypeColors as any)[item.type] ?? TypeColors.watch;
-  const stars = item.user_rating ? Math.round(item.user_rating) : 0;
+  const typeKey = item.type === 'tv' ? 'watch' : item.type;
+  const type = (TypeColors as any)[typeKey] ?? TypeColors.watch;
+  const stars = item.rating ? Math.round(item.rating) : 0;
   const s = StyleSheet.create({
     card: { backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: 5 },
     poster: { width: 48, height: 64, borderRadius: 8, backgroundColor: Brand.border },

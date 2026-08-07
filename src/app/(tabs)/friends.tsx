@@ -569,9 +569,9 @@ export default function FriendsScreen() {
   }, [compatItemsMap, user?.id]);
 
   const list = useMemo(() => {
-    if (tab !== 'following' || !rawList) return rawList;
+    if (!rawList) return rawList;
     return [...rawList].sort((a, b) => (compatScores.get(b.id) ?? 0) - (compatScores.get(a.id) ?? 0));
-  }, [rawList, compatScores, tab]);
+  }, [rawList, compatScores]);
 
   const activePostByUser = useMemo(() => {
     const map = new Map<string, (typeof allPosts)[number]>();

@@ -413,38 +413,37 @@ export default function ChatModal() {
                         pathname: '/group-info-modal',
                         params: { groupId: params.groupId!, groupName: params.groupName ?? 'Group Chat' },
                       })
-                  : undefined
-              }
-              disabled={!isGroup}>
+                  : () => isDm && router.push({ pathname: '/friend-profile-modal', params: { userId: params.friendId! } })
+              }>
+              {isDm ? (
+                <Avatar name={params.friendName ?? 'Friend'} size={34} avatarUrl={params.friendAvatar} />
+              ) : (
+                <View style={[styles.headerIconBox, { backgroundColor: Brand.tlight }]}>
+                  <Text style={styles.headerIcon}>👥</Text>
+                </View>
+              )}
               <Text style={styles.headerTitle} numberOfLines={1}>
-                {isGroup ? (params.groupName ?? 'Group Chat') : (params.friendName ?? 'Friend')}
-              </Text>
-              <Text style={styles.headerSub}>
-                {isGroup ? 'Tap to see members ›' : (friendLastSeenLabel || 'Private chat')}
+                {isGroup
+                  ? (params.groupName ?? 'Group Chat')
+                  : friendProfile?.username
+                    ? `@${friendProfile.username} (${params.friendName ?? 'Friend'})`
+                    : (params.friendName ?? 'Friend')}
               </Text>
             </Pressable>
-            <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
-              <SymbolView
-                name={searchVisible ? 'xmark' : 'magnifyingglass'}
-                size={16}
-                tintColor={searchVisible ? Brand.trust : Brand.muted}
-                type="monochrome"
-                style={{ width: 18, height: 18 }}
-              />
-            </Pressable>
-            {isDm ? (
-              <Pressable
-                onPress={() =>
-                  router.push({ pathname: '/friend-profile-modal', params: { userId: params.friendId! } })
-                }
-                hitSlop={16}>
-                <Avatar name={params.friendName ?? 'Friend'} size={38} avatarUrl={params.friendAvatar} />
+            <View style={styles.headerRight}>
+              {isGroup ? (
+                <Text style={styles.headerSub}>Tap to see members ›</Text>
+              ) : null}
+              <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
+                <SymbolView
+                  name={searchVisible ? 'xmark' : 'magnifyingglass'}
+                  size={16}
+                  tintColor={searchVisible ? Brand.trust : Brand.muted}
+                  type="monochrome"
+                  style={{ width: 18, height: 18 }}
+                />
               </Pressable>
-            ) : (
-              <View style={[styles.headerIconBox, { backgroundColor: Brand.tlight }]}>
-                <Text style={styles.headerIcon}>👥</Text>
-              </View>
-            )}
+            </View>
           </View>
         )}
 
@@ -1251,7 +1250,7 @@ function createStyles(Brand: BrandPalette) {
       marginTop: 3,
       marginRight: 4,
     },
-    headerInfo: { flex: 1, minWidth: 0 },
+    headerInfo: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
     headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
     headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted, marginTop: 1 },
     headerIconBox: {
@@ -1388,6 +1387,16 @@ function createStyles(Brand: BrandPalette) {
     gifThumb: { width: '100%', aspectRatio: 1 },
     gifLoading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
 
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    headerHandle: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12,
+      color: Brand.muted,
+    },
     searchToggleBtn: {
       width: 30,
       height: 30,

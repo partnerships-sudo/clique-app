@@ -7,7 +7,7 @@ import { DiscussionCard } from '@/components/feed/discussion-card';
 import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { BrandFonts, TypeColorsLight, type BrandPalette, type EntryType } from '@/constants/theme';
 import { type FeedFilterValue, useThreadSearch } from '@/features/feed/api';
-import { type DiscussionType, useDiscussionSearch, useTrendingDiscussions, usePersonalizedRooms, useFollowedRoomsFeed, type PersonalizedRoom } from '@/features/discussions/api';
+import { type DiscussionType, useDiscussionSearch, useTrendingDiscussions, usePersonalizedRooms, useFollowedRooms, type PersonalizedRoom } from '@/features/discussions/api';
 import { useContentSearch } from '@/features/search/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
@@ -234,10 +234,10 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
   const [showAll, setShowAll] = useState(false);
   const { data: trending = [], isLoading: dLoading } = useTrendingDiscussions(showAll ? 50 : 5, discussionType);
   const { data: personalizedRooms = [] } = usePersonalizedRooms();
-  const { data: followedFeed = [] } = useFollowedRoomsFeed();
+  const { data: followedRooms = [] } = useFollowedRooms();
 
   // Hide "Because you logged" rooms the user already follows
-  const followedKeys = new Set(followedFeed.map((d) => `${d.content_external_id}|${d.content_media_type}`));
+  const followedKeys = new Set(followedRooms.map((r) => `${r.externalId}|${r.mediaType}`));
   const unfollowedRooms = personalizedRooms.filter((r) => !followedKeys.has(`${r.externalId}|${r.mediaType}`));
   const typeFilter = filter === 'all' ? 'all' : filter;
 
@@ -266,7 +266,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
         <>
           {/* Trending discussions */}
           <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: Brand.ink }]}>💬 Discussions</Text>
+            <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Discussions</Text>
             <Pressable
               style={[styles.newDiscussionBtn, { backgroundColor: Brand.trust }]}
               onPress={() => router.push('/create-discussion-modal')}>
@@ -300,27 +300,33 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
             </>
           )}
 
-          {/* Followed rooms feed */}
-          {followedFeed.length > 0 && (
+          {/* Followed rooms */}
+          {followedRooms.length > 0 && (
             <>
-              <Text style={[styles.sectionTitle, { color: Brand.ink, marginTop: 6 }]}>Rooms you follow</Text>
+              <Text style={[styles.sectionTitle, { color: Brand.ink, marginTop: 16, marginBottom: 10 }]}>Your Lounges</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.followedScroll}>
-                {followedFeed.slice(0, 10).map((d) => (
+                {followedRooms.map((room) => (
                   <Pressable
-                    key={d.id}
+                    key={`${room.externalId}|${room.mediaType}`}
                     style={[styles.followedCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
-                    onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: d.id } })}>
-                    {d.content_poster ? (
-                      <Image source={{ uri: d.content_poster }} style={styles.followedPoster} resizeMode="cover" />
+                    onPress={() => router.push({
+                      pathname: '/content-room-modal',
+                      params: { externalId: room.externalId, mediaType: room.mediaType, title: room.contentTitle, poster: room.contentPoster ?? '' },
+                    })}>
+                    {room.contentPoster ? (
+                      <Image source={{ uri: room.contentPoster }} style={styles.followedPoster} resizeMode="cover" />
                     ) : (
                       <View style={[styles.followedPoster, { backgroundColor: Brand.tlight }]} />
                     )}
-                    <Text style={[styles.followedRoom, { color: Brand.muted }]} numberOfLines={1}>{d.content_title}</Text>
-                    <Text style={[styles.followedTitle, { color: Brand.ink }]} numberOfLines={3}>{d.title}</Text>
-                    <Text style={[styles.followedMeta, { color: Brand.muted }]}>💬 {d.comment_count}  ↑ {d.upvote_count}</Text>
+                    <View style={styles.followedInfo}>
+                      <Text style={[styles.followedRoomTitle, { color: Brand.ink }]} numberOfLines={2}>{room.contentTitle}</Text>
+                      <Text style={[styles.followedMeta, { color: Brand.muted }]}>
+                        {room.followerCount} {room.followerCount === 1 ? 'follower' : 'followers'}
+                      </Text>
+                    </View>
                   </Pressable>
                 ))}
               </ScrollView>
@@ -332,8 +338,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
             <PersonalizedRoomRow key={room.externalId} room={room} Brand={Brand} />
           ))}
 
-          {/* Most Reviewed — filtered by active chip */}
-          <MostReviewedSection typeFilter={typeFilter as EntryType | 'all'} />
+          {/* Most Reviewed moved to My Circle → Outer Circle */}
         </>
       )}
     </ScrollView>
@@ -395,7 +400,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 10,
   },
-  sectionTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 17, letterSpacing: -0.3 },
+  sectionTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 18, letterSpacing: -0.3 },
   seeAll: { fontFamily: BrandFonts.interMedium, fontSize: 13 },
 
   newDiscussionBtn: {
@@ -475,17 +480,16 @@ const styles = StyleSheet.create({
   },
   miniSeeAll: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
   // followed rooms feed
-  followedScroll: { flexDirection: 'row', gap: 8, paddingRight: 4, paddingBottom: 4 },
+  followedScroll: { flexDirection: 'row', gap: 10, paddingRight: 4, paddingBottom: 4 },
   followedCard: {
-    width: 110,
+    width: 72,
     borderWidth: 1,
-    borderRadius: 12,
-    padding: 8,
-    gap: 4,
+    borderRadius: 10,
+    overflow: 'hidden',
   },
-  followedPoster: { width: '100%' as any, height: 58, borderRadius: 6 },
-  followedRoom: { fontFamily: BrandFonts.interRegular, fontSize: 9 },
-  followedTitle: { fontFamily: BrandFonts.syneBold, fontSize: 11, lineHeight: 14, flex: 1 },
+  followedPoster: { width: 72, height: 100, borderRadius: 0, flexShrink: 0 },
+  followedInfo: { paddingHorizontal: 6, paddingTop: 5, paddingBottom: 6, gap: 1 },
+  followedRoomTitle: { fontFamily: BrandFonts.syneBold, fontSize: 10, lineHeight: 13 },
   followedMeta: { fontFamily: BrandFonts.interRegular, fontSize: 9 },
 });
 

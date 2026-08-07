@@ -40,7 +40,7 @@ export function NowBanner({
         </Pressable>
       </View>
       {poster ? (
-        <Image source={{ uri: poster }} style={styles.poster} />
+        <Image source={{ uri: poster }} style={styles.poster} resizeMode="cover" />
       ) : (
         <View style={[styles.poster, styles.posterFallback]}>
           <Text style={styles.posterFallbackText}>🎬</Text>
@@ -50,23 +50,24 @@ export function NowBanner({
   );
 }
 
-const POSTER_WIDTH = 150;
+const POSTER_WIDTH = 120;
+const BANNER_HEIGHT = 140;
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     banner: {
       borderRadius: 20,
-      height: POSTER_WIDTH,
+      height: BANNER_HEIGHT,
       marginBottom: 14,
-      position: 'relative',
       overflow: 'hidden',
+      flexDirection: 'row',
     },
     left: {
+      flex: 1,
       paddingVertical: 18,
       paddingLeft: 18,
-      paddingRight: POSTER_WIDTH + 14,
+      paddingRight: 12,
       justifyContent: 'center',
-      flex: 1,
     },
     label: {
       fontFamily: BrandFonts.syneBold,
@@ -99,12 +100,8 @@ function createStyles(Brand: BrandPalette) {
       lineHeight: 16,
     },
     poster: {
-      position: 'absolute',
-      top: 0,
-      right: 0,
-      bottom: 0,
       width: POSTER_WIDTH,
-      borderTopLeftRadius: 56,
+      height: BANNER_HEIGHT,
     },
     posterFallback: {
       backgroundColor: Brand.trust,

@@ -18,7 +18,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
-import { configureRevenueCat } from '@/features/purchases/api';
+// import { configureRevenueCat } from '@/features/purchases/api'; // RevenueCat disabled
 import { AppearanceProvider, useAppearance } from '@/providers/appearance-provider';
 import { SessionProvider } from '@/providers/session-provider';
 import { ShakespearProvider } from '@/providers/shakespear-provider';
@@ -103,17 +103,16 @@ function RootLayoutInner() {
     'Satoshi-Bold': require('../assets/fonts/Satoshi-Bold.otf'),
     'Satoshi-Black': require('../assets/fonts/Satoshi-Black.otf'),
   });
-  useEffect(() => {
-    // Initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      configureRevenueCat(session?.user?.id);
-    });
-    // Keep RevenueCat in sync with auth state changes (sign-in, sign-out, token refresh)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      configureRevenueCat(session?.user?.id);
-    });
-    return () => subscription.unsubscribe();
-  }, []);
+  // RevenueCat disabled — re-enable when products are configured in App Store Connect
+  // useEffect(() => {
+  //   supabase.auth.getSession().then(({ data: { session } }) => {
+  //     configureRevenueCat(session?.user?.id);
+  //   });
+  //   const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+  //     configureRevenueCat(session?.user?.id);
+  //   });
+  //   return () => subscription.unsubscribe();
+  // }, []);
 
 
   // Defer notification navigation until the router is ready (avoids cold-start crash)

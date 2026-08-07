@@ -215,7 +215,7 @@ export function ProfileCard({
 
         {/* Tab content — only the active tab is mounted, so its hooks only fire on demand */}
         {profileTab === 'feed' ? (
-          <ProfileFeedTab logged={logged} />
+          <ProfileFeedTab userId={profile?.id} />
         ) : profileTab === 'watchlist' ? (
           <ProfileWatchlistTab
             watchlist={watchlist}

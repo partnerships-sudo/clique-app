@@ -345,6 +345,46 @@ export interface MostReviewedEntry {
   avgRating: number | null;
 }
 
+export function useMostReviewedInCircle(period: MostReviewedPeriod, followingIds: string[]) {
+  return useQuery({
+    queryKey: ['most-reviewed-circle', period, followingIds],
+    queryFn: async () => {
+      if (followingIds.length === 0) return [];
+      const now = new Date();
+      let since: string | null = null;
+      if (period === 'week') since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      else if (period === 'month') since = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+      else if (period === 'year') since = new Date(now.getFullYear(), 0, 1).toISOString();
+
+      let query = supabase
+        .from('posts')
+        .select('title, type, poster, sub, external_id, media_type, rating')
+        .in('user_id', followingIds);
+      if (since) query = query.gte('created_at', since);
+      const { data, error } = await query;
+      if (error) throw error;
+
+      // Group and count
+      const map = new Map<string, { title: string; type: EntryType; poster: string | null; sub: string | null; externalId?: string; mediaType?: string; count: number; totalRating: number; ratingCount: number }>();
+      for (const row of (data ?? []) as any[]) {
+        const key = `${row.type}:${row.title?.toLowerCase()}`;
+        const existing = map.get(key);
+        if (existing) {
+          existing.count++;
+          if (row.rating) { existing.totalRating += row.rating; existing.ratingCount++; }
+        } else {
+          map.set(key, { title: row.title, type: row.type, poster: row.poster, sub: row.sub, externalId: row.external_id, mediaType: row.media_type, count: 1, totalRating: row.rating ?? 0, ratingCount: row.rating ? 1 : 0 });
+        }
+      }
+      return [...map.values()]
+        .sort((a, b) => b.count - a.count)
+        .map(({ totalRating, ratingCount, ...rest }) => ({ ...rest, avgRating: ratingCount > 0 ? totalRating / ratingCount : null })) as MostReviewedEntry[];
+    },
+    staleTime: 5 * 60 * 1000,
+    enabled: followingIds.length > 0,
+  });
+}
+
 export function useMostReviewed(period: MostReviewedPeriod) {
   return useQuery({
     queryKey: ['most-reviewed', period],
@@ -476,6 +516,23 @@ export interface PostTypeCounts {
   listen: number;
   podcast: number;
   subs: { type: string; media_type: string | null; sub: string | null }[];
+}
+
+export function usePostsByUser(userId: string | undefined) {
+  return useQuery({
+    queryKey: ['posts-by-user', userId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('*')
+        .eq('user_id', userId!)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as Post[];
+    },
+    enabled: !!userId,
+    staleTime: 30_000,
+  });
 }
 
 export function useMyPostCounts(userId: string | undefined) {

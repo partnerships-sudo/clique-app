@@ -24,54 +24,62 @@ export function DiscussionCard({ item }: { item: Discussion }) {
   const { user } = useSession();
   const vote = useToggleDiscussionVote();
 
-  const typeColor = (TypeColors as any)[item.type] ?? { color: '#6B7280', bg: '#F3F4F6' };
+  const typeKey = item.type === 'tv' ? 'watch' : item.type;
+  const typeColor = (TypeColors as any)[typeKey] ?? { color: '#6B7280', bg: '#F3F4F6' };
   const typeLabel = TYPE_LABELS[item.type] ?? item.type;
+
+  const hasLinkedContent = !!(item.content_title && item.content_external_id);
 
   function handleVote() {
     vote.mutate({ discussionId: item.id, hasVoted: item.has_voted });
   }
 
-  function handleOpen() {
+  function handleOpenDiscussion() {
     router.push({ pathname: '/discussion-detail-modal', params: { id: item.id } });
   }
 
-  return (
-    <Pressable style={[styles.card, { backgroundColor: Brand.card, borderColor: Brand.border }]} onPress={handleOpen}>
-      {/* Type pill */}
-      <View style={[styles.typePill, { backgroundColor: typeColor.bg }]}>
-        <Text style={[styles.typeText, { color: typeColor.color }]}>{typeLabel.toUpperCase()}</Text>
-      </View>
+  function handleOpenContentRoom() {
+    if (!hasLinkedContent) return;
+    router.push({
+      pathname: '/content-room-modal',
+      params: {
+        externalId: item.content_external_id!,
+        mediaType: item.content_media_type ?? '',
+        title: item.content_title!,
+        poster: item.content_poster ?? '',
+      },
+    });
+  }
 
+  return (
+    <Pressable style={[styles.card, { backgroundColor: Brand.card, borderColor: Brand.border }]} onPress={handleOpenDiscussion}>
       {/* Content row: text + optional poster */}
       <View style={styles.contentRow}>
         <View style={styles.textBlock}>
+          {/* Content title pill — taps into content room */}
+          {hasLinkedContent ? (
+            <Pressable onPress={(e) => { e.stopPropagation(); handleOpenContentRoom(); }} hitSlop={4} style={styles.pillWrap}>
+              <View style={[styles.contentPill, { backgroundColor: Brand.tlight }]}>
+                <Text style={[styles.contentPillText, { color: Brand.trust }]} numberOfLines={1}>
+                  {item.content_title}
+                </Text>
+              </View>
+            </Pressable>
+          ) : null}
+
+          {/* Discussion question */}
           <Text style={[styles.title, { color: Brand.ink }]} numberOfLines={2}>{item.title}</Text>
+
           {item.body ? (
             <Text style={[styles.body, { color: Brand.muted }]} numberOfLines={2}>{item.body}</Text>
           ) : null}
-          {/* Linked content tag — taps into the content room */}
-          {item.content_title && item.content_external_id ? (
-            <Pressable
-              style={[styles.linkedTag, { backgroundColor: Brand.tlight, borderColor: Brand.border }]}
-              onPress={(e) => {
-                e.stopPropagation();
-                router.push({
-                  pathname: '/content-room-modal',
-                  params: {
-                    externalId: item.content_external_id!,
-                    mediaType: item.content_media_type ?? '',
-                    title: item.content_title!,
-                    poster: item.content_poster ?? '',
-                  },
-                });
-              }}
-              hitSlop={4}>
-              <Text style={[styles.linkedText, { color: Brand.trust }]} numberOfLines={1}>🔗 {item.content_title}</Text>
-            </Pressable>
-          ) : null}
         </View>
+
+        {/* Poster — taps into content room */}
         {item.content_poster ? (
-          <Image source={{ uri: item.content_poster }} style={styles.poster} resizeMode="cover" />
+          <Pressable onPress={(e) => { e.stopPropagation(); handleOpenContentRoom(); }} hitSlop={4}>
+            <Image source={{ uri: item.content_poster }} style={styles.poster} resizeMode="cover" />
+          </Pressable>
         ) : null}
       </View>
 
@@ -79,7 +87,7 @@ export function DiscussionCard({ item }: { item: Discussion }) {
       <View style={styles.footer}>
         <Pressable
           style={styles.authorRow}
-          onPress={(e) => { e.stopPropagation(); router.push({ pathname: '/friend-profile-modal', params: { userId: item.user_id } }); }}
+          onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: item.user_id } })}
           hitSlop={6}>
           <Avatar avatarUrl={item.author_avatar} name={item.author_name} size={20} />
           <Text style={[styles.meta, { color: Brand.muted }]}>
@@ -89,10 +97,10 @@ export function DiscussionCard({ item }: { item: Discussion }) {
 
         <View style={styles.footerRight}>
           {/* Comments */}
-          <View style={styles.stat}>
+          <Pressable style={styles.stat} onPress={handleOpenDiscussion} hitSlop={8}>
             <SymbolView name="bubble.left" size={13} tintColor={Brand.muted} type="monochrome" style={{ width: 13, height: 13 }} />
             <Text style={[styles.statText, { color: Brand.muted }]}>{item.comment_count}</Text>
-          </View>
+          </Pressable>
 
           {/* Upvote */}
           <Pressable style={styles.stat} onPress={handleVote} hitSlop={8}>
@@ -120,6 +128,18 @@ const styles = StyleSheet.create({
     padding: 8,
     gap: 4,
     marginBottom: 6,
+  },
+  pillWrap: { alignSelf: 'flex-start' },
+  contentPill: {
+    alignSelf: 'flex-start',
+    borderRadius: 20,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  contentPillText: {
+    fontFamily: BrandFonts.interMedium,
+    fontSize: 10,
+    letterSpacing: 0.2,
   },
   typePill: {
     alignSelf: 'flex-start',
@@ -152,21 +172,14 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
   },
-  linkedTag: {
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    marginTop: 1,
-  },
-  linkedText: {
+  contentTitle: {
     fontFamily: BrandFonts.interMedium,
     fontSize: 10,
+    marginTop: 2,
   },
   poster: {
-    width: 36,
-    height: 50,
+    width: 44,
+    height: 62,
     borderRadius: 6,
     flexShrink: 0,
   },
@@ -174,6 +187,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
+    marginTop: 2,
   },
   authorRow: {
     flexDirection: 'row',

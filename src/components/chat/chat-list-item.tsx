@@ -34,6 +34,7 @@ export function ChatListItem({ thread, onPress }: { thread: ChatThread; onPress:
             try {
               const parsed = JSON.parse(thread.lastText);
               if (parsed.__chatGif) return 'GIF';
+              if (parsed.__watchparty) return '🎉 Watch party invite';
             } catch {}
             return thread.lastText;
           })()}
