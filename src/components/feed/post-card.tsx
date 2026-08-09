@@ -179,8 +179,8 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
         &ldquo;{note}&rdquo;
       </Text>
       {!expanded && note.length > 80 && (
-        <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust, marginTop: 2 }}>
-          more
+        <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust, marginTop: 3 }}>
+          view more
         </Text>
       )}
     </Pressable>
