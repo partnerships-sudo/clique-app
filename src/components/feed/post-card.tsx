@@ -208,6 +208,7 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
   Brand: BrandPalette;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [truncated, setTruncated] = useState(false);
 
   if (isSpoiler && !revealed) {
     return (
@@ -222,16 +223,25 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
 
   return (
     <>
-      {/* 1 line: note truncates on the left, …view more pinned to the right */}
+      {/* 1 line: note truncates, …view more only appears if text was actually clipped */}
       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 8 }}>
-        <Text style={[styles.note, { flex: 1, marginTop: 0 }]} numberOfLines={1}>
+        <Text
+          style={[styles.note, { flex: 1, marginTop: 0 }]}
+          numberOfLines={1}
+          onTextLayout={(e) => {
+            const line = e.nativeEvent.lines[0];
+            setTruncated(!!line && line.text.trimEnd().endsWith('…'));
+          }}
+        >
           &ldquo;{note}&rdquo;
         </Text>
-        <Pressable onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }} hitSlop={8}>
-          <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}>
-            {' …view more'}
-          </Text>
-        </Pressable>
+        {truncated && (
+          <Pressable onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }} hitSlop={8}>
+            <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}>
+              {' …view more'}
+            </Text>
+          </Pressable>
+        )}
       </View>
 
       {/* Full-text bottom sheet */}
