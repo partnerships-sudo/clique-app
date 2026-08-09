@@ -309,26 +309,11 @@ export function PostCard({
               <Pressable onPress={onEdit} accessibilityLabel="Edit rating and review" accessibilityRole="button">
                 <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
                 {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
-                {!isSquareType && post.note ? (
-                  <NoteBlock
-                    note={post.note}
-                    isSpoiler={false}
-                    revealed={spoilerRevealed}
-                    onReveal={() => setSpoilerRevealed(true)}
-                    styles={styles}
-                    Brand={Brand}
-                  />
-                ) : null}
                 {post.rating ? (
                   <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
                 ) : (
                   <Text style={styles.tapToRate}>Tap to rate ›</Text>
                 )}
-              </Pressable>
-            ) : (
-              <>
-                <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
-                {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
                 {!isSquareType && post.note ? (
                   <NoteBlock
                     note={post.note}
@@ -339,8 +324,23 @@ export function PostCard({
                     Brand={Brand}
                   />
                 ) : null}
+              </Pressable>
+            ) : (
+              <>
+                <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
+                {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
                 {post.rating ? (
                   <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
+                ) : null}
+                {!isSquareType && post.note ? (
+                  <NoteBlock
+                    note={post.note}
+                    isSpoiler={false}
+                    revealed={spoilerRevealed}
+                    onReveal={() => setSpoilerRevealed(true)}
+                    styles={styles}
+                    Brand={Brand}
+                  />
                 ) : null}
               </>
             )}
