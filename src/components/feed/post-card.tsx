@@ -208,7 +208,7 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
   Brand: BrandPalette;
 }) {
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [truncated, setTruncated] = useState(false);
+  const NOTE_TRUNCATE_CHARS = 45;
 
   if (isSpoiler && !revealed) {
     return (
@@ -223,18 +223,12 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
 
   return (
     <>
-      {/* 1 line: note truncates, …view more only appears if text was actually clipped */}
+      {/* 1 line: note truncates, …view more only shown when note is long enough to wrap */}
       <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 8 }}>
-        <Text
-          style={[styles.note, { flex: 1, marginTop: 0 }]}
-          numberOfLines={1}
-          onTextLayout={(e) => {
-            setTruncated(e.nativeEvent.lines.length > 1);
-          }}
-        >
+        <Text style={[styles.note, { flex: 1, marginTop: 0 }]} numberOfLines={1}>
           &ldquo;{note}&rdquo;
         </Text>
-        {truncated && (
+        {note.length > NOTE_TRUNCATE_CHARS && (
           <Pressable onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }} hitSlop={8}>
             <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}>
               {' …view more'}
