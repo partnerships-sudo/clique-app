@@ -593,10 +593,10 @@ function createStyles(Brand: BrandPalette) {
     note: {
       fontFamily: BrandFonts.interRegular,
       fontStyle: 'italic',
-      fontSize: 12,
+      fontSize: 12.5,
       color: Brand.trust,
-      marginTop: 5,
-      lineHeight: 17,
+      marginTop: 8,
+      lineHeight: 19,
     },
     noteSummary: {
       fontFamily: BrandFonts.interRegular,
