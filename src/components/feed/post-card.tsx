@@ -151,6 +151,54 @@ function PageTracker({
   );
 }
 
+const noteSheetStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheet: {
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 20,
+  },
+  label: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 11,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: 12,
+  },
+  body: {
+    fontFamily: BrandFonts.interRegular,
+    fontStyle: 'italic',
+    fontSize: 16,
+    lineHeight: 26,
+    marginBottom: 24,
+  },
+  doneBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  doneBtnText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 15,
+    color: '#fff',
+  },
+});
+
 function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
   note: string;
   isSpoiler: boolean;
@@ -159,7 +207,7 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
   styles: ReturnType<typeof createStyles>;
   Brand: BrandPalette;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   if (isSpoiler && !revealed) {
     return (
@@ -172,23 +220,35 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
     );
   }
 
-  if (expanded) {
-    return (
-      <Pressable onPress={(e) => { e.stopPropagation(); setExpanded(false); }} activeOpacity={0.8}>
-        <Text style={styles.note}>&ldquo;{note}&rdquo;</Text>
-      </Pressable>
-    );
-  }
-
-  // Collapsed: 1 line — OS truncates the note text, "…view more" always appended inline
   return (
-    <Text style={styles.note} numberOfLines={1}>
-      &ldquo;{note}&rdquo;
-      <Text
-        onPress={(e) => { e.stopPropagation(); setExpanded(true); }}
-        style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}
-      >{' …view more'}</Text>
-    </Text>
+    <>
+      {/* 1-line preview with inline …view more */}
+      <Text style={styles.note} numberOfLines={1}>
+        &ldquo;{note}&rdquo;
+        <Text
+          onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }}
+          style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}
+        >{' …view more'}</Text>
+      </Text>
+
+      {/* Full-text bottom sheet */}
+      <Modal
+        visible={sheetOpen}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSheetOpen(false)}
+      >
+        <Pressable style={noteSheetStyles.backdrop} onPress={() => setSheetOpen(false)} />
+        <View style={[noteSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+          <View style={[noteSheetStyles.handle, { backgroundColor: Brand.border }]} />
+          <Text style={[noteSheetStyles.label, { color: Brand.muted }]}>Review</Text>
+          <Text style={[noteSheetStyles.body, { color: Brand.trust }]}>&ldquo;{note}&rdquo;</Text>
+          <Pressable style={[noteSheetStyles.doneBtn, { backgroundColor: Brand.trust }]} onPress={() => setSheetOpen(false)}>
+            <Text style={noteSheetStyles.doneBtnText}>Done</Text>
+          </Pressable>
+        </View>
+      </Modal>
+    </>
   );
 }
 
