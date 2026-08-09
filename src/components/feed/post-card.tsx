@@ -229,12 +229,7 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
           style={[styles.note, { flex: 1, marginTop: 0 }]}
           numberOfLines={1}
           onTextLayout={(e) => {
-            const line = e.nativeEvent.lines[0];
-            if (!line) return;
-            // Strip any trailing ellipsis chars, compare against full note length
-            const rendered = line.text.replace(/[…\.]+$/, '').trim();
-            const full = `“${note}”`; // " note "
-            setTruncated(rendered.length < full.length);
+            setTruncated(e.nativeEvent.lines.length > 1);
           }}
         >
           &ldquo;{note}&rdquo;
