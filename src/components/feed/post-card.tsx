@@ -483,9 +483,9 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 16,
       overflow: 'hidden',
     },
-    // Top row: poster + body, fixed to poster height — image never stretches
-    topRow: { flexDirection: 'row', height: POSTER_H },
-    topRowSquare: { height: POSTER_W },
+    // Top row: poster + body — poster is fixed, body can grow taller
+    topRow: { flexDirection: 'row', minHeight: POSTER_H, alignItems: 'flex-start' },
+    topRowSquare: { minHeight: POSTER_W, alignItems: 'flex-start' },
     cardCompact: {},
 
     // Poster — fixed size, never stretches or distorts
@@ -513,8 +513,8 @@ function createStyles(Brand: BrandPalette) {
     ratingBadgeStar: { color: '#FFD700', fontSize: 10 },
     ratingBadgeText: { color: '#fff', fontSize: 10, fontFamily: BrandFonts.syneBold },
 
-    // Body — right column in the top row, clipped to poster height via topRow height
-    body: { flex: 1, minWidth: 0, padding: 10, paddingTop: 8, paddingBottom: 8, overflow: 'hidden' },
+    // Body — right column in the top row, grows with content
+    body: { flex: 1, minWidth: 0, padding: 10, paddingTop: 8, paddingBottom: 8 },
     bodyCompact: { padding: 8, paddingTop: 7, paddingBottom: 7 },
     // Bottom bar — below the poster, spans full card width
     bottomBar: {
