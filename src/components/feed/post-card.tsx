@@ -151,22 +151,38 @@ function PageTracker({
   );
 }
 
-function NoteBlock({ note, isSpoiler, revealed, onReveal, styles }: {
+function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
   note: string;
   isSpoiler: boolean;
   revealed: boolean;
   onReveal: () => void;
   styles: ReturnType<typeof createStyles>;
+  Brand: BrandPalette;
 }) {
-  if (!isSpoiler || revealed) {
-    return <Text style={styles.note} numberOfLines={isSpoiler ? undefined : 3}>&ldquo;{note}&rdquo;</Text>;
+  const [expanded, setExpanded] = useState(false);
+  const LINES = 2;
+
+  if (isSpoiler && !revealed) {
+    return (
+      <Pressable onPress={onReveal} style={styles.spoilerWrap}>
+        <Text style={styles.spoilerBlurred} numberOfLines={2}>&ldquo;{note}&rdquo;</Text>
+        <View style={styles.spoilerOverlay}>
+          <Text style={styles.spoilerLabel}>🔒 Spoiler — tap to reveal</Text>
+        </View>
+      </Pressable>
+    );
   }
+
   return (
-    <Pressable onPress={onReveal} style={styles.spoilerWrap}>
-      <Text style={styles.spoilerBlurred} numberOfLines={2}>&ldquo;{note}&rdquo;</Text>
-      <View style={styles.spoilerOverlay}>
-        <Text style={styles.spoilerLabel}>🔒 Spoiler — tap to reveal</Text>
-      </View>
+    <Pressable onPress={(e) => { e.stopPropagation(); setExpanded((ex) => !ex); }} activeOpacity={0.8}>
+      <Text style={styles.note} numberOfLines={expanded ? undefined : LINES}>
+        &ldquo;{note}&rdquo;
+      </Text>
+      {!expanded && note.length > 80 && (
+        <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust, marginTop: 2 }}>
+          more
+        </Text>
+      )}
     </Pressable>
   );
 }
@@ -294,7 +310,14 @@ export function PostCard({
                 <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
                 {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
                 {!isSquareType && post.note ? (
-                  <Text style={styles.noteSummary} numberOfLines={1}>&ldquo;{post.note}&rdquo;</Text>
+                  <NoteBlock
+                    note={post.note}
+                    isSpoiler={false}
+                    revealed={spoilerRevealed}
+                    onReveal={() => setSpoilerRevealed(true)}
+                    styles={styles}
+                    Brand={Brand}
+                  />
                 ) : null}
                 {post.rating ? (
                   <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
@@ -307,7 +330,14 @@ export function PostCard({
                 <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
                 {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
                 {!isSquareType && post.note ? (
-                  <Text style={styles.noteSummary} numberOfLines={1}>&ldquo;{post.note}&rdquo;</Text>
+                  <NoteBlock
+                    note={post.note}
+                    isSpoiler={false}
+                    revealed={spoilerRevealed}
+                    onReveal={() => setSpoilerRevealed(true)}
+                    styles={styles}
+                    Brand={Brand}
+                  />
                 ) : null}
                 {post.rating ? (
                   <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
@@ -564,7 +594,7 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interRegular,
       fontStyle: 'italic',
       fontSize: 12,
-      color: Brand.muted,
+      color: Brand.trust,
       marginTop: 5,
       lineHeight: 17,
     },
@@ -572,7 +602,7 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interRegular,
       fontStyle: 'italic',
       fontSize: 12,
-      color: Brand.muted,
+      color: Brand.trust,
       marginTop: 3,
       lineHeight: 16,
     },

@@ -350,7 +350,7 @@ function heroStyles(Brand: BrandPalette) {
     title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, lineHeight: 20, marginBottom: 3 },
     meta: { fontFamily: BrandFonts.interRegular, fontSize: 10.5, color: Brand.muted, marginBottom: 4 },
     stars: { fontSize: 11, color: '#F5A623', letterSpacing: 1, marginBottom: 6 },
-    quote: { fontFamily: BrandFonts.interRegular, fontStyle: 'italic', fontSize: 11, color: Brand.muted, backgroundColor: Brand.tlight, borderRadius: 8, padding: 7, lineHeight: 16 },
+    quote: { fontFamily: BrandFonts.interRegular, fontStyle: 'italic', fontSize: 11, color: Brand.trust, backgroundColor: Brand.tlight, borderRadius: 8, padding: 7, lineHeight: 16 },
     footer: { flexDirection: 'row', gap: 8, paddingHorizontal: 12, paddingBottom: 12 },
     btnPrimary: { flex: 1, backgroundColor: Brand.trust, borderRadius: 20, paddingVertical: 9, alignItems: 'center' },
     btnPrimaryText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: '#fff' },
