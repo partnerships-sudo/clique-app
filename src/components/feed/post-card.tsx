@@ -378,7 +378,7 @@ export function PostCard({
 
             {isMine && onEdit ? (
               <Pressable onPress={onEdit} accessibilityLabel="Edit rating and review" accessibilityRole="button">
-                <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
+                <Text style={styles.title} numberOfLines={post.note ? 1 : 2}>{post.title}</Text>
                 {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
                 {post.rating ? (
                   <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
@@ -398,7 +398,7 @@ export function PostCard({
               </Pressable>
             ) : (
               <>
-                <Text style={styles.title} numberOfLines={2}>{post.title}</Text>
+                <Text style={styles.title} numberOfLines={post.note ? 1 : 2}>{post.title}</Text>
                 {!isSquareType && post.sub ? <Text style={styles.sub} numberOfLines={1}>{post.sub}</Text> : null}
                 {post.rating ? (
                   <RatingIcons rating={post.rating} iconStyle={ratingIcon} textStyle={styles.stars} />
