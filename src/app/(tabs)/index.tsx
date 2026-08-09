@@ -112,9 +112,11 @@ export default function FeedScreen() {
   // Keyed by type + title, not title alone — a logged book and a recommended
   // game can share an exact title (e.g. "Dune"), and a title-only check would
   // wrongly treat the game as "already logged" and filter it out.
+  // Normalize 'tv' → 'watch' so TV shows logged under either type are caught.
+  const normType = (t: string) => (t === 'tv' ? 'watch' : t);
   const loggedTitles = new Set([
-    ...logged.map((item) => `${item.type}:${item.title.toLowerCase()}`),
-    ...collectionItems.map((item) => `${item.type}:${item.title.toLowerCase()}`),
+    ...logged.map((item) => `${normType(item.type)}:${item.title.toLowerCase()}`),
+    ...collectionItems.map((item) => `${normType(item.type)}:${item.title.toLowerCase()}`),
   ]);
   const matchesFilter = (type: Post['type']) => (filter === 'all' || type === filter) && !hiddenCategories.has(type);
 
@@ -197,7 +199,7 @@ export default function FeedScreen() {
 
   // Source 1: following collections (explicit ratings)
   for (const item of followingCollections) {
-    const key = `${item.type}:${item.title.toLowerCase()}`;
+    const key = `${normType(item.type)}:${item.title.toLowerCase()}`;
     if (loggedTitles.has(key)) continue;
     if (!matchesFilter(item.type as Post['type'])) continue;
     const rating = item.user_rating ?? 0;
@@ -255,7 +257,7 @@ export default function FeedScreen() {
   // For types it didn't cover (or where the user has no logged items of that type),
   // fall back to circle-based trending so the section always has variety.
   // Type + title keyed for the same reason as loggedTitles above.
-  const circleTitles = new Set(circleTrendingRaw.map((e) => `${e.type}:${e.title.toLowerCase()}`));
+  const circleTitles = new Set(circleTrendingRaw.map((e) => `${normType(e.type)}:${e.title.toLowerCase()}`));
   const apiTypes = new Set(rawApiRecs.map((e) => e.type));
 
   // Build a map of type:title → friend posts so we can surface recs that
@@ -273,11 +275,11 @@ export default function FeedScreen() {
     .filter(
       (e) =>
         matchesFilter(e.type) &&
-        !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`) &&
-        !circleTitles.has(`${e.type}:${e.title.toLowerCase()}`),
+        !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`) &&
+        !circleTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`),
     )
     .map((e) => {
-      const friendPosts = friendPostsByKey.get(`${e.type}:${e.title.toLowerCase()}`) ?? [];
+      const friendPosts = friendPostsByKey.get(`${normType(e.type)}:${e.title.toLowerCase()}`) ?? [];
       if (friendPosts.length === 0) return e;
       // Weight by the highest compat among friends who logged it — one 🔥 friend
       // is a stronger signal than averaging across all friends including weak matches.
@@ -293,7 +295,7 @@ export default function FeedScreen() {
     (e) =>
       !apiTypes.has(e.type) &&
       matchesFilter(e.type) &&
-      !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`),
+      !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`),
   );
 
   // Trending entries carry whatever poster was saved on the post at log
@@ -439,7 +441,7 @@ export default function FeedScreen() {
       .filter(
         (e) =>
           e.title.toLowerCase() !== seed?.title.toLowerCase() &&
-          !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`),
+          !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`),
       )
       .slice(0, 10);
 
@@ -466,7 +468,7 @@ export default function FeedScreen() {
 
   const deduped = [...forYouTrending, ...becauseRecs]
     .filter((e, i, arr) => arr.findIndex((x) => x.type === e.type && x.title.toLowerCase() === e.title.toLowerCase()) === i)
-    .filter((e) => !loggedTitles.has(`${e.type}:${e.title.toLowerCase()}`))
+    .filter((e) => !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`))
     .sort((a, b) => (b.score ?? 55) - (a.score ?? 55));
 
   const friendPool = deduped.filter((e) => e.loggers.length > 0);

@@ -17,12 +17,14 @@ export function FriendCard({
   hasUnread,
   currentlyWatching,
   isTopMatch = false,
+  onFollowBack,
 }: {
   profile: Profile;
   compatibility: number;
   hasUnread?: boolean;
   currentlyWatching?: Post | null;
   isTopMatch?: boolean;
+  onFollowBack?: () => void;
 }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -95,6 +97,12 @@ export function FriendCard({
           </Pressable>
         </View>
       </View>
+
+      {onFollowBack && (
+        <Pressable style={styles.followBackStrip} onPress={onFollowBack}>
+          <Text style={styles.followBackText}>Follow back</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -169,6 +177,18 @@ function createStyles(Brand: BrandPalette) {
     chatBtn: {
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    followBackStrip: {
+      borderTopWidth: 1,
+      borderTopColor: Brand.border,
+      paddingVertical: 9,
+      alignItems: 'center',
+      backgroundColor: Brand.tlight,
+    },
+    followBackText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 13,
+      color: Brand.trust,
     },
     unreadDot: {
       position: 'absolute',

@@ -130,7 +130,7 @@ function createStyles(Brand: BrandPalette) {
       padding: 5,
     },
     subToggle: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, alignItems: 'center' },
-    subToggleActive: { backgroundColor: Brand.ink },
+    subToggleActive: { backgroundColor: Brand.trust },
     subToggleText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
     subToggleTextActive: { color: '#fff' },
     gridRow: { gap: 10, marginBottom: 10 },

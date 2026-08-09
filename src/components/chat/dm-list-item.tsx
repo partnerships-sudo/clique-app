@@ -39,7 +39,13 @@ export function DmListItem({ thread, onPress }: { thread: DmThread; onPress: () 
             {thread.lastIsMine ? <Text style={styles.previewUser}>You: </Text> : null}
             {(() => {
               const rec = parseRec(thread.lastText);
-              return rec ? recPreviewText(rec) : thread.lastText;
+              if (rec) return recPreviewText(rec);
+              try {
+                const parsed = JSON.parse(thread.lastText ?? '');
+                if (parsed.__watchparty) return '🎉 Watch party invite';
+                if (parsed.__chatGif) return 'GIF';
+              } catch {}
+              return thread.lastText;
             })()}
           </Text>
         )}

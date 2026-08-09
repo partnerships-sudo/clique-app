@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import type { GroupThread } from '@/features/groups/api';
@@ -12,9 +12,13 @@ export function GroupListItem({ thread, onPress }: { thread: GroupThread; onPres
 
   return (
     <Pressable style={styles.card} onPress={onPress}>
-      <View style={styles.icon}>
-        <Text style={styles.iconText}>👥</Text>
-      </View>
+      {thread.photoUrl ? (
+        <Image source={{ uri: thread.photoUrl }} style={styles.photo} />
+      ) : (
+        <View style={styles.icon}>
+          <Text style={styles.iconText}>👥</Text>
+        </View>
+      )}
       <View style={styles.body}>
         <View style={styles.titleRow}>
           <Text style={styles.title} numberOfLines={1}>
@@ -25,7 +29,14 @@ export function GroupListItem({ thread, onPress }: { thread: GroupThread; onPres
           ) : null}
         </View>
         <Text style={styles.preview} numberOfLines={1}>
-          {thread.lastText ?? `${thread.memberCount} members`}
+{(() => {
+            try {
+              const parsed = JSON.parse(thread.lastText ?? '');
+              if (parsed.__watchparty) return '🎉 Watch party invite';
+              if (parsed.__chatGif) return 'GIF';
+            } catch {}
+            return thread.lastText ?? `${thread.memberCount} members`;
+          })()}
         </Text>
       </View>
       {thread.unreadCount > 0 ? (
@@ -49,6 +60,7 @@ function createStyles(Brand: BrandPalette) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: Brand.border,
     },
+    photo: { width: 48, height: 48, borderRadius: 24, flexShrink: 0 },
     icon: {
       width: 48,
       height: 48,

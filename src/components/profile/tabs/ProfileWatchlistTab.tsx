@@ -6,7 +6,7 @@ import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { ListCard } from '@/components/library/list-card';
 import { useRemoveLibraryItem, useAddLibraryItem, type LibraryItem } from '@/features/library/api';
-import { useLists, useListsByUser } from '@/features/lists/api';
+import { useLists, useListsByUser, useAddToList } from '@/features/lists/api';
 import { supabase } from '@/lib/supabase';
 import { AvatarSizes, BrandFonts } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
@@ -50,13 +50,13 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const local = useMemo(() => createLocalStyles(Brand), [Brand]);
-  const [watchlistView, setWatchlistView] = useState<'mine' | 'friends'>('mine');
   const removeLibraryItem = useRemoveLibraryItem();
   const addLibraryItem = useAddLibraryItem();
+  const addToList = useAddToList();
   const { data: lists = [] } = useLists();
   const { data: friendLists = [] } = useListsByUser(isOwnProfile ? undefined : profileUserId);
 
-  const visibleItems = watchlistView === 'mine' ? watchlist : watchlist.filter((i) => !!i.rec_from_user_name);
+  const visibleItems = watchlist;
 
   const recUsernames = useMemo(() => {
     const names = watchlist
@@ -67,27 +67,36 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
 
   const recProfiles = useRecProfiles(recUsernames);
 
-  function confirmRemove(item: LibraryItem) {
-    Alert.alert('Remove from watchlist?', item.title, [
+  function showItemOptions(item: LibraryItem) {
+    const listOptions = lists.map((l) => ({
+      text: `Move to "${l.title}"`,
+      onPress: async () => {
+        try {
+          await addToList.mutateAsync({
+            list_id: l.id,
+            library_item_id: item.id,
+            title: item.title,
+            sub: item.sub ?? null,
+            poster: item.poster ?? null,
+            type: item.type ?? null,
+          });
+          removeLibraryItem.mutate(item.id);
+        } catch {
+          Alert.alert('Error', 'Could not move to list.');
+        }
+      },
+    }));
+
+    Alert.alert(item.title, 'What would you like to do?', [
+      ...listOptions,
+      { text: 'Remove from Watchlist', style: 'destructive', onPress: () => removeLibraryItem.mutate(item.id) },
       { text: 'Cancel', style: 'cancel' },
-      { text: 'Remove', style: 'destructive', onPress: () => removeLibraryItem.mutate(item.id) },
     ]);
   }
 
   return (
     <View style={styles.tabContent}>
-      {isOwnProfile && (
-        <View style={styles.wlToggleRow}>
-          <Pressable style={[styles.wlToggleBtn, watchlistView === 'mine' && styles.wlToggleBtnActive]} onPress={() => setWatchlistView('mine')}>
-            <Text style={[styles.wlToggleTxt, watchlistView === 'mine' && styles.wlToggleTxtActive]}>My Watchlist</Text>
-          </Pressable>
-          <Pressable style={[styles.wlToggleBtn, watchlistView === 'friends' && styles.wlToggleBtnActive]} onPress={() => setWatchlistView('friends')}>
-            <Text style={[styles.wlToggleTxt, watchlistView === 'friends' && styles.wlToggleTxtActive]}>From Friends</Text>
-          </Pressable>
-        </View>
-      )}
-
-      {isOwnProfile && watchlistView === 'mine' ? (
+      {isOwnProfile ? (
         <View style={local.actionRow}>
           <Pressable style={[styles.wlAddBtn, { flex: 1 }]} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })}>
             <Text style={styles.wlAddBtnText}>+ Watchlist</Text>
@@ -101,11 +110,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
 
       {visibleItems.length === 0 ? (
         <Text style={styles.emptyText}>
-          {!isOwnProfile
-            ? 'Nothing on their watchlist yet.'
-            : watchlistView === 'mine'
-              ? 'Your watchlist is empty — add things you want to get to!'
-              : 'No recs yet — when a friend sends you a rec it shows up here automatically.'}
+          {isOwnProfile ? 'Your watchlist is empty — add things you want to get to!' : 'Nothing on their watchlist yet.'}
         </Text>
       ) : (
         <View style={styles.wlGrid}>
@@ -113,7 +118,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
             const recProfile = item.rec_from_user_name ? recProfiles[item.rec_from_user_name] : null;
             return (
               <View key={item.id} style={styles.wlGridItem}>
-                <Pressable style={styles.wlPosterWrap} onLongPress={() => isOwnProfile && confirmRemove(item)} delayLongPress={400}>
+                <Pressable style={styles.wlPosterWrap} onLongPress={() => isOwnProfile && showItemOptions(item)} delayLongPress={400}>
                   {item.poster ? (
                     <Image source={{ uri: item.poster }} style={styles.wlPoster} resizeMode="cover" />
                   ) : (
@@ -160,7 +165,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
       )}
 
       {/* Own lists */}
-      {isOwnProfile && watchlistView === 'mine' && lists.length > 0 && (
+      {isOwnProfile && lists.length > 0 && (
         <View style={local.listsSection}>
           <Text style={local.listsSectionTitle}>My Lists</Text>
           {lists.map((list) => (

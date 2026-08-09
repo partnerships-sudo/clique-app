@@ -444,7 +444,7 @@ export default function DiscussionDetailModal() {
         {/* Comments divider */}
         <View style={[styles_.divider, { backgroundColor: Brand.border }]} />
         <Text style={[styles_.commentsHeading, { color: Brand.ink }]}>
-          {discussion.comment_count} {discussion.comment_count === 1 ? 'Comment' : 'Comments'}
+          {comments.length} {comments.length === 1 ? 'Comment' : 'Comments'}
         </Text>
       </View>
     );

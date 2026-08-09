@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { AccountSwitcherSheet } from '@/components/account-switcher-sheet';
 import { RATING_ICON_OPTIONS, type RatingIconStyle } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useProfile, useUpdateRatingIcon } from '@/features/profile/api';
@@ -21,20 +22,25 @@ const APPEARANCE_OPTIONS: { value: AppearancePref; label: string; sf: string }[]
 export default function SettingsScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { signOut } = useSession();
+  const { signOut, savedAccounts } = useSession();
   const { data: profile } = useProfile();
   const updateRatingIcon = useUpdateRatingIcon();
   const { pref: appearancePref, setPref: setAppearancePref } = useAppearance();
   const [ratingIcon, setRatingIcon] = useState<RatingIconStyle>(
     (profile?.rating_icon as RatingIconStyle) ?? 'stars',
   );
+  const [switcherVisible, setSwitcherVisible] = useState(false);
 
   function handleSignOut() {
-    Alert.alert('Sign Out', 'You can switch to a different account, or sign out completely.', [
-      { text: 'Sign in with another account', onPress: () => signOut() },
-      { text: 'Full sign out', style: 'destructive', onPress: () => signOut({ forgetDevice: true }) },
-      { text: 'Cancel', style: 'cancel' },
-    ]);
+    if (savedAccounts.length > 1) {
+      // Has saved accounts — show the switcher sheet instead of an alert
+      setSwitcherVisible(true);
+    } else {
+      Alert.alert('Sign out', 'Are you sure you want to sign out?', [
+        { text: 'Sign out', style: 'destructive', onPress: () => signOut({ forgetDevice: true }) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    }
   }
 
   function handleRatingIcon(value: RatingIconStyle) {
@@ -242,6 +248,11 @@ export default function SettingsScreen() {
           <Text style={styles.privacyText}>Privacy Policy</Text>
         </Pressable>
       </ScrollView>
+
+      <AccountSwitcherSheet
+        visible={switcherVisible}
+        onClose={() => setSwitcherVisible(false)}
+      />
     </SafeAreaView>
   );
 }

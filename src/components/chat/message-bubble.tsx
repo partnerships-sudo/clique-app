@@ -12,6 +12,7 @@ import { parseWatchPartyInvite } from '@/features/dms/watch-party-invite';
 import { timeAgo } from '@/features/feed/time-ago';
 import { compatColor, compatEmoji } from '@/features/friends/compatibility';
 import { useAddLibraryItem } from '@/features/library/api';
+import { useLists, useAddToList } from '@/features/lists/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 export function MessageBubble({
@@ -33,25 +34,57 @@ export function MessageBubble({
   const [revealed, setRevealed] = useState(false);
   const blurred = isSpoiler && !revealed;
   const addLibraryItem = useAddLibraryItem();
+  const addToList = useAddToList();
+  const { data: myLists = [] } = useLists();
   const [savedToWatchlist, setSavedToWatchlist] = useState(false);
 
-  async function handleSaveToWatchlist() {
-    if (!rec || savedToWatchlist || addLibraryItem.isPending) return;
-    try {
-      await addLibraryItem.mutateAsync({
-        type: rec.type as EntryType,
-        title: rec.title,
-        sub: rec.sub ?? undefined,
-        poster: rec.poster ?? undefined,
-        extRating: rec.extRating ?? undefined,
-        intent: 'watchlist',
-        recFromUserName: message.user_name,
-        recCompatScore: rec.compatScore,
-      });
-      setSavedToWatchlist(true);
-    } catch {
-      Alert.alert('Could not save', 'Failed to add to your watchlist. Please try again.');
-    }
+  function handleSaveOptions() {
+    if (!rec || savedToWatchlist) return;
+    const options = [
+      '+ Watchlist',
+      ...myLists.map((l) => `+ "${l.title}"`),
+      'Cancel',
+    ];
+    Alert.alert('Add to…', rec.title, options.map((label, i) => ({
+      text: label,
+      style: i === options.length - 1 ? 'cancel' as const : 'default' as const,
+      onPress: i === options.length - 1 ? undefined : async () => {
+        if (i === 0) {
+          // Watchlist
+          try {
+            await addLibraryItem.mutateAsync({
+              type: rec.type as EntryType,
+              title: rec.title,
+              sub: rec.sub ?? undefined,
+              poster: rec.poster ?? undefined,
+              extRating: rec.extRating ?? undefined,
+              intent: 'watchlist',
+              recFromUserName: message.user_name,
+              recCompatScore: rec.compatScore,
+            });
+            setSavedToWatchlist(true);
+          } catch {
+            Alert.alert('Could not save', 'Failed to add to watchlist.');
+          }
+        } else {
+          // A specific list
+          const list = myLists[i - 1];
+          try {
+            await addToList.mutateAsync({
+              list_id: list.id,
+              library_item_id: null,
+              title: rec.title,
+              sub: rec.sub ?? null,
+              poster: rec.poster ?? null,
+              type: rec.type ?? null,
+            });
+            Alert.alert('Added!', `"${rec.title}" added to ${list.title}.`);
+          } catch {
+            Alert.alert('Could not save', 'Failed to add to list.');
+          }
+        }
+      },
+    })));
   }
 
   const storyReply = parseStoryReply(message.content);
@@ -203,11 +236,11 @@ export function MessageBubble({
               {!isMine ? (
                 <Pressable
                   style={[styles.recWatchlistBtn, savedToWatchlist && styles.recWatchlistBtnSaved]}
-                  onPress={handleSaveToWatchlist}
-                  disabled={savedToWatchlist || addLibraryItem.isPending}
+                  onPress={handleSaveOptions}
+                  disabled={savedToWatchlist || addLibraryItem.isPending || addToList.isPending}
                   hitSlop={16}>
                   <Text style={[styles.recWatchlistBtnText, savedToWatchlist && styles.recWatchlistBtnTextSaved]}>
-                    {addLibraryItem.isPending ? '…' : savedToWatchlist ? '✓ Saved' : '+ Watchlist'}
+                    {(addLibraryItem.isPending || addToList.isPending) ? '…' : savedToWatchlist ? '✓ Saved' : '+ Add to…'}
                   </Text>
                 </Pressable>
               ) : null}
@@ -233,7 +266,7 @@ export function MessageBubble({
           <Pressable
             style={styles.wpInviteCard}
             onPress={() =>
-              router.push({ pathname: '/premiere-waiting-room', params: { id: watchPartyInvite.id } })
+              router.push({ pathname: '/party-detail-modal', params: { id: watchPartyInvite.id } })
             }>
             <View style={styles.wpInviteTop}>
               {watchPartyInvite.poster ? (
@@ -255,13 +288,13 @@ export function MessageBubble({
                   <Text style={styles.wpInviteTagline} numberOfLines={1}>"{watchPartyInvite.tagline}"</Text>
                 ) : null}
                 {watchPartyInvite.date ? (
-                  <Text style={styles.wpInviteDate}>📅 {watchPartyInvite.date}{watchPartyInvite.time ? ` · ${watchPartyInvite.time}` : ''}</Text>
+                  <Text style={styles.wpInviteDate}>📅 {new Date(watchPartyInvite.date + 'T12:00:00').toLocaleDateString(undefined, { month: 'numeric', day: 'numeric', year: 'numeric' })}{watchPartyInvite.time ? ` · ${watchPartyInvite.time}` : ''}</Text>
                 ) : null}
                 <Text style={styles.wpInviteHost}>Hosted by {watchPartyInvite.hostName}</Text>
               </View>
             </View>
             <View style={styles.wpInviteJoinBtn}>
-              <Text style={styles.wpInviteJoinText}>Join on Clique →</Text>
+              <Text style={styles.wpInviteJoinText}>View watch party →</Text>
             </View>
           </Pressable>
         ) : premiereId ? (

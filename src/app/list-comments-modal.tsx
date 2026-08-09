@@ -23,6 +23,7 @@ import {
   useListComments,
   useListLikeState,
   useToggleListLike,
+  useToggleCommentLike,
   type ListComment,
 } from '@/features/lists/api';
 import { timeAgo } from '@/features/feed/time-ago';
@@ -35,14 +36,17 @@ function CommentRow({
   listId,
   styles,
   Brand,
+  onReply,
 }: {
   comment: ListComment;
   currentUserId: string | undefined;
   listId: string;
   styles: ReturnType<typeof createStyles>;
   Brand: BrandPalette;
+  onReply: (commentId: string, username: string) => void;
 }) {
   const deleteComment = useDeleteListComment();
+  const toggleLike = useToggleCommentLike();
 
   function confirmDelete() {
     Alert.alert('Delete comment?', comment.content.slice(0, 60), [
@@ -64,11 +68,34 @@ function CommentRow({
           <Text style={styles.time}>{timeAgo(comment.created_at)}</Text>
         </View>
         <Text style={styles.content}>{comment.content}</Text>
-        {comment.user_id === currentUserId && (
-          <Pressable hitSlop={8} onPress={confirmDelete} style={{ marginTop: 4 }}>
-            <Text style={styles.deleteBtn}>Delete</Text>
+        <View style={styles.commentActions}>
+          <Pressable hitSlop={8} onPress={() => onReply(comment.id, comment.user_name)}>
+            <Text style={styles.replyBtn}>Reply</Text>
           </Pressable>
-        )}
+          <View style={styles.commentActionsRight}>
+            <Pressable
+              hitSlop={8}
+              style={styles.heartBtn}
+              onPress={() => toggleLike.mutate({ commentId: comment.id, listId, liked: comment.liked_by_me })}>
+              <SymbolView
+                name={comment.liked_by_me ? 'heart.fill' : 'heart'}
+                size={13}
+                tintColor={comment.liked_by_me ? '#e05' : Brand.muted}
+                type="monochrome"
+              />
+              {comment.likes_count > 0 && (
+                <Text style={[styles.heartCount, comment.liked_by_me && styles.heartCountActive]}>
+                  {comment.likes_count}
+                </Text>
+              )}
+            </Pressable>
+            {comment.user_id === currentUserId && (
+              <Pressable hitSlop={8} onPress={confirmDelete}>
+                <Text style={styles.deleteBtn}>Delete</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -86,16 +113,29 @@ export default function ListCommentsModal() {
   const toggleLike = useToggleListLike();
 
   const [text, setText] = useState('');
+  const [replyTo, setReplyTo] = useState<{ id: string; username: string } | null>(null);
   const inputRef = useRef<TextInput>(null);
+
+  function handleReply(commentId: string, username: string) {
+    setReplyTo({ id: commentId, username });
+    setText('');
+    inputRef.current?.focus();
+  }
+
+  function cancelReply() {
+    setReplyTo(null);
+    setText('');
+  }
 
   async function submit() {
     const trimmed = text.trim();
     if (!trimmed) return;
     try {
-      await addComment.mutateAsync({ listId, content: trimmed });
+      await addComment.mutateAsync({ listId, content: trimmed, parentId: replyTo?.id });
       setText('');
-    } catch {
-      Alert.alert('Could not post comment', 'Please check your connection and try again.');
+      setReplyTo(null);
+    } catch (e: any) {
+      Alert.alert('Could not post comment', e?.message ?? 'Please check your connection and try again.');
     }
   }
 
@@ -127,6 +167,16 @@ export default function ListCommentsModal() {
             )}
           </Pressable>
         </View>
+
+        {/* Reply context banner */}
+        {replyTo && (
+          <View style={styles.replyBanner}>
+            <Text style={styles.replyBannerText}>Replying to <Text style={styles.replyBannerName}>@{replyTo.username}</Text></Text>
+            <Pressable hitSlop={8} onPress={cancelReply}>
+              <SymbolView name="xmark" size={12} tintColor={Brand.muted} type="monochrome" />
+            </Pressable>
+          </View>
+        )}
 
         {/* Compose bar */}
         <View style={styles.inputBar}>
@@ -169,13 +219,31 @@ export default function ListCommentsModal() {
             contentContainerStyle={styles.list}
             keyboardDismissMode="on-drag"
             renderItem={({ item }) => (
-              <CommentRow
-                comment={item}
-                currentUserId={user?.id}
-                listId={listId}
-                styles={styles}
-                Brand={Brand}
-              />
+              <View>
+                <CommentRow
+                  comment={item}
+                  currentUserId={user?.id}
+                  listId={listId}
+                  styles={styles}
+                  Brand={Brand}
+                  onReply={handleReply}
+                />
+                {(item.replies ?? []).map((reply) => (
+                  <View key={reply.id} style={styles.replyWrap}>
+                    <View style={styles.replyLine} />
+                    <View style={{ flex: 1 }}>
+                      <CommentRow
+                        comment={reply}
+                        currentUserId={user?.id}
+                        listId={listId}
+                        styles={styles}
+                        Brand={Brand}
+                        onReply={handleReply}
+                      />
+                    </View>
+                  </View>
+                ))}
+              </View>
             )}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
           />
@@ -247,7 +315,29 @@ function createStyles(Brand: BrandPalette) {
     username: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
     time: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted },
     content: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.ink, lineHeight: 20 },
+    commentActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 5 },
+    commentActionsRight: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    replyBtn: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
+    heartBtn: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+    heartCount: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
+    heartCountActive: { color: '#e05' },
     deleteBtn: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: '#e05' },
+
+    replyWrap: { flexDirection: 'row', marginTop: 10, paddingLeft: 46 },
+    replyLine: { width: 2, borderRadius: 2, backgroundColor: Brand.border, marginRight: 10, marginLeft: 4 },
+
+    replyBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: Spacing.three,
+      paddingVertical: 7,
+      backgroundColor: Brand.tlight,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: Brand.border,
+    },
+    replyBannerText: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
+    replyBannerName: { fontFamily: BrandFonts.syneBold, color: Brand.ink },
 
     empty: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10, paddingTop: 60 },
     emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.ink },

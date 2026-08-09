@@ -178,7 +178,8 @@ function MoreFromMatches({
       const compat = compatScores.get(friend.id) ?? 0;
       if (compat < 40) continue;
       const friendItems = followingCollections.filter((c) => c.user_id === friend.id && c.user_rating && c.user_rating >= 4);
-      const pick = friendItems.find((c) => !loggedTitles.has(`${c.type}:${c.title.toLowerCase()}`));
+      const normType = (t: string) => (t === 'tv' ? 'watch' : t);
+      const pick = friendItems.find((c) => !loggedTitles.has(`${normType(c.type)}:${c.title.toLowerCase()}`));
       if (pick) result.push({ friend, compat, item: pick });
     }
     return result;

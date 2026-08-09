@@ -62,6 +62,7 @@ function RootNavigator() {
       <Stack.Screen name="discover-people-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.95], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="stories-modal" options={{ headerShown: false }} />
       <Stack.Screen name="notifications-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="party-detail-modal" options={{ headerShown: false }} />
       <Stack.Screen name="archived-chats-modal" options={{ headerShown: false }} />
       <Stack.Screen name="post-reactions-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="post-comments-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
@@ -185,6 +186,11 @@ function RootLayoutInner() {
   }, []);
 
   function handleDeepLink(url: string) {
+    // Password reset: thecliqueapp://reset-password#access_token=...
+    if (url.includes('reset-password')) {
+      router.push('/reset-password');
+      return;
+    }
     // Matches both:
     //   thecliqueapp://premiere/{id}
     //   https://vaultedmediagroup.com/premiere/{id}

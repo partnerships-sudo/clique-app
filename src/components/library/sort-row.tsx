@@ -51,7 +51,7 @@ function createStyles(Brand: BrandPalette) {
       paddingHorizontal: 12,
     },
     btnActive: {
-      backgroundColor: Brand.ink,
+      backgroundColor: Brand.trust,
       borderColor: Brand.ink,
     },
     btnText: {

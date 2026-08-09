@@ -50,7 +50,7 @@ function createStyles(Brand: BrandPalette) {
       alignItems: 'center',
     },
     optionActive: {
-      backgroundColor: Brand.ink,
+      backgroundColor: Brand.trust,
     },
     text: {
       fontFamily: BrandFonts.syneBold,

@@ -56,7 +56,7 @@ export default function AccountInfoScreen() {
   }
 
   async function handleChangePassword() {
-    if (!newPassword || !confirmPassword) return;
+    if (!currentPassword || !newPassword || !confirmPassword) return;
     if (newPassword !== confirmPassword) {
       Alert.alert("Passwords don't match", 'Make sure both fields are the same.');
       return;
@@ -65,8 +65,21 @@ export default function AccountInfoScreen() {
       Alert.alert('Too short', 'Password must be at least 8 characters.');
       return;
     }
+    if (newPassword === currentPassword) {
+      Alert.alert('Same password', 'Your new password must be different from your current one.');
+      return;
+    }
     setSaving(true);
     try {
+      // Re-authenticate first to verify current password
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user!.email!,
+        password: currentPassword,
+      });
+      if (signInError) {
+        Alert.alert('Incorrect password', 'Your current password is wrong. Please try again.');
+        return;
+      }
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) throw error;
       setCurrentPassword('');
@@ -171,6 +184,15 @@ export default function AccountInfoScreen() {
         {/* Password */}
         <Text style={styles.sectionLabel}>Change password</Text>
         <View style={styles.card}>
+          <Text style={styles.fieldLabel}>Current password</Text>
+          <TextInput
+            style={[styles.input, styles.fieldInput]}
+            value={currentPassword}
+            onChangeText={setCurrentPassword}
+            secureTextEntry
+            placeholder="Enter current password"
+            placeholderTextColor={Brand.muted}
+          />
           <Text style={styles.fieldLabel}>New password</Text>
           <TextInput
             style={[styles.input, styles.fieldInput]}
@@ -190,9 +212,9 @@ export default function AccountInfoScreen() {
             placeholderTextColor={Brand.muted}
           />
           <Pressable
-            style={[styles.saveBtn, (!newPassword || !confirmPassword || saving) && styles.saveBtnDisabled]}
+            style={[styles.saveBtn, (!currentPassword || !newPassword || !confirmPassword || saving) && styles.saveBtnDisabled]}
             onPress={handleChangePassword}
-            disabled={!newPassword || !confirmPassword || saving}>
+            disabled={!currentPassword || !newPassword || !confirmPassword || saving}>
             <Text style={styles.saveBtnText}>Change password</Text>
           </Pressable>
         </View>

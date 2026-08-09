@@ -116,6 +116,7 @@ function FeedCard({ item, Brand }: { item: Post; Brand: BrandPalette }) {
     stars: { fontSize: 13, color: Brand.warm },
     emptyStars: { fontSize: 13, color: Brand.warm, opacity: 0.2 },
     date: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
+    note: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, fontStyle: 'italic', marginTop: 4 },
   });
   return (
     <View style={s.card}>
@@ -137,6 +138,9 @@ function FeedCard({ item, Brand }: { item: Post; Brand: BrandPalette }) {
             <Text style={s.date}>{item.created_at.slice(0, 7)}</Text>
           ) : null}
         </View>
+        {item.note ? (
+          <Text style={s.note} numberOfLines={2}>&ldquo;{item.note}&rdquo;</Text>
+        ) : null}
       </View>
     </View>
   );

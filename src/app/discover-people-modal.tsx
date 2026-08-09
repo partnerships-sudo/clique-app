@@ -183,7 +183,7 @@ function createStyles(Brand: BrandPalette) {
       marginBottom: Spacing.three,
     },
     sortBtn: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' },
-    sortBtnActive: { backgroundColor: Brand.ink },
+    sortBtnActive: { backgroundColor: Brand.trust },
     sortBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.muted },
     sortBtnTextActive: { color: '#fff' },
     spinner: { marginTop: 40 },

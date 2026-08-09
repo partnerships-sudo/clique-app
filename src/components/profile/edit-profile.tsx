@@ -163,7 +163,6 @@ export function EditProfile({
           <View style={styles.avatarMeta}>
             <Text style={styles.avatarName}>{fullName || 'Your name'}</Text>
             {username ? <Text style={styles.avatarHandle}>@{username}</Text> : null}
-            <Text style={styles.changePhotoText}>Change photo</Text>
           </View>
         </Pressable>
         <Pressable style={styles.cogBtn} onPress={() => router.push('/settings')}>

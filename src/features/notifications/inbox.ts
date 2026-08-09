@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
-export type NotificationKind = 'new_follower' | 'follow_request' | 'follow_accepted' | 'reaction' | 'message' | 'story_like' | 'rate_reminder';
+export type NotificationKind = 'new_follower' | 'follow_request' | 'follow_accepted' | 'reaction' | 'message' | 'story_like' | 'rate_reminder' | 'watch_party_invite';
 
 export interface ActivityItem {
   id: string;
@@ -19,6 +19,8 @@ export interface ActivityItem {
   postTitle?: string;
   postType?: string;
   postPoster?: string | null;
+  /** For watch party invites */
+  premiereId?: string;
 }
 
 function inboxKey(userId: string | undefined) {
@@ -90,7 +92,7 @@ export function useInbox() {
           fromUserId: r.user_id,
           fromUserName: r.user_name,
           fromAvatarUrl: avatarMap[r.user_id] ?? null,
-          message: `${r.user_name} reacted "Me too!" to your post`,
+          message: `${r.user_name} liked your post`,
           read: reactionsReadAt !== null && r.created_at <= reactionsReadAt,
           createdAt: r.created_at,
           postId: r.post_id,
@@ -128,7 +130,39 @@ export function useInbox() {
         }
       }
 
-      const all = [...notifItems, ...reactionItems].sort(
+      // 4. Fetch pending watch party invites (rsvp_status = 'invited', not hosted by me)
+      const { data: inviteMembers } = await supabase
+        .from('premiere_members')
+        .select('premiere_id, created_at')
+        .eq('user_id', user!.id)
+        .eq('rsvp_status', 'invited');
+
+      let watchPartyItems: ActivityItem[] = [];
+      if (inviteMembers && inviteMembers.length > 0) {
+        const premiereIds = inviteMembers.map((m: any) => m.premiere_id);
+        const createdAtMap = Object.fromEntries(inviteMembers.map((m: any) => [m.premiere_id, m.created_at]));
+
+        const { data: premieres } = await supabase
+          .from('premieres')
+          .select('id, show_title, show_poster, host_user_id, host_name, host_avatar_url, created_at')
+          .in('id', premiereIds)
+          .neq('host_user_id', user!.id); // exclude parties I'm hosting
+
+        watchPartyItems = (premieres ?? []).map((p: any) => ({
+          id: `watch_party_invite:${p.id}`,
+          kind: 'watch_party_invite' as NotificationKind,
+          fromUserId: p.host_user_id,
+          fromUserName: p.host_name,
+          fromAvatarUrl: p.host_avatar_url ?? null,
+          message: `${p.host_name} invited you to a watch party — ${p.show_title}`,
+          read: false, // still 'invited' = not yet responded = unread
+          createdAt: createdAtMap[p.id] ?? p.created_at,
+          postPoster: p.show_poster ?? null,
+          premiereId: p.id,
+        }));
+      }
+
+      const all = [...notifItems, ...reactionItems, ...watchPartyItems].sort(
         (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
       );
       return all;

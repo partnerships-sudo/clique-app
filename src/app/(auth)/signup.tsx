@@ -12,40 +12,66 @@ import {
 } from 'react-native';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
+import { DrumPicker, daysInMonth, MONTH_LABELS, ITEM_H } from '@/components/drum-picker';
 
 import { useSession } from '@/hooks/use-session';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// ─── Birthday drum-roll picker ────────────────────────────────────────────────
 
-function isUnder13(day: number, month: number, year: number): boolean {
-  const today = new Date();
-  const thirteenth = new Date(today.getFullYear() - 13, today.getMonth(), today.getDate());
-  const dob = new Date(year, month, day);
-  return dob > thirteenth;
+const THIS_YEAR = new Date().getFullYear();
+// Years oldest → newest so scrolling down = more recent
+const YEAR_ITEMS = Array.from({ length: THIS_YEAR - 1919 }, (_, i) => String(1920 + i));
+const DEFAULT_YEAR_IDX = YEAR_ITEMS.indexOf('2000'); // start at year 2000
+
+function isUnder13(day: number, monthIdx: number, year: number): boolean {
+  const thirteenth = new Date(THIS_YEAR - 13, new Date().getMonth(), new Date().getDate());
+  return new Date(year, monthIdx, day) > thirteenth;
 }
+
+// ─── Age gate screen ──────────────────────────────────────────────────────────
 
 function AgeGate({ onPass }: { onPass: () => void }) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const [day, setDay] = useState('');
-  const [month, setMonth] = useState<number | null>(null);
-  const [year, setYear] = useState('');
+  const [dayIdx, setDayIdx] = useState(0);
+  const [monthIdx, setMonthIdx] = useState(0);
+  const [yearIdx, setYearIdx] = useState(DEFAULT_YEAR_IDX);
   const [blocked, setBlocked] = useState(false);
+  const dayScrollRef = useRef<ScrollView>(null);
+
+  const year = 1920 + yearIdx;
+  const maxDays = daysInMonth(monthIdx, year);
+  const dayItems = Array.from({ length: maxDays }, (_, i) => String(i + 1));
+
+  // Clamp day when month/year changes shrinks the valid range
+  function handleMonthChange(idx: number) {
+    setMonthIdx(idx);
+    const max = daysInMonth(idx, year) - 1;
+    if (dayIdx > max) {
+      setDayIdx(max);
+      dayScrollRef.current?.scrollTo({ y: max * ITEM_H, animated: true });
+    }
+  }
+
+  function handleYearChange(idx: number) {
+    setYearIdx(idx);
+    const max = daysInMonth(monthIdx, 1920 + idx) - 1;
+    if (dayIdx > max) {
+      setDayIdx(max);
+      dayScrollRef.current?.scrollTo({ y: max * ITEM_H, animated: true });
+    }
+  }
 
   function handleCheck() {
-    const d = parseInt(day, 10);
-    const y = parseInt(year, 10);
-    if (!d || month === null || !y || y < 1900 || y > new Date().getFullYear()) return;
-    if (isUnder13(d, month, y)) {
+    const day = dayIdx + 1;
+    if (isUnder13(day, monthIdx, year)) {
       setBlocked(true);
     } else {
       onPass();
     }
   }
-
-  const canCheck = day.length > 0 && month !== null && year.length === 4;
 
   if (blocked) {
     return (
@@ -73,41 +99,36 @@ function AgeGate({ onPass }: { onPass: () => void }) {
         <Text style={styles.ageGateTitle}>When's your birthday?</Text>
         <Text style={styles.ageGateSub}>We need to confirm you're old enough to use Clique.</Text>
 
-        <View style={styles.ageRow}>
-          <TextInput
-            style={[styles.input, styles.ageInputDay]}
-            placeholder="DD"
-            placeholderTextColor={Brand.muted}
-            value={day}
-            onChangeText={(v) => setDay(v.replace(/\D/g, '').slice(0, 2))}
-            keyboardType="number-pad"
-            maxLength={2}
+        {/* Column labels */}
+        <View style={styles.drumLabels}>
+          <Text style={styles.drumLabel}>Day</Text>
+          <Text style={styles.drumLabel}>Month</Text>
+          <Text style={styles.drumLabel}>Year</Text>
+        </View>
+
+        {/* Drum-roll pickers */}
+        <View style={styles.drumRow}>
+          <DrumPicker
+            items={dayItems}
+            selectedIndex={dayIdx}
+            onSelect={setDayIdx}
+            scrollRef={dayScrollRef}
           />
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.monthScroll} contentContainerStyle={styles.monthScrollContent}>
-            {MONTHS.map((m, i) => (
-              <Pressable
-                key={m}
-                style={[styles.monthChip, month === i && styles.monthChipActive]}
-                onPress={() => setMonth(i)}>
-                <Text style={[styles.monthChipText, month === i && styles.monthChipTextActive]}>{m}</Text>
-              </Pressable>
-            ))}
-          </ScrollView>
-          <TextInput
-            style={[styles.input, styles.ageInputYear]}
-            placeholder="YYYY"
-            placeholderTextColor={Brand.muted}
-            value={year}
-            onChangeText={(v) => setYear(v.replace(/\D/g, '').slice(0, 4))}
-            keyboardType="number-pad"
-            maxLength={4}
+          <View style={styles.drumDivider} />
+          <DrumPicker
+            items={MONTH_LABELS}
+            selectedIndex={monthIdx}
+            onSelect={handleMonthChange}
+          />
+          <View style={styles.drumDivider} />
+          <DrumPicker
+            items={YEAR_ITEMS}
+            selectedIndex={yearIdx}
+            onSelect={handleYearChange}
           />
         </View>
 
-        <Pressable
-          style={[styles.submitBtn, !canCheck && styles.submitBtnDisabled]}
-          onPress={handleCheck}
-          disabled={!canCheck}>
+        <Pressable style={styles.submitBtn} onPress={handleCheck}>
           <Text style={styles.submitText}>Continue →</Text>
         </Pressable>
       </View>
@@ -362,23 +383,33 @@ function createStyles(Brand: BrandPalette) {
     color: Brand.muted,
     textAlign: 'center',
     lineHeight: 20,
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  ageRow: { gap: 10, marginBottom: 16 },
-  ageInputDay: { marginBottom: 0 },
-  ageInputYear: { marginBottom: 0 },
-  monthScroll: { flexGrow: 0 },
-  monthScrollContent: { flexDirection: 'row', gap: 8, paddingVertical: 2 },
-  monthChip: {
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: 20,
+  drumLabels: {
+    flexDirection: 'row',
+    marginBottom: 4,
+  },
+  drumLabel: {
+    flex: 1,
+    textAlign: 'center',
+    fontFamily: BrandFonts.interMedium,
+    fontSize: 11,
+    color: Brand.muted,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  drumRow: {
+    flexDirection: 'row',
     borderWidth: 1.5,
     borderColor: Brand.border,
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
     backgroundColor: Brand.card,
   },
-  monthChipActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
-  monthChipText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
-  monthChipTextActive: { color: '#fff' },
+  drumDivider: {
+    width: 1,
+    backgroundColor: Brand.border,
+  },
   });
 }

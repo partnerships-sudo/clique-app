@@ -11,10 +11,11 @@ import {
   Text,
   TextInput,
   View,
+  useColorScheme,
 } from 'react-native';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -22,11 +23,12 @@ import {
   usePremiere,
   useJoinPremiere,
   useInviteToPremiere,
+  useResendPremiereInvite,
   useSendPremiereMessage,
   useWaitingRoomMessages,
+  usePremiereMembers,
   type PremiereMessage,
 } from '@/features/premieres/api';
-import { addPremiereToCalendar } from '@/features/premieres/use-add-to-calendar';
 import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
 import { useBrand } from '@/hooks/use-brand';
@@ -34,7 +36,9 @@ import { supabase } from '@/lib/supabase';
 
 export default function PremiereWaitingRoom() {
   const Brand = useBrand();
-  const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
+  const styles = useMemo(() => createStyles(Brand, isDark), [Brand, isDark]);
   const { user } = useSession();
   const params = useLocalSearchParams<{ id: string }>();
 
@@ -42,6 +46,8 @@ export default function PremiereWaitingRoom() {
   const { data: premiere } = usePremiere(params.id ?? null);
   const joinPremiere = useJoinPremiere();
   const sendMsg = useSendPremiereMessage();
+  const resendInvite = useResendPremiereInvite();
+  const [resentIds, setResentIds] = useState<Set<string>>(new Set());
   const { data: dbMessages = [] } = useWaitingRoomMessages(params.id ?? null);
 
   const [extraMessages, setExtraMessages] = useState<PremiereMessage[]>([]);
@@ -52,11 +58,22 @@ export default function PremiereWaitingRoom() {
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
+  const [guestSheetTab, setGuestSheetTab] = useState<'attending' | 'maybe' | 'invited' | 'not_attending' | null>(null);
+  const [countdown, setCountdown] = useState<number | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const redirectedRef = useRef(false);
+  const { bottom: bottomInset } = useSafeAreaInsets();
   const isHost = premiere?.host_user_id === user?.id;
   const { threads: dmThreads } = useDmThreads();
   const inviteToPremiere = useInviteToPremiere();
+  const { data: members = [] } = usePremiereMembers(params.id ?? null);
+
+  const rsvpCounts = {
+    attending: members.filter((m) => m.rsvp_status === 'attending').length,
+    maybe: members.filter((m) => m.rsvp_status === 'maybe').length,
+    invited: members.filter((m) => m.rsvp_status === 'invited').length,
+    not_attending: members.filter((m) => m.rsvp_status === 'not_attending').length,
+  };
 
   // Merge DB messages with any realtime extras not yet in DB result
   const messages = [
@@ -69,11 +86,22 @@ export default function PremiereWaitingRoom() {
     if (params.id) joinPremiere.mutate(params.id);
   }, [params.id]);
 
+  // Countdown tick → redirect at 0
+  useEffect(() => {
+    if (countdown === null) return;
+    if (countdown === 0) {
+      router.replace({ pathname: '/premiere-live', params: { id: params.id, fromWaiting: 'true' } });
+      return;
+    }
+    const t = setTimeout(() => setCountdown((c) => (c !== null ? c - 1 : null)), 1000);
+    return () => clearTimeout(t);
+  }, [countdown]);
+
   // Fallback redirect: usePremiere polls every 5s — catch the live status even if realtime missed it
   useEffect(() => {
     if (premiere?.status === 'live' && !redirectedRef.current) {
       redirectedRef.current = true;
-      router.replace({ pathname: '/premiere-live', params: { id: params.id } });
+      setCountdown(3);
     }
   }, [premiere?.status]);
 
@@ -103,11 +131,21 @@ export default function PremiereWaitingRoom() {
         (payload) => {
           const msg = payload.new as PremiereMessage;
           if (msg.relative_ms === null) {
-            // Invalidate so React Query picks it up; also append immediately for instant display
+            // Invalidate so React Query picks it up on next poll
             queryClient.invalidateQueries({ queryKey: ['waiting-room-messages', params.id] });
             setExtraMessages((prev) => {
+              // Already have the real row
               if (prev.some((m) => m.id === msg.id)) return prev;
-              if (msg.user_id !== user?.id) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Replace our own optimistic entry with the real one; append others' messages
+              if (msg.user_id === user?.id) {
+                const idx = prev.findIndex((m) => m.id.startsWith('optimistic-') && m.user_id === user.id);
+                if (idx !== -1) {
+                  const next = [...prev];
+                  next[idx] = msg;
+                  return next;
+                }
+              }
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               return [...prev, msg];
             });
             setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
@@ -146,7 +184,7 @@ export default function PremiereWaitingRoom() {
         (payload) => {
           if (payload.new.status === 'live' && !redirectedRef.current) {
             redirectedRef.current = true;
-            router.replace({ pathname: '/premiere-live', params: { id: params.id } });
+            setCountdown(3);
           }
         },
       )
@@ -221,11 +259,12 @@ export default function PremiereWaitingRoom() {
         text: 'Start!',
         onPress: async () => {
           redirectedRef.current = true;
+          // Start countdown immediately for the host, then update DB
+          setCountdown(3);
           await supabase
             .from('premieres')
             .update({ status: 'live', live_started_at: new Date().toISOString() })
             .eq('id', params.id);
-          router.replace({ pathname: '/premiere-live', params: { id: params.id } });
         },
       },
     ]);
@@ -247,7 +286,19 @@ export default function PremiereWaitingRoom() {
 
         {/* Header */}
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={16}>
+          <Pressable
+            onPress={() => {
+              Alert.alert(
+                'Leave waiting room?',
+                "You'll miss the countdown when it goes live.",
+                [
+                  { text: 'Stay', style: 'cancel' },
+                  { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+                ],
+              );
+            }}
+            hitSlop={16}
+          >
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <View style={styles.headerCenter}>
@@ -256,15 +307,15 @@ export default function PremiereWaitingRoom() {
               S{premiere?.season_number} E{premiere?.episode_number}
             </Text>
           </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <Pressable onPress={() => setInviteOpen(true)} hitSlop={16}>
-              <Text style={styles.addBtn}>＋</Text>
-            </Pressable>
-            {isHost ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 60, justifyContent: 'flex-end' }}>
+            {isHost && (
               <Pressable style={styles.goLiveBtn} onPress={goLive}>
                 <Text style={styles.goLiveBtnText}>Go Live</Text>
               </Pressable>
-            ) : <View style={{ width: 60 }} />}
+            )}
+            <Pressable onPress={() => setInviteOpen(true)} hitSlop={16}>
+              <Text style={styles.addBtn}>＋</Text>
+            </Pressable>
           </View>
         </View>
 
@@ -279,27 +330,50 @@ export default function PremiereWaitingRoom() {
           </Text>
         </View>
 
-        {/* Add to calendar */}
-        {premiere && (
-          <Pressable
-            style={styles.calendarBtn}
-            onPress={() => addPremiereToCalendar({
-              showTitle: premiere.show_title,
-              episodeName: premiere.episode_name,
-              episodeNumber: premiere.episode_number,
-              seasonNumber: premiere.season_number,
-              airDate: premiere.air_date,
-              hostName: premiere.host_name,
-              premiereId: premiere.id,
-            })}>
-            <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
-          </Pressable>
-        )}
+        {/* RSVP counts strip */}
+        <View style={styles.rsvpStrip}>
+          {([
+            { key: 'attending', label: 'Going', count: rsvpCounts.attending },
+            { key: 'maybe', label: 'Maybe', count: rsvpCounts.maybe },
+            { key: 'not_attending', label: "Can't", count: rsvpCounts.not_attending },
+            { key: 'invited', label: 'Awaiting', count: rsvpCounts.invited },
+          ] as const).map((item, i) => {
+            const faces = members
+              .filter((m) => m.rsvp_status === item.key)
+              .slice(0, 3);
+            return (
+              <View key={item.key} style={{ flex: 1, flexDirection: 'row' }}>
+                {i > 0 && <View style={styles.rsvpDivider} />}
+                <Pressable style={styles.rsvpPill} onPress={() => setGuestSheetTab(item.key)}>
+                  {faces.length > 0 ? (
+                    <View style={styles.rsvpAvatarRow}>
+                      {faces.map((m, idx) => (
+                        <View key={m.user_id} style={[styles.rsvpAvatarWrap, { marginLeft: idx > 0 ? -6 : 0, zIndex: faces.length - idx }]}>
+                          <Avatar
+                            name={m.full_name ?? m.username ?? '?'}
+                            size={20}
+                            avatarUrl={m.avatar_url ?? undefined}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  ) : (
+                    <Text style={styles.rsvpPillCount}>{item.count}</Text>
+                  )}
+                  <Text style={styles.rsvpPillLabel}>
+                    {item.label}{item.count > 0 ? ` (${item.count})` : ''}
+                  </Text>
+                </Pressable>
+              </View>
+            );
+          })}
+        </View>
+
 
         {/* Waiting room chat note */}
         <View style={styles.wipeBanner}>
           <Text style={styles.wipeBannerText}>
-            💬 Chat opens now — clears when the show starts
+            💬 Chat is open. Messages clear when the show starts.
           </Text>
         </View>
 
@@ -334,22 +408,78 @@ export default function PremiereWaitingRoom() {
         />
 
         {/* Input */}
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            placeholder="Say something…"
-            placeholderTextColor={Brand.muted}
-            value={text}
-            onChangeText={setText}
-            onSubmitEditing={sendMessage}
-            returnKeyType="send"
-          />
-          <Pressable style={styles.sendBtn} onPress={sendMessage} disabled={!text.trim()}>
-            <Text style={styles.sendBtnText}>Send</Text>
-          </Pressable>
+        <View style={[styles.inputWrap, { paddingBottom: bottomInset > 0 ? bottomInset - 4 : 10 }]}>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Say something…"
+              placeholderTextColor={Brand.muted}
+              value={text}
+              onChangeText={setText}
+              onSubmitEditing={sendMessage}
+              returnKeyType="send"
+            />
+            <Pressable style={styles.sendBtn} onPress={sendMessage} disabled={!text.trim()}>
+              <Text style={styles.sendBtnText}>↑</Text>
+            </Pressable>
+          </View>
         </View>
 
       </KeyboardAvoidingWrapper>
+
+      {/* Guest list sheet */}
+      <Modal visible={guestSheetTab !== null} transparent animationType="slide" onRequestClose={() => setGuestSheetTab(null)}>
+        <Pressable style={styles.inviteBackdrop} onPress={() => setGuestSheetTab(null)}>
+          <Pressable style={styles.inviteSheet} onPress={() => {}}>
+            <View style={styles.inviteGrabber} />
+            <Text style={styles.inviteTitle}>
+              {guestSheetTab === 'attending' ? '✓ Going' :
+               guestSheetTab === 'maybe' ? '? Maybe' :
+               guestSheetTab === 'invited' ? '⏳ Awaiting' : "✕ Can't"}
+            </Text>
+            <FlatList
+              data={members.filter((m) => m.rsvp_status === guestSheetTab)}
+              keyExtractor={(m) => m.user_id}
+              style={styles.inviteList}
+              renderItem={({ item }) => {
+                const resent = resentIds.has(item.user_id);
+                return (
+                  <View style={styles.inviteRow}>
+                    <Avatar name={item.full_name ?? item.username ?? '?'} size={36} avatarUrl={item.avatar_url ?? undefined} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inviteName}>{item.full_name ?? item.username ?? 'Unknown'}</Text>
+                      {item.username ? <Text style={[styles.inviteAction, { color: Brand.muted }]}>@{item.username}</Text> : null}
+                    </View>
+                    {guestSheetTab === 'invited' && isHost && (
+                      <Pressable
+                        hitSlop={8}
+                        disabled={resent || resendInvite.isPending}
+                        onPress={async () => {
+                          if (!params.id || !premiere) return;
+                          await resendInvite.mutateAsync({ premiereId: params.id, friendId: item.user_id, showTitle: premiere.show_title });
+                          setResentIds((prev) => new Set([...prev, item.user_id]));
+                        }}>
+                        <Text style={[styles.inviteAction, resent && styles.inviteActionSent]}>
+                          {resent ? 'Sent ✓' : 'Remind'}
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.inviteEmpty}>Nobody here yet.</Text>}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Go-live countdown overlay */}
+      {countdown !== null && (
+        <View style={styles.countdownOverlay}>
+          <Text style={styles.countdownOverlayLabel}>Going live</Text>
+          <Text style={styles.countdownOverlayNum}>{countdown === 0 ? '🎬' : countdown}</Text>
+        </View>
+      )}
 
       <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)}>
         <Pressable style={styles.inviteBackdrop} onPress={() => setInviteOpen(false)}>
@@ -387,9 +517,15 @@ export default function PremiereWaitingRoom() {
   );
 }
 
-function createStyles(Brand: BrandPalette) {
+function createStyles(Brand: BrandPalette, isDark: boolean) {
+  const bg      = isDark ? '#0F0D1A' : Brand.paper;
+  const surface = isDark ? '#1A1629' : Brand.card;
+  const border  = isDark ? 'rgba(255,255,255,0.07)' : Brand.border;
+  const ink     = isDark ? '#fff' : Brand.ink;
+  const muted   = isDark ? 'rgba(255,255,255,0.4)' : Brand.muted;
+  const accent  = isDark ? '#A78BFA' : Brand.trust;
   return StyleSheet.create({
-    safe: { flex: 1, backgroundColor: Brand.paper },
+    safe: { flex: 1, backgroundColor: bg },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -397,10 +533,10 @@ function createStyles(Brand: BrandPalette) {
       paddingHorizontal: Spacing.three,
       paddingVertical: 12,
       borderBottomWidth: 1,
-      borderBottomColor: Brand.border,
+      borderBottomColor: border,
     },
-    back: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust, width: 60 },
-    addBtn: { fontFamily: BrandFonts.syneBold, fontSize: 22, color: Brand.trust },
+    back: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: accent, width: 60 },
+    addBtn: { fontFamily: BrandFonts.syneBold, fontSize: 22, color: accent },
     inviteBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     inviteSheet: { backgroundColor: Brand.card, borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '70%' },
     inviteGrabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: Brand.border, alignSelf: 'center', marginBottom: 16 },
@@ -412,8 +548,8 @@ function createStyles(Brand: BrandPalette) {
     inviteActionSent: { color: Brand.muted },
     inviteEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, textAlign: 'center', padding: 24 },
     headerCenter: { flex: 1, alignItems: 'center' },
-    headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: Brand.ink },
-    headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: Brand.muted },
+    headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 15, color: ink },
+    headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11.5, color: muted },
     goLiveBtn: {
       backgroundColor: '#7C3AED',
       borderRadius: 10,
@@ -427,12 +563,12 @@ function createStyles(Brand: BrandPalette) {
       alignItems: 'center',
       paddingVertical: 20,
       paddingHorizontal: 24,
-      backgroundColor: '#0F0D1A',
+      backgroundColor: bg,
     },
     countdownLabel: {
       fontFamily: BrandFonts.interRegular,
       fontSize: 11.5,
-      color: 'rgba(255,255,255,0.4)',
+      color: muted,
       textTransform: 'uppercase',
       letterSpacing: 0.8,
       marginBottom: 6,
@@ -440,15 +576,73 @@ function createStyles(Brand: BrandPalette) {
     countdownTimer: {
       fontFamily: BrandFonts.syneExtraBold,
       fontSize: 38,
-      color: '#fff',
+      color: ink,
       letterSpacing: -1,
     },
     countdownSub: {
       fontFamily: BrandFonts.interMedium,
       fontSize: 13,
-      color: 'rgba(255,255,255,0.45)',
+      color: muted,
       marginTop: 6,
       textAlign: 'center',
+    },
+    rsvpStrip: {
+      flexDirection: 'row',
+      backgroundColor: bg,
+      borderTopWidth: 1,
+      borderTopColor: border,
+      paddingVertical: 12,
+      paddingHorizontal: 24,
+    },
+    rsvpPill: { flex: 1, alignItems: 'center', gap: 2 },
+    rsvpPillCount: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 18,
+      color: ink,
+    },
+    rsvpPillLabel: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 11,
+      color: muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.6,
+    },
+    rsvpDivider: {
+      width: 1,
+      backgroundColor: border,
+      marginVertical: 4,
+    },
+    rsvpAvatarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 2,
+    },
+    rsvpAvatarWrap: {
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: 'rgba(0,0,0,0.3)',
+      overflow: 'hidden',
+    },
+    countdownOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: '#0F0D1A',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 100,
+    },
+    countdownOverlayLabel: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 14,
+      color: 'rgba(255,255,255,0.5)',
+      textTransform: 'uppercase',
+      letterSpacing: 1.5,
+      marginBottom: 16,
+    },
+    countdownOverlayNum: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 96,
+      color: '#fff',
+      lineHeight: 110,
     },
     calendarBtn: {
       flexDirection: 'row',
@@ -490,7 +684,7 @@ function createStyles(Brand: BrandPalette) {
       color: '#fff',
     },
     wipeBanner: {
-      backgroundColor: Brand.tlight,
+      backgroundColor: isDark ? 'rgba(167,139,250,0.1)' : Brand.tlight,
       paddingVertical: 7,
       paddingHorizontal: 16,
       alignItems: 'center',
@@ -498,58 +692,65 @@ function createStyles(Brand: BrandPalette) {
     wipeBannerText: {
       fontFamily: BrandFonts.interRegular,
       fontSize: 12,
-      color: Brand.trust,
+      color: accent,
     },
     messageList: { padding: 16, gap: 12, flexGrow: 1 },
     messageRow: { flexDirection: 'row', gap: 8, alignItems: 'flex-start' },
     messageBubble: {
       flex: 1,
-      backgroundColor: Brand.card,
+      backgroundColor: surface,
       borderRadius: 12,
       padding: 10,
       borderWidth: 1,
-      borderColor: Brand.border,
+      borderColor: border,
     },
     messageName: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 11.5,
-      color: Brand.trust,
+      color: accent,
       marginBottom: 2,
     },
-    messageText: { fontFamily: BrandFonts.interRegular, fontSize: 13.5, color: Brand.ink },
+    messageText: { fontFamily: BrandFonts.interRegular, fontSize: 13.5, color: ink },
     emptyChat: {
       textAlign: 'center',
       fontFamily: BrandFonts.interRegular,
       fontSize: 13,
-      color: Brand.muted,
+      color: muted,
       marginTop: 40,
+    },
+    inputWrap: {
+      backgroundColor: bg,
+      borderTopWidth: 1,
+      borderTopColor: border,
+      paddingHorizontal: Spacing.three,
+      paddingTop: 10,
+      paddingBottom: 10,
     },
     inputRow: {
       flexDirection: 'row',
-      gap: 8,
-      padding: 12,
-      borderTopWidth: 1,
-      borderTopColor: Brand.border,
-      backgroundColor: Brand.paper,
+      gap: 10,
+      alignItems: 'center',
     },
     input: {
       flex: 1,
       borderWidth: 1.5,
-      borderColor: Brand.border,
-      borderRadius: 22,
-      paddingHorizontal: 14,
-      paddingVertical: 10,
+      borderColor: isDark ? 'rgba(255,255,255,0.12)' : Brand.border,
+      borderRadius: 24,
+      paddingHorizontal: 16,
+      paddingVertical: 11,
       fontFamily: BrandFonts.interRegular,
-      fontSize: 14,
-      color: Brand.ink,
-      backgroundColor: Brand.card,
+      fontSize: 14.5,
+      color: ink,
+      backgroundColor: surface,
     },
     sendBtn: {
-      backgroundColor: '#7C3AED',
-      borderRadius: 22,
-      paddingHorizontal: 16,
+      width: 34,
+      height: 34,
+      borderRadius: 17,
+      backgroundColor: Brand.trust,
+      alignItems: 'center',
       justifyContent: 'center',
     },
-    sendBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13.5, color: '#fff' },
+    sendBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: '#fff' },
   });
 }

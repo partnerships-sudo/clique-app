@@ -43,7 +43,9 @@ export default function LoginScreen() {
     }
     setIsSendingReset(true);
     setMessage(null);
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim());
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: 'thecliqueapp://reset-password',
+    });
     setIsSendingReset(false);
     setMessage({
       text: error ? error.message : 'Check your email for a password reset link.',

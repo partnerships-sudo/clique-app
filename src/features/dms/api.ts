@@ -193,13 +193,17 @@ export function useDmMessages(friendId: string | null) {
       const { data, error } = await supabase
         .from('direct_messages')
         .select('*')
-        .or(
-          `and(sender_id.eq.${user!.id},recipient_id.eq.${friendId}),and(sender_id.eq.${friendId},recipient_id.eq.${user!.id})`
-        )
-        .order('created_at', { ascending: true })
-        .limit(100);
+        .or(`sender_id.eq.${user!.id},recipient_id.eq.${user!.id}`)
+        .order('created_at', { ascending: false })
+        .limit(500);
       if (error) throw error;
-      return data as DirectMessage[];
+      // Filter to this specific thread, then reverse oldest-first
+      const thread = (data as DirectMessage[]).filter(
+        (m) =>
+          (m.sender_id === user!.id && m.recipient_id === friendId) ||
+          (m.sender_id === friendId && m.recipient_id === user!.id),
+      );
+      return thread.reverse();
     },
     enabled: !!friendId && !!user,
     staleTime: 10_000,

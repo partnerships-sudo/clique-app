@@ -328,10 +328,14 @@ export interface ListComment {
   id: string;
   list_id: string;
   user_id: string;
+  parent_id: string | null;
   user_name: string;
   user_avatar_url: string | null;
   content: string;
   created_at: string;
+  likes_count: number;
+  liked_by_me: boolean;
+  replies: ListComment[];
 }
 
 function listCommentsKey(listId: string) {
@@ -339,26 +343,93 @@ function listCommentsKey(listId: string) {
 }
 
 export function useListComments(listId: string | undefined) {
+  const { user } = useSession();
   return useQuery({
     queryKey: listCommentsKey(listId!),
     queryFn: async (): Promise<ListComment[]> => {
       const { data, error } = await supabase
         .from('list_comments')
-        .select('*, profiles(username, avatar_url)')
+        .select('id, list_id, user_id, parent_id, content, created_at')
         .eq('list_id', listId!)
         .order('created_at', { ascending: true });
       if (error) throw error;
-      return (data as any[]).map((row) => ({
+      if (!data || data.length === 0) return [];
+
+      const commentIds = (data as any[]).map((r) => r.id);
+      const userIds = [...new Set((data as any[]).map((r) => r.user_id))];
+
+      const [{ data: profiles }, { data: likes }] = await Promise.all([
+        supabase.from('profiles').select('id, username, avatar_url').in('id', userIds),
+        supabase.from('comment_likes').select('comment_id, user_id').in('comment_id', commentIds),
+      ]);
+
+      const profileMap: Record<string, { username: string; avatar_url: string | null }> = {};
+      for (const p of profiles ?? []) profileMap[p.id] = { username: p.username, avatar_url: p.avatar_url };
+
+      const likeCountMap: Record<string, number> = {};
+      const likedByMeSet = new Set<string>();
+      for (const l of likes ?? []) {
+        likeCountMap[l.comment_id] = (likeCountMap[l.comment_id] ?? 0) + 1;
+        if (l.user_id === user?.id) likedByMeSet.add(l.comment_id);
+      }
+
+      const mapped: ListComment[] = (data as any[]).map((row) => ({
         id: row.id,
         list_id: row.list_id,
         user_id: row.user_id,
-        user_name: row.profiles?.username ?? 'unknown',
-        user_avatar_url: row.profiles?.avatar_url ?? null,
+        parent_id: row.parent_id ?? null,
+        user_name: profileMap[row.user_id]?.username ?? 'unknown',
+        user_avatar_url: profileMap[row.user_id]?.avatar_url ?? null,
         content: row.content,
         created_at: row.created_at,
+        likes_count: likeCountMap[row.id] ?? 0,
+        liked_by_me: likedByMeSet.has(row.id),
+        replies: [],
       }));
+
+      // Group replies under parents
+      const byId: Record<string, ListComment> = {};
+      for (const c of mapped) byId[c.id] = c;
+      const top: ListComment[] = [];
+      for (const c of mapped) {
+        if (c.parent_id && byId[c.parent_id]) {
+          byId[c.parent_id].replies.push(c);
+        } else {
+          top.push(c);
+        }
+      }
+      return top;
     },
     enabled: !!listId,
+  });
+}
+
+export function useToggleCommentLike() {
+  const { user } = useSession();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ commentId, listId, liked }: { commentId: string; listId: string; liked: boolean }) => {
+      if (liked) {
+        await supabase.from('comment_likes').delete().eq('comment_id', commentId).eq('user_id', user!.id);
+      } else {
+        await supabase.from('comment_likes').insert({ comment_id: commentId, user_id: user!.id });
+      }
+    },
+    onMutate: async ({ commentId, listId, liked }) => {
+      await qc.cancelQueries({ queryKey: listCommentsKey(listId) });
+      const prev = qc.getQueryData<ListComment[]>(listCommentsKey(listId));
+      qc.setQueryData<ListComment[]>(listCommentsKey(listId), (old) =>
+        old?.map((c) =>
+          c.id === commentId
+            ? { ...c, liked_by_me: !liked, likes_count: c.likes_count + (liked ? -1 : 1) }
+            : c,
+        ),
+      );
+      return { prev };
+    },
+    onError: (_e, { listId }, ctx) => {
+      if (ctx?.prev) qc.setQueryData(listCommentsKey(listId), ctx.prev);
+    },
   });
 }
 
@@ -380,10 +451,10 @@ export function useAddListComment() {
   const { user } = useSession();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ listId, content }: { listId: string; content: string }) => {
+    mutationFn: async ({ listId, content, parentId }: { listId: string; content: string; parentId?: string }) => {
       const { error } = await supabase
         .from('list_comments')
-        .insert({ list_id: listId, user_id: user!.id, content });
+        .insert({ list_id: listId, user_id: user!.id, content, parent_id: parentId ?? null });
       if (error) throw error;
     },
     onSuccess: (_d, { listId }) => {

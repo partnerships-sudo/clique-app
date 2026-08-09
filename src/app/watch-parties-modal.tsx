@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -31,6 +31,7 @@ import {
   useDeleteScreeningRoom,
   type ScreeningRoom,
 } from '@/features/screening-rooms/api';
+import { DrumPicker, daysInMonth, MONTH_LABELS } from '@/components/drum-picker';
 import { useBrand } from '@/hooks/use-brand';
 
 type Tab = 'hosting' | 'attending' | 'screening';
@@ -61,6 +62,10 @@ function formatPartyDate(airDate: string | null): string {
     return airDate;
   }
 }
+
+const THIS_YEAR = new Date().getFullYear();
+const PARTY_YEAR_ITEMS = Array.from({ length: 4 }, (_, i) => String(THIS_YEAR + i));
+const DAY_ITEMS = Array.from({ length: 31 }, (_, i) => String(i + 1));
 
 function ScreeningRoomCard({
   item,
@@ -200,25 +205,64 @@ export default function WatchPartiesModal() {
   const deleteScreeningRoom = useDeleteScreeningRoom();
 
   const [editingPremiere, setEditingPremiere] = useState<Premiere | null>(null);
-  const [editDate, setEditDate] = useState('');
+  const [editDayIdx, setEditDayIdx] = useState(0);
+  const [editMonthIdx, setEditMonthIdx] = useState(0);
+  const [editYearIdx, setEditYearIdx] = useState(0);
   const [editTime, setEditTime] = useState('');
   const [editTagline, setEditTagline] = useState('');
+  const dayScrollRef = useRef<ScrollView>(null);
 
   const updatePremiere = useUpdatePremiere();
   const deletePremiere = useDeletePremiere();
 
+  const editYear = THIS_YEAR + editYearIdx;
+  const editMaxDays = daysInMonth(editMonthIdx, editYear);
+  const editDayItems = Array.from({ length: editMaxDays }, (_, i) => String(i + 1));
+
   function openEdit(p: Premiere) {
     setEditingPremiere(p);
-    setEditDate(p.air_date ?? '');
+    // Parse existing date to seed the drums
+    if (p.air_date) {
+      const d = new Date(p.air_date + 'T12:00:00');
+      const yIdx = PARTY_YEAR_ITEMS.indexOf(String(d.getFullYear()));
+      setEditYearIdx(yIdx >= 0 ? yIdx : 0);
+      setEditMonthIdx(d.getMonth());
+      setEditDayIdx(d.getDate() - 1);
+    } else {
+      setEditYearIdx(0);
+      setEditMonthIdx(new Date().getMonth());
+      setEditDayIdx(new Date().getDate() - 1);
+    }
     setEditTime(p.air_time ?? '');
     setEditTagline(p.tagline ?? '');
   }
 
+  function handleEditMonthChange(idx: number) {
+    setEditMonthIdx(idx);
+    const max = daysInMonth(idx, editYear) - 1;
+    if (editDayIdx > max) {
+      setEditDayIdx(max);
+      dayScrollRef.current?.scrollTo({ y: max * 36, animated: true });
+    }
+  }
+
+  function handleEditYearChange(idx: number) {
+    setEditYearIdx(idx);
+    const max = daysInMonth(editMonthIdx, THIS_YEAR + idx) - 1;
+    if (editDayIdx > max) {
+      setEditDayIdx(max);
+      dayScrollRef.current?.scrollTo({ y: max * 36, animated: true });
+    }
+  }
+
   async function handleSaveEdit() {
     if (!editingPremiere) return;
+    const month = String(editMonthIdx + 1).padStart(2, '0');
+    const day = String(editDayIdx + 1).padStart(2, '0');
+    const airDate = `${editYear}-${month}-${day}`;
     await updatePremiere.mutateAsync({
       id: editingPremiere.id,
-      airDate: editDate,
+      airDate,
       airTime: editTime.trim() || null,
       tagline: editTagline.trim() || null,
     });
@@ -391,17 +435,33 @@ export default function WatchPartiesModal() {
               </Text>
             ) : null}
 
-            <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View>
               <Text style={styles.fieldLabel}>Date</Text>
-              <TextInput
-                style={styles.fieldInput}
-                placeholder="YYYY-MM-DD"
-                placeholderTextColor={Brand.muted}
-                value={editDate}
-                onChangeText={setEditDate}
-                keyboardType="numbers-and-punctuation"
-                maxLength={10}
-              />
+              <View style={styles.drumLabels}>
+                <Text style={styles.drumLabel}>Day</Text>
+                <Text style={styles.drumLabel}>Month</Text>
+                <Text style={styles.drumLabel}>Year</Text>
+              </View>
+              <View style={styles.drumRow}>
+                <DrumPicker
+                  items={editDayItems}
+                  selectedIndex={editDayIdx}
+                  onSelect={setEditDayIdx}
+                  scrollRef={dayScrollRef}
+                />
+                <View style={styles.drumDivider} />
+                <DrumPicker
+                  items={MONTH_LABELS}
+                  selectedIndex={editMonthIdx}
+                  onSelect={handleEditMonthChange}
+                />
+                <View style={styles.drumDivider} />
+                <DrumPicker
+                  items={PARTY_YEAR_ITEMS}
+                  selectedIndex={editYearIdx}
+                  onSelect={handleEditYearChange}
+                />
+              </View>
 
               <Text style={styles.fieldLabel}>Start time</Text>
               <View style={styles.timeRow}>
@@ -432,7 +492,7 @@ export default function WatchPartiesModal() {
                 multiline
                 maxLength={80}
               />
-            </ScrollView>
+            </View>
 
             <Pressable
               style={[styles.saveBtn, updatePremiere.isPending && { opacity: 0.5 }]}
@@ -573,6 +633,26 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.ink,
     },
     fieldInputMulti: { minHeight: 72, textAlignVertical: 'top' },
+    drumLabels: { flexDirection: 'row', marginBottom: 4 },
+    drumLabel: {
+      flex: 1,
+      textAlign: 'center',
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 11,
+      color: Brand.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 0.8,
+    },
+    drumRow: {
+      flexDirection: 'row',
+      backgroundColor: Brand.card,
+      borderRadius: 16,
+      borderWidth: 1.5,
+      borderColor: Brand.border,
+      overflow: 'hidden',
+      marginBottom: 18,
+    },
+    drumDivider: { width: 1, backgroundColor: Brand.border },
     timeRow: { flexDirection: 'row', gap: 8, marginBottom: 8, flexWrap: 'wrap' },
     timeChip: {
       paddingVertical: 7,

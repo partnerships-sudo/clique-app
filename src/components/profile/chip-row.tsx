@@ -48,7 +48,7 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: Brand.card,
     },
     chipOnLight: { backgroundColor: Brand.tlight, borderColor: Brand.trust },
-    chipOnDark: { backgroundColor: Brand.ink, borderColor: Brand.ink },
+    chipOnDark: { backgroundColor: Brand.trust, borderColor: Brand.trust },
     text: { fontFamily: BrandFonts.syneBold, fontSize: 12.5, color: Brand.muted },
     textOnLight: { color: Brand.trust },
     textOnDark: { color: Brand.paper },

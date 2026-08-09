@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/hooks/use-session';
 import { useProfile } from '@/features/profile/api';
+import { buildWatchPartyInvite } from '@/features/dms/watch-party-invite';
 import { supabase } from '@/lib/supabase';
 
 export function useSendPremiereMessage() {
@@ -35,7 +36,7 @@ export function useEndPremiere() {
     mutationFn: async (premiereId: string) => {
       const { error } = await supabase
         .from('premieres')
-        .update({ status: 'ended' })
+        .update({ status: 'ended', ended_at: new Date().toISOString() })
         .eq('id', premiereId);
       if (error) throw error;
     },
@@ -158,7 +159,7 @@ export function useMyPremieres() {
   });
 }
 
-export type RsvpStatus = 'invited' | 'attending' | 'not_attending';
+export type RsvpStatus = 'invited' | 'attending' | 'maybe' | 'not_attending';
 export type PremiereWithRsvp = Premiere & { rsvp_status: RsvpStatus };
 
 export function useAttendingPremieres() {
@@ -193,19 +194,22 @@ export function useAttendingPremieres() {
 }
 
 export function useUpdateRsvp() {
-  const { user } = useSession();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ premiereId, status }: { premiereId: string; status: RsvpStatus }) => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not signed in');
       const { error } = await supabase
         .from('premiere_members')
         .update({ rsvp_status: status })
         .eq('premiere_id', premiereId)
-        .eq('user_id', user!.id);
+        .eq('user_id', user.id);
       if (error) throw error;
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['premieres-attending', user?.id] });
+    onSuccess: (_data, { premiereId }) => {
+      queryClient.invalidateQueries({ queryKey: ['premieres-attending'] });
+      queryClient.invalidateQueries({ queryKey: ['premiere-members', premiereId] });
+      queryClient.invalidateQueries({ queryKey: ['inbox'] });
     },
   });
 }
@@ -286,6 +290,37 @@ export function useInviteToPremiere() {
       if (error) throw error;
 
       const hostName = profile?.full_name ?? profile?.username ?? 'Someone';
+
+      // Fetch premiere details to build the DM invite card
+      const { data: premiere } = await supabase
+        .from('premieres')
+        .select('show_title,show_poster,season_number,episode_number,episode_name,air_date,air_time,tagline')
+        .eq('id', premiereId)
+        .single();
+
+      // Send DM invite card
+      if (premiere && user) {
+        const episodeLabel = premiere.season_number && premiere.episode_number
+          ? `S${premiere.season_number}E${premiere.episode_number}${premiere.episode_name ? ` · ${premiere.episode_name}` : ''}`
+          : premiere.episode_name ?? null;
+        const content = buildWatchPartyInvite({
+          id: premiereId,
+          title: premiere.show_title,
+          poster: premiere.show_poster,
+          episode: episodeLabel,
+          date: premiere.air_date,
+          time: premiere.air_time,
+          tagline: premiere.tagline,
+          hostName,
+        });
+        await supabase.from('direct_messages').insert({
+          sender_id: user.id,
+          recipient_id: friendId,
+          content,
+        });
+      }
+
+      // Push notification
       const { data: tokens } = await supabase.from('push_tokens').select('token').eq('user_id', friendId);
       if (tokens && tokens.length > 0) {
         await fetch('https://exp.host/--/api/v2/push/send', {
@@ -294,6 +329,58 @@ export function useInviteToPremiere() {
           body: JSON.stringify(tokens.map((t) => ({
             to: t.token,
             title: `${hostName} invited you to a watch party 🎬`,
+            body: showTitle,
+            data: { type: 'watch_party_invite', premiereId },
+            sound: 'default',
+          }))),
+        });
+      }
+    },
+  });
+}
+
+export function useResendPremiereInvite() {
+  const { user } = useSession();
+  const { data: profile } = useProfile();
+  return useMutation({
+    mutationFn: async ({ premiereId, friendId, showTitle }: { premiereId: string; friendId: string; showTitle: string }) => {
+      const hostName = profile?.full_name ?? profile?.username ?? 'Someone';
+
+      const { data: premiere } = await supabase
+        .from('premieres')
+        .select('show_title,show_poster,season_number,episode_number,episode_name,air_date,air_time,tagline')
+        .eq('id', premiereId)
+        .single();
+
+      if (premiere && user) {
+        const episodeLabel = premiere.season_number && premiere.episode_number
+          ? `S${premiere.season_number}E${premiere.episode_number}${premiere.episode_name ? ` · ${premiere.episode_name}` : ''}`
+          : premiere.episode_name ?? null;
+        const content = buildWatchPartyInvite({
+          id: premiereId,
+          title: premiere.show_title,
+          poster: premiere.show_poster,
+          episode: episodeLabel,
+          date: premiere.air_date,
+          time: premiere.air_time,
+          tagline: premiere.tagline,
+          hostName,
+        });
+        await supabase.from('direct_messages').insert({
+          sender_id: user.id,
+          recipient_id: friendId,
+          content,
+        });
+      }
+
+      const { data: tokens } = await supabase.from('push_tokens').select('token').eq('user_id', friendId);
+      if (tokens && tokens.length > 0) {
+        await fetch('https://exp.host/--/api/v2/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(tokens.map((t) => ({
+            to: t.token,
+            title: `${hostName} sent you a reminder 🎬`,
             body: showTitle,
             data: { type: 'watch_party_invite', premiereId },
             sound: 'default',
@@ -336,6 +423,114 @@ export function useWaitingRoomMessages(premiereId: string | null) {
     },
     enabled: !!premiereId,
     refetchInterval: 5_000, // poll every 5s — waiting room has no realtime subscription
+  });
+}
+
+export interface PremiereMember {
+  user_id: string;
+  rsvp_status: RsvpStatus;
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+}
+
+export function usePremiereMembers(premiereId: string | null) {
+  return useQuery({
+    queryKey: ['premiere-members', premiereId],
+    queryFn: async () => {
+      // Step 1: get the member rows
+      const { data: members, error } = await supabase
+        .from('premiere_members')
+        .select('user_id, rsvp_status')
+        .eq('premiere_id', premiereId!);
+      if (error) throw error;
+      if (!members || members.length === 0) return [] as PremiereMember[];
+
+      // Step 2: fetch profiles for those user IDs
+      const userIds = members.map((m: any) => m.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_url')
+        .in('id', userIds);
+      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+
+      return members.map((m: any) => {
+        const profile = profileMap.get(m.user_id);
+        return {
+          user_id: m.user_id,
+          rsvp_status: m.rsvp_status as RsvpStatus,
+          full_name: profile?.full_name ?? null,
+          username: profile?.username ?? null,
+          avatar_url: profile?.avatar_url ?? null,
+        };
+      }) as PremiereMember[];
+    },
+    enabled: !!premiereId,
+  });
+}
+
+// ─── Message Reactions ────────────────────────────────────────────────────────
+
+export interface MessageReaction {
+  id: string;
+  message_id: string;
+  premiere_id: string;
+  user_id: string;
+  emoji: string;
+}
+
+export function useMessageReactions(premiereId: string | null) {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['premiere-reactions', premiereId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premiere_message_reactions')
+        .select('*')
+        .eq('premiere_id', premiereId!);
+      if (error) throw error;
+      // Build map: messageId → emoji → { count, mine }
+      const map: Record<string, Record<string, { count: number; mine: boolean }>> = {};
+      for (const r of (data as MessageReaction[])) {
+        if (!map[r.message_id]) map[r.message_id] = {};
+        if (!map[r.message_id][r.emoji]) map[r.message_id][r.emoji] = { count: 0, mine: false };
+        map[r.message_id][r.emoji].count += 1;
+        if (r.user_id === user?.id) map[r.message_id][r.emoji].mine = true;
+      }
+      return map;
+    },
+    enabled: !!premiereId,
+  });
+}
+
+export function useToggleReaction() {
+  const { user } = useSession();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ messageId, premiereId, emoji, isCurrentlyMine }: {
+      messageId: string;
+      premiereId: string;
+      emoji: string;
+      isCurrentlyMine: boolean;
+    }) => {
+      if (isCurrentlyMine) {
+        const { error } = await supabase
+          .from('premiere_message_reactions')
+          .delete()
+          .eq('message_id', messageId)
+          .eq('user_id', user!.id)
+          .eq('emoji', emoji);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('premiere_message_reactions')
+          .insert({ message_id: messageId, premiere_id: premiereId, user_id: user!.id, emoji });
+        if (error) throw error;
+      }
+    },
+    onSuccess: (_data, { premiereId }) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere-reactions', premiereId] });
+    },
   });
 }
 

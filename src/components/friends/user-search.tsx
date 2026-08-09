@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
-import { useFollow, useSearchUsers } from '@/features/follows/api';
+import { useFollow, useFollowing, useSearchUsers } from '@/features/follows/api';
 import { useBrand } from '@/hooks/use-brand';
 
 export interface UserSearchHandle {
@@ -41,6 +41,8 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
   const [query, setQuery] = useState('');
   const { data: results, isFetching } = useSearchUsers(query);
   const follow = useFollow();
+  const { data: following } = useFollowing();
+  const followingIds = useMemo(() => new Set((following ?? []).map((f) => f.id)), [following]);
   const [requestedIds, setRequestedIds] = useState<Set<string>>(new Set());
   const inputRef = useRef<TextInput>(null);
 
@@ -82,9 +84,12 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
           ) : (
             results.map((profile) => {
               const name = profile.full_name || profile.username || 'Unknown';
-              const requested = requestedIds.has(profile.id);
+              const requested = requestedIds.has(profile.id) || followingIds.has(profile.id);
               return (
-                <View key={profile.id} style={styles.row}>
+                <Pressable
+                  key={profile.id}
+                  style={styles.row}
+                  onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: profile.id } })}>
                   <Avatar name={name} size={40} avatarUrl={profile.avatar_url} />
                   <View style={styles.rowInfo}>
                     <Text style={styles.rowName}>{name}</Text>
@@ -93,12 +98,12 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
                   <Pressable
                     style={[styles.addBtn, requested && styles.addBtnDone]}
                     disabled={requested}
-                    onPress={() => handleAdd(profile.id, profile.is_private)}>
+                    onPress={(e) => { e.stopPropagation(); handleAdd(profile.id, profile.is_private); }}>
                     <Text style={[styles.addBtnText, requested && styles.addBtnTextDone]}>
                       {requested ? (profile.is_private ? 'Requested ✓' : 'Following ✓') : '+ Follow'}
                     </Text>
                   </Pressable>
-                </View>
+                </Pressable>
               );
             })
           )}

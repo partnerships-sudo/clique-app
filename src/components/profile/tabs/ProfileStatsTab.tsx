@@ -1,10 +1,9 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, Text, View } from 'react-native';
+import { useMemo } from 'react';
+import { Image, Pressable, Text, View } from 'react-native';
 import { TIER_COLORS } from '@/features/badges/catalog';
-import { useMyPostCounts } from '@/features/feed/api';
+import { useMyPostCounts, usePostsByUser } from '@/features/feed/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
 import { type LibraryItem } from '@/features/library/api';
 import { useBrand } from '@/hooks/use-brand';
@@ -12,9 +11,10 @@ import { useSession } from '@/hooks/use-session';
 import { type ProfileCardBadge } from '../profile-card';
 import { STAT_CATEGORIES, createStyles } from '../profile-styles';
 
-const GOAL_OPTIONS = [3, 5, 7, 10, 14, 20];
-const DEFAULT_WEEKLY_TARGET = 10;
 const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+const RATING_BUCKETS = [0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 4.5, 5];
+const RATING_LABELS = ['½★', '1★', '1.5', '2★', '2.5', '3★', '3.5', '4★', '4.5', '5★'];
+const MONTH_LABELS = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
 
 interface Props {
   logged: LibraryItem[];
@@ -34,50 +34,24 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
   const { data: top4 = [] } = useMyTasteTop4();
   const { user } = useSession();
   const { data: postCounts } = useMyPostCounts(user?.id);
-  const [weeklyTarget, setWeeklyTarget] = useState(DEFAULT_WEEKLY_TARGET);
+  const { data: allPosts = [] } = usePostsByUser(user?.id);
 
-  useEffect(() => {
-    if (!user?.id) return;
-    AsyncStorage.getItem(`clique:weekly_goal:${user.id}`).then((val) => {
-      const n = val ? parseInt(val, 10) : NaN;
-      if (!isNaN(n)) setWeeklyTarget(n);
-    });
-  }, [user?.id]);
-
-  function editWeeklyGoal() {
-    Alert.alert(
-      'Weekly Goal',
-      'How many items do you want to log per week?',
-      [
-        ...GOAL_OPTIONS.map((n) => ({
-          text: `${n}${n === weeklyTarget ? ' ✓' : ''}`,
-          onPress: () => {
-            setWeeklyTarget(n);
-            if (user?.id) AsyncStorage.setItem(`clique:weekly_goal:${user.id}`, String(n));
-          },
-        })),
-        { text: 'Cancel', style: 'cancel' },
-      ],
-    );
-  }
-
-  // Use library data when available, fall back to posts when library is empty
-  const usePostsFallback = logged.length === 0 && !!postCounts;
-  const counts: Record<string, number> = usePostsFallback
-    ? { watch: postCounts!.watch, tv: postCounts!.tv, read: postCounts!.read, play: postCounts!.play, listen: postCounts!.listen, podcast: postCounts!.podcast }
+  // Always use posts as the source of truth for counts (library has RLS gaps)
+  const counts: Record<string, number> = postCounts
+    ? { watch: postCounts.watch, tv: postCounts.tv, read: postCounts.read, play: postCounts.play, listen: postCounts.listen, podcast: postCounts.podcast }
     : { watch: 0, tv: 0, read: 0, play: 0, listen: 0, podcast: 0 };
-  if (!usePostsFallback) {
-    logged.forEach((item) => {
-      if (item.type === 'watch' && item.media_type === 'tv') {
-        counts.tv += 1;
-      } else {
-        counts[item.type] = (counts[item.type] ?? 0) + 1;
-      }
-    });
-  }
   const maxCount = Math.max(1, ...Object.values(counts));
+  const totalLogged = allPosts.length;
 
-  const loggedDates = new Set(logged.map((i) => {
+  const thisYear = new Date().getFullYear();
+  const thisYearCount = allPosts.filter((p) => new Date(p.created_at).getFullYear() === thisYear).length;
+
+  const ratedPosts = allPosts.filter((p) => p.rating != null && p.rating > 0);
+  const avgRating = ratedPosts.length > 0
+    ? (ratedPosts.reduce((sum, p) => sum + (p.rating ?? 0), 0) / ratedPosts.length).toFixed(1)
+    : null;
+
+  const loggedDates = new Set(allPosts.map((i) => {
     const d = new Date(i.created_at);
     return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
   }));
@@ -93,7 +67,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
   }
 
   let longestStreak = streakDays;
-  if (logged.length > 0) {
+  if (allPosts.length > 0) {
     const sortedDays = [...loggedDates].map((key) => {
       const [y, m, day] = key.split('-').map(Number);
       return new Date(y, m, day).getTime();
@@ -113,11 +87,19 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
     return { label: DAY_LABELS[d.getDay()], done: loggedDates.has(key) };
   });
 
-  const monday = new Date(today);
-  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-  monday.setHours(0, 0, 0, 0);
-  const weeklyCount = logged.filter((i) => new Date(i.created_at) >= monday).length;
-  const daysLeftInWeek = 7 - ((today.getDay() + 6) % 7) - 1;
+  // Ratings breakdown
+  const ratingCounts = RATING_BUCKETS.map((r) => allPosts.filter((p) => p.rating === r).length);
+  const maxRatingCount = Math.max(1, ...ratingCounts);
+
+  // Monthly activity for current year
+  const monthlyCounts = MONTH_LABELS.map((_, i) =>
+    allPosts.filter((p) => {
+      const d = new Date(p.created_at);
+      return d.getFullYear() === thisYear && d.getMonth() === i;
+    }).length
+  );
+  const maxMonthlyCount = Math.max(1, ...monthlyCounts);
+  const currentMonth = today.getMonth();
 
   const active = logged.filter((i) => i.status !== 'finished');
   const activeCategories = [
@@ -153,10 +135,8 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
   ]);
 
   const genreCounts = new Map<string, number>();
-  // Use posts sub data as fallback when library is empty
-  const genreSource: { type: string; media_type?: string | null; sub: string | null }[] = usePostsFallback
-    ? postCounts!.subs
-    : logged.map((i) => ({ type: i.type, media_type: i.media_type, sub: i.sub ?? null }));
+  // Always use posts for genre data
+  const genreSource: { type: string; media_type?: string | null; sub: string | null }[] = postCounts?.subs ?? [];
   for (const item of genreSource) {
     if (!item.sub) continue;
     const parts = item.sub.split('·').map((s) => s.trim()).filter(Boolean);
@@ -206,29 +186,29 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
         <Pressable style={styles.stat} onPress={onLoggedPress} disabled={!onLoggedPress} hitSlop={4}>
           <View style={styles.statNumRow}>
             <SymbolView name="archivebox.fill" size={18} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
-            <Text style={[styles.statNum, styles.statNumAccent]}>{logged.length}</Text>
+            <Text style={[styles.statNum, styles.statNumAccent]}>{totalLogged}</Text>
           </View>
           <Text style={styles.statLbl}>LOGGED</Text>
           <Text style={styles.statSubLbl}>items logged</Text>
         </Pressable>
         <View style={styles.statDiv} />
-        <Pressable style={styles.stat} onPress={onFollowersPress} disabled={!onFollowersPress} hitSlop={4}>
+        <View style={styles.stat}>
           <View style={styles.statNumRow}>
-            <SymbolView name="person.2.fill" size={18} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
-            <Text style={[styles.statNum, styles.statNumAccent]}>{followersCount}</Text>
+            <Text style={[styles.statNum, styles.statNumAccent]}>
+              {avgRating != null ? `★${avgRating}` : '—'}
+            </Text>
           </View>
-          <Text style={styles.statLbl}>FOLLOWERS</Text>
-          <Text style={styles.statSubLbl}>people follow you</Text>
-        </Pressable>
+          <Text style={styles.statLbl}>AVG RATING</Text>
+          <Text style={styles.statSubLbl}>your taste</Text>
+        </View>
         <View style={styles.statDiv} />
-        <Pressable style={styles.stat} onPress={onFollowingPress} disabled={!onFollowingPress} hitSlop={4}>
+        <View style={styles.stat}>
           <View style={styles.statNumRow}>
-            <SymbolView name="person.fill" size={18} tintColor={Brand.trust} type="monochrome" style={styles.statSfIcon} />
-            <Text style={[styles.statNum, styles.statNumAccent]}>{followingCount}</Text>
+            <Text style={[styles.statNum, styles.statNumAccent]}>{thisYearCount}</Text>
           </View>
-          <Text style={styles.statLbl}>FOLLOWING</Text>
-          <Text style={styles.statSubLbl}>people you follow</Text>
-        </Pressable>
+          <Text style={styles.statLbl}>THIS YEAR</Text>
+          <Text style={styles.statSubLbl}>in {thisYear}</Text>
+        </View>
       </View>
 
       {/* Streak */}
@@ -259,40 +239,44 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
         </View>
       </View>
 
-      {/* Weekly Goal + Currently Active */}
-      <View style={styles.goalRow}>
-        <View style={[styles.goalCard, styles.statsCard]}>
-          <Pressable onPress={editWeeklyGoal} hitSlop={16}>
-            <Text style={styles.statsCardTitle}>WEEKLY GOAL ✎</Text>
-          </Pressable>
-          <Text style={styles.goalNum}>{weeklyCount}<Text style={styles.goalTarget}> / {weeklyTarget}</Text></Text>
-          <Text style={styles.goalSub}>logs this week</Text>
-          <View style={styles.goalBarRow}>
-            {Array.from({ length: weeklyTarget }, (_, i) => (
-              <View key={i} style={[styles.goalBlock, i < weeklyCount && styles.goalBlockFilled]} />
-            ))}
-          </View>
-          <Text style={styles.goalFooter}>
-            {weeklyCount >= weeklyTarget ? '🎉 Goal reached!' : `${daysLeftInWeek} day${daysLeftInWeek !== 1 ? 's' : ''} left to go!`}
-          </Text>
+      {/* Ratings Breakdown */}
+      <View style={[styles.statsCard, { marginHorizontal: 0 }]}>
+        <View style={styles.chartHeaderRow}>
+          <Text style={styles.statsCardTitle}>RATINGS BREAKDOWN</Text>
+          {avgRating != null && <Text style={styles.chartAvg}>{avgRating} avg</Text>}
         </View>
-        <View style={[styles.goalCard, styles.statsCard]}>
-          <Text style={styles.statsCardTitle}>CURRENTLY ACTIVE</Text>
-          {activeCategories.length === 0 ? (
-            <Text style={styles.goalSub}>Nothing active yet.</Text>
-          ) : (
-            activeCategories.slice(0, 4).map((cat, i) => (
-              <View key={i} style={[styles.activeRow, i > 0 && styles.activeRowBorder]}>
-                <View style={[styles.activeIcon, { backgroundColor: cat.bg }]}>
-                  <SymbolView name={cat.sf as any} size={13} tintColor={cat.color} type="monochrome" />
-                </View>
-                <View style={styles.activeInfo}>
-                  <Text style={styles.activeLabel}>{cat.label}</Text>
-                  <Text style={[styles.activeSub, { color: cat.color }]}>{cat.sub}</Text>
-                </View>
+        <View style={styles.ratingBarsRow}>
+          {RATING_BUCKETS.map((_, i) => (
+            <View key={i} style={styles.ratingBarCol}>
+              <View style={styles.ratingBarTrack}>
+                <View style={[styles.ratingBarFill, { height: `${Math.round((ratingCounts[i] / maxRatingCount) * 100)}%` }]} />
               </View>
-            ))
-          )}
+              <Text style={styles.ratingBarLabel}>{RATING_LABELS[i]}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+
+      {/* Activity */}
+      <View style={[styles.statsCard, { marginHorizontal: 0 }]}>
+        <View style={styles.chartHeaderRow}>
+          <Text style={styles.statsCardTitle}>ACTIVITY</Text>
+          <Text style={styles.chartAvg}>{thisYear}</Text>
+        </View>
+        <View style={styles.ratingBarsRow}>
+          {MONTH_LABELS.map((label, i) => (
+            <View key={i} style={styles.ratingBarCol}>
+              <Text style={styles.ratingBarCount}>{monthlyCounts[i] > 0 ? monthlyCounts[i] : ''}</Text>
+              <View style={styles.ratingBarTrack}>
+                <View style={[
+                  styles.ratingBarFill,
+                  { height: `${Math.round((monthlyCounts[i] / maxMonthlyCount) * 100)}%` },
+                  i === currentMonth && styles.ratingBarFillCurrent,
+                ]} />
+              </View>
+              <Text style={styles.ratingBarLabel}>{label}</Text>
+            </View>
+          ))}
         </View>
       </View>
 
@@ -302,9 +286,6 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
           <View style={styles.myTasteHeader}>
             <Text style={styles.myTasteTitle}>MyTaste Top 4</Text>
             <Text style={styles.myTasteSub}>your most compatible friends</Text>
-            <Pressable style={styles.myTasteViewAll} hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
-              <Text style={styles.myTasteViewAllText}>View all</Text>
-            </Pressable>
           </View>
           <View style={styles.top4Row}>
             {top4.map((friend) => (

@@ -9,7 +9,7 @@ export type FeedView = 'feed' | 'circle' | 'global' | 'foryou';
 
 const VIEWS: { value: FeedView; label: string; symbol: string }[] = [
   { value: 'feed', label: 'Feed', symbol: 'house' },
-  { value: 'circle', label: 'The Circle', symbol: 'person.2' },
+  { value: 'circle', label: 'Circles', symbol: 'person.2' },
   { value: 'global', label: 'Lounge', symbol: 'globe' },
   { value: 'foryou', label: 'For You', symbol: 'sparkles' },
 ];

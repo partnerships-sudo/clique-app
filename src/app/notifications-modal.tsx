@@ -11,13 +11,14 @@ import { useBrand } from '@/hooks/use-brand';
 
 type KindSymbol = { name: SymbolViewProps['name']; color: string };
 const KIND_SYMBOL: Record<string, KindSymbol> = {
-  new_follower:    { name: 'person.fill',    color: '#5B8DEF' },
-  follow_request:  { name: 'bell.fill',      color: '#F4A340' },
-  follow_accepted: { name: 'checkmark',      color: '#34D399' },
-  reaction:        { name: 'heart.fill',     color: '#E84F4F' },
-  story_like:      { name: 'heart.fill',     color: '#E84F4F' },
-  message:         { name: 'message.fill',   color: '#8C82FF' },
-  rate_reminder:   { name: 'star.fill',      color: '#F4A340' },
+  new_follower:       { name: 'person.fill',    color: '#5B8DEF' },
+  follow_request:     { name: 'bell.fill',      color: '#F4A340' },
+  follow_accepted:    { name: 'checkmark',      color: '#34D399' },
+  reaction:           { name: 'heart.fill',     color: '#E84F4F' },
+  story_like:         { name: 'heart.fill',     color: '#E84F4F' },
+  message:            { name: 'message.fill',   color: '#8C82FF' },
+  rate_reminder:      { name: 'star.fill',      color: '#F4A340' },
+  watch_party_invite: { name: 'tv.fill',        color: '#8C82FF' },
 };
 
 function timeAgo(iso: string): string {
@@ -64,6 +65,9 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
       // reaction with no post info — open the sender's profile
       router.back();
       router.push({ pathname: '/friend-profile-modal', params: { userId: item.fromUserId } });
+    } else if (item.kind === 'watch_party_invite' && item.premiereId) {
+      router.back();
+      router.push({ pathname: '/party-detail-modal', params: { id: item.premiereId } });
     } else if (
       item.kind === 'new_follower' ||
       item.kind === 'follow_request' ||

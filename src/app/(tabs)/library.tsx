@@ -648,7 +648,7 @@ function createStyles(Brand: BrandPalette) {
     padding: 5,
   },
   tab: { flex: 1, paddingVertical: 9, borderRadius: 10, alignItems: 'center' },
-  tabActive: { backgroundColor: Brand.ink },
+  tabActive: { backgroundColor: Brand.trust },
   tabText: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, color: Brand.muted },
   tabTextActive: { color: '#fff' },
   subToggleRow: {
@@ -673,7 +673,7 @@ function createStyles(Brand: BrandPalette) {
   },
   subToggle6: { flex: 1, paddingVertical: 7, borderRadius: 10, alignItems: 'center' },
   subToggle: { paddingVertical: 8, paddingHorizontal: 10, borderRadius: 10, alignItems: 'center' },
-  subToggleActive: { backgroundColor: Brand.ink },
+  subToggleActive: { backgroundColor: Brand.trust },
   subToggleIcon: { width: 19, height: 19 },
   subToggleLabel: { fontFamily: BrandFonts.syneBold, fontSize: 8.5, color: Brand.muted, marginTop: 1 },
   subToggleText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
@@ -731,7 +731,7 @@ function createStyles(Brand: BrandPalette) {
     paddingVertical: 5,
     paddingHorizontal: 12,
   },
-  sortBtnActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
+  sortBtnActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
   sortBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
   sortBtnTextActive: { color: '#fff' },
   empty: {

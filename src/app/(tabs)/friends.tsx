@@ -23,8 +23,7 @@ import { InviteSheet } from '@/components/friends/invite-sheet';
 import { SuggestedUserCard } from '@/components/friends/suggested-user-card';
 import { UserSearch, type UserSearchHandle } from '@/components/friends/user-search';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useDmThreads, useSendDm } from '@/features/dms/api';
-import { buildWatchPartyInvite } from '@/features/dms/watch-party-invite';
+import { useDmThreads } from '@/features/dms/api';
 import { useFeedPosts } from '@/features/feed/api';
 import {
   useAcceptFollowRequest,
@@ -41,6 +40,7 @@ import { computeCompatibility } from '@/features/friends/compatibility';
 import {
   useAttendingPremieres,
   useDeletePremiere,
+  useInviteToPremiere,
   useMyPremieres,
   useUpdatePremiere,
   useUpdateRsvp,
@@ -52,6 +52,7 @@ import {
   useDeleteScreeningRoom,
   type ScreeningRoom,
 } from '@/features/screening-rooms/api';
+import { DrumPicker, WheelColumn, daysInMonth, MONTH_LABELS } from '@/components/drum-picker';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -64,6 +65,17 @@ const WP_STATUS_LABEL: Record<string, string> = {
 const WP_STATUS_COLOR: Record<string, string> = {
   waiting: '#F59E0B', live: '#22C55E', ended: '#6B7280', replay: '#8B5CF6',
 };
+
+function effectivePremiereStatus(item: { status: string; air_date: string | null; air_time: string | null }): string {
+  if (item.status !== 'waiting') return item.status;
+  if (!item.air_date) return item.status;
+  try {
+    const time = item.air_time ?? '23:59';
+    const scheduled = new Date(`${item.air_date}T${time}`);
+    if (scheduled < new Date()) return 'ended';
+  } catch {}
+  return item.status;
+}
 
 function formatPartyDate(airDate: string | null): string {
   if (!airDate) return '';
@@ -144,7 +156,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
   const [sendingInvites, setSendingInvites] = useState(false);
   const { data: following = [] } = useFollowing();
   const { user } = useSession();
-  const sendDm = useSendDm();
+  const inviteToPremiere = useInviteToPremiere();
 
   function openInvite(p: Premiere) {
     setInvitingParty(p);
@@ -163,21 +175,11 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
   async function sendInvites() {
     if (!invitingParty || selectedFriends.size === 0) return;
     setSendingInvites(true);
-    const hostName = user?.user_metadata?.full_name ?? user?.email ?? 'Your friend';
-    const content = buildWatchPartyInvite({
-      id: invitingParty.id,
-      title: invitingParty.show_title,
-      poster: invitingParty.show_poster ?? null,
-      episode: invitingParty.episode_name
-        ? `S${invitingParty.season_number}E${invitingParty.episode_number} · ${invitingParty.episode_name}`
-        : null,
-      date: invitingParty.air_date ?? null,
-      time: invitingParty.air_time ?? null,
-      tagline: invitingParty.tagline ?? null,
-      hostName,
-    });
     try {
-      await Promise.all([...selectedFriends].map((friendId) => sendDm.mutateAsync({ friendId, content })));
+      await Promise.all([...selectedFriends].map(async (friendId) => {
+        // useInviteToPremiere handles premiere_members insert + DM + push notification
+        await inviteToPremiere.mutateAsync({ premiereId: invitingParty.id, friendId, showTitle: invitingParty.show_title });
+      }));
       setInvitingParty(null);
     } catch {
       Alert.alert('Could not send invites', 'Please check your connection and try again.');
@@ -185,20 +187,71 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
       setSendingInvites(false);
     }
   }
-  const [editDate, setEditDate] = useState('');
-  const [editTime, setEditTime] = useState('');
+  const THIS_YEAR = new Date().getFullYear();
+  const PARTY_YEARS = Array.from({ length: 4 }, (_, i) => String(THIS_YEAR + i));
+  const [editDayIdx, setEditDayIdx] = useState(0);
+  const [editMonthIdx, setEditMonthIdx] = useState(0);
+  const [editYearIdx, setEditYearIdx] = useState(0);
+  const [editHourIdx, setEditHourIdx] = useState(6); // default 7 (index 6)
+  const [editMinIdx, setEditMinIdx] = useState(0);   // default :00
+  const [editPeriodIdx, setEditPeriodIdx] = useState(1); // default PM
   const [editTagline, setEditTagline] = useState('');
+  const dayScrollRef = useRef<ScrollView>(null);
+
+  const editYear = THIS_YEAR + editYearIdx;
+  const editDayItems = Array.from({ length: daysInMonth(editMonthIdx, editYear) }, (_, i) => String(i + 1));
 
   function openEdit(p: Premiere) {
     setEditingPremiere(p);
-    setEditDate(p.air_date ?? '');
-    setEditTime(p.air_time ?? '');
+    if (p.air_date) {
+      const d = new Date(p.air_date + 'T12:00:00');
+      const yIdx = PARTY_YEARS.indexOf(String(d.getFullYear()));
+      setEditYearIdx(yIdx >= 0 ? yIdx : 0);
+      setEditMonthIdx(d.getMonth());
+      setEditDayIdx(d.getDate() - 1);
+    } else {
+      setEditYearIdx(0);
+      setEditMonthIdx(new Date().getMonth());
+      setEditDayIdx(new Date().getDate() - 1);
+    }
+    // Parse air_time into wheel indices (e.g. "8:30 PM" or "20:30")
+    const HOURS_PAD = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+    const MINUTES = ['00','15','30','45'];
+    const timeStr = p.air_time ?? '';
+    let hIdx = 6, mIdx = 0, pIdx = 1; // defaults: 07, :00, PM
+    const m12 = timeStr.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+    const m24 = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+    if (m12) {
+      const h = parseInt(m12[1], 10);
+      const mins = m12[2];
+      const period = m12[3].toUpperCase();
+      hIdx = Math.max(0, HOURS_PAD.indexOf(String(h).padStart(2, '0')));
+      mIdx = Math.max(0, MINUTES.findIndex(v => v === mins.padStart(2, '0')));
+      pIdx = period === 'AM' ? 0 : 1;
+    } else if (m24) {
+      let h = parseInt(m24[1], 10);
+      const mins = m24[2];
+      pIdx = h >= 12 ? 1 : 0;
+      if (h === 0) h = 12;
+      else if (h > 12) h -= 12;
+      hIdx = Math.max(0, HOURS_PAD.indexOf(String(h).padStart(2, '0')));
+      mIdx = Math.max(0, MINUTES.findIndex(v => v === mins.padStart(2, '0')));
+    }
+    setEditHourIdx(hIdx);
+    setEditMinIdx(mIdx);
+    setEditPeriodIdx(pIdx);
     setEditTagline(p.tagline ?? '');
   }
 
   async function handleSaveEdit() {
     if (!editingPremiere) return;
-    await updatePremiere.mutateAsync({ id: editingPremiere.id, airDate: editDate, airTime: editTime.trim() || null, tagline: editTagline.trim() || null });
+    const month = String(editMonthIdx + 1).padStart(2, '0');
+    const day = String(editDayIdx + 1).padStart(2, '0');
+    const HOURS_PAD = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+    const MINUTES = ['00','15','30','45'];
+    const PERIODS = ['AM','PM'];
+    const airTime = `${HOURS_PAD[editHourIdx]}:${MINUTES[editMinIdx]} ${PERIODS[editPeriodIdx]}`;
+    await updatePremiere.mutateAsync({ id: editingPremiere.id, airDate: `${editYear}-${month}-${day}`, airTime, tagline: editTagline.trim() || null });
     setEditingPremiere(null);
   }
 
@@ -282,6 +335,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
         (() => {
           const invites = attending.filter((p) => p.rsvp_status === 'invited');
           const going = attending.filter((p) => p.rsvp_status === 'attending');
+          const maybe = attending.filter((p) => p.rsvp_status === 'maybe');
           const notGoing = attending.filter((p) => p.rsvp_status === 'not_attending');
           if (attending.length === 0) {
             return (
@@ -293,7 +347,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
             );
           }
           const renderRsvpCard = (item: PremiereWithRsvp) => {
-            const canEnter = item.status === 'waiting' || item.status === 'live';
+            const effStatus = effectivePremiereStatus(item);
+            const canEnter = effStatus === 'waiting' || effStatus === 'live';
             return (
               <View key={item.id} style={[styles.wpCard, { marginBottom: 12 }]}>
                 <Pressable style={styles.wpCardMain} onPress={() =>
@@ -309,9 +364,9 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   )}
                   <View style={styles.wpCardInfo}>
                     <View style={styles.wpStatusRow}>
-                      <View style={[styles.wpStatusDot, { backgroundColor: WP_STATUS_COLOR[item.status] ?? '#6B7280' }]} />
-                      <Text style={[styles.wpStatusText, { color: WP_STATUS_COLOR[item.status] ?? Brand.muted }]}>
-                        {WP_STATUS_LABEL[item.status] ?? item.status}
+                      <View style={[styles.wpStatusDot, { backgroundColor: WP_STATUS_COLOR[effStatus] ?? '#6B7280' }]} />
+                      <Text style={[styles.wpStatusText, { color: WP_STATUS_COLOR[effStatus] ?? Brand.muted }]}>
+                        {WP_STATUS_LABEL[effStatus] ?? effStatus}
                       </Text>
                     </View>
                     <Text style={styles.wpShowTitle} numberOfLines={1}>{item.show_title}</Text>
@@ -321,24 +376,26 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     <Text style={styles.wpHostedBy}>Hosted by {item.host_name}</Text>
                   </View>
                 </Pressable>
-                {item.rsvp_status === 'invited' ? (
-                  <View style={styles.wpCardActions}>
-                    <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'attending' })}>
-                      <Text style={styles.wpActionBtnText}>✓ Going</Text>
-                    </Pressable>
-                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} hitSlop={16} onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'not_attending' })}>
-                      <Text style={[styles.wpActionBtnText, { color: '#E84F4F' }]}>✕ Can't go</Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <View style={styles.wpCardActions}>
-                    <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => updateRsvp.mutate({ premiereId: item.id, status: item.rsvp_status === 'attending' ? 'not_attending' : 'attending' })}>
-                      <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'attending' ? Brand.trust : '#E84F4F' }]}>
-                        {item.rsvp_status === 'attending' ? '✓ Going' : '✕ Not going'}
-                      </Text>
-                    </Pressable>
-                  </View>
-                )}
+                <View style={styles.wpCardActions}>
+                  <Pressable
+                    style={[styles.wpActionBtn, item.rsvp_status === 'attending' && { borderColor: Brand.trust }]}
+                    hitSlop={16}
+                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'attending' })}>
+                    <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'attending' ? Brand.trust : Brand.muted }]}>✓ Going</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.wpActionBtn, item.rsvp_status === 'maybe' && { borderColor: Brand.muted }]}
+                    hitSlop={16}
+                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'maybe' })}>
+                    <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'maybe' ? Brand.ink : Brand.muted }]}>? Maybe</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.wpActionBtn, item.rsvp_status === 'not_attending' && { borderColor: '#E84F4F' }]}
+                    hitSlop={16}
+                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'not_attending' })}>
+                    <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'not_attending' ? '#E84F4F' : Brand.muted }]}>✕ Can't</Text>
+                  </Pressable>
+                </View>
               </View>
             );
           };
@@ -354,6 +411,12 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 <>
                   <Text style={styles.wpSectionHeader}>Attending</Text>
                   {going.map(renderRsvpCard)}
+                </>
+              )}
+              {maybe.length > 0 && (
+                <>
+                  <Text style={styles.wpSectionHeader}>Maybe</Text>
+                  {maybe.map(renderRsvpCard)}
                 </>
               )}
               {notGoing.length > 0 && (
@@ -373,7 +436,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
         </View>
       ) : (
         list.map((item, i) => {
-          const canEnter = item.status === 'waiting' || item.status === 'live';
+          const effStatus = effectivePremiereStatus(item);
+          const canEnter = effStatus === 'waiting' || effStatus === 'live';
           return (
             <View key={item.id}>
               {i > 0 && <View style={{ height: 12 }} />}
@@ -391,9 +455,9 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   )}
                   <View style={styles.wpCardInfo}>
                     <View style={styles.wpStatusRow}>
-                      <View style={[styles.wpStatusDot, { backgroundColor: WP_STATUS_COLOR[item.status] ?? '#6B7280' }]} />
-                      <Text style={[styles.wpStatusText, { color: WP_STATUS_COLOR[item.status] ?? Brand.muted }]}>
-                        {WP_STATUS_LABEL[item.status] ?? item.status}
+                      <View style={[styles.wpStatusDot, { backgroundColor: WP_STATUS_COLOR[effStatus] ?? '#6B7280' }]} />
+                      <Text style={[styles.wpStatusText, { color: WP_STATUS_COLOR[effStatus] ?? Brand.muted }]}>
+                        {WP_STATUS_LABEL[effStatus] ?? effStatus}
                       </Text>
                     </View>
                     <Text style={styles.wpShowTitle} numberOfLines={1}>{item.show_title}</Text>
@@ -402,7 +466,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     {item.tagline ? <Text style={styles.wpTagline} numberOfLines={1}>"{item.tagline}"</Text> : null}
                   </View>
                 </Pressable>
-                {item.status !== 'ended' ? (
+                {effStatus !== 'ended' ? (
                   <View style={styles.wpCardActions}>
                     <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => openInvite(item)}>
                       <SymbolView name="paperplane.fill" size={15} tintColor={Brand.trust} type="monochrome" />
@@ -426,31 +490,94 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
 
       {/* Edit modal */}
       <Modal visible={!!editingPremiere} transparent animationType="slide">
-        <Pressable style={styles.wpEditBackdrop} onPress={() => setEditingPremiere(null)}>
-          <Pressable style={styles.wpEditSheet} onPress={() => {}}>
+        {/* Backdrop sits in absolute layer so it never wraps the sheet */}
+        <Pressable style={StyleSheet.absoluteFillObject} onPress={() => setEditingPremiere(null)} />
+        <View style={{ flex: 1, justifyContent: 'flex-end', pointerEvents: 'box-none' }}>
+          <View style={styles.wpEditSheet}>
             <View style={styles.wpEditGrabber} />
-            <Text style={styles.wpEditTitle}>Edit Watch Party</Text>
-            {editingPremiere ? <Text style={styles.wpEditShow} numberOfLines={1}>{editingPremiere.show_title}{editingPremiere.episode_name ? ` · ${editingPremiere.episode_name}` : ''}</Text> : null}
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <Text style={styles.wpFieldLabel}>Date (YYYY-MM-DD)</Text>
-              <TextInput style={styles.wpFieldInput} value={editDate} onChangeText={setEditDate} placeholder="e.g. 2025-08-10" placeholderTextColor={Brand.muted} keyboardType="numbers-and-punctuation" autoCorrect={false} />
-              <Text style={styles.wpFieldLabel}>Start time</Text>
-              <View style={styles.wpTimeRow}>
-                {['7:00 PM', '8:00 PM', '9:00 PM', '10:00 PM'].map((t) => (
-                  <Pressable key={t} style={[styles.wpTimeChip, editTime === t && styles.wpTimeChipActive]} onPress={() => setEditTime(editTime === t ? '' : t)}>
-                    <Text style={[styles.wpTimeChipText, editTime === t && { color: '#fff' }]}>{t}</Text>
-                  </Pressable>
-                ))}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 4 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.wpEditTitle}>Edit Watch Party</Text>
+                {editingPremiere ? <Text style={styles.wpEditShow} numberOfLines={1}>{editingPremiere.show_title}{editingPremiere.episode_name ? ` · ${editingPremiere.episode_name}` : ''}</Text> : null}
               </View>
-              <TextInput style={styles.wpFieldInput} value={editTime} onChangeText={setEditTime} placeholder="Or enter custom time, e.g. 8:30 PM ET" placeholderTextColor={Brand.muted} />
-              <Text style={styles.wpFieldLabel}>Tagline</Text>
-              <TextInput style={[styles.wpFieldInput, { minHeight: 72, textAlignVertical: 'top' }]} value={editTagline} onChangeText={setEditTagline} placeholder='e.g. "girls night 🍷"' placeholderTextColor={Brand.muted} multiline maxLength={80} />
-            </ScrollView>
+              <Pressable onPress={() => setEditingPremiere(null)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Brand.border, justifyContent: 'center', alignItems: 'center', marginLeft: 8, marginTop: 2 }}>
+                <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.muted }}>✕</Text>
+              </Pressable>
+            </View>
+            <View>
+              {/* DATE section */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 4 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Brand.tlight, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <SymbolView name="calendar" size={18} tintColor={Brand.trust} />
+                </View>
+                <View>
+                  <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink, letterSpacing: 0.5, textTransform: 'uppercase' }}>Date</Text>
+                  <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted }}>When is your watch party?</Text>
+                </View>
+              </View>
+              <View style={{ backgroundColor: Brand.card, borderRadius: 16, borderWidth: 1.5, borderColor: Brand.border, overflow: 'hidden', marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Brand.border }}>
+                  {['DAY', 'MONTH', 'YEAR'].map((l, i) => (
+                    <View key={l} style={{ flex: 1, flexDirection: 'row' }}>
+                      {i > 0 && <View style={{ width: 1, backgroundColor: Brand.border }} />}
+                      <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 7, fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{l}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={{ flexDirection: 'row' }}>
+                  <WheelColumn items={editDayItems} selectedIndex={editDayIdx} onSelect={(idx) => { setEditDayIdx(idx); }} />
+                  <View style={{ width: 1, backgroundColor: Brand.border }} />
+                  <WheelColumn items={MONTH_LABELS} selectedIndex={editMonthIdx} onSelect={(idx) => { setEditMonthIdx(idx); const max = daysInMonth(idx, editYear) - 1; if (editDayIdx > max) setEditDayIdx(max); }} />
+                  <View style={{ width: 1, backgroundColor: Brand.border }} />
+                  <WheelColumn items={PARTY_YEARS} selectedIndex={editYearIdx} onSelect={(idx) => { setEditYearIdx(idx); const max = daysInMonth(editMonthIdx, THIS_YEAR + idx) - 1; if (editDayIdx > max) setEditDayIdx(max); }} />
+                </View>
+              </View>
+
+              {/* START TIME section */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Brand.tlight, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <SymbolView name="clock" size={18} tintColor={Brand.trust} />
+                </View>
+                <View>
+                  <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink, letterSpacing: 0.5, textTransform: 'uppercase' }}>Start Time</Text>
+                  <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted }}>What time does it start?</Text>
+                </View>
+              </View>
+              <View style={{ backgroundColor: Brand.card, borderRadius: 16, borderWidth: 1.5, borderColor: Brand.border, overflow: 'hidden', marginBottom: 20 }}>
+                <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Brand.border }}>
+                  {['HOUR', 'MIN', 'AM / PM'].map((l, i) => (
+                    <View key={l} style={{ flex: 1, flexDirection: 'row' }}>
+                      {i > 0 && <View style={{ width: 1, backgroundColor: Brand.border }} />}
+                      <Text style={{ flex: 1, textAlign: 'center', paddingVertical: 7, fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8 }}>{l}</Text>
+                    </View>
+                  ))}
+                </View>
+                <View style={{ flexDirection: 'row' }}>
+                  <WheelColumn items={['01','02','03','04','05','06','07','08','09','10','11','12']} selectedIndex={editHourIdx} onSelect={setEditHourIdx} />
+                  <View style={{ width: 1, backgroundColor: Brand.border }} />
+                  <WheelColumn items={['00','15','30','45']} selectedIndex={editMinIdx} onSelect={setEditMinIdx} />
+                  <View style={{ width: 1, backgroundColor: Brand.border }} />
+                  <WheelColumn items={['AM','PM']} selectedIndex={editPeriodIdx} onSelect={setEditPeriodIdx} />
+                </View>
+              </View>
+
+              {/* TAGLINE section */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10 }}>
+                <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Brand.tlight, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                  <SymbolView name="tag" size={18} tintColor={Brand.trust} />
+                </View>
+                <View>
+                  <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink, letterSpacing: 0.5, textTransform: 'uppercase' }}>Tagline</Text>
+                  <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted }}>Add a short tagline for your party</Text>
+                </View>
+              </View>
+              <TextInput style={[styles.wpFieldInput, { minHeight: 64, textAlignVertical: 'top' }]} value={editTagline} onChangeText={setEditTagline} placeholder='e.g. "girls night 🍷"' placeholderTextColor={Brand.muted} multiline maxLength={40} />
+            </View>
             <Pressable style={[styles.wpSaveBtn, updatePremiere.isPending && { opacity: 0.5 }]} onPress={handleSaveEdit} disabled={updatePremiere.isPending}>
               {updatePremiere.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.wpSaveBtnText}>Save changes</Text>}
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
 
       {/* Watch party invite picker */}
@@ -600,9 +727,11 @@ export default function FriendsScreen() {
       <View style={styles.header}>
         <Text style={styles.headerTitle}>Friends</Text>
         <View style={styles.headerActions}>
-          <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)}>
-            <Text style={styles.inviteBtnText}>+ Invite</Text>
-          </Pressable>
+          {tab !== 'watchparties' && (
+            <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)}>
+              <Text style={styles.inviteBtnText}>+ Invite</Text>
+            </Pressable>
+          )}
           <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
             <SymbolView name="person.badge.plus" size={22} tintColor={Brand.muted} style={{ width: 26, height: 24 }} />
           </Pressable>
@@ -689,6 +818,7 @@ export default function FriendsScreen() {
           renderItem={({ item, index }: { item: Profile; index: number }) => {
             const compat = compatScores.get(item.id) ?? 0;
             const activePost = activePostByUser.get(item.id) ?? null;
+            const isFollowingBack = tab === 'followers' && (following ?? []).some((f) => f.id === item.id);
             return (
               <FriendCard
                 profile={item}
@@ -696,6 +826,7 @@ export default function FriendsScreen() {
                 hasUnread={unreadFriendIds.has(item.id)}
                 currentlyWatching={activePost}
                 isTopMatch={index === 0 && tab === 'following'}
+                onFollowBack={tab === 'followers' && !isFollowingBack ? () => follow.mutate({ targetUserId: item.id, isTargetPrivate: item.is_private ?? false }) : undefined}
               />
             );
           }}
@@ -731,7 +862,7 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
     header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: Spacing.three, paddingTop: Spacing.two, paddingBottom: 16 },
-    headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink },
+    headerTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 28, color: Brand.ink, flex: 1 },
     headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
     inviteBtn: { backgroundColor: Brand.trust, borderRadius: 50, paddingVertical: 6, paddingHorizontal: 14 },
     inviteBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: '#fff' },
@@ -788,7 +919,7 @@ function createStyles(Brand: BrandPalette) {
     wpEmptyTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 18, color: Brand.ink },
     wpEmptySub: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, textAlign: 'center', lineHeight: 20 },
     wpEditBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
-    wpEditSheet: { backgroundColor: Brand.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.three, paddingBottom: 36, maxHeight: '85%' },
+    wpEditSheet: { backgroundColor: Brand.paper, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: Spacing.three, paddingBottom: 36, maxHeight: '92%', borderWidth: 1.5, borderBottomWidth: 0, borderColor: Brand.border, shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.12, shadowRadius: 16, elevation: 12 },
     wpEditGrabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: Brand.border, alignSelf: 'center', marginBottom: 16 },
     wpEditTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, color: Brand.ink, marginBottom: 4 },
     wpEditShow: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, marginBottom: 20 },

@@ -76,22 +76,35 @@ Deno.serve(async (req) => {
       case 'direct_messages': {
         const senderName = await getName(record.sender_id);
         let isRec = false;
+        let isWatchParty = false;
         let recTitle: string | undefined;
+        let watchPartyTitle: string | undefined;
         try {
           const parsed = JSON.parse(record.content);
           if (parsed?.__rec) {
             isRec = true;
             recTitle = parsed.title;
+          } else if (parsed?.__watchparty) {
+            isWatchParty = true;
+            watchPartyTitle = parsed.title;
           }
         } catch {
-          // plain text message, not a rec payload
+          // plain text message, not a structured payload
         }
         await pushTo(
           record.recipient_id,
           isRec ? 'recommendations' : 'messages',
-          isRec ? `${senderName} sent you a rec` : senderName,
-          isRec ? (recTitle ?? 'Check it out!') : record.content,
-          { type: 'dm', friendId: record.sender_id },
+          isRec
+            ? `${senderName} sent you a rec`
+            : isWatchParty
+            ? `${senderName} invited you to a watch party`
+            : senderName,
+          isRec
+            ? (recTitle ?? 'Check it out!')
+            : isWatchParty
+            ? (watchPartyTitle ? `🎬 ${watchPartyTitle}` : 'Tap to see the details')
+            : record.content,
+          { type: isWatchParty ? 'watch_party_invite' : 'dm', friendId: record.sender_id },
         );
         break;
       }

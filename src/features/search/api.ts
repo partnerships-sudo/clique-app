@@ -320,19 +320,29 @@ export function useContentSearch(query: string) {
 
       const results: ContentSearchResult[] = [];
 
-      // TMDB
+      // TMDB — deduplicate by externalId and by normalized title so movie/TV
+      // variants of the same content don't both appear.
       if (tmdbRes.status === 'fulfilled') {
         const raw = ((tmdbRes.value.results ?? []) as any[])
           .filter((r: any) => r.media_type === 'movie' || r.media_type === 'tv')
-          .slice(0, 4);
+          .slice(0, 8);
+        const seenIds = new Set<string>();
+        const seenTitles = new Set<string>();
         for (const r of raw) {
+          const id = String(r.id);
+          const title = (r.title ?? r.name ?? '').trim();
+          const norm = title.toLowerCase();
+          if (seenIds.has(id) || seenTitles.has(norm)) continue;
+          seenIds.add(id);
+          seenTitles.add(norm);
           results.push({
-            title: r.title ?? r.name ?? '',
+            title,
             poster: r.poster_path ? `https://image.tmdb.org/t/p/w185${r.poster_path}` : null,
-            externalId: String(r.id),
+            externalId: id,
             mediaType: r.media_type,
             year: (r.release_date ?? r.first_air_date ?? '').slice(0, 4) || null,
           });
+          if (results.filter(r2 => r2.mediaType === 'movie' || r2.mediaType === 'tv').length >= 4) break;
         }
       }
 

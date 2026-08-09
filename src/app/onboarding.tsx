@@ -187,18 +187,16 @@ export default function OnboardingScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Progress bar */}
+      {/* Header: back button + progress bar in one row */}
       {step > 0 && step < TOTAL_STEPS && (
-        <View style={styles.progressTrack}>
-          <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+        <View style={styles.onboardingHeader}>
+          <Pressable style={styles.backBtn} onPress={back} hitSlop={12}>
+            <SymbolView name="chevron.left" size={18} tintColor={Brand.muted} type="monochrome" />
+          </Pressable>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+          </View>
         </View>
-      )}
-
-      {/* Back button */}
-      {step > 0 && step < TOTAL_STEPS && (
-        <Pressable style={styles.backBtn} onPress={back} hitSlop={12}>
-          <SymbolView name="chevron.left" size={18} tintColor={Brand.muted} type="monochrome" />
-        </Pressable>
       )}
 
       {/* ── Step 0: Welcome ── */}
@@ -256,7 +254,7 @@ export default function OnboardingScreen() {
 
           <Text style={styles.aboutLabel}>Age range</Text>
           <View style={styles.aboutGrid}>
-            {(['Under 18', '18–24', '25–34', '35–44', '45+', 'Prefer not to say'] as const).map((range) => {
+            {(['Under 18', '18 - 24', '25 - 34', '35 - 44', '45+', 'Prefer not to say'] as const).map((range) => {
               const active = selectedAgeRange === range;
               return (
                 <Pressable
@@ -271,7 +269,7 @@ export default function OnboardingScreen() {
 
           <Text style={[styles.aboutLabel, { marginTop: 24 }]}>Gender</Text>
           <View style={styles.aboutGrid}>
-            {(['Man', 'Woman', 'Non-binary', 'Prefer not to say'] as const).map((g) => {
+            {(['Male', 'Female', 'Non-binary', 'Prefer not to say'] as const).map((g) => {
               const active = selectedGender === g;
               return (
                 <Pressable
@@ -330,7 +328,7 @@ export default function OnboardingScreen() {
       {step === 4 && (
         <View style={styles.stepWrap}>
           <Text style={styles.stepTitle}>How do you rate?</Text>
-          <Text style={styles.stepSub}>Pick your rating icon — it shows up on all your posts and logs.</Text>
+          <Text style={styles.stepSub}>Pick your rating icon. It shows up on all your posts and logs.</Text>
           <View style={styles.ratingPickerGrid}>
             {RATING_ICON_OPTIONS.map((opt) => {
               const active = selectedRatingIcon === opt.value;
@@ -352,6 +350,7 @@ export default function OnboardingScreen() {
               );
             })}
           </View>
+          <Text style={styles.stepHint}>You can change this any time in Settings.</Text>
           <Pressable style={styles.primaryBtn} onPress={next}>
             <Text style={styles.primaryBtnText}>Continue</Text>
           </Pressable>
@@ -446,7 +445,7 @@ export default function OnboardingScreen() {
           </View>
           <Text style={styles.stepTitle}>Stay in the loop</Text>
           <Text style={styles.stepSub}>
-            Get notified when friends share recs, react to your posts, or follow you — plus gentle reminders to keep your library up to date.
+            Get notified when friends share recs, react to your posts, or follow you. Plus gentle reminders to keep your library up to date. You can change this any time in Settings.
           </Text>
           <Pressable
             style={[styles.primaryBtn, notifDone && styles.primaryBtnDone]}
@@ -516,12 +515,18 @@ export default function OnboardingScreen() {
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safe: { flex: 1, backgroundColor: Brand.paper },
+    onboardingHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.four,
+      paddingVertical: 12,
+      gap: 12,
+    },
     progressTrack: {
+      flex: 1,
       height: 3,
       backgroundColor: Brand.border,
-      marginHorizontal: Spacing.four,
       borderRadius: 2,
-      marginTop: 12,
     },
     progressFill: {
       height: '100%',
@@ -529,10 +534,6 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 2,
     },
     backBtn: {
-      position: 'absolute',
-      top: 56,
-      left: Spacing.four,
-      zIndex: 10,
       padding: 4,
     },
     centered: {
@@ -584,6 +585,14 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.muted,
       lineHeight: 22,
       marginBottom: 28,
+    },
+    stepHint: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12,
+      color: Brand.muted,
+      textAlign: 'center',
+      marginBottom: 16,
+      marginTop: -8,
     },
     primaryBtn: {
       backgroundColor: Brand.trust,

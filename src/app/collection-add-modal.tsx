@@ -235,7 +235,7 @@ function createStyles(Brand: BrandPalette) {
       borderWidth: 1,
       borderColor: Brand.border,
     },
-    typeBtnActive: { backgroundColor: Brand.ink, borderColor: Brand.ink },
+    typeBtnActive: { backgroundColor: Brand.trust, borderColor: Brand.trust },
     typeBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: Brand.muted },
     typeBtnTextActive: { color: '#fff' },
     input: {

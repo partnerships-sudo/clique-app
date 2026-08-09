@@ -41,6 +41,7 @@ import { formatLastSeen, useMarkDmReadReceipt, useDmReadReceipt } from '@/featur
 import { useProfileById } from '@/features/profile/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
+import { parseWatchPartyInvite, type WatchPartyInvitePayload } from '@/features/dms/watch-party-invite';
 
 type RawMessage = {
   id: string;
@@ -226,6 +227,18 @@ export default function ChatModal() {
         avatar_url: friendAvatarById.get(m.user_id) ?? null,
         user_handle: friendHandleById.get(m.user_id) ?? m.user_name,
       }));
+
+  // Pinned watch party invite — most recent invite in this DM thread
+  let pinnedInvite: WatchPartyInvitePayload | null = null;
+  if (isDm) {
+    console.log('[pinnedInvite] isDm=true messages.length=', messages.length);
+    for (let i = messages.length - 1; i >= 0; i--) {
+      console.log('[pinnedInvite] checking content:', messages[i].content?.slice(0, 50));
+      const parsed = parseWatchPartyInvite(messages[i].content);
+      if (parsed) { pinnedInvite = parsed; break; }
+    }
+    console.log('[pinnedInvite] result:', pinnedInvite?.title ?? 'null');
+  }
 
   useEffect(() => {
     if (isGroup && params.groupId) markGroupRead(params.groupId);
@@ -593,6 +606,30 @@ export default function ChatModal() {
             </Pressable>
           </View>
         ) : (
+          <>
+{pinnedInvite && (
+              <Pressable
+                style={styles.pinnedInvite}
+                onPress={() => router.push({ pathname: '/premiere-waiting-room', params: { id: pinnedInvite.id } })}>
+                {pinnedInvite.poster ? (
+                  <Image source={{ uri: pinnedInvite.poster }} style={styles.pinnedInvitePoster} resizeMode="cover" />
+                ) : (
+                  <View style={[styles.pinnedInvitePoster, { alignItems: 'center', justifyContent: 'center' }]}>
+                    <Text style={{ fontSize: 16 }}>🎬</Text>
+                  </View>
+                )}
+                <View style={styles.pinnedInviteBody}>
+                  <Text style={styles.pinnedInviteLabel}>📌 Watch Party</Text>
+                  <Text style={styles.pinnedInviteTitle} numberOfLines={1}>{pinnedInvite.title}</Text>
+                  {pinnedInvite.date ? (
+                    <Text style={styles.pinnedInviteMeta} numberOfLines={1}>
+                      {pinnedInvite.date}{pinnedInvite.time ? ` · ${pinnedInvite.time}` : ''}
+                    </Text>
+                  ) : null}
+                </View>
+                <SymbolView name="chevron.right" size={12} tintColor="#999" type="monochrome" style={{ width: 12, height: 12 }} />
+              </Pressable>
+            )}
           <FlatList
             ref={listRef}
             style={styles.messages}
@@ -670,6 +707,7 @@ export default function ChatModal() {
               ) : null
             }
           />
+          </>
         )}
 
         {!isDmLocked ? (
@@ -1279,6 +1317,21 @@ function createStyles(Brand: BrandPalette) {
     headerIcon: { fontSize: 18 },
     messages: { flex: 1 },
     messagesContent: { padding: Spacing.three },
+    pinnedInvite: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+      backgroundColor: Brand.tlight,
+    },
+    pinnedInvitePoster: { width: 36, height: 48, borderRadius: 6, backgroundColor: Brand.border },
+    pinnedInviteBody: { flex: 1, minWidth: 0 },
+    pinnedInviteLabel: { fontFamily: BrandFonts.interMedium, fontSize: 10, color: Brand.trust, letterSpacing: 0.3, marginBottom: 1 },
+    pinnedInviteTitle: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink },
+    pinnedInviteMeta: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 1 },
     empty: {
       textAlign: 'center',
       paddingVertical: 30,

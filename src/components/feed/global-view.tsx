@@ -68,9 +68,19 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
 
   const rooms = [...roomMap.values()];
 
-  // TMDB results that don't already have a discussion room entry
+  // TMDB results that don't already have a discussion room entry.
+  // Also deduplicate by normalized title so movie + TV variants of the same
+  // name don't both appear (prefer the entry with a poster, then the first).
+  const roomTitles = new Set([...roomMap.values()].map((r) => r.title.toLowerCase()));
+  const seenTmdbTitles = new Set<string>();
   const tmdbItems = contentResults
     .filter((c) => !roomMap.has(`${c.externalId}|${c.mediaType}`))
+    .filter((c) => {
+      const norm = c.title.toLowerCase();
+      if (roomTitles.has(norm) || seenTmdbTitles.has(norm)) return false;
+      seenTmdbTitles.add(norm);
+      return true;
+    })
     .map((c) => ({ kind: 'room' as const, ...c, count: 0 }));
 
   const allItems = [
@@ -241,6 +251,15 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
   const unfollowedRooms = personalizedRooms.filter((r) => !followedKeys.has(`${r.externalId}|${r.mediaType}`));
   const typeFilter = filter === 'all' ? 'all' : filter;
 
+  // When the user hasn't joined any lounges yet, surface discussions from their
+  // logged content instead of the generic trending list.
+  const hasNoLounges = followedRooms.length === 0;
+  const allPersonalizedDiscussions = hasNoLounges
+    ? personalizedRooms
+        .flatMap((r) => r.discussions.map((d) => ({ ...d, contentTitle: r.contentTitle, contentPoster: r.contentPoster })))
+    : [];
+  const personalizedDiscussions = showAll ? allPersonalizedDiscussions : allPersonalizedDiscussions.slice(0, 5);
+
   return (
     <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
       {/* Search bar */}
@@ -266,7 +285,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
         <>
           {/* Trending discussions */}
           <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Discussions</Text>
+            <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Busy Lounges</Text>
             <Pressable
               style={[styles.newDiscussionBtn, { backgroundColor: Brand.trust }]}
               onPress={() => router.push('/create-discussion-modal')}>
@@ -277,6 +296,22 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
 
           {dLoading ? (
             <ActivityIndicator style={{ marginVertical: 20 }} color={Brand.trust} />
+          ) : hasNoLounges && personalizedDiscussions.length > 0 ? (
+            // No lounges followed yet — show discussions from content they've logged
+            <>
+              {personalizedDiscussions.map((d) => (
+                <DiscussionCard key={d.id} item={d} />
+              ))}
+              {allPersonalizedDiscussions.length > 5 && (
+                <Pressable
+                  style={[styles.viewMoreBtn, { backgroundColor: Brand.tlight }]}
+                  onPress={() => setShowAll((v) => !v)}>
+                  <Text style={[styles.viewMoreText, { color: Brand.trust }]}>
+                    {showAll ? 'Show less' : 'View more discussions'}
+                  </Text>
+                </Pressable>
+              )}
+            </>
           ) : trending.length === 0 ? (
             <Pressable
               style={[styles.emptyBoard, { backgroundColor: Brand.card, borderColor: Brand.border }]}

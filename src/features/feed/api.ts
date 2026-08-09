@@ -531,7 +531,8 @@ export function usePostsByUser(userId: string | undefined) {
       return (data ?? []) as Post[];
     },
     enabled: !!userId,
-    staleTime: 30_000,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 }
 
