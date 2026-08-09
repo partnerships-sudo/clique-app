@@ -230,7 +230,8 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
           numberOfLines={1}
           onTextLayout={(e) => {
             const line = e.nativeEvent.lines[0];
-            setTruncated(!!line && line.text.trimEnd().endsWith('…'));
+            const t = line?.text.trimEnd() ?? '';
+            setTruncated(t.endsWith('…') || t.endsWith('...'));
           }}
         >
           &ldquo;{note}&rdquo;
