@@ -222,14 +222,14 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
 
   return (
     <>
-      {/* 1-line preview with inline …view more */}
-      <Text style={styles.note} numberOfLines={1}>
-        &ldquo;{note}&rdquo;
-        <Text
-          onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }}
-          style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}
-        >{' …view more'}</Text>
-      </Text>
+      {/* 1-line preview */}
+      <Text style={styles.note} numberOfLines={1}>&ldquo;{note}&rdquo;</Text>
+      {/* …view more below the truncated line */}
+      <Pressable onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }} hitSlop={8}>
+        <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}>
+          …view more
+        </Text>
+      </Pressable>
 
       {/* Full-text bottom sheet */}
       <Modal
