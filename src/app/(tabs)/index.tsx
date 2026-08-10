@@ -387,7 +387,6 @@ export default function FeedScreen() {
         hiddenTypes={feedView === 'global' ? undefined : hiddenCategories}
         onHide={feedView === 'global' ? undefined : hideCategory}
         onShow={feedView === 'global' ? undefined : showCategory}
-        labelsOnly={feedView === 'global'}
       />
       {feedView !== 'foryou' && feedView !== 'feed' && feedView !== 'circle' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
       {feedView === 'feed' && activeAd && !adDismissed ? (
