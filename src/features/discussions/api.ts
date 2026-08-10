@@ -298,6 +298,7 @@ export function useAddDiscussionComment() {
       queryClient.invalidateQueries({ queryKey: ['discussion-comments', discussionId] });
       queryClient.invalidateQueries({ queryKey: ['discussion', discussionId] });
       queryClient.invalidateQueries({ queryKey: ['discussions'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-discussions'] });
     },
   });
 }
@@ -331,6 +332,7 @@ export function useDeleteDiscussionComment() {
       queryClient.invalidateQueries({ queryKey: ['discussion-comments', discussionId] });
       queryClient.invalidateQueries({ queryKey: ['discussion', discussionId] });
       queryClient.invalidateQueries({ queryKey: ['discussions'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-discussions'] });
     },
   });
 }
