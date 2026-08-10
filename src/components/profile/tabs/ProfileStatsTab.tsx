@@ -389,6 +389,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
                 const d = new Date(p.created_at);
                 return d.getFullYear() === thisYear && d.getMonth() === monthSheet?.month;
               })
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map((p) => (
                 <Pressable
                   key={p.id}
@@ -447,6 +448,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
           <ScrollView style={ratingSheetStyles.list} showsVerticalScrollIndicator={false}>
             {allPosts
               .filter((p) => p.rating === ratingSheet?.rating)
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map((p) => (
                 <Pressable
                   key={p.id}
