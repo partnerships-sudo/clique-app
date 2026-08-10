@@ -134,8 +134,11 @@ export default function PremiereWaitingRoom() {
             // Invalidate so React Query picks it up on next poll
             queryClient.invalidateQueries({ queryKey: ['waiting-room-messages', params.id] });
             setExtraMessages((prev) => {
-              // Already have the real row
+              // Already have the real row in extras
               if (prev.some((m) => m.id === msg.id)) return prev;
+              // Already in DB query cache (realtime replayed an existing message on connect)
+              const cached = queryClient.getQueryData<PremiereMessage[]>(['waiting-room-messages', params.id]);
+              if (cached?.some((d) => d.id === msg.id)) return prev;
               // Replace our own optimistic entry with the real one; append others' messages
               if (msg.user_id === user?.id) {
                 const idx = prev.findIndex((m) => m.id.startsWith('optimistic-') && m.user_id === user.id);
