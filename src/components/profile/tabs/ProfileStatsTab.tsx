@@ -300,7 +300,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
           </View>
           <View style={styles.top4Row}>
             {top4.map((friend) => (
-              <View key={friend.id} style={styles.top4Item}>
+              <Pressable key={friend.id} style={styles.top4Item} onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: friend.id } })}>
                 <View style={styles.top4ImgWrap}>
                   {friend.avatar_url ? (
                     <Image source={{ uri: friend.avatar_url }} style={styles.top4Img} />
@@ -315,7 +315,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
                 </View>
                 <Text style={styles.top4Name} numberOfLines={1}>{friend.full_name || friend.username}</Text>
                 <Text style={styles.top4Handle} numberOfLines={1}>@{friend.username}</Text>
-              </View>
+              </Pressable>
             ))}
           </View>
         </View>
