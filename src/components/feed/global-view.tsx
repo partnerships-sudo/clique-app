@@ -381,7 +381,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 16, paddingBottom: 40 },
+  content: { paddingBottom: 40 },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
