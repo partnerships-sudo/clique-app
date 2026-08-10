@@ -209,7 +209,7 @@ function RestoreSheet({
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     row: { marginBottom: 14 },
-    content: { flexGrow: 1, justifyContent: 'center', gap: 4 },
+    content: { gap: 8, paddingHorizontal: 16 },
 
     // Compact pill variant
     compactRow: { marginBottom: 14 },
