@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { useMemo, useState } from 'react';
+import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { TIER_COLORS } from '@/features/badges/catalog';
 import { useMyPostCounts, usePostsByUser } from '@/features/feed/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
@@ -9,6 +9,7 @@ import { type LibraryItem } from '@/features/library/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 import { type ProfileCardBadge } from '../profile-card';
+import { BrandFonts } from '@/constants/theme';
 import { STAT_CATEGORIES, createStyles } from '../profile-styles';
 
 const DAY_LABELS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
@@ -31,6 +32,7 @@ interface Props {
 export function ProfileStatsTab({ logged, followersCount, followingCount, onLoggedPress, onFollowersPress, onFollowingPress, featuredBadges = [], onOpenAchievements, isOwnProfile }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const [ratingSheet, setRatingSheet] = useState<{ rating: number; label: string } | null>(null);
   const { data: top4 = [] } = useMyTasteTop4();
   const { user } = useSession();
   const { data: postCounts } = useMyPostCounts(user?.id);
@@ -246,13 +248,17 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
           {avgRating != null && <Text style={styles.chartAvg}>{avgRating} avg</Text>}
         </View>
         <View style={styles.ratingBarsRow}>
-          {RATING_BUCKETS.map((_, i) => (
-            <View key={i} style={styles.ratingBarCol}>
+          {RATING_BUCKETS.map((bucket, i) => (
+            <Pressable
+              key={i}
+              style={styles.ratingBarCol}
+              onPress={() => ratingCounts[i] > 0 && setRatingSheet({ rating: bucket, label: RATING_LABELS[i] })}
+              hitSlop={4}>
               <View style={styles.ratingBarTrack}>
                 <View style={[styles.ratingBarFill, { height: `${Math.round((ratingCounts[i] / maxRatingCount) * 100)}%` }]} />
               </View>
               <Text style={styles.ratingBarLabel}>{RATING_LABELS[i]}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       </View>
@@ -354,6 +360,145 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
         </View>
       </View>
 
+      {/* Rating drill-down sheet */}
+      <Modal
+        visible={!!ratingSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setRatingSheet(null)}>
+        <Pressable style={ratingSheetStyles.backdrop} onPress={() => setRatingSheet(null)} />
+        <View style={[ratingSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+          <View style={[ratingSheetStyles.handle, { backgroundColor: Brand.border }]} />
+          <View style={ratingSheetStyles.headerRow}>
+            <Text style={[ratingSheetStyles.title, { color: Brand.ink }]}>
+              Rated {ratingSheet?.label}
+            </Text>
+            <Text style={[ratingSheetStyles.count, { color: Brand.muted }]}>
+              {allPosts.filter((p) => p.rating === ratingSheet?.rating).length} items
+            </Text>
+          </View>
+          <ScrollView style={ratingSheetStyles.list} showsVerticalScrollIndicator={false}>
+            {allPosts
+              .filter((p) => p.rating === ratingSheet?.rating)
+              .map((p) => (
+                <Pressable
+                  key={p.id}
+                  style={[ratingSheetStyles.row, { borderBottomColor: Brand.border }]}
+                  onPress={() => {
+                    setRatingSheet(null);
+                    router.push({
+                      pathname: '/content-detail-modal',
+                      params: {
+                        title: p.title,
+                        type: p.type,
+                        poster: p.poster ?? undefined,
+                        sub: p.sub ?? undefined,
+                        externalId: p.external_id ?? undefined,
+                        mediaType: p.media_type ?? undefined,
+                      },
+                    });
+                  }}>
+                  {p.poster ? (
+                    <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" />
+                  ) : (
+                    <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}>
+                      <Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text>
+                    </View>
+                  )}
+                  <View style={ratingSheetStyles.meta}>
+                    <Text style={[ratingSheetStyles.itemTitle, { color: Brand.ink }]} numberOfLines={2}>{p.title}</Text>
+                    {p.sub ? <Text style={[ratingSheetStyles.itemSub, { color: Brand.muted }]} numberOfLines={1}>{p.sub}</Text> : null}
+                    {p.note ? <Text style={[ratingSheetStyles.itemNote, { color: Brand.trust }]} numberOfLines={2}>&ldquo;{p.note}&rdquo;</Text> : null}
+                  </View>
+                </Pressable>
+              ))}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </Modal>
+
     </View>
   );
 }
+
+const ratingSheetStyles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheet: {
+    maxHeight: '75%',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    borderTopWidth: 1,
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    paddingTop: 12,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    marginBottom: 12,
+  },
+  title: {
+    fontFamily: BrandFonts.syneExtraBold,
+    fontSize: 20,
+  },
+  count: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 13,
+  },
+  list: {
+    paddingHorizontal: 20,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    paddingVertical: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 12,
+  },
+  poster: {
+    width: 44,
+    height: 66,
+    borderRadius: 6,
+  },
+  posterFallback: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 4,
+  },
+  posterFallbackText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 9,
+    textAlign: 'center',
+  },
+  meta: {
+    flex: 1,
+    justifyContent: 'center',
+    gap: 3,
+  },
+  itemTitle: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 14.5,
+  },
+  itemSub: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12,
+  },
+  itemNote: {
+    fontFamily: BrandFonts.interRegular,
+    fontStyle: 'italic',
+    fontSize: 12.5,
+    lineHeight: 18,
+  },
+});
