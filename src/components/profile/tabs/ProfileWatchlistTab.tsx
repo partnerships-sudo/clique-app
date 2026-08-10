@@ -118,7 +118,21 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
             const recProfile = item.rec_from_user_name ? recProfiles[item.rec_from_user_name] : null;
             return (
               <View key={item.id} style={styles.wlGridItem}>
-                <Pressable style={styles.wlPosterWrap} onLongPress={() => isOwnProfile && showItemOptions(item)} delayLongPress={400}>
+                <Pressable
+                  style={styles.wlPosterWrap}
+                  onPress={() => router.push({
+                    pathname: '/content-detail-modal',
+                    params: {
+                      title: item.title,
+                      type: item.type ?? undefined,
+                      poster: item.poster ?? undefined,
+                      sub: item.sub ?? undefined,
+                      externalId: item.external_id ?? undefined,
+                      mediaType: item.media_type ?? undefined,
+                    },
+                  })}
+                  onLongPress={() => isOwnProfile && showItemOptions(item)}
+                  delayLongPress={400}>
                   {item.poster ? (
                     <Image source={{ uri: item.poster }} style={styles.wlPoster} resizeMode="cover" />
                   ) : (
