@@ -293,6 +293,15 @@ export function useAddDiscussionComment() {
         is_spoiler: isSpoiler ?? false,
       });
       if (error) throw error;
+      // Keep denormalized comment_count in sync
+      const { count } = await supabase
+        .from('discussion_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('discussion_id', discussionId);
+      await supabase
+        .from('discussions')
+        .update({ comment_count: count ?? 0 })
+        .eq('id', discussionId);
     },
     onSuccess: (_data, { discussionId }) => {
       queryClient.invalidateQueries({ queryKey: ['discussion-comments', discussionId] });
@@ -326,6 +335,15 @@ export function useDeleteDiscussionComment() {
     mutationFn: async ({ id, discussionId }: { id: string; discussionId: string }) => {
       const { error } = await supabase.from('discussion_comments').delete().eq('id', id);
       if (error) throw error;
+      // Keep denormalized comment_count in sync
+      const { count } = await supabase
+        .from('discussion_comments')
+        .select('*', { count: 'exact', head: true })
+        .eq('discussion_id', discussionId);
+      await supabase
+        .from('discussions')
+        .update({ comment_count: count ?? 0 })
+        .eq('id', discussionId);
       return discussionId;
     },
     onSuccess: (_data, { discussionId }) => {
