@@ -260,10 +260,20 @@ export function useToggleDiscussionVote() {
           .insert({ discussion_id: discussionId, user_id: user!.id });
         if (error) throw error;
       }
+      // Keep denormalized upvote_count in sync
+      const { count } = await supabase
+        .from('discussion_votes')
+        .select('*', { count: 'exact', head: true })
+        .eq('discussion_id', discussionId);
+      await supabase
+        .from('discussions')
+        .update({ upvote_count: count ?? 0 })
+        .eq('id', discussionId);
     },
     onSuccess: (_data, { discussionId }) => {
       queryClient.invalidateQueries({ queryKey: ['discussions'] });
       queryClient.invalidateQueries({ queryKey: ['discussion', discussionId] });
+      queryClient.invalidateQueries({ queryKey: ['trending-discussions'] });
     },
   });
 }
