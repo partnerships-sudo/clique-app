@@ -134,9 +134,6 @@ function FeedCard({ item, Brand }: { item: Post; Brand: BrandPalette }) {
           <Text style={stars > 0 ? s.stars : s.emptyStars}>
             {stars > 0 ? '★'.repeat(stars) : '★★★★★'}
           </Text>
-          {item.created_at ? (
-            <Text style={s.date}>{item.created_at.slice(0, 7)}</Text>
-          ) : null}
         </View>
         {item.note ? (
           <Text style={s.note} numberOfLines={2}>&ldquo;{item.note}&rdquo;</Text>
