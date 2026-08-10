@@ -33,6 +33,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [ratingSheet, setRatingSheet] = useState<{ rating: number; label: string } | null>(null);
+  const [monthSheet, setMonthSheet] = useState<{ month: number; label: string } | null>(null);
   const { data: top4 = [] } = useMyTasteTop4();
   const { user } = useSession();
   const { data: postCounts } = useMyPostCounts(user?.id);
@@ -271,7 +272,11 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
         </View>
         <View style={styles.ratingBarsRow}>
           {MONTH_LABELS.map((label, i) => (
-            <View key={i} style={styles.ratingBarCol}>
+            <Pressable
+              key={i}
+              style={styles.ratingBarCol}
+              onPress={() => monthlyCounts[i] > 0 && setMonthSheet({ month: i, label: `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]} ${thisYear}` })}
+              hitSlop={4}>
               <Text style={styles.ratingBarCount}>{monthlyCounts[i] > 0 ? monthlyCounts[i] : ''}</Text>
               <View style={styles.ratingBarTrack}>
                 <View style={[
@@ -281,7 +286,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
                 ]} />
               </View>
               <Text style={styles.ratingBarLabel}>{label}</Text>
-            </View>
+            </Pressable>
           ))}
         </View>
       </View>
@@ -359,6 +364,68 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
           ))}
         </View>
       </View>
+
+      {/* Month drill-down sheet */}
+      <Modal
+        visible={!!monthSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setMonthSheet(null)}>
+        <Pressable style={ratingSheetStyles.backdrop} onPress={() => setMonthSheet(null)} />
+        <View style={[ratingSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+          <View style={[ratingSheetStyles.handle, { backgroundColor: Brand.border }]} />
+          <View style={ratingSheetStyles.headerRow}>
+            <Text style={[ratingSheetStyles.title, { color: Brand.ink }]}>{monthSheet?.label}</Text>
+            <Text style={[ratingSheetStyles.count, { color: Brand.muted }]}>
+              {allPosts.filter((p) => {
+                const d = new Date(p.created_at);
+                return d.getFullYear() === thisYear && d.getMonth() === monthSheet?.month;
+              }).length} items
+            </Text>
+          </View>
+          <ScrollView style={ratingSheetStyles.list} showsVerticalScrollIndicator={false}>
+            {allPosts
+              .filter((p) => {
+                const d = new Date(p.created_at);
+                return d.getFullYear() === thisYear && d.getMonth() === monthSheet?.month;
+              })
+              .map((p) => (
+                <Pressable
+                  key={p.id}
+                  style={[ratingSheetStyles.row, { borderBottomColor: Brand.border }]}
+                  onPress={() => {
+                    setMonthSheet(null);
+                    router.push({
+                      pathname: '/content-detail-modal',
+                      params: {
+                        title: p.title,
+                        type: p.type,
+                        poster: p.poster ?? undefined,
+                        sub: p.sub ?? undefined,
+                        externalId: p.external_id ?? undefined,
+                        mediaType: p.media_type ?? undefined,
+                      },
+                    });
+                  }}>
+                  {p.poster ? (
+                    <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" />
+                  ) : (
+                    <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}>
+                      <Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text>
+                    </View>
+                  )}
+                  <View style={ratingSheetStyles.meta}>
+                    <Text style={[ratingSheetStyles.itemTitle, { color: Brand.ink }]} numberOfLines={2}>{p.title}</Text>
+                    {p.sub ? <Text style={[ratingSheetStyles.itemSub, { color: Brand.muted }]} numberOfLines={1}>{p.sub}</Text> : null}
+                    {p.rating ? <Text style={[ratingSheetStyles.itemSub, { color: Brand.trust }]}>{'★'.repeat(Math.floor(p.rating))}{p.rating % 1 ? '½' : ''}</Text> : null}
+                    {p.note ? <Text style={[ratingSheetStyles.itemNote, { color: Brand.trust }]} numberOfLines={2}>&ldquo;{p.note}&rdquo;</Text> : null}
+                  </View>
+                </Pressable>
+              ))}
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </View>
+      </Modal>
 
       {/* Rating drill-down sheet */}
       <Modal
