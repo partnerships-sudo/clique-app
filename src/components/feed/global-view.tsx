@@ -307,7 +307,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
             <SymbolView name="magnifyingglass" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
             <TextInput
               style={[styles.searchInput, { color: Brand.ink }]}
-              placeholder="Search the lounge…"
+              placeholder="Find a lounge…"
               placeholderTextColor={Brand.muted}
               value={searchQuery}
               onChangeText={setSearchQuery}

@@ -1,5 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
 import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Circle, Svg } from 'react-native-svg';
@@ -429,7 +432,7 @@ export default function DiscussionDetailModal() {
   const { user } = useSession();
   const { top, bottom } = useSafeAreaInsets();
 
-  const { data: discussion, isLoading: dLoading } = useDiscussion(id);
+  const { data: discussion, isLoading: dLoading, refetch: refetchDiscussion } = useDiscussion(id);
   const { data: comments = [], isLoading: cLoading } = useDiscussionComments(id);
   const { data: poll } = useDiscussionPoll(id);
   const vote = useToggleDiscussionVote();
@@ -457,6 +460,27 @@ export default function DiscussionDetailModal() {
   const [editing, setEditing] = useState(false);
   const [editTitle, setEditTitle] = useState('');
   const [editBody, setEditBody] = useState('');
+  const [editImageUri, setEditImageUri] = useState<string | null>(null);
+  const [editImageMime, setEditImageMime] = useState<string>('image/jpeg');
+  const [editImageUploading, setEditImageUploading] = useState(false);
+  // null = keep existing, undefined = remove, string = new URL after upload
+  const [editImageUrl, setEditImageUrl] = useState<string | null | undefined>(undefined);
+  // Locally confirmed uploaded URL — avoids cache staleness
+  const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+
+  async function pickEditImage() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { Alert.alert('Permission needed', 'Allow photo access to attach an image.'); return; }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], allowsEditing: true, quality: 0.8, aspect: [4, 3],
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setEditImageUri(asset.uri);
+      setEditImageMime(asset.mimeType ?? (asset.uri.endsWith('.png') ? 'image/png' : 'image/jpeg'));
+      setEditImageUrl(null); // mark as "new image pending upload"
+    }
+  }
   const [showComments, setShowComments] = useState(false);
 
   // Track discussion_viewed once the discussion loads
@@ -534,13 +558,49 @@ export default function DiscussionDetailModal() {
     if (!discussion) return;
     setEditTitle(discussion.title);
     setEditBody(discussion.body ?? '');
+    setEditImageUri(null);
+
+    setEditImageUrl(undefined); // undefined = keep existing image
     setEditing(true);
   }
 
   async function saveEdit() {
     if (!discussion || editTitle.trim().length < 3) return;
     try {
-      await updateDiscussion.mutateAsync({ id: discussion.id, title: editTitle, body: editBody || null });
+      let finalImageUrl: string | null | undefined = undefined; // undefined = don't touch DB column
+
+      if (editImageUri && user) {
+        // Upload new image
+        setEditImageUploading(true);
+        try {
+          const ext = editImageMime === 'image/png' ? 'png' : 'jpg';
+          const path = `${user.id}/${Date.now()}.${ext}`;
+          const base64 = await FileSystem.readAsStringAsync(editImageUri!, { encoding: 'base64' });
+          const arrayBuffer = decode(base64);
+          const { error: uploadErr } = await supabase.storage
+            .from('discussion-images')
+            .upload(path, arrayBuffer, { contentType: editImageMime, upsert: false });
+          if (uploadErr) throw uploadErr;
+          const { data: signed, error: signErr } = await supabase.storage
+            .from('discussion-images')
+            .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+          if (signErr || !signed?.signedUrl) throw signErr ?? new Error('No signed URL');
+          finalImageUrl = signed.signedUrl;
+          setLocalImageUrl(finalImageUrl);
+        } catch (err) {
+          console.error('Image upload error:', err);
+          Alert.alert('Upload failed', err instanceof Error ? err.message : String(err));
+        } finally {
+          setEditImageUploading(false);
+        }
+      } else if (editImageUrl === null) {
+        // User explicitly removed the image
+        finalImageUrl = null;
+      }
+      // else undefined → don't change image_url in DB
+
+      await updateDiscussion.mutateAsync({ id: discussion.id, title: editTitle, body: editBody || null, imageUrl: finalImageUrl });
+      await refetchDiscussion();
       setEditing(false);
     } catch {
       Alert.alert('Error', 'Could not save changes. Please try again.');
@@ -867,9 +927,27 @@ export default function DiscussionDetailModal() {
         </View>
 
         <View style={styles_.discussionBlock}>
-          <View style={[styles_.typePill, { backgroundColor: typeColor.bg }]}>
-            <Text style={[styles_.typeText, { color: typeColor.color }]}>{typeLabel.toUpperCase()}</Text>
-          </View>
+          {discussion.content_title && discussion.content_external_id ? (
+            <Pressable
+              onPress={() => router.push({
+                pathname: '/content-room-modal',
+                params: {
+                  externalId: discussion.content_external_id!,
+                  mediaType: discussion.content_media_type ?? '',
+                  title: discussion.content_title!,
+                  poster: discussion.content_poster ?? '',
+                },
+              })}
+              hitSlop={6}>
+              <Text style={[styles_.contentShowName, { color: Brand.trust }]} numberOfLines={1}>
+                {discussion.content_title}
+              </Text>
+            </Pressable>
+          ) : (
+            <View style={[styles_.typePill, { backgroundColor: typeColor.bg }]}>
+              <Text style={[styles_.typeText, { color: typeColor.color }]}>{typeLabel.toUpperCase()}</Text>
+            </View>
+          )}
 
           {editing ? (
             <TextInput
@@ -880,30 +958,6 @@ export default function DiscussionDetailModal() {
             />
           ) : (
             <Text style={[styles_.title, { color: Brand.ink }]}>{discussion.title}</Text>
-          )}
-
-          {discussion.content_title && discussion.content_external_id && (
-            <Pressable
-              style={[styles_.contentCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
-              onPress={() => router.push({
-                pathname: '/content-room-modal',
-                params: {
-                  externalId: discussion.content_external_id!,
-                  mediaType: discussion.content_media_type ?? '',
-                  title: discussion.content_title!,
-                  poster: discussion.content_poster ?? '',
-                },
-              })}>
-              <View style={{ flex: 1, gap: 3 }}>
-                <Text style={[styles_.contentCardTitle, { color: Brand.ink }]} numberOfLines={1}>{discussion.content_title}</Text>
-                <Text style={[styles_.contentCardSub, { color: Brand.muted }]} numberOfLines={1}>
-                  {discussion.content_media_type === 'movie' ? 'Movie' : 'TV Show'}
-                </Text>
-              </View>
-              {discussion.content_poster ? (
-                <Image source={{ uri: discussion.content_poster }} style={styles_.contentCardPoster} resizeMode="cover" />
-              ) : null}
-            </Pressable>
           )}
 
           <Pressable
@@ -930,18 +984,58 @@ export default function DiscussionDetailModal() {
             <Text style={[styles_.body, { color: Brand.ink }]}>{discussion.body}</Text>
           ) : null}
 
-          {editing && (
-            <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end' }}>
-              <Pressable onPress={() => setEditing(false)} hitSlop={8}>
-                <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted }}>Cancel</Text>
-              </Pressable>
-              <Pressable onPress={saveEdit} disabled={updateDiscussion.isPending || editTitle.trim().length < 3} hitSlop={8}>
-                {updateDiscussion.isPending
-                  ? <ActivityIndicator size="small" color={Brand.trust} />
-                  : <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust, opacity: editTitle.trim().length < 3 ? 0.4 : 1 }}>Save</Text>}
-              </Pressable>
-            </View>
-          )}
+          {/* Attached image — view mode */}
+          {!editing && (localImageUrl || discussion.image_url) ? (
+            <Image
+              source={{ uri: (localImageUrl || discussion.image_url)! }}
+              style={styles_.attachedImage}
+              resizeMode="cover"
+            />
+          ) : null}
+
+          {/* Photo edit row — shown while editing */}
+          {editing ? (
+            <>
+              {/* Show new local preview OR existing image (unless removed) */}
+              {editImageUri ? (
+                <View style={{ position: 'relative', marginTop: 8 }}>
+                  <Image source={{ uri: editImageUri }} style={styles_.attachedImage} resizeMode="cover" />
+                  <Pressable
+                    style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 4 }}
+                    onPress={() => { setEditImageUri(null); setEditImageUrl(null); setLocalImageUrl(null); }}>
+                    <SymbolView name="xmark" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
+                  </Pressable>
+                </View>
+              ) : (discussion.image_url && editImageUrl !== null) ? (
+                <View style={{ position: 'relative', marginTop: 8 }}>
+                  <Image source={{ uri: discussion.image_url }} style={styles_.attachedImage} resizeMode="cover" />
+                  <Pressable
+                    style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 4 }}
+                    onPress={() => setEditImageUrl(null)}>
+                    <SymbolView name="xmark" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
+                  </Pressable>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={pickEditImage}
+                  style={{ borderWidth: 1.5, borderColor: Brand.border, borderStyle: 'dashed', borderRadius: 12, padding: 12, alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                  <SymbolView name="photo.badge.plus" size={18} tintColor={Brand.muted} type="monochrome" style={{ width: 18, height: 18 }} />
+                  <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted }}>Add a photo</Text>
+                </Pressable>
+              )}
+
+              <View style={{ flexDirection: 'row', gap: 12, justifyContent: 'flex-end', marginTop: 10 }}>
+                <Pressable onPress={() => setEditing(false)} hitSlop={8}>
+                  <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted }}>Cancel</Text>
+                </Pressable>
+                <Pressable onPress={saveEdit} disabled={updateDiscussion.isPending || editImageUploading || editTitle.trim().length < 3} hitSlop={8}>
+                  {updateDiscussion.isPending || editImageUploading
+                    ? <ActivityIndicator size="small" color={Brand.trust} />
+                    : <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust, opacity: editTitle.trim().length < 3 ? 0.4 : 1 }}>Save</Text>}
+                </Pressable>
+              </View>
+            </>
+          ) : null}
 
           {/* Action pills */}
           <View style={styles_.actionBar}>
@@ -1232,7 +1326,7 @@ function createStyles(Brand: BrandPalette) {
     discussionBlock: { padding: 16, gap: 12 },
     typePill: { alignSelf: 'flex-start', borderRadius: 20, paddingHorizontal: 10, paddingVertical: 4 },
     typeText: { fontFamily: BrandFonts.syneBold, fontSize: 10, letterSpacing: 0.6, textTransform: 'uppercase' },
-    title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, lineHeight: 28 },
+    title: { fontFamily: BrandFonts.syneExtraBold, fontSize: 18, lineHeight: 24 },
     titleInput: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, lineHeight: 26, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
     body: { fontFamily: BrandFonts.interRegular, fontSize: 15.5, lineHeight: 23 },
     bodyInput: { fontFamily: BrandFonts.interRegular, fontSize: 15, lineHeight: 22, borderWidth: 1, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8, minHeight: 80 },
@@ -1240,6 +1334,7 @@ function createStyles(Brand: BrandPalette) {
     contentCardTitle: { fontFamily: BrandFonts.syneBold, fontSize: 14 },
     contentCardSub: { fontFamily: BrandFonts.interRegular, fontSize: 12 },
     contentCardPoster: { width: 44, height: 60, borderRadius: 8 },
+    contentShowName: { fontFamily: BrandFonts.syneBold, fontSize: 20 },
     authorRow: { flexDirection: 'row', alignItems: 'center', gap: 7 },
     authorName: { fontFamily: BrandFonts.syneBold, fontSize: 13.5 },
     opBadge: { borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
@@ -1274,5 +1369,6 @@ function createStyles(Brand: BrandPalette) {
     input: { flex: 1, borderWidth: 1, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, fontFamily: BrandFonts.interRegular, fontSize: 14, maxHeight: 100 },
     spoilerBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
     sendBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+    attachedImage: { width: '100%', height: 220, borderRadius: 14, marginTop: 4 },
   });
 }

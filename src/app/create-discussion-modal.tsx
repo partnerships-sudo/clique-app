@@ -1,5 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
+import { SymbolView } from 'expo-symbols';
 import {
   ActivityIndicator,
   Alert,
@@ -17,8 +19,32 @@ import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { type DiscussionType, useCreateDiscussion, useCreateDiscussionPoll } from '@/features/discussions/api';
 import { track, Events } from '@/features/analytics/api';
 import { type SearchResult, useUniversalSearch } from '@/features/search/api';
+import * as FileSystem from 'expo-file-system/legacy';
+import { decode } from 'base64-arraybuffer';
+import { supabase } from '@/lib/supabase';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
+
+async function uploadDiscussionImage(userId: string, uri: string, mimeType: string): Promise<string> {
+  const ext = mimeType === 'image/png' ? 'png' : mimeType === 'image/gif' ? 'gif' : 'jpg';
+  const path = `${userId}/${Date.now()}.${ext}`;
+
+  // Read from filesystem as base64, then decode to ArrayBuffer — the proven Expo+Supabase pattern
+  const base64 = await FileSystem.readAsStringAsync(uri, { encoding: 'base64' });
+  const arrayBuffer = decode(base64);
+
+  const { error } = await supabase.storage
+    .from('discussion-images')
+    .upload(path, arrayBuffer, { contentType: mimeType, upsert: false });
+  if (error) throw error;
+
+  // Use a 10-year signed URL — bypasses all RLS/public-bucket complexity
+  const { data: signed, error: signErr } = await supabase.storage
+    .from('discussion-images')
+    .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+  if (signErr || !signed?.signedUrl) throw signErr ?? new Error('No signed URL');
+  return signed.signedUrl;
+}
 
 // Map mediaType → DiscussionType
 function mediaTypeToDiscussionType(mediaType: string | null): DiscussionType {
@@ -241,6 +267,29 @@ export default function CreateDiscussionModal() {
 
   const [title, setTitle] = useState(params.prefillTitle ?? '');
   const [body, setBody] = useState('');
+  const [imageUri, setImageUri] = useState<string | null>(null);
+  const [imageMime, setImageMime] = useState<string>('image/jpeg');
+  const [imageUploading, setImageUploading] = useState(false);
+
+  async function pickImage() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Permission needed', 'Allow photo access to attach an image.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      allowsEditing: true,
+      quality: 0.8,
+      aspect: [4, 3],
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setImageUri(asset.uri);
+      const mime = asset.mimeType ?? (asset.uri.endsWith('.png') ? 'image/png' : 'image/jpeg');
+      setImageMime(mime);
+    }
+  }
 
   // Poll (optional)
   const [pollEnabled, setPollEnabled] = useState(false);
@@ -258,7 +307,7 @@ export default function CreateDiscussionModal() {
     ? quizQuestions.every((q) => q.question.trim().length >= 3 && q.options.filter((o) => o.trim()).length >= 2)
     : pollQuestion.trim().length >= 3 && pollOptions.filter((o) => o.trim().length > 0).length >= 2
   );
-  const canPost = title.trim().length >= 3 && pollValid && !createDiscussion.isPending;
+  const canPost = title.trim().length >= 3 && pollValid && !createDiscussion.isPending && !imageUploading;
 
   function updateQuizQuestion(qi: number, text: string) {
     setQuizQuestions((prev) => prev.map((q, i) => i === qi ? { ...q, question: text } : q));
@@ -291,6 +340,18 @@ export default function CreateDiscussionModal() {
   async function handlePost() {
     if (!canPost) return;
     try {
+      let uploadedImageUrl: string | undefined;
+      if (imageUri && user) {
+        setImageUploading(true);
+        try {
+          uploadedImageUrl = await uploadDiscussionImage(user.id, imageUri!, imageMime);
+        } catch (err) {
+          console.error('Image upload error:', err);
+          Alert.alert('Upload failed', err instanceof Error ? err.message : String(err));
+        } finally {
+          setImageUploading(false);
+        }
+      }
       const id = await createDiscussion.mutateAsync({
         title,
         body,
@@ -300,6 +361,7 @@ export default function CreateDiscussionModal() {
         contentPoster: linked?.poster ?? undefined,
         contentExternalId: linked?.externalId,
         contentMediaType: linked?.mediaType,
+        imageUrl: uploadedImageUrl,
       });
       if (isQuiz) {
         const validQs = quizQuestions
@@ -368,7 +430,7 @@ export default function CreateDiscussionModal() {
           </Text>
           {step === 'write' ? (
             <Pressable onPress={handlePost} disabled={!canPost} hitSlop={12}>
-              {createDiscussion.isPending
+              {createDiscussion.isPending || imageUploading
                 ? <ActivityIndicator color={Brand.trust} />
                 : <Text style={[styles.post, !canPost && styles.postDisabled]}>Post</Text>}
             </Pressable>
@@ -458,6 +520,29 @@ export default function CreateDiscussionModal() {
               />
             </View>
             <Text style={[styles.charCount, { color: Brand.muted }]}>{body.length}/10000</Text>
+
+            {/* Photo attachment */}
+            {imageUri ? (
+              <View style={styles.imagePreviewWrap}>
+                <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
+                <Pressable
+                  style={styles.imageRemoveBtn}
+                  hitSlop={8}
+                  onPress={() => setImageUri(null)}>
+                  <View style={styles.imageRemoveCircle}>
+                    <SymbolView name="xmark" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
+                  </View>
+                </Pressable>
+              </View>
+            ) : (
+              <Pressable
+                style={[styles.addPhotoBtn, { borderColor: Brand.border }]}
+                onPress={pickImage}>
+                <SymbolView name="photo.badge.plus" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
+                <Text style={[styles.addPhotoText, { color: Brand.muted }]}>Add a photo</Text>
+                <Text style={[styles.addPhotoOptional, { color: Brand.muted }]}>optional</Text>
+              </Pressable>
+            )}
 
             {/* Poll toggle — always visible for poll/quiz, optional for others */}
             {!isPoll && (
@@ -684,6 +769,45 @@ function createStyles(Brand: BrandPalette) {
       fontSize: 11,
       textAlign: 'right',
       marginTop: 2,
+    },
+
+    // Photo
+    addPhotoBtn: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderRadius: 12,
+      paddingHorizontal: 14,
+      paddingVertical: 11,
+      marginTop: 4,
+    },
+    addPhotoText: { fontFamily: BrandFonts.syneBold, fontSize: 14, flex: 1 },
+    addPhotoOptional: { fontFamily: BrandFonts.interRegular, fontSize: 12 },
+    imagePreviewWrap: {
+      marginTop: 4,
+      borderRadius: 14,
+      overflow: 'hidden',
+      position: 'relative',
+    },
+    imagePreview: {
+      width: '100%',
+      height: 200,
+      borderRadius: 14,
+    },
+    imageRemoveBtn: {
+      position: 'absolute',
+      top: 8,
+      right: 8,
+    },
+    imageRemoveCircle: {
+      width: 24,
+      height: 24,
+      borderRadius: 12,
+      backgroundColor: 'rgba(0,0,0,0.55)',
+      alignItems: 'center',
+      justifyContent: 'center',
     },
 
     // Poll

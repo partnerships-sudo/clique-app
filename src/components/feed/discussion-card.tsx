@@ -98,8 +98,8 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
           {/* Title */}
           <Text style={styles.title} numberOfLines={3}>{item.title}</Text>
 
-          {/* Show name */}
-          {item.content_title ? (
+          {/* Show name — hidden when already inside that content room */}
+          {item.content_title && !suppressContentRoom ? (
             <Text style={styles.showName} numberOfLines={1}>{item.content_title}</Text>
           ) : null}
 
@@ -107,6 +107,7 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
           {item.body && item.format === 'hot_take' ? (
             <Text style={styles.bodySnippet} numberOfLines={2}>"{item.body}"</Text>
           ) : null}
+
 
           <View style={{ flex: 1 }} />
 
@@ -223,6 +224,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontStyle: 'italic',
     lineHeight: 16,
+  },
+  cardImageThumb: {
+    width: '100%',
+    height: 120,
+    borderRadius: 10,
+    marginTop: 6,
   },
 
   statsRow: {

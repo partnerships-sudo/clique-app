@@ -29,6 +29,7 @@ export interface Discussion {
   has_poll: boolean;
   is_quiz: boolean;
   format: 'discussion' | 'poll' | 'hot_take';
+  image_url: string | null;
 }
 
 export interface DiscussionComment {
@@ -110,6 +111,7 @@ export function useDiscussions(type?: DiscussionType | 'all') {
           has_poll: pollSet.has(row.id),
           is_quiz: quizSet.has(row.id),
           format: (row.format ?? 'discussion') as Discussion['format'],
+          image_url: row.image_url ?? null,
         } as Discussion;
       }).filter((d) => !d.is_quiz && (!type || type === 'all' || d.type === type));
     },
@@ -161,6 +163,7 @@ export function useDiscussion(id: string | undefined) {
         has_poll: pollSet.has(data.id),
         is_quiz: quizSet.has(data.id),
         format: (data.format ?? 'discussion') as Discussion['format'],
+        image_url: data.image_url ?? null,
       } as Discussion;
     },
     enabled: !!id,
@@ -224,6 +227,7 @@ export interface CreateDiscussionInput {
   contentPoster?: string;
   contentExternalId?: string;
   contentMediaType?: string;
+  imageUrl?: string;
 }
 
 export function useCreateDiscussion() {
@@ -243,6 +247,7 @@ export function useCreateDiscussion() {
           content_poster: input.contentPoster ?? null,
           content_external_id: input.contentExternalId ?? null,
           content_media_type: input.contentMediaType ?? null,
+          image_url: input.imageUrl ?? null,
         })
         .select('id')
         .single();
@@ -251,6 +256,8 @@ export function useCreateDiscussion() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['discussions'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-discussions'] });
+      queryClient.invalidateQueries({ queryKey: ['content-room-discussions'] });
     },
   });
 }
@@ -260,15 +267,17 @@ export function useCreateDiscussion() {
 export function useUpdateDiscussion() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, title, body }: { id: string; title: string; body: string | null }) => {
+    mutationFn: async ({ id, title, body, imageUrl }: { id: string; title: string; body: string | null; imageUrl?: string | null }) => {
+      const patch: Record<string, unknown> = { title: title.trim(), body: body?.trim() || null };
+      if (imageUrl !== undefined) patch.image_url = imageUrl;
       const { error } = await supabase
         .from('discussions')
-        .update({ title: title.trim(), body: body?.trim() || null })
+        .update(patch)
         .eq('id', id);
       if (error) throw error;
     },
     onSuccess: (_data, { id }) => {
-      queryClient.invalidateQueries({ queryKey: ['discussion', id] });
+      queryClient.refetchQueries({ queryKey: ['discussion', id] });
       queryClient.invalidateQueries({ queryKey: ['discussions'] });
     },
   });
@@ -384,6 +393,7 @@ export function useDeleteDiscussion() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['discussions'] });
+      queryClient.invalidateQueries({ queryKey: ['trending-discussions'] });
     },
   });
 }
@@ -473,6 +483,7 @@ export function useTrendingDiscussions(limit = 5, type?: DiscussionType | 'all')
           has_voted: votes.some((v) => v.user_id === user?.id && v.vote_type === "agree"), disagree_count: row.disagree_count ?? 0, has_disagreed: votes.some((v) => v.user_id === user?.id && v.vote_type === "disagree"),
           has_poll: pollSet.has(row.id), is_quiz: quizSet.has(row.id),
           format: (row.format ?? 'discussion') as Discussion['format'],
+          image_url: row.image_url ?? null,
         } as Discussion;
       }).filter((d) => !d.is_quiz);
     },
@@ -561,6 +572,7 @@ export function usePersonalizedRooms() {
           has_voted: votes.some((v) => v.user_id === user?.id && v.vote_type === "agree"), disagree_count: row.disagree_count ?? 0, has_disagreed: votes.some((v) => v.user_id === user?.id && v.vote_type === "disagree"),
           has_poll: pollSet.has(row.id), is_quiz: quizSet.has(row.id),
           format: (row.format ?? 'discussion') as Discussion['format'],
+          image_url: row.image_url ?? null,
         };
       };
 
@@ -639,6 +651,7 @@ export function useContentRoomDiscussions(externalId: string | undefined, mediaT
           has_voted: votes.some((v) => v.user_id === user?.id && v.vote_type === "agree"), disagree_count: row.disagree_count ?? 0, has_disagreed: votes.some((v) => v.user_id === user?.id && v.vote_type === "disagree"),
           has_poll: pollSet.has(row.id), is_quiz: quizSet.has(row.id),
           format: (row.format ?? 'discussion') as Discussion['format'],
+          image_url: row.image_url ?? null,
         } as Discussion;
       }).filter((d) => !d.is_quiz);
     },
@@ -1164,6 +1177,7 @@ export function useSavedDiscussions(limit?: number) {
           has_voted: votes.some((v: any) => v.user_id === user?.id && v.vote_type === "agree"), disagree_count: row.disagree_count ?? 0, has_disagreed: votes.some((v: any) => v.user_id === user?.id && v.vote_type === "disagree"),
           has_poll: pollSet.has(row.id), is_quiz: quizSet.has(row.id),
           format: (row.format ?? 'discussion') as Discussion['format'],
+          image_url: row.image_url ?? null,
         } as Discussion;
       }).filter((d) => !d.is_quiz);
     },
