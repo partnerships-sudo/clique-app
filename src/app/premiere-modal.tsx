@@ -18,6 +18,7 @@ import ViewShot from 'react-native-view-shot';
 import { SymbolView } from 'expo-symbols';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
+import { DrumPicker, WheelColumn, daysInMonth, MONTH_LABELS } from '@/components/drum-picker';
 import { useCreatePremiere } from '@/features/premieres/api';
 import { addPremiereToCalendar } from '@/features/premieres/use-add-to-calendar';
 import { useProfile } from '@/features/profile/api';
@@ -75,20 +76,45 @@ export default function PremiereModal() {
   const seasonNumber = hasParams ? params.seasonNumber : String(selectedEpisode?.seasonNumber ?? selectedSeason ?? '');
   const airDate = hasParams ? params.airDate : (selectedEpisode?.airDate ?? '');
 
-  // Party date: pre-fill from airDate only if it's upcoming (in the future)
-  const isUpcoming = airDate ? new Date(airDate + 'T12:00:00') > new Date() : false;
-  const [partyDate, setPartyDate] = useState('');
+  // Drum-picker constants
+  const THIS_YEAR = new Date().getFullYear();
+  const PARTY_YEARS = Array.from({ length: 4 }, (_, i) => String(THIS_YEAR + i));
+  const HOURS_PAD = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+  const MINUTES = ['00','15','30','45'];
+  const PERIODS = ['AM','PM'];
 
-  // Sync partyDate when episode selection changes
+  // Date wheel state — default to today
+  const [dayIdx, setDayIdx] = useState(new Date().getDate() - 1);
+  const [monthIdx, setMonthIdx] = useState(new Date().getMonth());
+  const [yearIdx, setYearIdx] = useState(0);
+  // Time wheel state — default 7:00 PM
+  const [hourIdx, setHourIdx] = useState(6);
+  const [minIdx, setMinIdx] = useState(0);
+  const [periodIdx, setPeriodIdx] = useState(1);
+
+  const partyYear = THIS_YEAR + yearIdx;
+  const dayItems = Array.from({ length: daysInMonth(monthIdx, partyYear) }, (_, i) => String(i + 1));
+
+  // Derived strings used downstream
+  const partyDate = `${partyYear}-${String(monthIdx + 1).padStart(2, '0')}-${String(dayIdx + 1).padStart(2, '0')}`;
+  const airTime = `${HOURS_PAD[hourIdx]}:${MINUTES[minIdx]} ${PERIODS[periodIdx]}`;
+
+  // Sync wheels when episode air date changes
   const prevAirDate = useRef('');
   if (airDate !== prevAirDate.current) {
     prevAirDate.current = airDate;
-    setPartyDate(isUpcoming ? airDate : '');
+    const isUpcoming = airDate ? new Date(airDate + 'T12:00:00') > new Date() : false;
+    if (isUpcoming) {
+      const d = new Date(airDate + 'T12:00:00');
+      const yIdx = PARTY_YEARS.indexOf(String(d.getFullYear()));
+      setYearIdx(yIdx >= 0 ? yIdx : 0);
+      setMonthIdx(d.getMonth());
+      setDayIdx(d.getDate() - 1);
+    }
   }
 
   // Form state
   const [tagline, setTagline] = useState('');
-  const [airTime, setAirTime] = useState('');
   const [isSharing, setIsSharing] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
@@ -137,10 +163,7 @@ export default function PremiereModal() {
       Alert.alert('Missing title', 'Please select a show or movie first.');
       return;
     }
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(partyDate)) {
-      Alert.alert('Invalid date', 'Please enter a date in YYYY-MM-DD format, e.g. 2026-08-10.');
-      return;
-    }
+    // partyDate is always valid — derived from wheel indices
     try {
       const isMovie = selectedShow?.mediaType === 'movie' || (hasParams && !params.episodeNumber);
       const premiere = await createPremiere.mutateAsync({
@@ -372,45 +395,58 @@ export default function PremiereModal() {
 
         {/* Watch party date */}
         <Text style={styles.sectionLabel}>Watch party date</Text>
-        <TextInput
-          style={[styles.taglineInput, partyDate && !/^\d{4}-\d{2}-\d{2}$/.test(partyDate) && { borderColor: '#E05252' }]}
-          placeholder="YYYY-MM-DD  e.g. 2026-08-10"
-          placeholderTextColor={Brand.muted}
-          value={partyDate}
-          onChangeText={(v) => {
-            // Auto-insert dashes: "20260810" → "2026-08-10"
-            const digits = v.replace(/\D/g, '').slice(0, 8);
-            let formatted = digits;
-            if (digits.length > 4) formatted = digits.slice(0, 4) + '-' + digits.slice(4);
-            if (digits.length > 6) formatted = digits.slice(0, 4) + '-' + digits.slice(4, 6) + '-' + digits.slice(6);
-            setPartyDate(formatted);
-          }}
-          keyboardType="numbers-and-punctuation"
-          autoCorrect={false}
-        />
+        <View style={styles.drumCard}>
+          <View style={styles.drumHeader}>
+            {['MONTH', 'DAY', 'YEAR'].map((l, i) => (
+              <View key={l} style={{ flex: 1, flexDirection: 'row' }}>
+                {i > 0 && <View style={styles.drumDividerV} />}
+                <Text style={styles.drumColLabel}>{l}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <WheelColumn
+              items={MONTH_LABELS}
+              selectedIndex={monthIdx}
+              onSelect={(i) => { setMonthIdx(i); const max = daysInMonth(i, partyYear) - 1; if (dayIdx > max) setDayIdx(max); }}
+            />
+            <View style={styles.drumDividerV} />
+            <WheelColumn
+              items={dayItems}
+              selectedIndex={dayIdx}
+              onSelect={setDayIdx}
+            />
+            <View style={styles.drumDividerV} />
+            <WheelColumn
+              items={PARTY_YEARS}
+              selectedIndex={yearIdx}
+              onSelect={(i) => { setYearIdx(i); const max = daysInMonth(monthIdx, THIS_YEAR + i) - 1; if (dayIdx > max) setDayIdx(max); }}
+            />
+          </View>
+        </View>
 
         {/* Start time */}
         <View style={styles.sectionLabelRow}>
           <Text style={styles.sectionLabel}>Start time</Text>
           {tzAbbr ? <Text style={styles.tzLabel}>{tzAbbr}</Text> : null}
         </View>
-        <View style={styles.timeRow}>
-          {['7:00 PM', '8:00 PM', '9:00 PM', '10:00 PM'].map((t) => (
-            <Pressable
-              key={t}
-              style={[styles.timeChip, airTime === t && styles.timeChipActive]}
-              onPress={() => setAirTime(airTime === t ? '' : t)}>
-              <Text style={[styles.timeChipText, airTime === t && styles.timeChipTextActive]}>{t}</Text>
-            </Pressable>
-          ))}
+        <View style={styles.drumCard}>
+          <View style={styles.drumHeader}>
+            {['HOUR', 'MIN', 'AM / PM'].map((l, i) => (
+              <View key={l} style={{ flex: 1, flexDirection: 'row' }}>
+                {i > 0 && <View style={styles.drumDividerV} />}
+                <Text style={styles.drumColLabel}>{l}</Text>
+              </View>
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row' }}>
+            <WheelColumn items={HOURS_PAD} selectedIndex={hourIdx} onSelect={setHourIdx} />
+            <View style={styles.drumDividerV} />
+            <WheelColumn items={MINUTES} selectedIndex={minIdx} onSelect={setMinIdx} />
+            <View style={styles.drumDividerV} />
+            <WheelColumn items={PERIODS} selectedIndex={periodIdx} onSelect={setPeriodIdx} />
+          </View>
         </View>
-        <TextInput
-          style={styles.taglineInput}
-          placeholder="Or enter a custom time, e.g. 8:30 PM ET"
-          placeholderTextColor={Brand.muted}
-          value={airTime}
-          onChangeText={setAirTime}
-        />
 
         {/* Invite card preview */}
         <Text style={styles.sectionLabel}>Invite card preview</Text>
@@ -613,11 +649,10 @@ function createStyles(Brand: BrandPalette) {
     taglineInput: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14, fontFamily: BrandFonts.interRegular, color: Brand.ink, backgroundColor: Brand.paper, marginBottom: Spacing.three, minHeight: 52 },
     sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
     tzLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11.5, color: Brand.muted, backgroundColor: Brand.border, paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 },
-    timeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
-    timeChip: { borderWidth: 1.5, borderColor: Brand.border, borderRadius: 20, paddingVertical: 7, paddingHorizontal: 14 },
-    timeChipActive: { borderColor: '#7C3AED', backgroundColor: '#7C3AED' },
-    timeChipText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
-    timeChipTextActive: { color: '#fff' },
+    drumCard: { backgroundColor: Brand.card, borderRadius: 16, borderWidth: 1.5, borderColor: Brand.border, overflow: 'hidden', marginBottom: 20 },
+    drumHeader: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Brand.border },
+    drumColLabel: { flex: 1, textAlign: 'center', paddingVertical: 7, fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted, textTransform: 'uppercase', letterSpacing: 0.8 },
+    drumDividerV: { width: 1, backgroundColor: Brand.border },
     footer: { padding: Spacing.three, borderTopWidth: 1, borderTopColor: Brand.border, backgroundColor: Brand.paper },
     calendarBtn: { borderWidth: 1.5, borderColor: '#7C3AED', borderRadius: 14, paddingVertical: 13, alignItems: 'center', marginBottom: 10 },
     calendarBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: '#7C3AED' },

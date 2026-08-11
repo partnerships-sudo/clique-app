@@ -75,6 +75,9 @@ export default function ProfileTab() {
             onLoggedPress={() =>
               router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'logged', name: profile?.full_name ?? profile?.username ?? 'You' } })
             }
+            onThisYearPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'logged', year: String(new Date().getFullYear()), name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
             onFollowersPress={() =>
               router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'followers', name: profile?.full_name ?? profile?.username ?? 'You' } })
             }

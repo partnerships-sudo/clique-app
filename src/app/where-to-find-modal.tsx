@@ -8,6 +8,8 @@ import * as WebBrowser from 'expo-web-browser';
 import { useContentDetails } from '@/features/content/api';
 import { useCinemaDetails } from '@/features/movies/api';
 import { getWhereToFindConfig, type StoreLink } from '@/features/where-to-find/links';
+import { track, Events } from '@/features/analytics/api';
+import { useSession } from '@/hooks/use-session';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function WhereToFindModal() {
@@ -38,8 +40,15 @@ export default function WhereToFindModal() {
   const [synopsisExpanded, setSynopsisExpanded] = useState(false);
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { user } = useSession();
 
   function openStore(store: StoreLink) {
+    track(user?.id, Events.PURCHASE_LINK_CLICKED, {
+      store: store.name,
+      title: params.title,
+      type: params.type,
+      url: store.url,
+    });
     Linking.openURL(store.url).catch(() => {});
   }
 

@@ -57,9 +57,8 @@ function useReadState(type: ThreadType) {
   const isUnread = useCallback(
     (threadKey: string, messageTime: string) => {
       const lastRead = readMap[threadKey];
-      // Never opened → not unread. Only show unread after the user has
-      // visited the thread at least once and new messages arrived after.
-      if (!lastRead) return false;
+      // Never opened → treat as unread so new messages always show a badge.
+      if (!lastRead) return true;
       return new Date(messageTime) > new Date(lastRead);
     },
     [readMap],

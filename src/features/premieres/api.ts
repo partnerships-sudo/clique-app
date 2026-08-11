@@ -320,21 +320,9 @@ export function useInviteToPremiere() {
         });
       }
 
-      // Push notification
-      const { data: tokens } = await supabase.from('push_tokens').select('token').eq('user_id', friendId);
-      if (tokens && tokens.length > 0) {
-        await fetch('https://exp.host/--/api/v2/push/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(tokens.map((t) => ({
-            to: t.token,
-            title: `${hostName} invited you to a watch party 🎬`,
-            body: showTitle,
-            data: { type: 'watch_party_invite', premiereId },
-            sound: 'default',
-          }))),
-        });
-      }
+      // Push is handled server-side by the send-notification edge function
+      // which fires on the direct_messages INSERT above using the service role
+      // key (bypasses RLS). Client-side token queries are blocked by RLS.
     },
   });
 }
@@ -373,20 +361,7 @@ export function useResendPremiereInvite() {
         });
       }
 
-      const { data: tokens } = await supabase.from('push_tokens').select('token').eq('user_id', friendId);
-      if (tokens && tokens.length > 0) {
-        await fetch('https://exp.host/--/api/v2/push/send', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(tokens.map((t) => ({
-            to: t.token,
-            title: `${hostName} sent you a reminder 🎬`,
-            body: showTitle,
-            data: { type: 'watch_party_invite', premiereId },
-            sound: 'default',
-          }))),
-        });
-      }
+      // Push handled by send-notification edge function on direct_messages INSERT.
     },
   });
 }
@@ -405,6 +380,7 @@ export function usePremiereMessages(premiereId: string | null) {
       return data as PremiereMessage[];
     },
     enabled: !!premiereId,
+    refetchInterval: 5_000, // fallback poll — catches messages realtime misses if RLS blocks other users' inserts
   });
 }
 
@@ -466,6 +442,7 @@ export function usePremiereMembers(premiereId: string | null) {
       }) as PremiereMember[];
     },
     enabled: !!premiereId,
+    refetchInterval: 10_000, // poll every 10s so RSVP changes show up on the host's screen
   });
 }
 
@@ -530,6 +507,126 @@ export function useToggleReaction() {
     },
     onSuccess: (_data, { premiereId }) => {
       queryClient.invalidateQueries({ queryKey: ['premiere-reactions', premiereId] });
+    },
+  });
+}
+
+// ─── Co-hosts ─────────────────────────────────────────────────────────────────
+
+export type CoHostStatus = 'pending' | 'accepted' | 'declined';
+
+export interface PremiereCoHost {
+  id: string;
+  premiere_id: string;
+  user_id: string;
+  invited_by: string;
+  status: CoHostStatus;
+  // joined from profiles
+  full_name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+}
+
+export function usePremiereCoHosts(premiereId: string | null) {
+  return useQuery({
+    queryKey: ['premiere-cohosts', premiereId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premiere_cohosts')
+        .select('*')
+        .eq('premiere_id', premiereId!);
+      if (error) throw error;
+      const rows = data ?? [];
+      if (rows.length === 0) return [] as PremiereCoHost[];
+      const userIds = rows.map((r: any) => r.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, username, avatar_url')
+        .in('id', userIds);
+      const profileMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
+      return rows.map((r: any) => {
+        const p = profileMap.get(r.user_id);
+        return { ...r, full_name: p?.full_name ?? null, username: p?.username ?? null, avatar_url: p?.avatar_url ?? null };
+      }) as PremiereCoHost[];
+    },
+    enabled: !!premiereId,
+    refetchInterval: 10_000,
+  });
+}
+
+export function useIsCoHost(premiereId: string | null) {
+  const { user } = useSession();
+  const { data: cohosts = [] } = usePremiereCoHosts(premiereId);
+  return cohosts.some((c) => c.user_id === user?.id && c.status === 'accepted');
+}
+
+export function useMyCoHostInvite(premiereId: string | null) {
+  const { user } = useSession();
+  const { data: cohosts = [] } = usePremiereCoHosts(premiereId);
+  return cohosts.find((c) => c.user_id === user?.id) ?? null;
+}
+
+export function useInviteCoHost() {
+  const { user } = useSession();
+  const { data: profile } = useProfile();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ premiereId, friendId }: { premiereId: string; friendId: string }) => {
+      const { error } = await supabase
+        .from('premiere_cohosts')
+        .upsert({ premiere_id: premiereId, user_id: friendId, invited_by: user!.id, status: 'pending' }, { onConflict: 'premiere_id,user_id', ignoreDuplicates: true });
+      if (error) throw error;
+      // DM notification
+      const hostName = profile?.full_name ?? profile?.username ?? 'Someone';
+      const { data: premiere } = await supabase
+        .from('premieres')
+        .select('show_title')
+        .eq('id', premiereId)
+        .single();
+      if (premiere && user) {
+        await supabase.from('direct_messages').insert({
+          sender_id: user.id,
+          recipient_id: friendId,
+          content: JSON.stringify({
+            __cohost_invite: true,
+            premiereId,
+            title: premiere.show_title,
+            hostName,
+          }),
+        });
+      }
+    },
+    onSuccess: (_data, { premiereId }) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere-cohosts', premiereId] });
+    },
+  });
+}
+
+export function useRespondToCoHostInvite() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ inviteId, premiereId, accept }: { inviteId: string; premiereId: string; accept: boolean }) => {
+      const { error } = await supabase
+        .from('premiere_cohosts')
+        .update({ status: accept ? 'accepted' : 'declined' })
+        .eq('id', inviteId);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { premiereId }) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere-cohosts', premiereId] });
+    },
+  });
+}
+
+export function useRemoveCoHost() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, premiereId }: { id: string; premiereId: string }) => {
+      const { error } = await supabase.from('premiere_cohosts').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_data, { premiereId }) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere-cohosts', premiereId] });
     },
   });
 }

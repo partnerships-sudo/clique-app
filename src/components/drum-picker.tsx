@@ -4,13 +4,15 @@ import { ScrollView, Text, View } from 'react-native';
 import { BrandFonts } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 
-const ITEM_H = 20;
-const VISIBLE = 3;
-const DRUM_PAD = 1 * ITEM_H;
+// ─── Shared constants ─────────────────────────────────────────────────────────
 
-export { ITEM_H };
+export const ITEM_H = 32;   // row height
+const VISIBLE   = 3;        // rows visible at once (odd → selected is centred)
+const PAD       = Math.floor(VISIBLE / 2) * ITEM_H; // top/bottom padding
 
-export function DrumPicker({
+// ─── Shared implementation ────────────────────────────────────────────────────
+
+function PickerColumn({
   items,
   selectedIndex,
   onSelect,
@@ -21,10 +23,11 @@ export function DrumPicker({
   onSelect: (i: number) => void;
   scrollRef?: React.RefObject<ScrollView | null>;
 }) {
-  const Brand = useBrand();
+  const Brand       = useBrand();
   const internalRef = useRef<ScrollView>(null);
-  const ref = externalRef ?? internalRef;
+  const ref         = externalRef ?? internalRef;
 
+  // Set initial scroll position without animation
   useEffect(() => {
     const t = setTimeout(() => {
       ref.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: false });
@@ -33,48 +36,57 @@ export function DrumPicker({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function onMomentumScrollEnd(e: { nativeEvent: { contentOffset: { y: number } } }) {
+  // Follow external index changes (e.g. day clamping when month changes)
+  useEffect(() => {
+    ref.current?.scrollTo({ y: selectedIndex * ITEM_H, animated: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedIndex]);
+
+  function onScrollEnd(e: { nativeEvent: { contentOffset: { y: number } } }) {
     const idx = Math.round(e.nativeEvent.contentOffset.y / ITEM_H);
     onSelect(Math.max(0, Math.min(idx, items.length - 1)));
   }
 
+  const TOTAL_H = VISIBLE * ITEM_H;
+
   return (
-    <View style={{ flex: 1, height: VISIBLE * ITEM_H }}>
-      {/* Centre highlight bar */}
+    <View style={{ flex: 1, height: TOTAL_H, overflow: 'hidden' }}>
+
+      {/* ── Selection highlight bar ── */}
       <View
         pointerEvents="none"
         style={{
-          position: 'absolute',
-          top: DRUM_PAD,
-          left: 3,
-          right: 3,
-          height: ITEM_H,
+          position:        'absolute',
+          top:             PAD,
+          left:            6,
+          right:           6,
+          height:          ITEM_H,
           backgroundColor: Brand.tlight,
-          borderRadius: 10,
-          borderWidth: 1.5,
-          borderColor: Brand.trust + '55',
+          borderRadius:    12,
+          borderWidth:     1.5,
+          borderColor:     Brand.trust + '55',
         }}
       />
 
+      {/* ── Scrollable item list ── */}
       <ScrollView
         ref={ref}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_H}
         decelerationRate="fast"
         nestedScrollEnabled
-        onMomentumScrollEnd={onMomentumScrollEnd}
-        contentContainerStyle={{ paddingVertical: DRUM_PAD }}
+        onMomentumScrollEnd={onScrollEnd}
+        onScrollEndDrag={onScrollEnd}
+        contentContainerStyle={{ paddingVertical: PAD }}
       >
         {items.map((label, i) => {
-          const selected = i === selectedIndex;
+          const dist       = Math.abs(i - selectedIndex);
+          const opacity    = dist === 0 ? 1 : dist === 1 ? 0.45 : 0.2;
+          const fontFamily = dist === 0 ? BrandFonts.syneBold : BrandFonts.interRegular;
+          const fontSize   = dist === 0 ? 17 : dist === 1 ? 14 : 12;
           return (
             <View key={label + i} style={{ height: ITEM_H, justifyContent: 'center', alignItems: 'center' }}>
-              <Text
-                style={{
-                  fontFamily: selected ? BrandFonts.syneBold : BrandFonts.interRegular,
-                  fontSize: selected ? 13 : 11,
-                  color: selected ? Brand.ink : Brand.muted,
-                }}>
+              <Text style={{ fontFamily, fontSize, color: Brand.ink, opacity }}>
                 {label}
               </Text>
             </View>
@@ -82,93 +94,56 @@ export function DrumPicker({
         })}
       </ScrollView>
 
-      {/* Top fade */}
+      {/* ── Top fade ── */}
       <View
         pointerEvents="none"
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, height: DRUM_PAD, backgroundColor: Brand.card, opacity: 0.82 }}
+        style={{
+          position:        'absolute',
+          top:             0,
+          left:            0,
+          right:           0,
+          height:          PAD,
+          backgroundColor: Brand.card,
+          opacity:         0.78,
+        }}
       />
-      {/* Bottom fade */}
+      {/* ── Bottom fade ── */}
       <View
         pointerEvents="none"
-        style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: DRUM_PAD, backgroundColor: Brand.card, opacity: 0.82 }}
+        style={{
+          position:        'absolute',
+          bottom:          0,
+          left:            0,
+          right:           0,
+          height:          PAD,
+          backgroundColor: Brand.card,
+          opacity:         0.78,
+        }}
       />
     </View>
   );
 }
 
-// ─── iOS-style wheel column ───────────────────────────────────────────────────
-// Uses an invisible ScrollView for gesture capture (proven to work in this app),
-// overlaid with a visual display showing selected value large + next value below.
+// ─── Public exports ───────────────────────────────────────────────────────────
 
-const WHEEL_SNAP = 44;
-
-export function WheelColumn({
-  items,
-  selectedIndex,
-  onSelect,
-  scrollRef: externalRef,
-}: {
+/** Single-column picker (standalone, used in signup & watch-parties). */
+export function DrumPicker(props: {
   items: string[];
   selectedIndex: number;
   onSelect: (i: number) => void;
   scrollRef?: React.RefObject<ScrollView | null>;
 }) {
-  const Brand = useBrand();
-  const internalRef = useRef<ScrollView>(null);
-  const ref = externalRef ?? internalRef;
+  return <PickerColumn {...props} />;
+}
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      ref.current?.scrollTo({ y: selectedIndex * WHEEL_SNAP, animated: false });
-    }, 80);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Scroll to correct position when selectedIndex changes externally
-  useEffect(() => {
-    ref.current?.scrollTo({ y: selectedIndex * WHEEL_SNAP, animated: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedIndex]);
-
-  function onScrollEnd(e: { nativeEvent: { contentOffset: { y: number } } }) {
-    const idx = Math.round(e.nativeEvent.contentOffset.y / WHEEL_SNAP);
-    onSelect(Math.max(0, Math.min(idx, items.length - 1)));
-  }
-
-  const nextIdx = (selectedIndex + 1) % items.length;
-  const COLUMN_H = 80;
-
-  return (
-    <View style={{ flex: 1, height: COLUMN_H }}>
-      {/* Transparent ScrollView underneath — captures gestures, no opacity tricks */}
-      <ScrollView
-        ref={ref}
-        style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'transparent' }}
-        snapToInterval={WHEEL_SNAP}
-        decelerationRate="fast"
-        nestedScrollEnabled
-        onMomentumScrollEnd={onScrollEnd}
-        onScrollEndDrag={onScrollEnd}
-        showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: WHEEL_SNAP }}
-      >
-        {items.map((_, i) => (
-          <View key={i} style={{ height: WHEEL_SNAP, backgroundColor: 'transparent' }} />
-        ))}
-      </ScrollView>
-
-      {/* Visual display on top — pointer events none so touches fall through to ScrollView */}
-      <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-        <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 22, color: Brand.ink, lineHeight: 26 }}>
-          {items[selectedIndex]}
-        </Text>
-        <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted }}>
-          {items[nextIdx]}
-        </Text>
-      </View>
-    </View>
-  );
+/** Column picker designed to sit inside a flex-row multi-column layout. */
+export function WheelColumn(props: {
+  items: string[];
+  selectedIndex: number;
+  onSelect: (i: number) => void;
+  scrollRef?: React.RefObject<ScrollView | null>;
+}) {
+  return <PickerColumn {...props} />;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

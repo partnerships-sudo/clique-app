@@ -53,6 +53,9 @@ export default function ProfileScreen() {
             onLoggedPress={() =>
               router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'logged', name: profile?.full_name ?? profile?.username ?? 'You' } })
             }
+            onThisYearPress={() =>
+              router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'logged', year: String(new Date().getFullYear()), name: profile?.full_name ?? profile?.username ?? 'You' } })
+            }
             onFollowersPress={() =>
               router.push({ pathname: '/profile-stats-modal', params: { userId: profile?.id, tab: 'followers', name: profile?.full_name ?? profile?.username ?? 'You' } })
             }
@@ -89,8 +92,8 @@ function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: Brand.paper },
   scroll: { flex: 1 },
-  content: { padding: Spacing.three, paddingBottom: Spacing.six },
-  backRow: { marginBottom: Spacing.three },
+  content: { paddingBottom: Spacing.six },
+  backRow: { marginBottom: Spacing.three, paddingHorizontal: Spacing.three },
   backBtn: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.trust },
   });
 }

@@ -68,7 +68,23 @@ export function FriendCard({
         {/* Right column: currently watching + chat button */}
         <View style={styles.rightCol}>
           {currentlyWatching ? (
-            <View style={styles.watching}>
+            <Pressable
+              style={styles.watching}
+              onPress={() => router.push({
+                pathname: '/collection-item-detail-modal',
+                params: {
+                  id: currentlyWatching.id,
+                  title: currentlyWatching.title,
+                  type: currentlyWatching.type ?? undefined,
+                  poster: currentlyWatching.poster ?? undefined,
+                  sub: currentlyWatching.sub ?? undefined,
+                  externalId: currentlyWatching.external_id ?? undefined,
+                  mediaType: currentlyWatching.media_type ?? undefined,
+                  userRating: currentlyWatching.rating?.toString() ?? undefined,
+                  note: currentlyWatching.note ?? undefined,
+                  isOwner: '0',
+                },
+              })}>
               <Text style={styles.watchingLabel}>{
                 currentlyWatching.type === 'read' ? 'RECENTLY READ' :
                 currentlyWatching.type === 'play' ? 'RECENTLY PLAYED' :
@@ -81,7 +97,7 @@ export function FriendCard({
                 ) : null}
                 <Text style={styles.watchingTitle} numberOfLines={3}>{currentlyWatching.title}</Text>
               </View>
-            </View>
+            </Pressable>
           ) : null}
           <Pressable
             style={styles.chatBtn}

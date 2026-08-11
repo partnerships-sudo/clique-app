@@ -48,7 +48,7 @@ export default function AchievementsModal() {
 
   return (
     <>
-    <SafeAreaView style={styles.safeArea} edges={['top']}>
+    <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
       <View style={styles.header} collapsable={false}>
         <View style={styles.headerTopRow}>
           <Pressable onPress={() => router.back()} hitSlop={16}>
@@ -65,7 +65,7 @@ export default function AchievementsModal() {
       {isLoading ? (
         <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
       ) : (
-          <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             {BADGE_CATEGORIES.map((category) => {
               const inCategory = badges.filter((b) => b.category === category);
               if (!inCategory.length) return null;

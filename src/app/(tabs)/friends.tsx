@@ -49,6 +49,7 @@ import {
 } from '@/features/premieres/api';
 import {
   useMyScreeningRooms,
+  useAttendingScreeningRooms,
   useDeleteScreeningRoom,
   type ScreeningRoom,
 } from '@/features/screening-rooms/api';
@@ -69,11 +70,9 @@ const WP_STATUS_COLOR: Record<string, string> = {
 function effectivePremiereStatus(item: { status: string; air_date: string | null; air_time: string | null }): string {
   if (item.status !== 'waiting') return item.status;
   if (!item.air_date) return item.status;
-  try {
-    const time = item.air_time ?? '23:59';
-    const scheduled = new Date(`${item.air_date}T${time}`);
-    if (scheduled < new Date()) return 'ended';
-  } catch {}
+  // If the date itself is in the past (ignoring time), it's definitely ended
+  const dateOnly = new Date(item.air_date + 'T23:59:00');
+  if (!isNaN(dateOnly.getTime()) && dateOnly < new Date()) return 'ended';
   return item.status;
 }
 
@@ -84,17 +83,29 @@ function formatPartyDate(airDate: string | null): string {
   } catch { return airDate; }
 }
 
+function effectiveScreeningStatus(item: ScreeningRoom): string {
+  if (item.status !== 'waiting') return item.status;
+  if (!item.air_date) return item.status;
+  const d = new Date(item.air_date + 'T23:59:00');
+  if (!isNaN(d.getTime()) && d < new Date()) return 'ended';
+  return item.status;
+}
+
 function ScreeningRoomCard({ item, Brand, styles, deleteScreeningRoom }: {
   item: ScreeningRoom; Brand: BrandPalette; styles: any; deleteScreeningRoom: { mutate: (id: string) => void };
 }) {
-  const statusColor = item.status === 'live' ? '#22C55E' : item.status === 'ended' ? '#6B7280' : '#F59E0B';
-  const statusLabel = item.status === 'live' ? '● Live' : item.status === 'ended' ? 'Ended' : 'Waiting';
-  const ended = item.status === 'ended';
+  const effStatus = effectiveScreeningStatus(item);
+  const statusColor = effStatus === 'live' ? '#22C55E' : effStatus === 'ended' ? '#6B7280' : '#F59E0B';
+  const statusLabel = effStatus === 'live' ? '● Live' : effStatus === 'ended' ? 'Ended' : 'Scheduled';
+  const ended = effStatus === 'ended';
   const endedDate = item.ended_at
     ? new Date(item.ended_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
     : item.created_at
       ? new Date(item.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
       : '';
+  const airLine = item.air_date && item.air_time
+    ? `${new Date(item.air_date + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} · ${item.air_time}`
+    : null;
   return (
     <View style={styles.wpCard}>
       <Pressable style={styles.wpCardMain} onPress={() => !ended && router.push({ pathname: '/screening-room-live', params: { id: item.id } })}>
@@ -107,8 +118,9 @@ function ScreeningRoomCard({ item, Brand, styles, deleteScreeningRoom }: {
             {ended && endedDate ? <Text style={styles.wpDate}>{endedDate}</Text> : null}
           </View>
           <Text style={styles.wpShowTitle} numberOfLines={1}>{item.title}</Text>
-          {item.description ? <Text style={styles.wpEpisodeTitle} numberOfLines={1}>{item.description}</Text> : null}
-          {!ended && <Text style={styles.wpDate}>{item.video_type === 'youtube' ? '▶ YouTube' : '▶ Direct video'}</Text>}
+          {item.tagline ? <Text style={styles.wpEpisodeTitle} numberOfLines={1}>{item.tagline}</Text> : null}
+          {!ended && airLine && <Text style={styles.wpDate}>{airLine}</Text>}
+          {!ended && !airLine && <Text style={styles.wpDate}>{item.video_type === 'youtube' ? '▶ YouTube' : '▶ Direct video'}</Text>}
         </View>
       </Pressable>
       <View style={styles.wpCardActions}>
@@ -141,10 +153,12 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
   const [wpTab, setWpTab] = useState<WatchPartyTab>(() =>
     params.tab === 'attending' ? 'attending' : 'hosting'
   );
+  const [pastExpanded, setPastExpanded] = useState(false);
   const { data: hosted = [], isLoading: hostedLoading } = useMyPremieres();
   const { data: attending = [], isLoading: attendingLoading } = useAttendingPremieres() as { data: PremiereWithRsvp[]; isLoading: boolean };
   const updateRsvp = useUpdateRsvp();
   const { data: screeningRooms = [], isLoading: screeningLoading } = useMyScreeningRooms();
+  const { data: attendingScreeningRooms = [] } = useAttendingScreeningRooms();
   const deleteScreeningRoom = useDeleteScreeningRoom();
   const updatePremiere = useUpdatePremiere();
   const deletePremiere = useDeletePremiere();
@@ -299,10 +313,10 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
       {wpTab === 'screening' ? (
         <>
           {screeningLoading ? <ActivityIndicator style={{ marginTop: 24 }} color={Brand.trust} /> : null}
-          {screeningRooms.filter((r) => r.status !== 'ended').length > 0 && (
+          {screeningRooms.filter((r) => effectiveScreeningStatus(r) !== 'ended').length > 0 && (
             <>
               <Text style={styles.wpSectionHeader}>Active</Text>
-              {screeningRooms.filter((r) => r.status !== 'ended').map((item, i) => (
+              {screeningRooms.filter((r) => effectiveScreeningStatus(r) !== 'ended').map((item, i) => (
                 <View key={item.id}>
                   {i > 0 && <View style={{ height: 12 }} />}
                   <ScreeningRoomCard item={item} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
@@ -310,10 +324,10 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
               ))}
             </>
           )}
-          {screeningRooms.filter((r) => r.status === 'ended').length > 0 && (
+          {screeningRooms.filter((r) => effectiveScreeningStatus(r) === 'ended').length > 0 && (
             <>
               <Text style={[styles.wpSectionHeader, { marginTop: 24 }]}>History</Text>
-              {screeningRooms.filter((r) => r.status === 'ended').map((item, i) => (
+              {screeningRooms.filter((r) => effectiveScreeningStatus(r) === 'ended').map((item, i) => (
                 <View key={item.id}>
                   {i > 0 && <View style={{ height: 12 }} />}
                   <ScreeningRoomCard item={item} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
@@ -333,10 +347,12 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
         <ActivityIndicator style={{ marginTop: 24 }} color={Brand.trust} />
       ) : wpTab === 'attending' ? (
         (() => {
-          const invites = attending.filter((p) => p.rsvp_status === 'invited');
-          const going = attending.filter((p) => p.rsvp_status === 'attending');
-          const maybe = attending.filter((p) => p.rsvp_status === 'maybe');
-          const notGoing = attending.filter((p) => p.rsvp_status === 'not_attending');
+          const isActive = (p: PremiereWithRsvp) => { const s = effectivePremiereStatus(p); return s !== 'ended' && s !== 'replay'; };
+          const invites = attending.filter((p) => p.rsvp_status === 'invited' && isActive(p));
+          const going = attending.filter((p) => p.rsvp_status === 'attending' && isActive(p));
+          const maybe = attending.filter((p) => p.rsvp_status === 'maybe' && isActive(p));
+          const notGoing = attending.filter((p) => p.rsvp_status === 'not_attending' && isActive(p));
+          const pastAttending = attending.filter((p) => !isActive(p));
           if (attending.length === 0) {
             return (
               <View style={styles.wpEmpty}>
@@ -384,13 +400,13 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'attending' ? Brand.trust : Brand.muted }]}>✓ Going</Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.wpActionBtn, item.rsvp_status === 'maybe' && { borderColor: Brand.muted }]}
+                    style={[styles.wpActionBtn, styles.wpActionBtnDelete, item.rsvp_status === 'maybe' && { borderColor: Brand.muted }]}
                     hitSlop={16}
                     onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'maybe' })}>
                     <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'maybe' ? Brand.ink : Brand.muted }]}>? Maybe</Text>
                   </Pressable>
                   <Pressable
-                    style={[styles.wpActionBtn, item.rsvp_status === 'not_attending' && { borderColor: '#E84F4F' }]}
+                    style={[styles.wpActionBtn, styles.wpActionBtnDelete, item.rsvp_status === 'not_attending' && { borderColor: '#E84F4F' }]}
                     hitSlop={16}
                     onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'not_attending' })}>
                     <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'not_attending' ? '#E84F4F' : Brand.muted }]}>✕ Can't</Text>
@@ -425,6 +441,30 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   {notGoing.map(renderRsvpCard)}
                 </>
               )}
+              {pastAttending.length > 0 && (
+                <View style={{ marginTop: 24, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Brand.border, paddingTop: 4 }}>
+                  <Pressable
+                    style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 }}
+                    onPress={() => setPastExpanded((v) => !v)}>
+                    <Text style={{ fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted }}>
+                      Past parties ({pastAttending.length})
+                    </Text>
+                    <Text style={{ color: Brand.muted, fontSize: 13 }}>{pastExpanded ? '▲' : '▼'}</Text>
+                  </Pressable>
+                  {pastExpanded && pastAttending.map(renderRsvpCard)}
+                </View>
+              )}
+              {attendingScreeningRooms.length > 0 && (
+                <>
+                  <Text style={[styles.wpSectionHeader, { marginTop: 16 }]}>Screening Rooms</Text>
+                  {attendingScreeningRooms.map((item, i) => (
+                    <View key={item.id}>
+                      {i > 0 && <View style={{ height: 12 }} />}
+                      <ScreeningRoomCard item={item} Brand={Brand} styles={styles} deleteScreeningRoom={deleteScreeningRoom} />
+                    </View>
+                  ))}
+                </>
+              )}
             </>
           );
         })()
@@ -435,7 +475,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
           <Text style={styles.wpEmptySub}>Host one and invite your friends.</Text>
         </View>
       ) : (
-        list.map((item, i) => {
+        <>
+          {list.filter((p) => { const s = effectivePremiereStatus(p); return s !== 'ended' && s !== 'replay'; }).map((item, i) => {
           const effStatus = effectivePremiereStatus(item);
           const canEnter = effStatus === 'waiting' || effStatus === 'live';
           return (
@@ -466,13 +507,13 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     {item.tagline ? <Text style={styles.wpTagline} numberOfLines={1}>"{item.tagline}"</Text> : null}
                   </View>
                 </Pressable>
-                {effStatus !== 'ended' ? (
+                {effStatus !== 'ended' && effStatus !== 'replay' ? (
                   <View style={styles.wpCardActions}>
                     <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => openInvite(item)}>
                       <SymbolView name="paperplane.fill" size={15} tintColor={Brand.trust} type="monochrome" />
                       <Text style={styles.wpActionBtnText}>Invite</Text>
                     </Pressable>
-                    <Pressable style={styles.wpActionBtn} onPress={() => openEdit(item)} hitSlop={16}>
+                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() => openEdit(item)} hitSlop={16}>
                       <SymbolView name="pencil" size={15} tintColor={Brand.trust} type="monochrome" />
                       <Text style={styles.wpActionBtnText}>Edit</Text>
                     </Pressable>
@@ -485,7 +526,51 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
               </View>
             </View>
           );
-        })
+          })}
+          {list.filter((p) => { const s = effectivePremiereStatus(p); return s === 'ended' || s === 'replay'; }).length > 0 && (
+            <View style={{ marginTop: 24, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Brand.border, paddingTop: 4 }}>
+              <Pressable
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 }}
+                onPress={() => setPastExpanded((v) => !v)}>
+                <Text style={{ fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted }}>
+                  Past parties ({list.filter((p) => { const s = effectivePremiereStatus(p); return s === 'ended' || s === 'replay'; }).length})
+                </Text>
+                <Text style={{ color: Brand.muted, fontSize: 13 }}>{pastExpanded ? '▲' : '▼'}</Text>
+              </Pressable>
+              {pastExpanded && list.filter((p) => { const s = effectivePremiereStatus(p); return s === 'ended' || s === 'replay'; }).map((item, i) => {
+                const effStatus = effectivePremiereStatus(item);
+                return (
+                  <View key={item.id}>
+                    {i > 0 && <View style={{ height: 12 }} />}
+                    <View style={styles.wpCard}>
+                      <Pressable style={styles.wpCardMain} onPress={() => router.push({ pathname: '/premiere-replay', params: { id: item.id } })}>
+                        {item.show_poster ? (
+                          <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
+                        ) : (
+                          <View style={[styles.wpPoster, styles.wpPosterFallback]}>
+                            <Text style={styles.wpPosterEmoji}>🎬</Text>
+                          </View>
+                        )}
+                        <View style={styles.wpCardInfo}>
+                          <View style={styles.wpStatusRow}>
+                            <View style={[styles.wpStatusDot, { backgroundColor: WP_STATUS_COLOR[effStatus] ?? '#6B7280' }]} />
+                            <Text style={[styles.wpStatusText, { color: WP_STATUS_COLOR[effStatus] ?? Brand.muted }]}>
+                              {WP_STATUS_LABEL[effStatus] ?? effStatus}
+                            </Text>
+                          </View>
+                          <Text style={styles.wpShowTitle} numberOfLines={1}>{item.show_title}</Text>
+                          {item.episode_name ? <Text style={styles.wpEpisodeTitle} numberOfLines={1}>S{item.season_number}E{item.episode_number} · {item.episode_name}</Text> : null}
+                          {item.air_date ? <Text style={styles.wpDate}>📅 {formatPartyDate(item.air_date)}{item.air_time ? ` · ${item.air_time}` : ''}</Text> : null}
+                          {item.tagline ? <Text style={styles.wpTagline} numberOfLines={1}>"{item.tagline}"</Text> : null}
+                        </View>
+                      </Pressable>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          )}
+        </>
       )}
 
       {/* Edit modal */}

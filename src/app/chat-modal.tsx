@@ -502,7 +502,7 @@ export default function ChatModal() {
           </View>
         )}
 
-        {isContentChat && isGateVisible && (
+        {isContentChat && (
           <View style={[cb.topBar, { position: 'relative', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, backgroundColor: Brand.paper }]}>
             <Pressable onPress={() => router.back()} hitSlop={16} style={[cb.iconBtn, { backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border }]}>
               <SymbolView name="chevron.left" size={16} tintColor={Brand.ink} type="monochrome" style={{ width: 16, height: 16 }} />

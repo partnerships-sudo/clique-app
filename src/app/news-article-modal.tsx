@@ -4,6 +4,8 @@ import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native'
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { timeAgo } from '@/features/feed/time-ago';
+import { track, Events } from '@/features/analytics/api';
+import { useSession } from '@/hooks/use-session';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function NewsArticleModal() {
@@ -18,8 +20,15 @@ export default function NewsArticleModal() {
   }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { user } = useSession();
 
   function openArticle() {
+    track(user?.id, Events.NEWS_ARTICLE_OPENED, {
+      title: params.title,
+      section: params.section,
+      url: params.url,
+      byline: params.byline,
+    });
     Linking.openURL(params.url).catch(() => {});
   }
 

@@ -72,12 +72,13 @@ export function createStyles(Brand: BrandPalette) {
     badgeIcon: { fontSize: 22 },
     badgeName: { fontFamily: BrandFonts.interMedium, fontSize: 10, color: Brand.muted, textAlign: 'center', marginTop: 5 },
     badgesEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, textAlign: 'center' },
-    tabRow: { flexDirection: 'row', width: '100%', marginBottom: 7, borderBottomWidth: 1, borderBottomColor: Brand.border },
+    tabRow: { flexDirection: 'row', width: '100%', marginBottom: 7, borderBottomWidth: 1, borderBottomColor: Brand.border, paddingHorizontal: 16 },
     tab: { flex: 1, alignItems: 'center', paddingBottom: 8 },
     tabActive: { borderBottomWidth: 2.5, borderBottomColor: Brand.trust },
     tabLabel: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted },
     tabLabelActive: { color: Brand.ink, fontFamily: BrandFonts.syneBold },
     tabContent: { width: '100%' },
+    tabContentOuter: { width: '100%', paddingHorizontal: 16 },
     emptyText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, textAlign: 'center', paddingVertical: 24 },
 
     // Feed tab

@@ -4,10 +4,17 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { WheelColumn, daysInMonth, MONTH_LABELS } from '@/components/drum-picker';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useProfile } from '@/features/profile/api';
 import { detectVideoType, useCreateScreeningRoom } from '@/features/screening-rooms/api';
 import { useBrand } from '@/hooks/use-brand';
+
+const THIS_YEAR = new Date().getFullYear();
+const PARTY_YEARS = Array.from({ length: 4 }, (_, i) => String(THIS_YEAR + i));
+const HOURS_PAD = ['01','02','03','04','05','06','07','08','09','10','11','12'];
+const MINUTES = ['00','15','30','45'];
+const PERIODS = ['AM','PM'];
 
 export default function CreateScreeningRoomModal() {
   const Brand = useBrand();
@@ -16,8 +23,23 @@ export default function CreateScreeningRoomModal() {
   const createRoom = useCreateScreeningRoom();
 
   const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
+  const [tagline, setTagline] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+
+  // Date wheel state — default to today
+  const [dayIdx, setDayIdx] = useState(new Date().getDate() - 1);
+  const [monthIdx, setMonthIdx] = useState(new Date().getMonth());
+  const [yearIdx, setYearIdx] = useState(0);
+  // Time wheel — default 7:00 PM
+  const [hourIdx, setHourIdx] = useState(6);
+  const [minIdx, setMinIdx] = useState(0);
+  const [periodIdx, setPeriodIdx] = useState(1);
+
+  const partyYear = THIS_YEAR + yearIdx;
+  const dayItems = Array.from({ length: daysInMonth(monthIdx, partyYear) }, (_, i) => String(i + 1));
+
+  const partyDate = `${partyYear}-${String(monthIdx + 1).padStart(2, '0')}-${String(dayIdx + 1).padStart(2, '0')}`;
+  const airTime = `${HOURS_PAD[hourIdx]}:${MINUTES[minIdx]} ${PERIODS[periodIdx]}`;
 
   // Tier gate — Taste Maker is tier 3
   const isTasteMaker = (profile?.verified_tier ?? 0) >= 3;
@@ -35,7 +57,14 @@ export default function CreateScreeningRoomModal() {
     }
 
     try {
-      const room = await createRoom.mutateAsync({ title: t, description: description.trim() || undefined, video_url: url, video_type: videoType });
+      const room = await createRoom.mutateAsync({
+        title: t,
+        tagline: tagline.trim() || undefined,
+        video_url: url,
+        video_type: videoType,
+        air_date: partyDate,
+        air_time: airTime,
+      });
       router.replace({ pathname: '/screening-room-live', params: { id: room.id } });
     } catch {
       Alert.alert('Error', 'Could not create screening room. Please try again.');
@@ -76,7 +105,7 @@ export default function CreateScreeningRoomModal() {
             {createRoom.isPending
               ? <ActivityIndicator color={Brand.trust} />
               : <Text style={[styles.create, (!title.trim() || !videoUrl.trim()) && styles.createDisabled]}>
-                  Start →
+                  Schedule →
                 </Text>}
           </Pressable>
         </View>
@@ -128,15 +157,67 @@ export default function CreateScreeningRoomModal() {
               />
             </View>
             <View style={styles.divider} />
-            <View style={[styles.row, { alignItems: 'flex-start' }]}>
+            <View style={styles.row}>
               <TextInput
-                style={[styles.titleInput, styles.descInput]}
-                value={description}
-                onChangeText={(t) => t.length <= 200 && setDescription(t)}
-                placeholder="Description (optional)"
+                style={styles.titleInput}
+                value={tagline}
+                onChangeText={(t) => t.length <= 120 && setTagline(t)}
+                placeholder="Tagline — a one-liner to hype it (optional)"
                 placeholderTextColor={Brand.muted}
-                multiline
+                maxLength={120}
               />
+            </View>
+          </View>
+
+          {/* Date */}
+          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Date</Text>
+          <View style={styles.card}>
+            <View style={styles.drumHeader}>
+              {['MONTH', 'DAY', 'YEAR'].map((l, i) => (
+                <View key={l} style={{ flex: 1, flexDirection: 'row' }}>
+                  {i > 0 && <View style={styles.drumDivider} />}
+                  <Text style={styles.drumColLabel}>{l}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <WheelColumn
+                items={MONTH_LABELS}
+                selectedIndex={monthIdx}
+                onSelect={(i) => { setMonthIdx(i); const max = daysInMonth(i, partyYear) - 1; if (dayIdx > max) setDayIdx(max); }}
+              />
+              <View style={styles.drumDivider} />
+              <WheelColumn
+                items={dayItems}
+                selectedIndex={Math.min(dayIdx, dayItems.length - 1)}
+                onSelect={setDayIdx}
+              />
+              <View style={styles.drumDivider} />
+              <WheelColumn
+                items={PARTY_YEARS}
+                selectedIndex={yearIdx}
+                onSelect={(i) => { setYearIdx(i); const max = daysInMonth(monthIdx, THIS_YEAR + i) - 1; if (dayIdx > max) setDayIdx(max); }}
+              />
+            </View>
+          </View>
+
+          {/* Time */}
+          <Text style={[styles.sectionLabel, { marginTop: 20 }]}>Start time</Text>
+          <View style={styles.card}>
+            <View style={styles.drumHeader}>
+              {['HOUR', 'MIN', 'AM / PM'].map((l, i) => (
+                <View key={l} style={{ flex: 1, flexDirection: 'row' }}>
+                  {i > 0 && <View style={styles.drumDivider} />}
+                  <Text style={styles.drumColLabel}>{l}</Text>
+                </View>
+              ))}
+            </View>
+            <View style={{ flexDirection: 'row' }}>
+              <WheelColumn items={HOURS_PAD} selectedIndex={hourIdx} onSelect={setHourIdx} />
+              <View style={styles.drumDivider} />
+              <WheelColumn items={MINUTES} selectedIndex={minIdx} onSelect={setMinIdx} />
+              <View style={styles.drumDivider} />
+              <WheelColumn items={PERIODS} selectedIndex={periodIdx} onSelect={setPeriodIdx} />
             </View>
           </View>
 
@@ -144,10 +225,10 @@ export default function CreateScreeningRoomModal() {
           <View style={styles.infoBox}>
             <Text style={styles.infoTitle}>How Screening Rooms work</Text>
             {[
-              'You control playback — everyone watches in sync with you.',
-              'Viewers join from their invite link and chat live alongside the video.',
+              'Schedule in advance — guests join the waiting room before the countdown ends.',
+              'At the scheduled time the video auto-starts and everyone watches in sync.',
+              'You control playback — pause, skip, and chat with your audience live.',
               'Works with YouTube links or any direct MP4 / HLS video URL.',
-              'Share the invite link from the live screen once you\'re ready to start.',
             ].map((line) => (
               <View key={line} style={styles.infoRow}>
                 <Text style={styles.infoDot}>·</Text>
@@ -215,7 +296,6 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.ink,
       padding: 0,
     },
-    descInput: { minHeight: 60, textAlignVertical: 'top', paddingTop: 2 },
     divider: { height: 1, backgroundColor: Brand.border, marginLeft: 14 },
     typeHint: {
       flexDirection: 'row',
@@ -238,6 +318,24 @@ function createStyles(Brand: BrandPalette) {
     infoRow: { flexDirection: 'row', gap: 8 },
     infoDot: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.muted, lineHeight: 20 },
     infoText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, flex: 1, lineHeight: 19 },
+    // Drum picker
+    drumHeader: {
+      flexDirection: 'row',
+      borderBottomWidth: 1,
+      borderBottomColor: Brand.border,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+    },
+    drumColLabel: {
+      flex: 1,
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 9,
+      color: Brand.muted,
+      textTransform: 'uppercase',
+      letterSpacing: 1,
+      paddingHorizontal: 8,
+    },
+    drumDivider: { width: 1, backgroundColor: Brand.border },
     // Tier gate
     gateHeader: { flexDirection: 'row', justifyContent: 'flex-end', padding: Spacing.three },
     gate: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },

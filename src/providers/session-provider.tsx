@@ -2,9 +2,12 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { router } from 'expo-router';
 
+import { getLocales } from 'expo-localization';
+
 import { supabase } from '@/lib/supabase';
 import { queryClient } from '@/lib/query-client';
 import { registerForPushNotificationsAsync, syncPushToken } from '@/lib/push-notifications';
+import { track, Events } from '@/features/analytics/api';
 import {
   getSavedAccounts,
   upsertSavedAccount,
@@ -117,6 +120,20 @@ export function SessionProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     if (session?.user?.id) {
       syncPushToken(session.user.id).catch(() => {});
+
+      // Fire SESSION_STARTED with locale/geography — once per session restore or sign-in
+      try {
+        const locales = getLocales();
+        const primary = locales[0];
+        track(session.user.id, Events.SESSION_STARTED, {
+          region:       primary?.regionCode   ?? null,  // e.g. "GB", "US"
+          language:     primary?.languageCode ?? null,  // e.g. "en", "fr"
+          language_tag: primary?.languageTag  ?? null,  // e.g. "en-GB"
+          currency:     primary?.currencyCode ?? null,  // e.g. "GBP", "USD"
+        });
+      } catch {
+        // locale read failed — swallow silently
+      }
     }
   }, [session?.user?.id]);
 

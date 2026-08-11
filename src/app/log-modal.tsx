@@ -8,6 +8,8 @@ import { TypePickerStep } from '@/components/log-modal/type-picker-step';
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useCreatePost } from '@/features/feed/api';
 import { useAddLibraryItem } from '@/features/library/api';
+import { track, Events } from '@/features/analytics/api';
+import { useSession } from '@/hooks/use-session';
 import type { SearchResult } from '@/features/search/api';
 import { useBrand } from '@/hooks/use-brand';
 
@@ -32,6 +34,7 @@ export default function LogModal() {
   }
   const createPost = useCreatePost();
   const addLibraryItem = useAddLibraryItem();
+  const { user } = useSession();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
@@ -52,6 +55,16 @@ export default function LogModal() {
       await addLibraryItem.mutateAsync({ type, intent, ...libraryInput });
       if (intent === 'log') {
         await createPost.mutateAsync({ type, ...libraryInput, visibility });
+        track(user?.id, Events.POST_CREATED, {
+          type,
+          title: input.title,
+          has_rating: input.rating != null,
+          has_note: !!input.note?.trim(),
+          external_id: input.externalId,
+        });
+        if (input.rating != null) {
+          track(user?.id, Events.POST_RATED, { type, title: input.title, rating: input.rating });
+        }
       }
     } finally {
       router.back();

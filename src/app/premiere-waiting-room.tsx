@@ -27,7 +27,14 @@ import {
   useSendPremiereMessage,
   useWaitingRoomMessages,
   usePremiereMembers,
+  usePremiereCoHosts,
+  useIsCoHost,
+  useMyCoHostInvite,
+  useInviteCoHost,
+  useRespondToCoHostInvite,
+  useRemoveCoHost,
   type PremiereMessage,
+  type PremiereCoHost,
 } from '@/features/premieres/api';
 import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
@@ -64,9 +71,18 @@ export default function PremiereWaitingRoom() {
   const redirectedRef = useRef(false);
   const { bottom: bottomInset } = useSafeAreaInsets();
   const isHost = premiere?.host_user_id === user?.id;
+  const isCoHost = useIsCoHost(params.id ?? null);
+  const isHostOrCoHost = isHost || isCoHost;
+  const myCoHostInvite = useMyCoHostInvite(params.id ?? null);
   const { threads: dmThreads } = useDmThreads();
   const inviteToPremiere = useInviteToPremiere();
+  const inviteCoHost = useInviteCoHost();
+  const respondToCoHostInvite = useRespondToCoHostInvite();
+  const removeCoHost = useRemoveCoHost();
+  const { data: cohosts = [] } = usePremiereCoHosts(params.id ?? null);
   const { data: members = [] } = usePremiereMembers(params.id ?? null);
+  const [coHostSheetOpen, setCoHostSheetOpen] = useState(false);
+  const [coHostedIds, setCoHostedIds] = useState<Set<string>>(new Set());
 
   const rsvpCounts = {
     attending: members.filter((m) => m.rsvp_status === 'attending').length,
@@ -96,6 +112,13 @@ export default function PremiereWaitingRoom() {
     const t = setTimeout(() => setCountdown((c) => (c !== null ? c - 1 : null)), 1000);
     return () => clearTimeout(t);
   }, [countdown]);
+
+  // Redirect ended parties straight to replay — handles stale-cache navigation landing here
+  useEffect(() => {
+    if (premiere?.status === 'ended') {
+      router.replace({ pathname: '/premiere-replay', params: { id: params.id } });
+    }
+  }, [premiere?.status]);
 
   // Fallback redirect: usePremiere polls every 5s — catch the live status even if realtime missed it
   useEffect(() => {
@@ -311,9 +334,14 @@ export default function PremiereWaitingRoom() {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, minWidth: 60, justifyContent: 'flex-end' }}>
-            {isHost && (
+            {isHostOrCoHost && (
               <Pressable style={styles.goLiveBtn} onPress={goLive}>
                 <Text style={styles.goLiveBtnText}>Go Live</Text>
+              </Pressable>
+            )}
+            {isHost && (
+              <Pressable onPress={() => setCoHostSheetOpen(true)} hitSlop={16}>
+                <Text style={styles.addBtn}>👑</Text>
               </Pressable>
             )}
             <Pressable onPress={() => setInviteOpen(true)} hitSlop={16}>
@@ -321,6 +349,25 @@ export default function PremiereWaitingRoom() {
             </Pressable>
           </View>
         </View>
+
+        {/* Co-host invite banner */}
+        {myCoHostInvite && myCoHostInvite.status === 'pending' && (
+          <View style={styles.coHostBanner}>
+            <Text style={styles.coHostBannerText}>👑 You've been invited to co-host this party</Text>
+            <View style={styles.coHostBannerBtns}>
+              <Pressable
+                style={[styles.coHostBannerBtn, { backgroundColor: Brand.trust }]}
+                onPress={() => respondToCoHostInvite.mutate({ inviteId: myCoHostInvite.id, premiereId: myCoHostInvite.premiere_id, accept: true })}>
+                <Text style={[styles.coHostBannerBtnText, { color: '#fff' }]}>Accept</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.coHostBannerBtn, { backgroundColor: 'transparent', borderWidth: 1, borderColor: Brand.border }]}
+                onPress={() => respondToCoHostInvite.mutate({ inviteId: myCoHostInvite.id, premiereId: myCoHostInvite.premiere_id, accept: false })}>
+                <Text style={[styles.coHostBannerBtnText, { color: Brand.muted }]}>Decline</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {/* Countdown */}
         <View style={styles.countdownBox}>
@@ -483,6 +530,69 @@ export default function PremiereWaitingRoom() {
           <Text style={styles.countdownOverlayNum}>{countdown === 0 ? '🎬' : countdown}</Text>
         </View>
       )}
+
+      {/* Co-host management sheet */}
+      <Modal visible={coHostSheetOpen} transparent animationType="slide" onRequestClose={() => setCoHostSheetOpen(false)}>
+        <Pressable style={styles.inviteBackdrop} onPress={() => setCoHostSheetOpen(false)}>
+          <Pressable style={styles.inviteSheet} onPress={() => {}}>
+            <View style={styles.inviteGrabber} />
+            <Text style={styles.inviteTitle}>👑 Co-hosts</Text>
+
+            {/* Current co-hosts */}
+            {cohosts.length > 0 && (
+              <FlatList
+                data={cohosts}
+                keyExtractor={(c) => c.id}
+                style={[styles.inviteList, { maxHeight: 160 }]}
+                renderItem={({ item }: { item: PremiereCoHost }) => (
+                  <View style={styles.inviteRow}>
+                    <Avatar name={item.full_name ?? item.username ?? '?'} size={36} avatarUrl={item.avatar_url ?? undefined} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.inviteName}>{item.full_name ?? item.username ?? 'Unknown'}</Text>
+                      <Text style={[styles.inviteAction, { color: item.status === 'accepted' ? '#10B981' : Brand.muted }]}>
+                        {item.status === 'accepted' ? '✓ Accepted' : item.status === 'declined' ? 'Declined' : 'Pending…'}
+                      </Text>
+                    </View>
+                    <Pressable
+                      hitSlop={8}
+                      onPress={() => removeCoHost.mutate({ id: item.id, premiereId: item.premiere_id })}>
+                      <Text style={{ color: '#E84F4F', fontFamily: BrandFonts.syneBold, fontSize: 13 }}>Remove</Text>
+                    </Pressable>
+                  </View>
+                )}
+              />
+            )}
+
+            {cohosts.length > 0 && <View style={{ height: 1, backgroundColor: Brand.border, marginHorizontal: 16, marginVertical: 8 }} />}
+
+            <Text style={[styles.inviteTitle, { fontSize: 13, color: Brand.muted, marginBottom: 4 }]}>Add a co-host</Text>
+            <FlatList
+              data={dmThreads.filter((t) => !cohosts.some((c) => c.user_id === t.friendId))}
+              keyExtractor={(t) => t.friendId}
+              style={styles.inviteList}
+              renderItem={({ item }) => {
+                const sent = coHostedIds.has(item.friendId);
+                return (
+                  <Pressable
+                    style={styles.inviteRow}
+                    onPress={async () => {
+                      if (sent || !params.id) return;
+                      await inviteCoHost.mutateAsync({ premiereId: params.id, friendId: item.friendId });
+                      setCoHostedIds((prev) => new Set([...prev, item.friendId]));
+                    }}>
+                    <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
+                    <Text style={styles.inviteName}>{item.name}</Text>
+                    <Text style={[styles.inviteAction, sent && styles.inviteActionSent]}>
+                      {sent ? '✓ Invited' : 'Make co-host'}
+                    </Text>
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.inviteEmpty}>No friends to add.</Text>}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)}>
         <Pressable style={styles.inviteBackdrop} onPress={() => setInviteOpen(false)}>
@@ -685,6 +795,34 @@ function createStyles(Brand: BrandPalette, isDark: boolean) {
       fontFamily: BrandFonts.syneBold,
       fontSize: 12,
       color: '#fff',
+    },
+    coHostBanner: {
+      backgroundColor: isDark ? 'rgba(167,139,250,0.15)' : '#F5F3FF',
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? 'rgba(167,139,250,0.2)' : '#DDD6FE',
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      gap: 8,
+    },
+    coHostBannerText: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 13,
+      color: isDark ? '#A78BFA' : '#7C3AED',
+      textAlign: 'center',
+    },
+    coHostBannerBtns: {
+      flexDirection: 'row',
+      justifyContent: 'center',
+      gap: 10,
+    },
+    coHostBannerBtn: {
+      borderRadius: 20,
+      paddingHorizontal: 20,
+      paddingVertical: 7,
+    },
+    coHostBannerBtnText: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 13,
     },
     wipeBanner: {
       backgroundColor: isDark ? 'rgba(167,139,250,0.1)' : Brand.tlight,

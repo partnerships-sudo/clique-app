@@ -23,15 +23,19 @@ import { BrandFonts } from '@/constants/theme';
 import {
   usePremiere,
   usePremiereMessages,
+  usePremiereMembers,
   useJoinPremiere,
   useInviteToPremiere,
   useSendPremiereMessage,
   useEndPremiere,
+  useIsCoHost,
+  usePremiereCoHosts,
   useMessageReactions,
   useToggleReaction,
   type PremiereMessage,
 } from '@/features/premieres/api';
 import { useAddLibraryItem } from '@/features/library/api';
+import { useCreatePost } from '@/features/feed/api';
 import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
@@ -67,15 +71,21 @@ export default function PremiereLive() {
   const [reactionTarget, setReactionTarget] = useState<string | null>(null);
   const [showNowWatching, setShowNowWatching] = useState(true);
   const flatListRef = useRef<FlatList>(null);
-  const initializedRef = useRef(false);
   const { threads: dmThreads } = useDmThreads();
+  const { data: currentMembers = [] } = usePremiereMembers(params.id ?? null);
   const inviteToPremiere = useInviteToPremiere();
   const { data: reactionsMap = {} } = useMessageReactions(params.id ?? null);
   const toggleReaction = useToggleReaction();
 
   const isHost = premiere?.host_user_id === user?.id;
+  const isCoHost = useIsCoHost(params.id ?? null);
+  const isHostOrCoHost = isHost || isCoHost;
+  const { data: cohosts = [] } = usePremiereCoHosts(params.id ?? null);
+  const coHostIds = new Set(cohosts.filter((c) => c.status === 'accepted').map((c) => c.user_id));
   const isEnded = premiere?.status === 'ended';
   const addLibraryItem = useAddLibraryItem();
+  const createPost = useCreatePost();
+  const autoPostedRef = useRef(false);
   const [quickRating, setQuickRating] = useState<number | null>(null);
   const [rated, setRated] = useState(false);
 
@@ -84,16 +94,38 @@ export default function PremiereLive() {
     if (params.id) joinPremiere.mutate(params.id);
   }, [params.id]);
 
-  // Seed messages from DB once
+  // Auto-post to feed when the party ends — once per session, for every member
   useEffect(() => {
-    if (messagesLoaded && !initializedRef.current) {
-      initializedRef.current = true;
-      setMessages(initialMessages);
-      if (initialMessages.length > 0) {
-        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 50);
-      }
-    }
-  }, [messagesLoaded]);
+    if (!isEnded || !premiere || autoPostedRef.current) return;
+    autoPostedRef.current = true;
+    const episodeSub = premiere.season_number && premiere.episode_number
+      ? `S${premiere.season_number}E${premiere.episode_number}${premiere.episode_name ? ` · ${premiere.episode_name}` : ''}`
+      : premiere.episode_name ?? undefined;
+    createPost.mutate({
+      type: 'tv',
+      title: premiere.show_title,
+      sub: episodeSub,
+      poster: premiere.show_poster ?? undefined,
+      externalId: premiere.external_id ?? undefined,
+      note: '🎬 Watch party',
+    });
+  }, [isEnded, premiere]);
+
+  // Seed messages from DB — re-runs whenever fresh data arrives so rejoining
+  // always shows the full history, not a stale snapshot from the first visit.
+  useEffect(() => {
+    if (!messagesLoaded) return;
+    setMessages((prev) => {
+      // Keep any realtime-only messages that haven't been persisted yet
+      const dbIds = new Set(initialMessages.map((m) => m.id));
+      const realtimeOnly = prev.filter((m) => !dbIds.has(m.id));
+      const merged = [...initialMessages, ...realtimeOnly].sort(
+        (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
+      );
+      return merged;
+    });
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 50);
+  }, [initialMessages]);
 
   // Realtime: new live messages
   useEffect(() => {
@@ -205,6 +237,8 @@ export default function PremiereLive() {
     function handleStarPress(star: number) {
       setQuickRating(star);
       if (!premiere) return;
+      // addLibraryItem stores the rating; the feed post is already created
+      // by the auto-post effect above with the watch party note.
       addLibraryItem.mutate({
         intent: 'log',
         type: 'tv',
@@ -341,7 +375,7 @@ export default function PremiereLive() {
             <Pressable onPress={() => setInviteOpen(true)} hitSlop={16}>
               <Text style={styles.addBtn}>＋</Text>
             </Pressable>
-            {isHost ? (
+            {isHostOrCoHost ? (
               <>
                 <Pressable onPress={() => router.back()} hitSlop={16}>
                   <Text style={styles.leaveText}>Back</Text>
@@ -413,7 +447,15 @@ export default function PremiereLive() {
                     style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}
                   >
                     {!isMine && (
-                      <Text style={styles.bubbleName}>{item.user_name}</Text>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                        <Text style={styles.bubbleName}>{item.user_name}</Text>
+                        {item.user_id === premiere?.host_user_id && (
+                          <Text style={styles.hostBadge}>HOST</Text>
+                        )}
+                        {coHostIds.has(item.user_id) && (
+                          <Text style={styles.coHostBadge}>CO-HOST</Text>
+                        )}
+                      </View>
                     )}
                     <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>
                       {item.content}
@@ -520,7 +562,7 @@ export default function PremiereLive() {
             <View style={styles.inviteGrabber} />
             <Text style={styles.inviteTitle}>Invite friends</Text>
             <FlatList
-              data={dmThreads}
+              data={dmThreads.filter((t) => !currentMembers.some((m) => m.user_id === t.friendId))}
               keyExtractor={(t) => t.friendId}
               style={styles.inviteList}
               renderItem={({ item }) => {
@@ -622,7 +664,28 @@ const styles = StyleSheet.create({
     fontFamily: BrandFonts.syneBold,
     fontSize: 11,
     color: '#A78BFA',
-    marginBottom: 2,
+  },
+  hostBadge: {
+    fontFamily: BrandFonts.interMedium,
+    fontSize: 9,
+    color: '#7C3AED',
+    backgroundColor: '#EDE9FE',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    letterSpacing: 0.5,
+    overflow: 'hidden',
+  },
+  coHostBadge: {
+    fontFamily: BrandFonts.interMedium,
+    fontSize: 9,
+    color: '#1D4ED8',
+    backgroundColor: '#DBEAFE',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    letterSpacing: 0.5,
+    overflow: 'hidden',
   },
   bubbleText: {
     fontFamily: BrandFonts.interRegular,

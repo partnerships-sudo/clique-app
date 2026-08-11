@@ -1,11 +1,14 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Alert, ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DiscussionCard } from '@/components/feed/discussion-card';
+import { NewsCard } from '@/components/news/news-card';
 import { BrandFonts } from '@/constants/theme';
 import { useContentRoomDiscussions, useRoomFollowState, useToggleRoomFollow, useMuteRoomFollow } from '@/features/discussions/api';
+import { useContentRoomNews } from '@/features/news/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -18,6 +21,8 @@ const MEDIA_TYPE_LABELS: Record<string, string> = {
   podcast: 'Podcast',
 };
 
+type Tab = 'discussions' | 'news';
+
 export default function ContentRoomModal() {
   const { externalId, mediaType, title, poster } = useLocalSearchParams<{
     externalId: string;
@@ -28,13 +33,23 @@ export default function ContentRoomModal() {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const { user } = useSession();
-  const { data: discussions = [], isLoading } = useContentRoomDiscussions(externalId, mediaType);
+
+  const [tab, setTab] = useState<Tab>('discussions');
+  const [sort, setSort] = useState<'popular' | 'newest'>('popular');
+
+  const { data: discussions = [], isLoading: discussionsLoading } = useContentRoomDiscussions(externalId, mediaType);
+  const { data: newsArticles = [], isLoading: newsLoading } = useContentRoomNews(title, mediaType);
+
+  const sortedDiscussions = useMemo(() => {
+    if (sort === 'newest') return [...discussions].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return [...discussions].sort((a, b) => (b.comment_count + b.upvote_count) - (a.comment_count + a.upvote_count));
+  }, [discussions, sort]);
+
   const { data: followState = { following: false, muted: false, rowId: null } } = useRoomFollowState(externalId, mediaType);
   const toggleFollow = useToggleRoomFollow();
   const muteFollow = useMuteRoomFollow();
 
   const typeLabel = MEDIA_TYPE_LABELS[mediaType ?? ''] ?? mediaType ?? '';
-  // Map mediaType → TypeColors key
   const tcKey = mediaType === 'movie' || mediaType === 'tv' ? 'watch'
     : mediaType === 'book' ? 'read'
     : mediaType === 'game' ? 'play'
@@ -50,6 +65,88 @@ export default function ContentRoomModal() {
     });
   }
 
+  // Map mediaType → EntryType for content-detail-modal
+  const ENTRY_TYPE: Record<string, string> = {
+    tv: 'watch', movie: 'watch', book: 'read', game: 'play', album: 'listen', podcast: 'podcast',
+  };
+
+  function handlePosterPress() {
+    router.push({
+      pathname: '/content-detail-modal',
+      params: {
+        title: title ?? '',
+        type: ENTRY_TYPE[mediaType ?? ''] ?? 'watch',
+        poster: poster ?? '',
+        externalId: externalId ?? '',
+        mediaType: mediaType ?? '',
+      },
+    });
+  }
+
+  // Header shared between both tabs
+  const ListHeader = (
+    <View style={styles.header}>
+      {/* Poster + info */}
+      <View style={styles.heroRow}>
+        {poster ? (
+          <Pressable onPress={handlePosterPress} hitSlop={4}>
+            <Image source={{ uri: poster }} style={styles.poster} resizeMode="cover" />
+          </Pressable>
+        ) : (
+          <Pressable onPress={handlePosterPress} hitSlop={4} style={[styles.posterPlaceholder, { backgroundColor: typeColors.bg }]}>
+            <SymbolView name="photo" size={28} tintColor={typeColors.color} type="monochrome" style={{ width: 28, height: 28 }} />
+          </Pressable>
+        )}
+        <View style={styles.heroInfo}>
+          <View style={[styles.typePill, { backgroundColor: typeColors.bg }]}>
+            <Text style={[styles.typeText, { color: typeColors.color }]}>{typeLabel.toUpperCase()}</Text>
+          </View>
+          <Text style={[styles.roomTitle, { color: Brand.ink }]}>{title}</Text>
+          <Text style={[styles.roomSub, { color: Brand.muted }]}>
+            {discussions.length} {discussions.length === 1 ? 'discussion' : 'discussions'}
+          </Text>
+        </View>
+      </View>
+
+      {/* Start discussion CTA */}
+      <Pressable style={[styles.startBtn, { backgroundColor: Brand.trust }]} onPress={handleStart}>
+        <SymbolView name="plus" size={13} tintColor="#fff" type="monochrome" style={{ width: 13, height: 13 }} />
+        <Text style={styles.startBtnText}>Start a discussion</Text>
+      </Pressable>
+
+      {/* Tab bar */}
+      <View style={[styles.tabBar, { borderBottomColor: Brand.border }]}>
+        {(['discussions', 'news'] as Tab[]).map((t) => (
+          <Pressable key={t} onPress={() => setTab(t)} style={styles.tabItem}>
+            <Text style={[styles.tabLabel, { color: tab === t ? Brand.trust : Brand.muted }]}>
+              {t === 'discussions' ? 'Discussions' : 'News'}
+            </Text>
+            {tab === t && <View style={[styles.tabUnderline, { backgroundColor: Brand.trust }]} />}
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Sort row — only on discussions tab */}
+      {tab === 'discussions' && discussions.length > 0 && (
+        <View style={styles.sortRow}>
+          <Text style={[styles.sectionLabel, { color: Brand.muted }]}>DISCUSSIONS</Text>
+          <View style={styles.sortToggle}>
+            {(['popular', 'newest'] as const).map((opt) => (
+              <Pressable
+                key={opt}
+                onPress={() => setSort(opt)}
+                style={[styles.sortBtn, sort === opt && { backgroundColor: Brand.trust }]}>
+                <Text style={[styles.sortBtnText, { color: sort === opt ? '#fff' : Brand.muted }]}>
+                  {opt === 'popular' ? 'Most Popular' : 'Newest'}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: Brand.paper }]} edges={['top']}>
       {/* Nav */}
@@ -64,13 +161,7 @@ export default function ContentRoomModal() {
               hitSlop={12}
               style={[styles.muteBtn, { borderColor: Brand.border }]}
               onPress={() => muteFollow.mutate(
-                {
-                  rowId: followState.rowId!,
-                  muted: !followState.muted,
-                  externalId: externalId!,
-                  mediaType: mediaType!,
-                  userId: user?.id,
-                },
+                { rowId: followState.rowId!, muted: !followState.muted, externalId: externalId!, mediaType: mediaType!, userId: user?.id },
                 { onError: (err: any) => Alert.alert('Mute error', err?.message ?? JSON.stringify(err)) },
               )}
               disabled={muteFollow.isPending}>
@@ -97,55 +188,47 @@ export default function ContentRoomModal() {
         </View>
       </View>
 
-      <FlatList
-        data={discussions}
-        keyExtractor={(d) => d.id}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={() => (
-          <View style={styles.header}>
-            {/* Poster + info */}
-            <View style={styles.heroRow}>
-              {poster ? (
-                <Image source={{ uri: poster }} style={styles.poster} resizeMode="cover" />
-              ) : (
-                <View style={[styles.posterPlaceholder, { backgroundColor: typeColors.bg }]}>
-                  <SymbolView name="photo" size={28} tintColor={typeColors.color} type="monochrome" style={{ width: 28, height: 28 }} />
-                </View>
-              )}
-              <View style={styles.heroInfo}>
-                <View style={[styles.typePill, { backgroundColor: typeColors.bg }]}>
-                  <Text style={[styles.typeText, { color: typeColors.color }]}>{typeLabel.toUpperCase()}</Text>
-                </View>
-                <Text style={[styles.roomTitle, { color: Brand.ink }]}>{title}</Text>
-                <Text style={[styles.roomSub, { color: Brand.muted }]}>
-                  {discussions.length} {discussions.length === 1 ? 'discussion' : 'discussions'}
-                </Text>
+      {tab === 'discussions' ? (
+        <FlatList
+          data={sortedDiscussions}
+          keyExtractor={(d) => d.id}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={() => ListHeader}
+          renderItem={({ item }) => <DiscussionCard item={item} suppressContentRoom />}
+          ListEmptyComponent={
+            discussionsLoading ? (
+              <ActivityIndicator style={{ marginTop: 40 }} color={Brand.trust} />
+            ) : (
+              <View style={[styles.emptyCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+                <Text style={[styles.emptyTitle, { color: Brand.ink }]}>No discussions yet</Text>
+                <Text style={[styles.emptySub, { color: Brand.muted }]}>Be the first to start one about {title}</Text>
               </View>
+            )
+          }
+        />
+      ) : (
+        <FlatList
+          data={newsArticles}
+          keyExtractor={(a) => a.id}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={() => ListHeader}
+          renderItem={({ item }) => (
+            <View style={styles.newsCardWrap}>
+              <NewsCard article={item} onPress={() => Linking.openURL(item.url)} />
             </View>
-
-            {/* Start discussion CTA */}
-            <Pressable style={[styles.startBtn, { backgroundColor: Brand.trust }]} onPress={handleStart}>
-              <SymbolView name="plus" size={13} tintColor="#fff" type="monochrome" style={{ width: 13, height: 13 }} />
-              <Text style={styles.startBtnText}>Start a discussion</Text>
-            </Pressable>
-
-            {discussions.length > 0 && (
-              <Text style={[styles.sectionLabel, { color: Brand.muted }]}>DISCUSSIONS</Text>
-            )}
-          </View>
-        )}
-        renderItem={({ item }) => <DiscussionCard item={item} />}
-        ListEmptyComponent={
-          isLoading ? (
-            <ActivityIndicator style={{ marginTop: 40 }} color={Brand.trust} />
-          ) : (
-            <View style={[styles.emptyCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-              <Text style={[styles.emptyTitle, { color: Brand.ink }]}>No discussions yet</Text>
-              <Text style={[styles.emptySub, { color: Brand.muted }]}>Be the first to start one about {title}</Text>
-            </View>
-          )
-        }
-      />
+          )}
+          ListEmptyComponent={
+            newsLoading ? (
+              <ActivityIndicator style={{ marginTop: 40 }} color={Brand.trust} />
+            ) : (
+              <View style={[styles.emptyCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+                <Text style={[styles.emptyTitle, { color: Brand.ink }]}>No news found</Text>
+                <Text style={[styles.emptySub, { color: Brand.muted }]}>Nothing yet for "{title}"</Text>
+              </View>
+            )
+          }
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -163,20 +246,12 @@ const styles = StyleSheet.create({
   backBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, width: 60 },
   navRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   muteBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
+    width: 32, height: 32, borderRadius: 16, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center',
   },
   followBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    borderRadius: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    flexDirection: 'row', alignItems: 'center', gap: 5,
+    borderRadius: 20, paddingHorizontal: 12, paddingVertical: 6,
   },
   followBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
   backText: { fontFamily: BrandFonts.interMedium, fontSize: 15 },
@@ -194,27 +269,50 @@ const styles = StyleSheet.create({
   roomTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, lineHeight: 26 },
   roomSub: { fontFamily: BrandFonts.interRegular, fontSize: 13 },
   startBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    borderRadius: 14,
-    paddingVertical: 12,
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+    gap: 6, borderRadius: 14, paddingVertical: 12,
   },
   startBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
-  sectionLabel: {
-    fontFamily: BrandFonts.interMedium,
-    fontSize: 11,
-    letterSpacing: 0.8,
+
+  // Tab bar
+  tabBar: {
+    flexDirection: 'row',
+    borderBottomWidth: StyleSheet.hairlineWidth,
     marginTop: 4,
   },
+  tabItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    marginRight: 20,
+    position: 'relative',
+  },
+  tabLabel: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 14,
+  },
+  tabUnderline: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
+    borderRadius: 1,
+  },
+
+  sortRow: {
+    flexDirection: 'row', alignItems: 'center',
+    justifyContent: 'space-between', marginTop: 4,
+  },
+  sectionLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11, letterSpacing: 0.8 },
+  sortToggle: { flexDirection: 'row', gap: 4 },
+  sortBtn: { borderRadius: 20, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: 'rgba(0,0,0,0.06)' },
+  sortBtnText: { fontFamily: BrandFonts.interMedium, fontSize: 12 },
+
+  newsCardWrap: { marginBottom: 10 },
+
   emptyCard: {
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 18,
-    borderStyle: 'dashed',
-    padding: 32,
-    gap: 6,
+    alignItems: 'center', borderWidth: 1, borderRadius: 18,
+    borderStyle: 'dashed', padding: 32, gap: 6,
   },
   emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 15 },
   emptySub: { fontFamily: BrandFonts.interRegular, fontSize: 13, textAlign: 'center' },

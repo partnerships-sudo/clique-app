@@ -21,7 +21,9 @@ interface Props {
   logged: LibraryItem[];
   followersCount: number;
   followingCount: number;
+  userId?: string;
   onLoggedPress?: () => void;
+  onThisYearPress?: () => void;
   onFollowersPress?: () => void;
   onFollowingPress?: () => void;
   featuredBadges?: ProfileCardBadge[];
@@ -29,7 +31,7 @@ interface Props {
   isOwnProfile?: boolean;
 }
 
-export function ProfileStatsTab({ logged, followersCount, followingCount, onLoggedPress, onFollowersPress, onFollowingPress, featuredBadges = [], onOpenAchievements, isOwnProfile }: Props) {
+export function ProfileStatsTab({ logged, followersCount, followingCount, userId, onLoggedPress, onThisYearPress, onFollowersPress, onFollowingPress, featuredBadges = [], onOpenAchievements, isOwnProfile }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [ratingSheet, setRatingSheet] = useState<{ rating: number; label: string } | null>(null);
@@ -37,7 +39,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
   const { data: top4 = [] } = useMyTasteTop4();
   const { user } = useSession();
   const { data: postCounts } = useMyPostCounts(user?.id);
-  const { data: allPosts = [] } = usePostsByUser(user?.id);
+  const { data: allPosts = [] } = usePostsByUser(userId ?? user?.id);
 
   // Always use posts as the source of truth for counts (library has RLS gaps)
   const counts: Record<string, number> = postCounts
@@ -205,13 +207,13 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
           <Text style={styles.statSubLbl}>your taste</Text>
         </View>
         <View style={styles.statDiv} />
-        <View style={styles.stat}>
+        <Pressable style={styles.stat} onPress={() => onThisYearPress?.()}>
           <View style={styles.statNumRow}>
             <Text style={[styles.statNum, styles.statNumAccent]}>{thisYearCount}</Text>
           </View>
           <Text style={styles.statLbl}>THIS YEAR</Text>
           <Text style={styles.statSubLbl}>in {thisYear}</Text>
-        </View>
+        </Pressable>
       </View>
 
       {/* Streak */}
@@ -371,8 +373,9 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
         transparent
         animationType="slide"
         onRequestClose={() => setMonthSheet(null)}>
-        <Pressable style={ratingSheetStyles.backdrop} onPress={() => setMonthSheet(null)} />
-        <View style={[ratingSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+        <View style={ratingSheetStyles.modalRoot}>
+          <Pressable style={ratingSheetStyles.backdrop} onPress={() => setMonthSheet(null)} />
+          <View style={[ratingSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
           <View style={[ratingSheetStyles.handle, { backgroundColor: Brand.border }]} />
           <View style={ratingSheetStyles.headerRow}>
             <Text style={[ratingSheetStyles.title, { color: Brand.ink }]}>{monthSheet?.label}</Text>
@@ -426,6 +429,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
             <View style={{ height: 40 }} />
           </ScrollView>
         </View>
+        </View>
       </Modal>
 
       {/* Rating drill-down sheet */}
@@ -434,8 +438,9 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
         transparent
         animationType="slide"
         onRequestClose={() => setRatingSheet(null)}>
-        <Pressable style={ratingSheetStyles.backdrop} onPress={() => setRatingSheet(null)} />
-        <View style={[ratingSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+        <View style={ratingSheetStyles.modalRoot}>
+          <Pressable style={ratingSheetStyles.backdrop} onPress={() => setRatingSheet(null)} />
+          <View style={[ratingSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
           <View style={[ratingSheetStyles.handle, { backgroundColor: Brand.border }]} />
           <View style={ratingSheetStyles.headerRow}>
             <Text style={[ratingSheetStyles.title, { color: Brand.ink }]}>
@@ -484,6 +489,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
             <View style={{ height: 40 }} />
           </ScrollView>
         </View>
+        </View>
       </Modal>
 
     </View>
@@ -491,18 +497,22 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, onLogg
 }
 
 const ratingSheetStyles = StyleSheet.create({
-  backdrop: {
+  modalRoot: {
     flex: 1,
+    justifyContent: 'flex-end',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   sheet: {
     maxHeight: '75%',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
+    borderWidth: 1,
+    borderBottomWidth: 0,
     paddingTop: 12,
+    overflow: 'hidden',
   },
   handle: {
     width: 36,

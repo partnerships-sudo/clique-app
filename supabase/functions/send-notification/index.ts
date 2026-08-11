@@ -193,6 +193,9 @@ Deno.serve(async (req) => {
           .single();
         if (!discussion) break;
 
+        // Track who gets a notification so we don't double-send to someone already notified
+        const alreadyNotified = new Set<string>([record.user_id]);
+
         if (record.parent_id) {
           // Reply to a comment — notify the parent comment author
           const { data: parent } = await supabase
@@ -205,9 +208,10 @@ Deno.serve(async (req) => {
               parent.user_id,
               'discussions',
               `${commenterName} replied to your comment`,
-              `On "${discussion.title}": "${record.content.slice(0, 80)}"`,
+              `On "${discussion.title}": "${record.body.slice(0, 80)}"`,
               { type: 'discussion_comment', discussionId: record.discussion_id },
             );
+            alreadyNotified.add(parent.user_id);
           }
         } else {
           // Top-level comment — notify the discussion author
@@ -216,9 +220,10 @@ Deno.serve(async (req) => {
               discussion.user_id,
               'discussions',
               `${commenterName} commented on your discussion`,
-              `"${discussion.title}": "${record.content.slice(0, 80)}"`,
+              `"${discussion.title}": "${record.body.slice(0, 80)}"`,
               { type: 'discussion_comment', discussionId: record.discussion_id },
             );
+            alreadyNotified.add(discussion.user_id);
           }
 
           // Also notify anyone else who has previously commented (minus the new commenter)
@@ -230,12 +235,36 @@ Deno.serve(async (req) => {
             .neq('user_id', discussion.user_id); // already notified above
           const otherIds = [...new Set((prevCommenters ?? []).map((c) => c.user_id))];
           await Promise.all(
-            otherIds.map((id) =>
-              pushTo(
+            otherIds.map((id) => {
+              alreadyNotified.add(id);
+              return pushTo(
                 id,
                 'discussions',
                 `${commenterName} also commented`,
-                `On "${discussion.title}": "${record.content.slice(0, 80)}"`,
+                `On "${discussion.title}": "${record.body.slice(0, 80)}"`,
+                { type: 'discussion_comment', discussionId: record.discussion_id },
+              );
+            }),
+          );
+        }
+
+        // @mention notifications — parse @username from the comment body
+        const mentionHandles = [...record.body.matchAll(/@(\w+)/g)].map((m: RegExpMatchArray) => m[1]);
+        if (mentionHandles.length > 0) {
+          const { data: mentionedProfiles } = await supabase
+            .from('profiles')
+            .select('id')
+            .in('username', mentionHandles);
+          const mentionIds = (mentionedProfiles ?? [])
+            .map((p: { id: string }) => p.id)
+            .filter((id: string) => !alreadyNotified.has(id));
+          await Promise.all(
+            mentionIds.map((id: string) =>
+              pushTo(
+                id,
+                'discussions',
+                `${commenterName} mentioned you`,
+                `In "${discussion.title}": "${record.body.slice(0, 80)}"`,
                 { type: 'discussion_comment', discussionId: record.discussion_id },
               ),
             ),

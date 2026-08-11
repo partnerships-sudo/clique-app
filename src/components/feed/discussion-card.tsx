@@ -1,45 +1,60 @@
 import { router } from 'expo-router';
+import { useRef } from 'react';
 import { SymbolView } from 'expo-symbols';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
-import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
-import { type Discussion, timeAgo, useToggleDiscussionVote } from '@/features/discussions/api';
-import { useBrand, useTypeColors } from '@/hooks/use-brand';
+import { BrandFonts } from '@/constants/theme';
+import { type Discussion, timeAgo, useToggleDiscussionVote, useToggleDiscussionDisagree } from '@/features/discussions/api';
+import { track, Events } from '@/features/analytics/api';
 import { useSession } from '@/hooks/use-session';
 
-const TYPE_LABELS: Record<string, string> = {
-  read: 'Books',
-  watch: 'TV & Film',
-  tv: 'TV & Film',
-  play: 'Games',
-  listen: 'Music',
-  podcast: 'Podcasts',
-  general: 'General',
+const POSTER_W = 90;
+const POSTER_H = 135; // 2:3 — matches post-card exactly
+
+// Format palette — border + bottom bar colour
+const FORMAT_PALETTE = {
+  poll:       { border: '#FDE68A', barBg: '#FEF08A', barText: '#92400E', label: 'POLL' },
+  hot_take:   { border: '#FCA5A5', barBg: '#FCA5A5', barText: '#7F1D1D', label: 'HOT TAKE' },
+  discussion: { border: '#C4B5FD', barBg: '#DDD6FE', barText: '#4C1D95', label: 'DISCUSSION' },
 };
 
-export function DiscussionCard({ item }: { item: Discussion }) {
-  const Brand = useBrand();
-  const TypeColors = useTypeColors();
-  const { user } = useSession();
+function getPalette(item: Discussion) {
+  if (item.has_poll || item.format === 'poll') return FORMAT_PALETTE.poll;
+  if (item.format === 'hot_take') return FORMAT_PALETTE.hot_take;
+  return FORMAT_PALETTE.discussion;
+}
+
+export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion; suppressContentRoom?: boolean }) {
   const vote = useToggleDiscussionVote();
+  const disagree = useToggleDiscussionDisagree();
+  const { user } = useSession();
 
-  const typeKey = item.type === 'tv' ? 'watch' : item.type;
-  const typeColor = (TypeColors as any)[typeKey] ?? { color: '#6B7280', bg: '#F3F4F6' };
-  const typeLabel = TYPE_LABELS[item.type] ?? item.type;
-
+  const palette = getPalette(item);
   const hasLinkedContent = !!(item.content_title && item.content_external_id);
 
   function handleVote() {
-    vote.mutate({ discussionId: item.id, hasVoted: item.has_voted });
+    const event = item.has_voted && !item.has_disagreed ? Events.DISCUSSION_UNVOTED : Events.DISCUSSION_AGREED;
+    track(user?.id, event, { discussion_id: item.id });
+    vote.mutate({ discussionId: item.id, hasVoted: item.has_voted, hasDisagreed: item.has_disagreed });
   }
 
+  function handleDisagree() {
+    const event = item.has_disagreed && !item.has_voted ? Events.DISCUSSION_UNVOTED : Events.DISCUSSION_DISAGREED;
+    track(user?.id, event, { discussion_id: item.id });
+    disagree.mutate({ discussionId: item.id, hasDisagreed: item.has_disagreed, hasVoted: item.has_voted });
+  }
+
+  const navigating = useRef(false);
   function handleOpenDiscussion() {
+    if (navigating.current) return;
+    navigating.current = true;
     router.push({ pathname: '/discussion-detail-modal', params: { id: item.id } });
+    setTimeout(() => { navigating.current = false; }, 1000);
   }
 
   function handleOpenContentRoom() {
-    if (!hasLinkedContent) return;
+    if (!hasLinkedContent || suppressContentRoom) return;
     router.push({
       pathname: '/content-room-modal',
       params: {
@@ -51,68 +66,85 @@ export function DiscussionCard({ item }: { item: Discussion }) {
     });
   }
 
+  const voteCount = item.upvote_count + item.disagree_count;
+
   return (
-    <Pressable style={[styles.card, { backgroundColor: Brand.card, borderColor: Brand.border }]} onPress={handleOpenDiscussion}>
-      {/* Content row: text + optional poster */}
-      <View style={styles.contentRow}>
-        <View style={styles.textBlock}>
-          {/* Content title pill — taps into content room */}
-          {hasLinkedContent ? (
-            <Pressable onPress={(e) => { e.stopPropagation(); handleOpenContentRoom(); }} hitSlop={4} style={styles.pillWrap}>
-              <View style={[styles.contentPill, { backgroundColor: Brand.tlight }]}>
-                <Text style={[styles.contentPillText, { color: Brand.trust }]} numberOfLines={1}>
-                  {item.content_title}
-                </Text>
-              </View>
-            </Pressable>
-          ) : null}
+    <Pressable
+      style={[styles.card, { borderColor: palette.border }]}
+      onPress={handleOpenDiscussion}>
 
-          {/* Discussion question */}
-          <Text style={[styles.title, { color: Brand.ink }]} numberOfLines={2}>{item.title}</Text>
-
-          {item.body ? (
-            <Text style={[styles.body, { color: Brand.muted }]} numberOfLines={2}>{item.body}</Text>
-          ) : null}
-        </View>
-
-        {/* Poster — taps into content room */}
+      {/* ── Top row: poster LEFT + body RIGHT — height locked to POSTER_H ── */}
+      <View style={styles.topRow}>
+        {/* Poster — flush to card edge */}
         {item.content_poster ? (
-          <Pressable onPress={(e) => { e.stopPropagation(); handleOpenContentRoom(); }} hitSlop={4}>
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); handleOpenContentRoom(); }}
+            disabled={!hasLinkedContent}>
             <Image source={{ uri: item.content_poster }} style={styles.poster} resizeMode="cover" />
           </Pressable>
-        ) : null}
+        ) : (
+          <View style={[styles.poster, styles.posterPlaceholder, { backgroundColor: palette.border }]} />
+        )}
+
+        {/* Body column */}
+        <View style={styles.body}>
+          {/* Meta row: avatar · @username · time — type label moved to bottom bar */}
+          <View style={styles.metaRow}>
+            <Avatar avatarUrl={item.author_avatar} name={item.author_name} size={20} />
+            <Text style={styles.authorText} numberOfLines={1}>@{item.author_name}</Text>
+            <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
+          </View>
+
+          {/* Title */}
+          <Text style={styles.title} numberOfLines={3}>{item.title}</Text>
+
+          {/* Show name */}
+          {item.content_title ? (
+            <Text style={styles.showName} numberOfLines={1}>{item.content_title}</Text>
+          ) : null}
+
+          {/* Hot take body snippet */}
+          {item.body && item.format === 'hot_take' ? (
+            <Text style={styles.bodySnippet} numberOfLines={2}>"{item.body}"</Text>
+          ) : null}
+
+          <View style={{ flex: 1 }} />
+
+          {/* Stats: voted · 💬 comments */}
+          <View style={styles.statsRow}>
+            {item.has_poll && voteCount > 0 && (
+              <>
+                <Text style={styles.statText}>{voteCount} voted</Text>
+                <Text style={styles.statDot}>·</Text>
+              </>
+            )}
+            <View style={styles.commentStat}>
+              <SymbolView name="bubble.left" size={11} tintColor="#9CA3AF" type="monochrome" style={{ width: 11, height: 11 }} />
+              <Text style={styles.statText}>{item.comment_count}</Text>
+            </View>
+          </View>
+        </View>
       </View>
 
-      {/* Footer */}
-      <View style={styles.footer}>
-        <Pressable
-          style={styles.authorRow}
-          onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: item.user_id } })}
-          hitSlop={6}>
-          <Avatar avatarUrl={item.author_avatar} name={item.author_name} size={20} />
-          <Text style={[styles.meta, { color: Brand.muted }]}>
-            @{item.author_name} · {timeAgo(item.created_at)}
-          </Text>
-        </Pressable>
+      {/* ── Bottom bar: full colour bg, type label left, votes right ── */}
+      <View style={[styles.bottomBar, { backgroundColor: palette.barBg }]}>
+        <Text style={[styles.typeLabel, { color: palette.barText }]}>{palette.label}</Text>
 
-        <View style={styles.footerRight}>
-          {/* Comments */}
-          <Pressable style={styles.stat} onPress={handleOpenDiscussion} hitSlop={8}>
-            <SymbolView name="bubble.left" size={13} tintColor={Brand.muted} type="monochrome" style={{ width: 13, height: 13 }} />
-            <Text style={[styles.statText, { color: Brand.muted }]}>{item.comment_count}</Text>
+        <View style={styles.voteGroup}>
+          <Pressable
+            style={[styles.voteBtn, item.has_voted && styles.voteBtnActive]}
+            onPress={(e) => { e.stopPropagation(); handleVote(); }}
+            hitSlop={6}>
+            <Text style={[styles.voteBtnText, { color: item.has_voted ? palette.barText : '#6B7280' }]}>
+              👍{item.upvote_count > 0 ? `  ${item.upvote_count}` : ''}
+            </Text>
           </Pressable>
-
-          {/* Upvote */}
-          <Pressable style={styles.stat} onPress={handleVote} hitSlop={8}>
-            <SymbolView
-              name={item.has_voted ? 'arrow.up.circle.fill' : 'arrow.up.circle'}
-              size={15}
-              tintColor={item.has_voted ? Brand.trust : Brand.muted}
-              type="monochrome"
-              style={{ width: 15, height: 15 }}
-            />
-            <Text style={[styles.statText, { color: item.has_voted ? Brand.trust : Brand.muted }]}>
-              {item.upvote_count}
+          <Pressable
+            style={[styles.voteBtn, item.has_disagreed && styles.voteBtnDisagree]}
+            onPress={(e) => { e.stopPropagation(); handleDisagree(); }}
+            hitSlop={6}>
+            <Text style={[styles.voteBtnText, { color: item.has_disagreed ? '#991B1B' : '#6B7280' }]}>
+              👎{item.disagree_count > 0 ? `  ${item.disagree_count}` : ''}
             </Text>
           </Pressable>
         </View>
@@ -123,94 +155,128 @@ export function DiscussionCard({ item }: { item: Discussion }) {
 
 const styles = StyleSheet.create({
   card: {
-    borderWidth: 1,
-    borderRadius: 12,
-    padding: 8,
-    gap: 4,
-    marginBottom: 6,
-  },
-  pillWrap: { alignSelf: 'flex-start' },
-  contentPill: {
-    alignSelf: 'flex-start',
     borderRadius: 20,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    marginBottom: 12,
+    overflow: 'hidden',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
   },
-  contentPillText: {
-    fontFamily: BrandFonts.interMedium,
-    fontSize: 10,
-    letterSpacing: 0.2,
-  },
-  typePill: {
-    alignSelf: 'flex-start',
-    borderRadius: 20,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-  },
-  typeText: {
-    fontFamily: BrandFonts.interMedium,
-    fontSize: 9,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-  },
-  contentRow: {
+
+  // Top row — height locked to poster height, same as post-card (135pt)
+  topRow: {
     flexDirection: 'row',
-    gap: 8,
-    alignItems: 'flex-start',
+    height: POSTER_H,
   },
-  textBlock: {
-    flex: 1,
-    gap: 2,
-  },
-  title: {
-    fontFamily: BrandFonts.syneExtraBold,
-    fontSize: 13,
-    lineHeight: 17,
-  },
-  body: {
-    fontFamily: BrandFonts.interRegular,
-    fontSize: 11,
-    lineHeight: 15,
-  },
-  contentTitle: {
-    fontFamily: BrandFonts.interMedium,
-    fontSize: 10,
-    marginTop: 2,
-  },
+
   poster: {
-    width: 44,
-    height: 62,
-    borderRadius: 6,
+    width: POSTER_W,
+    height: POSTER_H,
     flexShrink: 0,
   },
-  footer: {
+  posterPlaceholder: {
+    opacity: 0.25,
+  },
+
+  // Body — internal padding matches post-card body
+  body: {
+    flex: 1,
+    minWidth: 0,
+    padding: 10,
+    paddingTop: 8,
+    paddingBottom: 8,
+    overflow: 'hidden',
+    gap: 4,
+  },
+
+  metaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    marginTop: 2,
+    gap: 5,
   },
-  authorRow: {
+  authorText: {
+    fontFamily: BrandFonts.interMedium,
+    fontSize: 12,
+    color: '#374151',
+    flex: 1,
+  },
+  timeText: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 11,
+    color: '#9CA3AF',
+    flexShrink: 0,
+  },
+
+  title: {
+    fontFamily: BrandFonts.syneExtraBold,
+    fontSize: 16,
+    color: '#111827',
+    lineHeight: 21,
+  },
+  showName: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  bodySnippet: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+    lineHeight: 16,
+  },
+
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    flex: 1,
   },
-  meta: {
+  statText: {
     fontFamily: BrandFonts.interRegular,
-    fontSize: 10,
+    fontSize: 11,
+    color: '#9CA3AF',
   },
-  footerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  statDot: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 11,
+    color: '#D1D5DB',
   },
-  stat: {
+  commentStat: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 3,
   },
-  statText: {
+
+  // Bottom bar — full color bg, same paddingVertical: 8 as post-card (keeps total at 171pt)
+  bottomBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  typeLabel: {
     fontFamily: BrandFonts.interMedium,
-    fontSize: 11,
+    fontSize: 10,
+    letterSpacing: 0.6,
+    flex: 1,
+  },
+  voteGroup: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  voteBtn: {
+    borderRadius: 20,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(255,255,255,0.5)',
+  },
+  voteBtnActive: {
+    backgroundColor: 'rgba(255,255,255,0.8)',
+  },
+  voteBtnDisagree: {
+    backgroundColor: '#FEE2E2',
+  },
+  voteBtnText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 11.5,
   },
 });

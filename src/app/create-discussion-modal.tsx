@@ -15,8 +15,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { type DiscussionType, useCreateDiscussion, useCreateDiscussionPoll } from '@/features/discussions/api';
+import { track, Events } from '@/features/analytics/api';
 import { type SearchResult, useUniversalSearch } from '@/features/search/api';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
+import { useSession } from '@/hooks/use-session';
 
 // Map mediaType → DiscussionType
 function mediaTypeToDiscussionType(mediaType: string | null): DiscussionType {
@@ -54,7 +56,7 @@ function ContentSearchStep({
   return (
     <View style={{ flex: 1 }}>
       <Text style={[searchStyles.hint, { color: Brand.muted }]}>
-        Search for a show, film, book, game or album to link your discussion to it — or skip to post without one.
+        Search for a show, film, book, game or album to link your discussion to it, or skip to post without one.
       </Text>
 
       <View style={[searchStyles.inputWrap, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
@@ -111,7 +113,7 @@ function ContentSearchStep({
       )}
 
       <Pressable style={searchStyles.skipBtn} onPress={onSkip}>
-        <Text style={[searchStyles.skipText, { color: Brand.muted }]}>Skip — post without linking to a title</Text>
+        <Text style={[searchStyles.skipText, { color: Brand.muted }]}>Skip, post without linking to a title</Text>
       </Pressable>
     </View>
   );
@@ -139,12 +141,72 @@ const searchStyles = StyleSheet.create({
   skipText: { fontFamily: BrandFonts.interMedium, fontSize: 13 },
 });
 
+// ── Type picker step ─────────────────────────────────────────────────────────
+
+type DiscussionFormat = 'discussion' | 'poll' | 'hot_take';
+
+const FORMAT_OPTIONS: {
+  value: DiscussionFormat;
+  label: string;
+  emoji: string;
+  description: string;
+  cardBg: string;
+  labelColor: string;
+}[] = [
+  { value: 'discussion', label: 'Discussion', emoji: '💬', description: 'Start an open conversation and see what others think.', cardBg: '#EDE9FE', labelColor: '#6D28D9' },
+  { value: 'poll',       label: 'Poll',       emoji: '📊', description: 'Ask a question and let the community vote.',            cardBg: '#FEF9C3', labelColor: '#92400E' },
+  { value: 'hot_take',   label: 'Hot Take',   emoji: '🔥', description: 'Share a bold take and see who agrees (or disagrees).', cardBg: '#FEE2E2', labelColor: '#DC2626' },
+];
+
+function TypePickerStep({
+  onPick,
+}: {
+  onPick: (format: DiscussionFormat) => void;
+}) {
+  return (
+    <View style={typeStyles.wrap}>
+      <Text style={typeStyles.heading}>What do you want to create?</Text>
+      {FORMAT_OPTIONS.map((opt) => (
+        <Pressable
+          key={opt.value}
+          style={[typeStyles.card, { backgroundColor: opt.cardBg }]}
+          onPress={() => onPick(opt.value)}>
+          <Text style={typeStyles.cardEmoji}>{opt.emoji}</Text>
+          <View style={typeStyles.cardBody}>
+            <Text style={[typeStyles.cardLabel, { color: opt.labelColor }]}>{opt.label.toUpperCase()}</Text>
+            <Text style={typeStyles.cardDesc}>{opt.description}</Text>
+          </View>
+          <Text style={typeStyles.cardChevron}>›</Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
+const typeStyles = StyleSheet.create({
+  wrap: { flex: 1, padding: 20, gap: 12 },
+  heading: { fontFamily: BrandFonts.syneExtraBold, fontSize: 24, color: '#111827', marginBottom: 8, lineHeight: 30 },
+  card: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    borderRadius: 20,
+    padding: 18,
+  },
+  cardEmoji: { fontSize: 32, width: 44, textAlign: 'center' },
+  cardBody: { flex: 1, gap: 3 },
+  cardLabel: { fontFamily: BrandFonts.syneBold, fontSize: 13, letterSpacing: 0.8 },
+  cardDesc: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: '#374151', lineHeight: 19 },
+  cardChevron: { fontSize: 22, color: '#9CA3AF' },
+});
+
 // ── Write step ────────────────────────────────────────────────────────────────
 
 export default function CreateDiscussionModal() {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { user } = useSession();
   const createDiscussion = useCreateDiscussion();
   const createPoll = useCreateDiscussionPoll();
 
@@ -156,8 +218,9 @@ export default function CreateDiscussionModal() {
     prefillPoster?: string;
   }>();
 
-  const [step, setStep] = useState<'search' | 'write'>(
-    params.prefillExternalId ? 'write' : 'search'
+  const [format, setFormat] = useState<DiscussionFormat>('discussion');
+  const [step, setStep] = useState<'search' | 'type' | 'write'>(
+    params.prefillExternalId ? 'type' : 'search'
   );
   const [linked, setLinked] = useState<LinkedContent | null>(
     params.prefillExternalId
@@ -175,6 +238,7 @@ export default function CreateDiscussionModal() {
 
   const scrollRef = useRef<ScrollView>(null);
 
+
   const [title, setTitle] = useState(params.prefillTitle ?? '');
   const [body, setBody] = useState('');
 
@@ -183,11 +247,46 @@ export default function CreateDiscussionModal() {
   const [pollQuestion, setPollQuestion] = useState('');
   const [pollOptions, setPollOptions] = useState(['', '']);
 
-  const pollValid = !pollEnabled || (
-    pollQuestion.trim().length >= 3 &&
-    pollOptions.filter((o) => o.trim().length > 0).length >= 2
+  // Quiz: array of questions, each with their own options and a correct answer
+  const BLANK_QUIZ_Q = () => ({ question: '', options: ['', ''], correctIndex: null as number | null });
+  const [quizQuestions, setQuizQuestions] = useState([BLANK_QUIZ_Q()]);
+
+  const isPoll = format === 'poll';
+  const isQuiz = false;
+
+  const pollValid = !isPoll || (isQuiz
+    ? quizQuestions.every((q) => q.question.trim().length >= 3 && q.options.filter((o) => o.trim()).length >= 2)
+    : pollQuestion.trim().length >= 3 && pollOptions.filter((o) => o.trim().length > 0).length >= 2
   );
   const canPost = title.trim().length >= 3 && pollValid && !createDiscussion.isPending;
+
+  function updateQuizQuestion(qi: number, text: string) {
+    setQuizQuestions((prev) => prev.map((q, i) => i === qi ? { ...q, question: text } : q));
+  }
+  function updateQuizOption(qi: number, oi: number, text: string) {
+    setQuizQuestions((prev) => prev.map((q, i) => {
+      if (i !== qi) return q;
+      const opts = [...q.options]; opts[oi] = text;
+      return { ...q, options: opts };
+    }));
+  }
+  function addQuizOption(qi: number) {
+    setQuizQuestions((prev) => prev.map((q, i) => i === qi && q.options.length < 6 ? { ...q, options: [...q.options, ''] } : q));
+  }
+  function removeQuizOption(qi: number, oi: number) {
+    setQuizQuestions((prev) => prev.map((q, i) => i === qi ? { ...q, options: q.options.filter((_, j) => j !== oi) } : q));
+  }
+  function addQuizQuestion() {
+    if (quizQuestions.length < 8) {
+      setQuizQuestions((prev) => [...prev, BLANK_QUIZ_Q()]);
+    }
+  }
+  function removeQuizQuestion(qi: number) {
+    if (quizQuestions.length > 1) setQuizQuestions((prev) => prev.filter((_, i) => i !== qi));
+  }
+  function setCorrectIndex(qi: number, oi: number) {
+    setQuizQuestions((prev) => prev.map((q, i) => i === qi ? { ...q, correctIndex: q.correctIndex === oi ? null : oi } : q));
+  }
 
   async function handlePost() {
     if (!canPost) return;
@@ -196,32 +295,57 @@ export default function CreateDiscussionModal() {
         title,
         body,
         type: discussionType,
+        format: isPoll ? 'poll' : format === 'hot_take' ? 'hot_take' : 'discussion',
         contentTitle: linked?.title,
         contentPoster: linked?.poster ?? undefined,
         contentExternalId: linked?.externalId,
         contentMediaType: linked?.mediaType,
       });
-      // Attach poll if enabled
-      if (pollEnabled && pollQuestion.trim()) {
+      if (isQuiz) {
+        const validQs = quizQuestions
+          .map((q) => ({ question: q.question.trim(), options: q.options.map((o) => o.trim()).filter(Boolean), correct_index: q.correctIndex ?? null }))
+          .filter((q) => q.question.length >= 3 && q.options.length >= 2);
+        if (validQs.length > 0) {
+          await createPoll.mutateAsync({
+            discussionId: id,
+            question: validQs[0].question,
+            options: validQs[0].options,
+            questions: validQs,
+          });
+        }
+      } else if (isPoll && pollQuestion.trim()) {
         const filledOptions = pollOptions.map((o) => o.trim()).filter(Boolean);
         if (filledOptions.length >= 2) {
           await createPoll.mutateAsync({ discussionId: id, question: pollQuestion.trim(), options: filledOptions });
         }
       }
+      track(user?.id, Events.DISCUSSION_CREATED, {
+        discussion_id: id,
+        format: isQuiz ? 'quiz' : isPoll ? 'poll' : 'discussion',
+        type: discussionType,
+        has_content: !!linked,
+        has_body: !!body.trim(),
+      });
       router.back();
       router.push({ pathname: '/discussion-detail-modal', params: { id } });
-    } catch {
-      Alert.alert('Error', 'Could not post discussion. Please try again.');
+    } catch (e: any) {
+      Alert.alert('Error', e?.message ?? 'Could not post. Please try again.');
     }
   }
 
   function handlePick(content: LinkedContent) {
     setLinked(content);
-    setStep('write');
+    setStep('type');
   }
 
   function handleSkip() {
     setLinked(null);
+    setStep('type');
+  }
+
+  function handleFormatPick(f: DiscussionFormat) {
+    setFormat(f);
+    setPollEnabled(f === 'poll');
     setStep('write');
   }
 
@@ -232,16 +356,16 @@ export default function CreateDiscussionModal() {
         <View style={styles.header}>
           <Pressable
             onPress={() => {
-              if (step === 'write' && !params.prefillExternalId) {
-                setStep('search');
-              } else {
-                router.back();
-              }
+              if (step === 'write') setStep('type');
+              else if (step === 'type' && !params.prefillExternalId) setStep('search');
+              else router.back();
             }}
             hitSlop={12}>
-            <Text style={styles.cancel}>{step === 'write' && !params.prefillExternalId ? 'Back' : 'Cancel'}</Text>
+            <Text style={styles.cancel}>{step === 'search' ? 'Cancel' : 'Back'}</Text>
           </Pressable>
-          <Text style={styles.headerTitle}>{step === 'search' ? 'Link a title' : 'New Discussion'}</Text>
+          <Text style={styles.headerTitle}>
+            {step === 'search' ? 'Search a title' : step === 'type' ? 'Start a conversation' : FORMAT_OPTIONS.find(f => f.value === format)?.label ?? 'New Discussion'}
+          </Text>
           {step === 'write' ? (
             <Pressable onPress={handlePost} disabled={!canPost} hitSlop={12}>
               {createDiscussion.isPending
@@ -257,13 +381,16 @@ export default function CreateDiscussionModal() {
           <View style={styles.stepContent}>
             <ContentSearchStep Brand={Brand} onPick={handlePick} onSkip={handleSkip} />
           </View>
+        ) : step === 'type' ? (
+          <TypePickerStep onPick={handleFormatPick} />
         ) : (
           <ScrollView
             ref={scrollRef}
             style={styles.scroll}
             contentContainerStyle={styles.content}
             keyboardShouldPersistTaps="handled"
-            automaticallyAdjustKeyboardInsets={true}>
+            automaticallyAdjustKeyboardInsets={true}
+>
 
             {/* Linked content card */}
             {linked ? (
@@ -332,23 +459,24 @@ export default function CreateDiscussionModal() {
             </View>
             <Text style={[styles.charCount, { color: Brand.muted }]}>{body.length}/10000</Text>
 
-            {/* Poll toggle */}
-            <Pressable
-              style={[styles.pollToggleRow, { borderColor: pollEnabled ? Brand.trust : Brand.border, backgroundColor: pollEnabled ? Brand.tlight : Brand.card }]}
-              onPress={() => {
-                setPollEnabled((v) => !v);
-                setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
-              }}>
-              <Text style={[styles.pollToggleIcon, { color: pollEnabled ? Brand.trust : Brand.muted }]}>📊</Text>
-              <Text style={[styles.pollToggleLabel, { color: pollEnabled ? Brand.trust : Brand.ink }]}>
-                {pollEnabled ? 'Poll added' : 'Add a poll'}
-              </Text>
-              <Text style={[styles.pollToggleSub, { color: Brand.muted }]}>optional</Text>
-            </Pressable>
+            {/* Poll toggle — always visible for poll/quiz, optional for others */}
+            {!isPoll && (
+              <Pressable
+                style={[styles.pollToggleRow, { borderColor: pollEnabled ? Brand.trust : Brand.border, backgroundColor: pollEnabled ? Brand.tlight : Brand.card }]}
+                onPress={() => {
+                  setPollEnabled((v) => !v);
+                  setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);
+                }}>
+                <Text style={[styles.pollToggleIcon, { color: pollEnabled ? Brand.trust : Brand.muted }]}>📊</Text>
+                <Text style={[styles.pollToggleLabel, { color: pollEnabled ? Brand.trust : Brand.ink }]}>
+                  {pollEnabled ? 'Poll added' : 'Add a poll'}
+                </Text>
+                <Text style={[styles.pollToggleSub, { color: Brand.muted }]}>optional</Text>
+              </Pressable>
+            )}
 
-            {pollEnabled && (
+            {(pollEnabled || isPoll) && !isQuiz && (
               <View style={[styles.pollCard, { borderColor: Brand.border, backgroundColor: Brand.card }]}>
-                {/* Question */}
                 <Text style={[styles.sectionLabel, { marginTop: 0 }]}>Poll question</Text>
                 <View style={[styles.inputWrap, { borderColor: Brand.border, backgroundColor: Brand.paper }]}>
                   <TextInput
@@ -361,8 +489,6 @@ export default function CreateDiscussionModal() {
                     maxLength={200}
                   />
                 </View>
-
-                {/* Options */}
                 <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Options</Text>
                 {pollOptions.map((opt, i) => (
                   <View key={i} style={[styles.pollOptionRow, i > 0 && { marginTop: 8 }]}>
@@ -372,32 +498,104 @@ export default function CreateDiscussionModal() {
                         placeholder={`Option ${i + 1}${i < 2 ? ' *' : ' (optional)'}`}
                         placeholderTextColor={Brand.muted}
                         value={opt}
-                        onChangeText={(text) => {
-                          const next = [...pollOptions];
-                          next[i] = text;
-                          setPollOptions(next);
-                        }}
+                        onChangeText={(text) => { const next = [...pollOptions]; next[i] = text; setPollOptions(next); }}
                         maxLength={120}
                       />
                     </View>
                     {pollOptions.length > 2 && (
-                      <Pressable
-                        hitSlop={8}
-                        onPress={() => setPollOptions(pollOptions.filter((_, j) => j !== i))}
-                        style={styles.pollRemoveBtn}>
+                      <Pressable hitSlop={8} onPress={() => setPollOptions(pollOptions.filter((_, j) => j !== i))} style={styles.pollRemoveBtn}>
                         <Text style={{ color: Brand.muted, fontSize: 18, lineHeight: 22 }}>×</Text>
                       </Pressable>
                     )}
                   </View>
                 ))}
                 {pollOptions.length < 4 && (
-                  <Pressable
-                    style={[styles.pollAddOptionBtn, { borderColor: Brand.border }]}
-                    onPress={() => setPollOptions([...pollOptions, ''])}>
+                  <Pressable style={[styles.pollAddOptionBtn, { borderColor: Brand.border }]} onPress={() => setPollOptions([...pollOptions, ''])}>
                     <Text style={[styles.addLinkText, { color: Brand.muted }]}>+ Add option</Text>
                   </Pressable>
                 )}
               </View>
+            )}
+
+            {isQuiz && (
+              <ScrollView
+
+                nestedScrollEnabled
+                scrollEnabled
+                showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ gap: 12, paddingBottom: 8 }}
+                style={{ maxHeight: 1200 }}>
+                {quizQuestions.map((q, qi) => (
+                  <View key={qi} style={[styles.pollCard, { borderColor: Brand.border, backgroundColor: Brand.card }]}>
+                    {/* Question header */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <Text style={[styles.sectionLabel, { marginTop: 0 }]}>Question {qi + 1}</Text>
+                      {quizQuestions.length > 1 && (
+                        <Pressable hitSlop={10} onPress={() => removeQuizQuestion(qi)}>
+                          <Text style={{ color: Brand.muted, fontSize: 18 }}>×</Text>
+                        </Pressable>
+                      )}
+                    </View>
+                    <View style={[styles.inputWrap, { borderColor: Brand.border, backgroundColor: Brand.paper }]}>
+                      <TextInput
+                        style={[styles.titleInput, { color: Brand.ink, fontSize: 14 }]}
+                        placeholder="e.g. Who said this line?"
+                        placeholderTextColor={Brand.muted}
+                        value={q.question}
+                        onChangeText={(t) => updateQuizQuestion(qi, t)}
+                        scrollEnabled={false}
+                        maxLength={200}
+                      />
+                    </View>
+                    <Text style={[styles.sectionLabel, { marginTop: 12 }]}>Options <Text style={{ color: Brand.muted, fontWeight: '400' }}>— tap ✓ to mark correct answer</Text></Text>
+                    {q.options.map((opt, oi) => {
+                      const isCorrect = q.correctIndex === oi;
+                      return (
+                        <View key={oi} style={[styles.pollOptionRow, oi > 0 && { marginTop: 8 }]}>
+                          <Pressable
+                            hitSlop={4}
+                            onPress={() => setCorrectIndex(qi, oi)}
+                            style={{
+                              width: 28, height: 28, borderRadius: 14, borderWidth: 1.5,
+                              borderColor: isCorrect ? '#22C55E' : Brand.border,
+                              backgroundColor: isCorrect ? '#22C55E' : 'transparent',
+                              alignItems: 'center', justifyContent: 'center', marginRight: 8,
+                            }}>
+                            {isCorrect && <Text style={{ color: '#fff', fontSize: 13, fontWeight: '700' }}>✓</Text>}
+                          </Pressable>
+                          <View style={[styles.inputWrap, { flex: 1, borderColor: isCorrect ? '#22C55E' : Brand.border, backgroundColor: Brand.paper, paddingVertical: 8 }]}>
+                            <TextInput
+                              style={[styles.bodyInput, { color: Brand.ink, minHeight: 0, fontSize: 14 }]}
+                              placeholder={`Option ${oi + 1}${oi < 2 ? ' *' : ' (optional)'}`}
+                              placeholderTextColor={Brand.muted}
+                              value={opt}
+                              onChangeText={(t) => updateQuizOption(qi, oi, t)}
+                              maxLength={120}
+                            />
+                          </View>
+                          {q.options.length > 2 && (
+                            <Pressable hitSlop={8} onPress={() => removeQuizOption(qi, oi)} style={styles.pollRemoveBtn}>
+                              <Text style={{ color: Brand.muted, fontSize: 18, lineHeight: 22 }}>×</Text>
+                            </Pressable>
+                          )}
+                        </View>
+                      );
+                    })}
+                    {q.options.length < 6 && (
+                      <Pressable style={[styles.pollAddOptionBtn, { borderColor: Brand.border }]} onPress={() => addQuizOption(qi)}>
+                        <Text style={[styles.addLinkText, { color: Brand.muted }]}>+ Add option</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ))}
+                {quizQuestions.length < 8 && (
+                  <Pressable
+                    style={[styles.pollAddOptionBtn, { borderColor: Brand.trust, marginTop: 0 }]}
+                    onPress={addQuizQuestion}>
+                    <Text style={[styles.addLinkText, { color: Brand.trust }]}>+ Add question ({quizQuestions.length}/8)</Text>
+                  </Pressable>
+                )}
+              </ScrollView>
             )}
           </ScrollView>
         )}
@@ -424,7 +622,7 @@ function createStyles(Brand: BrandPalette) {
     postDisabled: { opacity: 0.35 },
     stepContent: { flex: 1, padding: 16 },
     scroll: { flex: 1 },
-    content: { padding: 16, gap: 8, paddingBottom: 120 },
+    content: { padding: 16, gap: 8, paddingBottom: 200 },
 
     linkedCard: {
       flexDirection: 'row',

@@ -168,8 +168,8 @@ export function useInbox() {
       return all;
     },
     enabled: !!user,
-    staleTime: 120_000,
-    
+    staleTime: 30_000,
+    refetchOnMount: true,
   });
 }
 

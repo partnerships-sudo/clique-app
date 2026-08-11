@@ -36,6 +36,7 @@ export default function CollectionItemDetailModal() {
     externalId?: string;
     mediaType?: string;
     isOwner?: string;
+    note?: string;
   }>();
 
   const Brand = useBrand();
@@ -103,6 +104,20 @@ export default function CollectionItemDetailModal() {
           ) : null}
         </View>
       </View>
+
+      {/* Friend's rating + review — shown when viewing someone else's profile */}
+      {!isOwner && (params.userRating || params.note) ? (
+        <View style={styles.ratingSection}>
+          {params.userRating && Number(params.userRating) > 0 ? (
+            <Text style={styles.friendStars}>
+              {'★'.repeat(Math.round(Number(params.userRating)))}{'☆'.repeat(5 - Math.round(Number(params.userRating)))}
+            </Text>
+          ) : null}
+          {params.note ? (
+            <Text style={styles.friendNote}>&ldquo;{params.note}&rdquo;</Text>
+          ) : null}
+        </View>
+      ) : null}
 
       {/* Rating section — own profile only */}
       {isOwner ? (
@@ -251,6 +266,16 @@ function createStyles(Brand: BrandPalette) {
     },
     saveBtnLoading: { opacity: 0.7 },
     saveBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
+    friendStars: { fontSize: 26, color: Brand.warm, letterSpacing: 2, marginBottom: 10 },
+    friendNote: {
+      fontFamily: BrandFonts.interRegular,
+      fontStyle: 'italic',
+      fontSize: 14,
+      color: Brand.trust,
+      lineHeight: 21,
+      textAlign: 'center',
+      paddingHorizontal: 16,
+    },
     actions: { gap: 10 },
     infoBtn: {
       backgroundColor: Brand.card,

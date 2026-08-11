@@ -35,7 +35,7 @@ const FEED_PAGE_SIZE = 30;
 
 function useInfiniteFeedPosts() {
   const { user } = useSession();
-  const { data: following } = useFollowing();
+  const { data: following, isSuccess: followingLoaded } = useFollowing();
   const { blockedIds, mutedIds } = useBlockedMutedIds();
   const followingIds = (following ?? [])
     .map((f) => f.id)
@@ -80,7 +80,7 @@ function useInfiniteFeedPosts() {
     },
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.nextCursor,
-    enabled: !!user,
+    enabled: !!user && followingLoaded,
   });
 }
 

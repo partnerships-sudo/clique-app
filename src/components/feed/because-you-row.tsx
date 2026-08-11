@@ -56,11 +56,6 @@ export function BecauseYouRow({
         keyExtractor={(e) => `${e.type}:${e.title}`}
         contentContainerStyle={styles.row}
         ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
-        ListFooterComponent={
-          <Pressable style={styles.sparkleBtn} onPress={() => router.push('/(tabs)')}>
-            <Text style={styles.sparkleIcon}>✨</Text>
-          </Pressable>
-        }
         renderItem={({ item }) => (
           <Pressable style={styles.card} onPress={() => openEntry(item)}>
             {item.poster ? (

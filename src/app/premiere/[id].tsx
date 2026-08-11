@@ -14,5 +14,9 @@ export default function PremiereDeepLink() {
     return <Redirect href={{ pathname: '/premiere-live', params: { id } }} />;
   }
 
+  if (premiere.status === 'ended') {
+    return <Redirect href={{ pathname: '/premiere-replay', params: { id } }} />;
+  }
+
   return <Redirect href={{ pathname: '/premiere-waiting-room', params: { id } }} />;
 }

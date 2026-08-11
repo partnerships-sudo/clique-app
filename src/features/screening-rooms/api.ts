@@ -14,12 +14,15 @@ export interface ScreeningRoom {
   host_avatar_url: string | null;
   title: string;
   description: string | null;
+  tagline: string | null;
   video_url: string;
   video_type: VideoType;
   cover_image: string | null;
   status: ScreeningRoomStatus;
   is_playing: boolean;
   playback_position_ms: number;
+  air_date: string | null;
+  air_time: string | null;
   live_started_at: string | null;
   ended_at: string | null;
   peak_viewer_count: number;
@@ -160,9 +163,12 @@ export function useCreateScreeningRoom() {
     mutationFn: async (input: {
       title: string;
       description?: string;
+      tagline?: string;
       video_url: string;
       video_type: VideoType;
       cover_image?: string | null;
+      air_date?: string | null;
+      air_time?: string | null;
     }) => {
       const hostName = profile?.full_name ?? profile?.username ?? user?.email?.split('@')[0] ?? 'Host';
       const { data, error } = await supabase
@@ -173,9 +179,12 @@ export function useCreateScreeningRoom() {
           host_avatar_url: profile?.avatar_url ?? null,
           title: input.title,
           description: input.description ?? null,
+          tagline: input.tagline ?? null,
           video_url: input.video_url,
           video_type: input.video_type,
           cover_image: input.cover_image ?? null,
+          air_date: input.air_date ?? null,
+          air_time: input.air_time ?? null,
           status: 'waiting',
           is_playing: false,
           playback_position_ms: 0,
@@ -198,6 +207,29 @@ export function useDeleteScreeningRoom() {
       if (error) throw error;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['screening-rooms', user?.id] }),
+  });
+}
+
+export function useInviteToScreeningRoom() {
+  const { user } = useSession();
+  const { data: profile } = useProfile();
+  return useMutation({
+    mutationFn: async ({ roomId, friendId, title }: { roomId: string; friendId: string; title: string }) => {
+      // Add them as a member
+      const { error } = await supabase
+        .from('screening_room_members')
+        .upsert({ room_id: roomId, user_id: friendId }, { ignoreDuplicates: true });
+      if (error) throw error;
+      // Send a DM invite card
+      const hostName = profile?.full_name ?? profile?.username ?? 'Someone';
+      if (user) {
+        await supabase.from('direct_messages').insert({
+          sender_id: user.id,
+          recipient_id: friendId,
+          content: JSON.stringify({ __screening_invite: true, roomId, title, hostName }),
+        });
+      }
+    },
   });
 }
 

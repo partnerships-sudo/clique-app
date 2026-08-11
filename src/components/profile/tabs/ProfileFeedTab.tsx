@@ -87,6 +87,7 @@ export function ProfileFeedTab({ userId }: Props) {
                 poster: item.poster ?? undefined,
                 type: item.type,
                 userRating: item.rating?.toString() ?? undefined,
+                note: item.note ?? undefined,
                 externalId: item.external_id ?? undefined,
                 mediaType: item.media_type ?? undefined,
                 isOwner: isOwner ? '1' : '0',

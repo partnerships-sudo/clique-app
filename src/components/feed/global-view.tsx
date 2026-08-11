@@ -1,14 +1,18 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useState } from 'react';
+import { ActionSheetIOS } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DiscussionCard } from '@/components/feed/discussion-card';
 import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
 import { BrandFonts, TypeColorsLight, type BrandPalette, type EntryType } from '@/constants/theme';
 import { type FeedFilterValue, useThreadSearch } from '@/features/feed/api';
-import { type DiscussionType, useDiscussionSearch, useTrendingDiscussions, usePersonalizedRooms, useFollowedRooms, type PersonalizedRoom } from '@/features/discussions/api';
+import { type DiscussionType, useDiscussionSearch, useTrendingDiscussions, usePersonalizedRooms, useFollowedRooms, useSavedDiscussions, type PersonalizedRoom } from '@/features/discussions/api';
 import { useContentSearch } from '@/features/search/api';
+import { track, Events } from '@/features/analytics/api';
+import { useSession } from '@/hooks/use-session';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const TYPE_MAP: Record<string, EntryType> = {
@@ -29,9 +33,24 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
   const { data: discussions = [], isLoading: dLoading } = useDiscussionSearch(query);
   const { data: contentResults = [], isLoading: cLoading } = useContentSearch(query);
   const TypeColors = useTypeColors();
+  const { user } = useSession();
 
   const isLoading = tLoading || dLoading || cLoading;
   const hasResults = threads.length > 0 || discussions.length > 0 || contentResults.length > 0;
+
+  // Fire once per settled query (not while still loading)
+  const trackedQuery = useRef('');
+  useEffect(() => {
+    if (isLoading || query.trim().length < 2) return;
+    if (trackedQuery.current === query) return;
+    trackedQuery.current = query;
+    const resultsCount = threads.length + discussions.length + contentResults.length;
+    track(user?.id, Events.SEARCH_PERFORMED, {
+      query,
+      results_count: resultsCount,
+      has_results: resultsCount > 0,
+    });
+  }, [isLoading, query, threads.length, discussions.length, contentResults.length, user?.id]);
 
   if (isLoading) return <ActivityIndicator style={{ marginTop: 12 }} />;
   if (!hasResults && query.trim().length >= 2) {
@@ -107,7 +126,7 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
           return (
             <Pressable
               key={`room-${row.externalId}`}
-              style={[styles.searchRow, sep]}
+              style={[styles.srRow, sep]}
               onPress={() => router.push({
                 pathname: '/content-room-modal',
                 params: { externalId: row.externalId, mediaType: row.mediaType, title: row.title, poster: row.poster ?? '' },
@@ -137,7 +156,7 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
           return (
             <Pressable
               key={`d-${row.id}`}
-              style={[styles.searchRow, sep]}
+              style={[styles.srRow, sep]}
               onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: row.id } })}>
               <View style={[styles.srThumb, { backgroundColor: typeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
                 <SymbolView name="bubble.left.and.bubble.right" size={16} tintColor={typeColors.color} type="monochrome" style={{ width: 16, height: 16 }} />
@@ -158,7 +177,7 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
         return (
           <Pressable
             key={`t-${row.title}-${i}`}
-            style={[styles.searchRow, sep]}
+            style={[styles.srRow, sep]}
             onPress={() => openThread(row.title, row.post_type, null)}>
             <View style={[styles.srThumb, { backgroundColor: colors.bg }]}>
               <Text style={{ fontSize: 18 }}>{colors.icon}</Text>
@@ -237,22 +256,41 @@ function PersonalizedRoomRow({ room, Brand }: { room: PersonalizedRoom; Brand: R
 
 export function GlobalView({ filter }: { filter: FeedFilterValue }) {
   const Brand = useBrand();
+  const { bottom: bottomInset } = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
   const isSearching = searchQuery.trim().length >= 2;
 
   const discussionType = filter === 'all' ? 'all' : filter as DiscussionType;
   const [showAll, setShowAll] = useState(false);
-  const { data: trending = [], isLoading: dLoading } = useTrendingDiscussions(showAll ? 50 : 5, discussionType);
+  const [sortMode, setSortMode] = useState<'hot' | 'new' | 'top'>('hot');
+  const { data: trendingRaw = [], isLoading: dLoading } = useTrendingDiscussions(showAll ? 50 : 5, discussionType);
+
+  const trending = [...trendingRaw].sort((a, b) => {
+    if (sortMode === 'new') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    if (sortMode === 'top') return b.upvote_count - a.upvote_count;
+    return (b.upvote_count + b.comment_count) - (a.upvote_count + a.comment_count); // hot
+  });
+
+  function showSortSheet() {
+    ActionSheetIOS.showActionSheetWithOptions(
+      {
+        options: ['Cancel', 'Most Active', 'Newest First', 'Most Upvoted'],
+        cancelButtonIndex: 0,
+      },
+      (i) => {
+        if (i === 1) setSortMode('hot');
+        if (i === 2) setSortMode('new');
+        if (i === 3) setSortMode('top');
+      },
+    );
+  }
   const { data: personalizedRooms = [] } = usePersonalizedRooms();
   const { data: followedRooms = [] } = useFollowedRooms();
+  const { data: savedDiscussions = [] } = useSavedDiscussions(4);
 
-  // Hide "Because you logged" rooms the user already follows
   const followedKeys = new Set(followedRooms.map((r) => `${r.externalId}|${r.mediaType}`));
   const unfollowedRooms = personalizedRooms.filter((r) => !followedKeys.has(`${r.externalId}|${r.mediaType}`));
-  const typeFilter = filter === 'all' ? 'all' : filter;
 
-  // When the user hasn't joined any lounges yet, surface discussions from their
-  // logged content instead of the generic trending list.
   const hasNoLounges = followedRooms.length === 0;
   const allPersonalizedDiscussions = hasNoLounges
     ? personalizedRooms
@@ -261,141 +299,174 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
   const personalizedDiscussions = showAll ? allPersonalizedDiscussions : allPersonalizedDiscussions.slice(0, 5);
 
   return (
-    <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      {/* Search bar */}
-      <View style={[styles.searchBar, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-        <SymbolView name="magnifyingglass" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
-        <TextInput
-          style={[styles.searchInput, { color: Brand.ink }]}
-          placeholder="Search a show, film, book, episode…"
-          placeholderTextColor={Brand.muted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          returnKeyType="search"
-          autoCorrect={false}
-          clearButtonMode="while-editing"
-        />
-      </View>
-
-      {/* Search results overlay */}
-      {isSearching && <SearchResults query={searchQuery} Brand={Brand} />}
-
-      {/* Main content — hidden while searching */}
-      {!isSearching && (
-        <>
-          {/* Trending discussions */}
-          <View style={styles.sectionRow}>
-            <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Busy Lounges</Text>
-            <Pressable
-              style={[styles.newDiscussionBtn, { backgroundColor: Brand.trust }]}
-              onPress={() => router.push('/create-discussion-modal')}>
-              <SymbolView name="plus" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
-              <Text style={styles.newDiscussionText}>Start one</Text>
-            </Pressable>
+    <View style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: bottomInset + 4 }]} keyboardShouldPersistTaps="handled">
+        {/* Search bar */}
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBar, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+            <SymbolView name="magnifyingglass" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
+            <TextInput
+              style={[styles.searchInput, { color: Brand.ink }]}
+              placeholder="Search the lounge…"
+              placeholderTextColor={Brand.muted}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              returnKeyType="search"
+              autoCorrect={false}
+              clearButtonMode="while-editing"
+            />
           </View>
+          <Pressable onPress={showSortSheet} style={[styles.filterIconBtn, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+            <SymbolView name="slider.horizontal.3" size={18} tintColor={Brand.muted} type="monochrome" style={{ width: 18, height: 18 }} />
+          </Pressable>
+        </View>
 
-          {dLoading ? (
-            <ActivityIndicator style={{ marginVertical: 20 }} color={Brand.trust} />
-          ) : hasNoLounges && personalizedDiscussions.length > 0 ? (
-            // No lounges followed yet — show discussions from content they've logged
-            <>
-              {personalizedDiscussions.map((d) => (
-                <DiscussionCard key={d.id} item={d} />
-              ))}
-              {allPersonalizedDiscussions.length > 5 && (
-                <Pressable
-                  style={[styles.viewMoreBtn, { backgroundColor: Brand.tlight }]}
-                  onPress={() => setShowAll((v) => !v)}>
-                  <Text style={[styles.viewMoreText, { color: Brand.trust }]}>
-                    {showAll ? 'Show less' : 'View more discussions'}
-                  </Text>
-                </Pressable>
-              )}
-            </>
-          ) : trending.length === 0 ? (
-            <Pressable
-              style={[styles.emptyBoard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
-              onPress={() => router.push('/create-discussion-modal')}>
-              <Text style={styles.emptyBoardIcon}>💬</Text>
-              <Text style={[styles.emptyBoardTitle, { color: Brand.ink }]}>No discussions yet</Text>
-              <Text style={[styles.emptyBoardSub, { color: Brand.muted }]}>Be the first to start one</Text>
-            </Pressable>
-          ) : (
-            <>
-              {trending.map((d) => <DiscussionCard key={d.id} item={d} />)}
-              {trending.length >= 5 && (
-                <Pressable
-                  style={[styles.viewMoreBtn, { backgroundColor: Brand.tlight }]}
-                  onPress={() => setShowAll((v) => !v)}>
-                  <Text style={[styles.viewMoreText, { color: Brand.trust }]}>
-                    {showAll ? 'Show less' : 'View more discussions'}
-                  </Text>
-                </Pressable>
-              )}
-            </>
-          )}
+        {/* Search results overlay */}
+        {isSearching && <SearchResults query={searchQuery} Brand={Brand} />}
 
-          {/* Followed rooms */}
-          {followedRooms.length > 0 && (
-            <>
-              <Text style={[styles.sectionTitle, { color: Brand.ink, marginTop: 16, marginBottom: 10 }]}>Your Lounges</Text>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.followedScroll}>
-                {followedRooms.map((room) => (
-                  <Pressable
-                    key={`${room.externalId}|${room.mediaType}`}
-                    style={[styles.followedCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
-                    onPress={() => router.push({
-                      pathname: '/content-room-modal',
-                      params: { externalId: room.externalId, mediaType: room.mediaType, title: room.contentTitle, poster: room.contentPoster ?? '' },
-                    })}>
-                    {room.contentPoster ? (
-                      <Image source={{ uri: room.contentPoster }} style={styles.followedPoster} resizeMode="cover" />
-                    ) : (
-                      <View style={[styles.followedPoster, { backgroundColor: Brand.tlight }]} />
-                    )}
-                    <View style={styles.followedInfo}>
-                      <Text style={[styles.followedRoomTitle, { color: Brand.ink }]} numberOfLines={2}>{room.contentTitle}</Text>
-                      <Text style={[styles.followedMeta, { color: Brand.muted }]}>
-                        {room.followerCount} {room.followerCount === 1 ? 'follower' : 'followers'}
-                      </Text>
-                    </View>
-                  </Pressable>
+        {/* Main content — hidden while searching */}
+        {!isSearching && (
+          <>
+            {/* Trending */}
+            <View style={styles.sectionRow}>
+              <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Trending</Text>
+              <Pressable onPress={() => setShowAll((v) => !v)}>
+                <Text style={[styles.seeAll, { color: Brand.trust }]}>{showAll ? 'Show less' : 'See all'}</Text>
+              </Pressable>
+            </View>
+
+            {dLoading ? (
+              <ActivityIndicator style={{ marginVertical: 20 }} color={Brand.trust} />
+            ) : hasNoLounges && personalizedDiscussions.length > 0 ? (
+              <>
+                {personalizedDiscussions.map((d) => (
+                  <DiscussionCard key={d.id} item={d} />
                 ))}
-              </ScrollView>
-            </>
-          )}
+              </>
+            ) : trending.length === 0 ? (
+              <Pressable
+                style={[styles.emptyBoard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
+                onPress={() => router.push('/create-discussion-modal')}>
+                <Text style={styles.emptyBoardIcon}>💬</Text>
+                <Text style={[styles.emptyBoardTitle, { color: Brand.ink }]}>No discussions yet</Text>
+                <Text style={[styles.emptyBoardSub, { color: Brand.muted }]}>Be the first to start one</Text>
+              </Pressable>
+            ) : (
+              trending.map((d) => <DiscussionCard key={d.id} item={d} />)
+            )}
 
-          {/* Personalized content rooms */}
-          {unfollowedRooms.map((room) => (
-            <PersonalizedRoomRow key={room.externalId} room={room} Brand={Brand} />
-          ))}
+            {/* Your Lounges */}
+            {followedRooms.length > 0 && (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Your Lounges</Text>
+                  <Pressable onPress={() => router.push('/followed-lounges-modal')}>
+                    <Text style={[styles.seeAll, { color: Brand.trust }]}>View all</Text>
+                  </Pressable>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.followedScroll}>
+                  {followedRooms.map((room) => (
+                    <Pressable
+                      key={`${room.externalId}|${room.mediaType}`}
+                      style={[styles.followedCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}
+                      onPress={() => router.push({
+                        pathname: '/content-room-modal',
+                        params: { externalId: room.externalId, mediaType: room.mediaType, title: room.contentTitle, poster: room.contentPoster ?? '' },
+                      })}>
+                      {room.contentPoster ? (
+                        <Image source={{ uri: room.contentPoster }} style={styles.followedPoster} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.followedPoster, { backgroundColor: Brand.tlight }]} />
+                      )}
+                      <View style={styles.followedInfo}>
+                        <Text style={[styles.followedRoomTitle, { color: Brand.ink }]} numberOfLines={2}>{room.contentTitle}</Text>
+                        <Text style={[styles.followedMeta, { color: Brand.muted }]}>
+                          {room.followerCount} {room.followerCount === 1 ? 'follower' : 'followers'}
+                        </Text>
+                      </View>
+                    </Pressable>
+                  ))}
+                </ScrollView>
+              </>
+            )}
 
-          {/* Most Reviewed moved to My Circle → Outer Circle */}
-        </>
-      )}
-    </ScrollView>
+            {/* Saved */}
+            {savedDiscussions.length > 0 && (
+              <>
+                <View style={styles.sectionRow}>
+                  <Text style={[styles.sectionTitle, { color: Brand.ink }]}>Saved</Text>
+                  <Pressable onPress={() => router.push('/saved-discussions-modal')}>
+                    <Text style={[styles.seeAll, { color: Brand.trust }]}>View all</Text>
+                  </Pressable>
+                </View>
+                <View style={styles.savedGrid}>
+                  {savedDiscussions.map((d) => (
+                    <Pressable
+                      key={d.id}
+                      style={[styles.savedTile, { backgroundColor: Brand.card, borderColor: Brand.border }]}
+                      onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: d.id } })}>
+                      {d.content_poster ? (
+                        <Image source={{ uri: d.content_poster }} style={styles.savedPoster} resizeMode="cover" />
+                      ) : (
+                        <View style={[styles.savedPoster, { backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' }]}>
+                          <Text style={{ fontSize: 18 }}>💬</Text>
+                        </View>
+                      )}
+                      <Text style={[styles.savedTitle, { color: Brand.ink }]} numberOfLines={1}>{d.title}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </>
+            )}
+
+            {/* Personalized rooms */}
+            {unfollowedRooms.map((room) => (
+              <PersonalizedRoomRow key={room.externalId} room={room} Brand={Brand} />
+            ))}
+          </>
+        )}
+
+      </ScrollView>
+
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingBottom: 40 },
-  searchBar: {
+  content: { paddingTop: 8 },
+
+  searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    marginBottom: 8,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    marginBottom: 6,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
   },
   searchInput: {
     flex: 1,
     fontFamily: BrandFonts.interRegular,
     fontSize: 14,
+  },
+  filterIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   searchResults: {
     borderWidth: 1,
@@ -409,7 +480,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     padding: 16,
   },
-  searchRow: {
+  srRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
@@ -432,23 +503,42 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 16,
-    paddingBottom: 10,
+    paddingTop: 10,
+    paddingBottom: 8,
   },
-  sectionTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 18, letterSpacing: -0.3 },
-  seeAll: { fontFamily: BrandFonts.interMedium, fontSize: 13 },
+  sectionTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 17, letterSpacing: -0.3 },
+  seeAll: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
 
-  newDiscussionBtn: {
+  // Floating action bar
+  fabRow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    borderRadius: 20,
-    paddingHorizontal: 12,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 6,
   },
-  newDiscussionText: {
+  fab: {
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 7,
+    paddingHorizontal: 20,
+    paddingVertical: 11,
+    borderRadius: 12,
+    shadowColor: '#6D28D9',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  fabText: {
     fontFamily: BrandFonts.syneBold,
-    fontSize: 12,
+    fontSize: 14,
     color: '#fff',
   },
 
@@ -526,5 +616,9 @@ const styles = StyleSheet.create({
   followedInfo: { paddingHorizontal: 6, paddingTop: 5, paddingBottom: 6, gap: 1 },
   followedRoomTitle: { fontFamily: BrandFonts.syneBold, fontSize: 10, lineHeight: 13 },
   followedMeta: { fontFamily: BrandFonts.interRegular, fontSize: 9 },
+  savedGrid: { flexDirection: 'row', gap: 8 },
+  savedTile: { width: 72, borderRadius: 10, borderWidth: 1, overflow: 'hidden' },
+  savedPoster: { width: 72, height: 108 },
+  savedTitle: { fontFamily: BrandFonts.syneBold, fontSize: 9, lineHeight: 12, padding: 5 },
 });
 

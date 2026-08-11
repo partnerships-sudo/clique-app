@@ -41,6 +41,7 @@ export function ProfileCard({
   followersCount,
   followingCount,
   onLoggedPress,
+  onThisYearPress,
   onFollowersPress,
   onFollowingPress,
   onEditPress,
@@ -61,6 +62,7 @@ export function ProfileCard({
   followersCount: number;
   followingCount: number;
   onLoggedPress?: () => void;
+  onThisYearPress?: () => void;
   onFollowersPress?: () => void;
   onFollowingPress?: () => void;
   onEditPress?: () => void;
@@ -204,16 +206,19 @@ export function ProfileCard({
           </Pressable>
         </View>
 
-        {/* Tab bar */}
-        <View style={styles.tabRow}>
-          {PROFILE_TABS.map((tab) => (
-            <Pressable key={tab.key} style={[styles.tab, profileTab === tab.key && styles.tabActive]} onPress={() => { setProfileTab(tab.key); onTabChange?.(tab.key); }}>
-              <Text style={[styles.tabLabel, profileTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
-            </Pressable>
-          ))}
-        </View>
+      </View>
 
-        {/* Tab content — only the active tab is mounted, so its hooks only fire on demand */}
+      {/* Tab bar — outside contentPad so it spans full width */}
+      <View style={styles.tabRow}>
+        {PROFILE_TABS.map((tab) => (
+          <Pressable key={tab.key} style={[styles.tab, profileTab === tab.key && styles.tabActive]} onPress={() => { setProfileTab(tab.key); onTabChange?.(tab.key); }}>
+            <Text style={[styles.tabLabel, profileTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {/* Tab content — full width, each tab handles its own internal padding */}
+      <View style={styles.tabContentOuter}>
         {profileTab === 'feed' ? (
           <ProfileFeedTab userId={profile?.id} />
         ) : profileTab === 'watchlist' ? (
@@ -233,7 +238,9 @@ export function ProfileCard({
             logged={logged}
             followersCount={followersCount}
             followingCount={followingCount}
+            userId={profile?.id}
             onLoggedPress={onLoggedPress}
+            onThisYearPress={onThisYearPress}
             onFollowersPress={onFollowersPress}
             onFollowingPress={onFollowingPress}
             featuredBadges={featuredBadges}

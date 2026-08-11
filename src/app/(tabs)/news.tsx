@@ -20,6 +20,8 @@ import type { FeedFilterValue } from '@/features/feed/api';
 import { timeAgo } from '@/features/feed/time-ago';
 import { useBoxOfficeTop10, useNowPlayingMovies, useUpcomingMovies, type NowAndComingMovie } from '@/features/movies/api';
 import { useNewsArticles, type NewsArticle } from '@/features/news/api';
+import { track, Events } from '@/features/analytics/api';
+import { useSession } from '@/hooks/use-session';
 import { useBrand } from '@/hooks/use-brand';
 
 type NewsMode = 'headlines' | 'cinema';
@@ -42,6 +44,7 @@ const CATEGORY_FILTERS: { value: FeedFilterValue; label: string; sf: string }[] 
 export default function NewsScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { user } = useSession();
   const [mode, setMode] = useState<NewsMode>('headlines');
   const [filter, setFilter] = useState<FeedFilterValue>('all');
   const { data, isLoading, isFetching, isError, refetch } = useNewsArticles(filter);
@@ -51,6 +54,11 @@ export default function NewsScreen() {
   const boxOfficeByMovie = new Map((boxOffice ?? []).map((e) => [e.id, e.revenue]));
 
   function openArticle(article: NewsArticle) {
+    track(user?.id, Events.NEWS_CARD_TAPPED, {
+      title: article.title,
+      section: article.section,
+      filter,
+    });
     router.push({
       pathname: '/news-article-modal',
       params: {
@@ -221,7 +229,7 @@ export default function NewsScreen() {
           {/* Trending Now */}
           {trending.length > 0 ? (
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>🔥 Trending Now</Text>
+              <Text style={styles.sectionLabel}>Trending Now</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.trendingRow}>
                 {trending.map((article, i) => (
                   <Pressable key={article.id} style={styles.trendingCard} onPress={() => openArticle(article)}>

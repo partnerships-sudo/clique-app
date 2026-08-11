@@ -1,9 +1,10 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   Alert,
   FlatList,
+  Modal,
   Pressable,
   Share,
   StyleSheet,
@@ -19,6 +20,7 @@ import { BrandFonts } from '@/constants/theme';
 import {
   useEndScreeningRoom,
   useGoLiveScreeningRoom,
+  useInviteToScreeningRoom,
   useJoinScreeningRoom,
   usePushPlaybackState,
   useScreeningRoom,
@@ -27,6 +29,7 @@ import {
   useSendScreeningRoomMessage,
   type ScreeningRoomMessage,
 } from '@/features/screening-rooms/api';
+import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
@@ -40,6 +43,32 @@ function formatTime(ms: number): string {
   const s = totalSecs % 60;
   if (h > 0) return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+/** Parse screening room air_date + air_time into a JS Date.
+ *  air_time is like "07:30 PM" (stored from the drum picker).
+ *  Returns null if either field is missing/unparseable.
+ */
+function parseAirDateTime(airDate: string | null | undefined, airTime: string | null | undefined): Date | null {
+  if (!airDate || !airTime) return null;
+  // airTime: "07:30 PM" → convert to 24h
+  const match = airTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!match) return null;
+  let h = parseInt(match[1], 10);
+  const m = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+  if (period === 'AM') { if (h === 12) h = 0; }
+  else { if (h !== 12) h += 12; }
+  const d = new Date(`${airDate}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatCountdown(secsRemaining: number): string {
+  if (secsRemaining <= 0) return '00:00:00';
+  const h = Math.floor(secsRemaining / 3600);
+  const m = Math.floor((secsRemaining % 3600) / 60);
+  const s = secsRemaining % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
 }
 
 export default function ScreeningRoomLive() {
@@ -56,6 +85,11 @@ export default function ScreeningRoomLive() {
   const goLive = useGoLiveScreeningRoom();
   const endRoom = useEndScreeningRoom();
   const pushState = usePushPlaybackState();
+  const inviteToRoom = useInviteToScreeningRoom();
+  const { threads: dmThreads } = useDmThreads();
+
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [invitedIds, setInvitedIds] = useState<Set<string>>(new Set());
 
   const isHost = room?.host_user_id === user?.id;
   const isEnded = room?.status === 'ended';
@@ -70,6 +104,28 @@ export default function ScreeningRoomLive() {
   const [text, setText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const initializedRef = useRef(false);
+
+  // Countdown to scheduled air time
+  const airDateTime = useMemo(() => parseAirDateTime(room?.air_date, room?.air_time), [room?.air_date, room?.air_time]);
+  const [secsRemaining, setSecsRemaining] = useState<number>(() => {
+    if (!airDateTime) return 0;
+    return Math.max(0, Math.floor((airDateTime.getTime() - Date.now()) / 1000));
+  });
+
+  useEffect(() => {
+    if (!airDateTime || room?.status !== 'waiting') return;
+    const tick = () => {
+      const secs = Math.max(0, Math.floor((airDateTime.getTime() - Date.now()) / 1000));
+      setSecsRemaining(secs);
+      // Auto-go-live when countdown hits 0 and user is host
+      if (secs === 0 && isHost && id) {
+        goLive.mutate(id);
+      }
+    };
+    tick();
+    const interval = setInterval(tick, 1000);
+    return () => clearInterval(interval);
+  }, [airDateTime, room?.status, isHost, id]);
 
   // Realtime broadcast channel for playback sync
   const syncChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null);
@@ -260,20 +316,166 @@ export default function ScreeningRoomLive() {
     );
   }
 
+  // ── Waiting room (countdown) ────────────────────────────────────────────────
+  if (!isLive) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerLeft}>
+            <View style={styles.waitingBadge}>
+              <Text style={styles.waitingBadgeText}>SCHEDULED</Text>
+            </View>
+            <Text style={styles.roomTitle} numberOfLines={1}>{room?.title ?? '…'}</Text>
+          </View>
+          <View style={styles.headerRight}>
+            {isHost && (
+              <Pressable onPress={() => setInviteOpen(true)} hitSlop={12}>
+                <SymbolView name="person.badge.plus" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
+              </Pressable>
+            )}
+            {isHost && (
+              <Pressable onPress={handleShare} hitSlop={12}>
+                <SymbolView name="square.and.arrow.up" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
+              </Pressable>
+            )}
+            {isHost ? (
+              <Pressable onPress={handleEnd} hitSlop={12}>
+                <Text style={styles.endText}>Cancel</Text>
+              </Pressable>
+            ) : (
+              <Pressable onPress={() => router.back()} hitSlop={12}>
+                <Text style={styles.leaveText}>Leave</Text>
+              </Pressable>
+            )}
+          </View>
+        </View>
+
+        {/* Countdown hero */}
+        <View style={styles.waitingHero}>
+          <Text style={styles.waitingFilmEmoji}>🎬</Text>
+          <Text style={styles.waitingRoomTitle}>{room?.title ?? ''}</Text>
+          {room?.tagline ? <Text style={styles.waitingTagline}>{room.tagline}</Text> : null}
+          {airDateTime ? (
+            <>
+              <Text style={styles.countdownLabel}>Starting in</Text>
+              <Text style={styles.countdownText}>{formatCountdown(secsRemaining)}</Text>
+              <Text style={styles.scheduledFor}>
+                {airDateTime.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
+                {' · '}
+                {airDateTime.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
+              </Text>
+            </>
+          ) : (
+            <Text style={styles.countdownLabel}>Waiting for host to start…</Text>
+          )}
+          {viewerCount > 0 && (
+            <Text style={styles.waitingViewers}>{viewerCount} {viewerCount === 1 ? 'person' : 'people'} in the room</Text>
+          )}
+          {/* Host can start early */}
+          {isHost && (
+            <Pressable style={styles.startEarlyBtn} onPress={handleGoLive} disabled={goLive.isPending}>
+              <Text style={styles.startEarlyBtnText}>🔴  Start now</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Chat while waiting */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={(m) => m.id}
+          contentContainerStyle={styles.chatList}
+          ListEmptyComponent={
+            <Text style={styles.chatEmpty}>Chat while you wait 👋</Text>
+          }
+          onContentSizeChange={() => {
+            if (messages.length > 0) flatListRef.current?.scrollToEnd({ animated: false });
+          }}
+          renderItem={({ item }) => {
+            const isMine = item.user_id === user?.id;
+            return (
+              <View style={[styles.msgRow, isMine && styles.msgRowMine]}>
+                {!isMine && <Avatar name={item.user_name} size={26} avatarUrl={item.user_avatar_url} />}
+                <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
+                  {!isMine && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                      <Text style={styles.bubbleName}>{item.user_name}</Text>
+                      {item.user_id === room?.host_user_id && (
+                        <Text style={styles.hostBadge}>HOST</Text>
+                      )}
+                    </View>
+                  )}
+                  <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
+                </View>
+              </View>
+            );
+          }}
+        />
+
+        {/* Invite modal */}
+        <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)}>
+          <Pressable style={styles.inviteBackdrop} onPress={() => setInviteOpen(false)}>
+            <Pressable style={styles.inviteSheet} onPress={() => {}}>
+              <View style={styles.inviteGrabber} />
+              <Text style={styles.inviteTitle}>Invite friends</Text>
+              <FlatList
+                data={dmThreads}
+                keyExtractor={(t) => t.friendId}
+                style={styles.inviteList}
+                renderItem={({ item }) => {
+                  const sent = invitedIds.has(item.friendId);
+                  return (
+                    <Pressable
+                      style={styles.inviteRow}
+                      onPress={async () => {
+                        if (sent || !id || !room) return;
+                        await inviteToRoom.mutateAsync({ roomId: id, friendId: item.friendId, title: room.title });
+                        setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                      }}>
+                      <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
+                      <Text style={styles.inviteName}>{item.name}</Text>
+                      <Text style={[styles.inviteAction, sent && styles.inviteActionSent]}>
+                        {sent ? '✓ Invited' : 'Invite'}
+                      </Text>
+                    </Pressable>
+                  );
+                }}
+                ListEmptyComponent={<Text style={styles.inviteEmpty}>No friends yet.</Text>}
+              />
+            </Pressable>
+          </Pressable>
+        </Modal>
+
+        {/* Message input */}
+        <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
+          <TextInput
+            style={styles.input}
+            placeholder="Chat while you wait…"
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            value={text}
+            onChangeText={setText}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            editable={!!id}
+          />
+          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()}>
+            <SymbolView name="arrow.up" size={16} tintColor="#fff" type="monochrome" />
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Live screening ──────────────────────────────────────────────────────────
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.headerLeft}>
-          {isLive ? (
-            <View style={styles.liveBadge}>
-              <Text style={styles.liveBadgeText}>● LIVE</Text>
-            </View>
-          ) : (
-            <View style={styles.waitingBadge}>
-              <Text style={styles.waitingBadgeText}>WAITING</Text>
-            </View>
-          )}
+          <View style={styles.liveBadge}>
+            <Text style={styles.liveBadgeText}>● LIVE</Text>
+          </View>
           <View>
             <Text style={styles.roomTitle} numberOfLines={1}>{room?.title ?? '…'}</Text>
             {viewerCount > 0 && (
@@ -282,6 +484,11 @@ export default function ScreeningRoomLive() {
           </View>
         </View>
         <View style={styles.headerRight}>
+          {isHost && (
+            <Pressable onPress={() => setInviteOpen(true)} hitSlop={12}>
+              <SymbolView name="person.badge.plus" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
+            </Pressable>
+          )}
           {isHost && (
             <Pressable onPress={handleShare} hitSlop={12}>
               <SymbolView name="square.and.arrow.up" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
@@ -331,24 +538,18 @@ export default function ScreeningRoomLive() {
       {/* Host controls */}
       {isHost && (
         <View style={styles.controls}>
-          {!isLive ? (
-            <Pressable style={styles.goLiveBtn} onPress={handleGoLive} disabled={goLive.isPending}>
-              <Text style={styles.goLiveBtnText}>🔴  Start Screening</Text>
+          <View style={styles.playbackControls}>
+            <Pressable style={styles.controlBtn} onPress={() => handleSkip(-15_000)} hitSlop={8}>
+              <SymbolView name="gobackward.15" size={22} tintColor="#fff" type="monochrome" />
             </Pressable>
-          ) : (
-            <View style={styles.playbackControls}>
-              <Pressable style={styles.controlBtn} onPress={() => handleSkip(-15_000)} hitSlop={8}>
-                <SymbolView name="gobackward.15" size={22} tintColor="#fff" type="monochrome" />
-              </Pressable>
-              <Pressable style={styles.playPauseBtn} onPress={handlePlayPause}>
-                <SymbolView name={isPlaying ? 'pause.fill' : 'play.fill'} size={26} tintColor="#fff" type="monochrome" />
-              </Pressable>
-              <Pressable style={styles.controlBtn} onPress={() => handleSkip(15_000)} hitSlop={8}>
-                <SymbolView name="goforward.15" size={22} tintColor="#fff" type="monochrome" />
-              </Pressable>
-              <Text style={styles.timeCode}>{formatTime(positionMs)}</Text>
-            </View>
-          )}
+            <Pressable style={styles.playPauseBtn} onPress={handlePlayPause}>
+              <SymbolView name={isPlaying ? 'pause.fill' : 'play.fill'} size={26} tintColor="#fff" type="monochrome" />
+            </Pressable>
+            <Pressable style={styles.controlBtn} onPress={() => handleSkip(15_000)} hitSlop={8}>
+              <SymbolView name="goforward.15" size={22} tintColor="#fff" type="monochrome" />
+            </Pressable>
+            <Text style={styles.timeCode}>{formatTime(positionMs)}</Text>
+          </View>
         </View>
       )}
 
@@ -372,13 +573,54 @@ export default function ScreeningRoomLive() {
             <View style={[styles.msgRow, isMine && styles.msgRowMine]}>
               {!isMine && <Avatar name={item.user_name} size={26} avatarUrl={item.user_avatar_url} />}
               <View style={[styles.bubble, isMine ? styles.bubbleMine : styles.bubbleOther]}>
-                {!isMine && <Text style={styles.bubbleName}>{item.user_name}</Text>}
+                {!isMine && (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 2 }}>
+                    <Text style={styles.bubbleName}>{item.user_name}</Text>
+                    {item.user_id === room?.host_user_id && (
+                      <Text style={styles.hostBadge}>HOST</Text>
+                    )}
+                  </View>
+                )}
                 <Text style={[styles.bubbleText, isMine && styles.bubbleTextMine]}>{item.content}</Text>
               </View>
             </View>
           );
         }}
       />
+
+      {/* Invite friends modal */}
+      <Modal visible={inviteOpen} transparent animationType="slide" onRequestClose={() => setInviteOpen(false)}>
+        <Pressable style={styles.inviteBackdrop} onPress={() => setInviteOpen(false)}>
+          <Pressable style={styles.inviteSheet} onPress={() => {}}>
+            <View style={styles.inviteGrabber} />
+            <Text style={styles.inviteTitle}>Invite friends</Text>
+            <FlatList
+              data={dmThreads}
+              keyExtractor={(t) => t.friendId}
+              style={styles.inviteList}
+              renderItem={({ item }) => {
+                const sent = invitedIds.has(item.friendId);
+                return (
+                  <Pressable
+                    style={styles.inviteRow}
+                    onPress={async () => {
+                      if (sent || !id || !room) return;
+                      await inviteToRoom.mutateAsync({ roomId: id, friendId: item.friendId, title: room.title });
+                      setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                    }}>
+                    <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
+                    <Text style={styles.inviteName}>{item.name}</Text>
+                    <Text style={[styles.inviteAction, sent && styles.inviteActionSent]}>
+                      {sent ? '✓ Invited' : 'Invite'}
+                    </Text>
+                  </Pressable>
+                );
+              }}
+              ListEmptyComponent={<Text style={styles.inviteEmpty}>No friends yet.</Text>}
+            />
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Message input */}
       <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
@@ -474,7 +716,28 @@ const styles = StyleSheet.create({
   bubble: { maxWidth: '75%', borderRadius: 16, paddingVertical: 8, paddingHorizontal: 12 },
   bubbleOther: { backgroundColor: 'rgba(255,255,255,0.08)', borderTopLeftRadius: 4 },
   bubbleMine: { backgroundColor: '#7C3AED', borderBottomRightRadius: 4 },
-  bubbleName: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: '#A78BFA', marginBottom: 2 },
+  bubbleName: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: '#A78BFA' },
+  hostBadge: {
+    fontFamily: BrandFonts.interMedium,
+    fontSize: 9,
+    color: '#7C3AED',
+    backgroundColor: '#EDE9FE',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    letterSpacing: 0.5,
+    overflow: 'hidden',
+  },
+  inviteBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+  inviteSheet: { backgroundColor: '#1A1629', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingTop: 12, paddingBottom: 32, maxHeight: '70%' },
+  inviteGrabber: { width: 36, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.15)', alignSelf: 'center', marginBottom: 16 },
+  inviteTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: '#fff', textAlign: 'center', marginBottom: 12 },
+  inviteList: { paddingHorizontal: 16 },
+  inviteRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, gap: 12 },
+  inviteName: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 15, color: '#fff' },
+  inviteAction: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#A78BFA' },
+  inviteActionSent: { color: 'rgba(255,255,255,0.3)' },
+  inviteEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: 'rgba(255,255,255,0.3)', textAlign: 'center', padding: 24 },
   bubbleText: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: 'rgba(255,255,255,0.88)' },
   bubbleTextMine: { color: '#fff' },
 
@@ -508,6 +771,34 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { opacity: 0.35 },
+
+  // Waiting room
+  waitingHero: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 32,
+    paddingHorizontal: 32,
+    gap: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.07)',
+  },
+  waitingFilmEmoji: { fontSize: 44, marginBottom: 4 },
+  waitingRoomTitle: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22, color: '#fff', textAlign: 'center' },
+  waitingTagline: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: 'rgba(255,255,255,0.5)', textAlign: 'center', marginTop: 2 },
+  countdownLabel: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 16 },
+  countdownText: { fontFamily: BrandFonts.syneExtraBold, fontSize: 48, color: '#fff', letterSpacing: 2, fontVariant: ['tabular-nums'] },
+  scheduledFor: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: 'rgba(255,255,255,0.35)', marginTop: 4 },
+  waitingViewers: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: 'rgba(255,255,255,0.3)', marginTop: 8 },
+  startEarlyBtn: {
+    marginTop: 16,
+    backgroundColor: 'rgba(239,68,68,0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(239,68,68,0.4)',
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+  },
+  startEarlyBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#EF4444' },
 
   // Ended
   endedWrap: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 32 },

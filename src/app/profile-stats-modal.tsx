@@ -15,14 +15,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useFollowersByUser, useFollowingByUser, useFollowing, type Profile } from '@/features/follows/api';
-import { useLibraryItemsByUser, type LibraryItem } from '@/features/library/api';
+import { usePostsByUser, type Post } from '@/features/feed/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
 type StatsTab = 'logged' | 'followers' | 'following';
 
 export default function ProfileStatsModal() {
-  const params = useLocalSearchParams<{ userId: string; tab: string; name: string }>();
+  const params = useLocalSearchParams<{ userId: string; tab: string; name: string; year?: string }>();
   const { user } = useSession();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -34,7 +34,7 @@ export default function ProfileStatsModal() {
 
   const isOwnProfile = userId === user?.id;
 
-  const { logged, isLoading: loggedLoading } = useLibraryItemsByUser(tab === 'logged' ? userId : undefined);
+  const { data: logged = [], isLoading: loggedLoading } = usePostsByUser(tab === 'logged' ? userId : undefined);
   const { data: followers, isLoading: followersLoading } = useFollowersByUser(tab === 'followers' ? userId : undefined);
   const { data: following, isLoading: followingLoading } = useFollowingByUser(tab === 'following' ? userId : undefined);
   // Only fetch on other people's profiles — used to float mutuals to the top.
@@ -46,10 +46,14 @@ export default function ProfileStatsModal() {
 
   const isLoading = loggedLoading || followersLoading || followingLoading;
 
-  const filteredLogged = useMemo(
-    () => (q ? logged.filter((i) => i.title.toLowerCase().includes(q) || (i.sub ?? '').toLowerCase().includes(q)) : logged),
-    [logged, q]
-  );
+  const yearFilter = params.year ? Number(params.year) : null;
+  const filteredLogged = useMemo(() => {
+    let list = yearFilter
+      ? logged.filter((i) => new Date(i.created_at).getFullYear() === yearFilter)
+      : logged;
+    if (q) list = list.filter((i) => i.title.toLowerCase().includes(q) || (i.sub ?? '').toLowerCase().includes(q));
+    return list;
+  }, [logged, q, yearFilter]);
   const filteredFollowers = useMemo(() => {
     const list = q
       ? (followers ?? []).filter(
@@ -82,7 +86,7 @@ export default function ProfileStatsModal() {
     });
   }, [following, q, myFollowingSet]);
 
-  const title = tab === 'logged' ? 'Logged' : tab === 'followers' ? 'Followers' : 'Following';
+  const title = tab === 'logged' ? (yearFilter ? `Logged ${yearFilter}` : 'Logged') : tab === 'followers' ? 'Followers' : 'Following';
   const count =
     tab === 'logged' ? filteredLogged.length : tab === 'followers' ? filteredFollowers.length : filteredFollowing.length;
 
@@ -95,7 +99,7 @@ export default function ProfileStatsModal() {
     }
   }
 
-  function renderLoggedItem({ item }: { item: LibraryItem }) {
+  function renderLoggedItem({ item }: { item: Post }) {
     return (
       <View style={styles.row}>
         {item.poster ? (

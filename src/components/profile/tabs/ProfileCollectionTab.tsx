@@ -1,10 +1,11 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Image, Pressable, Text, View } from 'react-native';
 
-import { useCollectionItems, useCollectionItemsByUser, type CollectionItem } from '@/features/collection/api';
+import { usePostsByUser, type Post } from '@/features/feed/api';
 import { useBrand } from '@/hooks/use-brand';
+import { useSession } from '@/hooks/use-session';
 import { createStyles } from '../profile-styles';
 
 type CollectionView = 'all' | 'read' | 'watch' | 'tv' | 'listen' | 'play' | 'podcast';
@@ -27,34 +28,27 @@ interface Props {
 export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { user } = useSession();
   const [collectionView, setCollectionView] = useState<CollectionView>('all');
   const [collectionSort, setCollectionSort] = useState<CollectionSort>('recent');
 
-  const ownData = useCollectionItems();
-  const friendData = useCollectionItemsByUser(isOwnProfile ? undefined : profileId);
-  const { items: collectionItems, isLoading } = isOwnProfile ? ownData : friendData;
-
-  const hasAutoSelected = useRef(false);
-  useEffect(() => {
-    if (isLoading || hasAutoSelected.current) return;
-    hasAutoSelected.current = true;
-    if (collectionItems.length > 0) setCollectionView('all');
-  }, [isLoading, collectionItems]);
+  const targetId = profileId ?? user?.id;
+  const { data: posts = [], isLoading } = usePostsByUser(targetId);
 
   const collectionFiltered = useMemo(() => {
     const items = collectionView === 'all'
-      ? collectionItems
-      : collectionItems.filter((i: CollectionItem) => i.type === collectionView);
+      ? posts
+      : posts.filter((p: Post) => p.type === collectionView);
     const sorted = [...items];
     if (collectionSort === 'recent') sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    else if (collectionSort === 'rating') sorted.sort((a, b) => (b.user_rating ?? 0) - (a.user_rating ?? 0));
+    else if (collectionSort === 'rating') sorted.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
     else sorted.sort((a, b) => a.title.localeCompare(b.title));
     return sorted;
-  }, [collectionItems, collectionView, collectionSort]);
+  }, [posts, collectionView, collectionSort]);
 
   const sortedCats = CAT_DEFS.map((c) => ({
     ...c,
-    count: collectionItems.filter((i: CollectionItem) => i.type === c.view).length,
+    count: posts.filter((p: Post) => p.type === c.view).length,
   })).sort((a, b) => b.count - a.count);
 
   return (
@@ -75,7 +69,7 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
           onPress={() => setCollectionView('all')}>
           <SymbolView name="square.grid.2x2.fill" size={15} tintColor={collectionView === 'all' ? Brand.paper : Brand.muted} style={{ width: 18, height: 18 }} />
           <Text style={[styles.collCatLabel, collectionView === 'all' && styles.collCatLabelActive]}>All</Text>
-          <Text style={[styles.collCatCount, collectionView === 'all' && styles.collCatCountActive]}>{collectionItems.length}</Text>
+          <Text style={[styles.collCatCount, collectionView === 'all' && styles.collCatCountActive]}>{posts.length}</Text>
         </Pressable>
         {sortedCats.map(({ view, sf, label, count }) => {
           const active = collectionView === view;
@@ -105,8 +99,8 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
         <Text style={styles.emptyText}>Nothing here yet.</Text>
       ) : (
         <View style={styles.collGrid}>
-          {collectionFiltered.map((item: CollectionItem) => {
-            const stars = item.user_rating ? Math.round(item.user_rating) : 0;
+          {collectionFiltered.map((item: Post) => {
+            const stars = item.rating ? Math.round(item.rating) : 0;
             return (
               <Pressable
                 key={item.id}
@@ -119,10 +113,10 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
                     sub: item.sub ?? undefined,
                     poster: item.poster ?? undefined,
                     type: item.type,
-                    format: item.format ?? undefined,
-                    userRating: item.user_rating?.toString() ?? undefined,
+                    userRating: item.rating?.toString() ?? undefined,
                     externalId: item.external_id ?? undefined,
                     mediaType: item.media_type ?? undefined,
+                    note: item.note ?? undefined,
                     isOwner: isOwnProfile ? '1' : '0',
                   },
                 })}>

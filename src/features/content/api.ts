@@ -1040,14 +1040,14 @@ export function useContentDetails(
                 ? `${detail.episode_run_time[0]}min/ep`
                 : null;
             const tmdbTrailer2 = pickYouTubeTrailer(detail.videos?.results ?? []);
-            const vimeoTrailer2 = tmdbTrailer2?.site === 'Vimeo' ? tmdbTrailer2 : null;
-            const [dailymotionTrailer2, appleTrailer2] = !vimeoTrailer2
+            // Only fall back to Dailymotion/Apple when TMDB has no trailer at all
+            const [dailymotionTrailer2, appleTrailer2] = !tmdbTrailer2
               ? await Promise.all([
                   fetchDailymotionTrailer(title, endpoint === 'movie' ? 'movie' : 'tv'),
                   fetchAppleTrailer(title, year),
                 ])
               : [null, null];
-            const trailer = vimeoTrailer2 ?? dailymotionTrailer2 ?? appleTrailer2 ?? tmdbTrailer2;
+            const trailer = tmdbTrailer2 ?? dailymotionTrailer2 ?? appleTrailer2;
             const [watchProviders, awards] = await Promise.all([
               fetchWatchProviders(Number(externalId), endpoint, title).catch(() => []),
               fetchWikipediaAwards(
