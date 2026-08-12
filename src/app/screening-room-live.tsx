@@ -304,7 +304,7 @@ export default function ScreeningRoomLive() {
       await Share.share({ message: `Join my Screening Room on Clique: "${room?.title}" — clique://screening-room/${id}` });
       // Record share for analytics
       if (id) {
-        await supabase.from('screening_room_shares').insert({ room_id: id, user_id: user?.id });
+        if (user?.id) await supabase.from('screening_room_shares').insert({ room_id: id, user_id: user.id });
       }
     } catch {}
   }
@@ -316,6 +316,16 @@ export default function ScreeningRoomLive() {
           <Text style={styles.endedEmoji}>🎬</Text>
           <Text style={styles.endedTitle}>That's a wrap!</Text>
           <Text style={styles.endedSub}>{room?.title}</Text>
+          {isHost && id && (
+            <Pressable
+              style={[styles.leaveBtn, { backgroundColor: 'rgba(255,255,255,0.15)', marginBottom: 0 }]}
+              onPress={() => {
+                router.back();
+                router.push({ pathname: '/screening-room-analytics-modal', params: { roomId: id, roomTitle: room?.title ?? '' } });
+              }}>
+              <Text style={styles.leaveBtnText}>View Analytics →</Text>
+            </Pressable>
+          )}
           <Pressable style={styles.leaveBtn} onPress={() => router.back()}>
             <Text style={styles.leaveBtnText}>Leave</Text>
           </Pressable>

@@ -323,6 +323,16 @@ export default function PremiereLive() {
             </View>
           )}
 
+          {isHostOrCoHost && params.id && (
+            <Pressable
+              style={[styles.leaveEndedBtn, { backgroundColor: 'rgba(255,255,255,0.12)', marginBottom: 0 }]}
+              onPress={() => {
+                router.back();
+                router.push({ pathname: '/watch-party-analytics-modal', params: { premiereId: params.id, showTitle: premiere?.show_title ?? '' } });
+              }}>
+              <Text style={styles.leaveEndedText}>View Analytics →</Text>
+            </Pressable>
+          )}
           <Pressable style={styles.leaveEndedBtn} onPress={() => router.back()}>
             <Text style={styles.leaveEndedText}>Leave</Text>
           </Pressable>
