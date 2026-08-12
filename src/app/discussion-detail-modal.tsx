@@ -43,6 +43,7 @@ import {
   useDiscussionSaved,
   useToggleDiscussionReaction,
   useToggleDiscussionSave,
+  useToggleDiscussionDisagree,
   useToggleDiscussionVote,
   useUpdateDiscussion,
   useVoteOnPoll,
@@ -436,6 +437,7 @@ export default function DiscussionDetailModal() {
   const { data: comments = [], isLoading: cLoading } = useDiscussionComments(id);
   const { data: poll } = useDiscussionPoll(id);
   const vote = useToggleDiscussionVote();
+  const disagree = useToggleDiscussionDisagree();
   const voteOnPoll = useVoteOnPoll();
   const updateDiscussion = useUpdateDiscussion();
   const addComment = useAddDiscussionComment();
@@ -454,6 +456,12 @@ export default function DiscussionDetailModal() {
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [mentionResults, setMentionResults] = useState<{ id: string; username: string; full_name: string; avatar_url: string | null }[]>([]);
   const [sort, setSort] = useState<SortMode>('popular');
+  const [kbHeight, setKbHeight] = useState(0);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardWillShow', (e) => setKbHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener('keyboardWillHide', () => setKbHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const [collapsedThreads, setCollapsedThreads] = useState<Set<string>>(new Set());
   const inputRef = useRef<TextInput>(null);
 
@@ -495,15 +503,7 @@ export default function DiscussionDetailModal() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [discussion?.id, user?.id]);
 
-  // Hide the comment bar when the keyboard is dismissed with no text typed
-  useEffect(() => {
-    const sub = Keyboard.addListener('keyboardWillHide', () => {
-      if (!text.trim()) {
-        setShowComments(false);
-      }
-    });
-    return () => sub.remove();
-  }, [text]);
+  // (comment hiding on keyboard dismiss removed — caused input bar to vanish on focus)
 
   const isOwner = user?.id === discussion?.user_id;
   const isPollDiscussion = !!poll;
@@ -750,9 +750,9 @@ export default function DiscussionDetailModal() {
       <View>
         {/* Hero image — black strip behind island, image starts below it */}
         <View style={[styles_.heroWrap, { height: HERO_HEIGHT + top, backgroundColor: '#000' }]}>
-          {(backdropUrl ?? discussion.content_poster) ? (
+          {(localImageUrl || discussion.image_url || backdropUrl || discussion.content_poster) ? (
             <Image
-              source={{ uri: backdropUrl ?? discussion.content_poster! }}
+              source={{ uri: (localImageUrl || discussion.image_url || backdropUrl || discussion.content_poster)! }}
               style={[styles_.heroImage, { marginTop: top }]}
               resizeMode="cover"
             />
@@ -868,10 +868,25 @@ export default function DiscussionDetailModal() {
                 {Object.values(reactions?.counts ?? {}).reduce((a, b) => a + b, 0) || discussion.upvote_count}
               </Text>
             </Pressable>
-            {/* Comments toggle */}
-            <Pressable style={styles_.pollActionPill} onPress={() => setShowComments(v => !v)} hitSlop={6}>
-              <SymbolView name="bubble.left" size={15} tintColor={showComments ? '#fff' : '#9CA3AF'} type="monochrome" style={{ width: 15, height: 15 }} />
-              <Text style={[styles_.pollActionCount, showComments && { color: '#fff' }]}>{comments.length}</Text>
+            {/* Upvote */}
+            <Pressable
+              style={[styles_.pollActionPill, discussion.has_voted && !discussion.has_disagreed && { backgroundColor: '#4F46E5' }]}
+              onPress={() => vote.mutate({ discussionId: discussion.id, hasVoted: discussion.has_voted, hasDisagreed: discussion.has_disagreed })}
+              hitSlop={6}>
+              <Text style={{ fontSize: 14 }}>👍</Text>
+              {discussion.upvote_count > 0 && (
+                <Text style={[styles_.pollActionCount, discussion.has_voted && !discussion.has_disagreed && { color: '#fff' }]}>{discussion.upvote_count}</Text>
+              )}
+            </Pressable>
+            {/* Disagree */}
+            <Pressable
+              style={[styles_.pollActionPill, discussion.has_disagreed && { backgroundColor: '#991B1B' }]}
+              onPress={() => disagree.mutate({ discussionId: discussion.id, hasDisagreed: discussion.has_disagreed, hasVoted: discussion.has_voted })}
+              hitSlop={6}>
+              <Text style={{ fontSize: 14 }}>👎</Text>
+              {discussion.disagree_count > 0 && (
+                <Text style={[styles_.pollActionCount, discussion.has_disagreed && { color: '#fff' }]}>{discussion.disagree_count}</Text>
+              )}
             </Pressable>
             {/* Save */}
             <Pressable
@@ -886,6 +901,22 @@ export default function DiscussionDetailModal() {
             </Pressable>
           </View>
         </View>
+
+        {/* Comments toggle row — above the sort tabs */}
+        <Pressable
+          style={[styles_.pollCommentsToggle, { backgroundColor: showComments ? Brand.paper : '#111' }]}
+          onPress={() => setShowComments(v => !v)}
+          hitSlop={6}>
+          <SymbolView name="bubble.left" size={15} tintColor={showComments ? Brand.trust : '#9CA3AF'} type="monochrome" style={{ width: 15, height: 15 }} />
+          <Text style={[styles_.pollCommentsToggleText, { color: showComments ? Brand.trust : '#9CA3AF' }]}>
+            {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+          </Text>
+          <SymbolView
+            name={showComments ? 'chevron.up' : 'chevron.down'}
+            size={12} tintColor={showComments ? Brand.trust : '#9CA3AF'} type="monochrome"
+            style={{ width: 12, height: 12, marginLeft: 'auto' }}
+          />
+        </Pressable>
 
         {/* Sort tabs — only when comments expanded */}
         {showComments && (
@@ -1094,13 +1125,14 @@ export default function DiscussionDetailModal() {
       {/* For poll view — nav is overlaid on the hero, so no separate bar */}
       {!isPollDiscussion && null}
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={{ flex: 1 }}>
         {dLoading ? (
           <ActivityIndicator style={{ marginTop: 80 }} color={Brand.trust} />
         ) : (
           <FlatList
             data={isPollDiscussion && !showComments ? [] : flatItems}
             keyExtractor={(item) => item.parentId?.startsWith('__') ? item.parentId : item.comment.id}
+            style={isPollDiscussion && showComments ? { backgroundColor: Brand.paper } : undefined}
             ListHeaderComponent={isPollDiscussion ? PollHeroHeader : RegularHeader}
             renderItem={({ item }) => {
               if (item.parentId?.startsWith('__collapse__') || item.parentId?.startsWith('__expand__')) {
@@ -1142,7 +1174,7 @@ export default function DiscussionDetailModal() {
                 ? <ActivityIndicator style={{ margin: 20 }} color={Brand.trust} />
                 : <Text style={[styles_.emptyText, { color: Brand.muted }]}>No comments yet. Be the first!</Text>
             }
-            contentContainerStyle={{ paddingBottom: 20 }}
+            contentContainerStyle={{ paddingBottom: 80 + (bottom || 0) }}
             keyboardShouldPersistTaps="handled"
           />
         )}
@@ -1178,8 +1210,8 @@ export default function DiscussionDetailModal() {
           </View>
         )}
 
-        {(!isPollDiscussion || showComments) && (
-        <View style={[styles_.inputBar, { borderTopColor: Brand.border, backgroundColor: Brand.paper, paddingBottom: bottom || 12 }]}>
+        {(!isPollDiscussion || showComments || true) && (
+        <View style={[styles_.inputBar, { borderTopColor: Brand.border, backgroundColor: Brand.paper, paddingBottom: kbHeight > 0 ? 8 : (bottom || 12), bottom: kbHeight }]}>
           <Avatar avatarUrl={user?.user_metadata?.avatar_url ?? null} name={user?.email ?? ''} size={32} />
           <TextInput
             ref={inputRef}
@@ -1188,6 +1220,7 @@ export default function DiscussionDetailModal() {
             placeholderTextColor={Brand.muted}
             value={text}
             onChangeText={handleTextChange}
+            onFocus={() => { if (isPollDiscussion) setShowComments(true); }}
             multiline
             maxLength={5000}
 
@@ -1217,7 +1250,7 @@ export default function DiscussionDetailModal() {
           </Pressable>
         </View>
         )}
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -1308,6 +1341,11 @@ function createStyles(Brand: BrandPalette) {
       paddingVertical: 10,
     },
     pollActionIcon: { paddingHorizontal: 13 },
+    pollCommentsToggle: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      paddingHorizontal: 20, paddingVertical: 14,
+    },
+    pollCommentsToggleText: { fontFamily: BrandFonts.syneBold, fontSize: 14 },
     pollActionEmoji: { fontSize: 16 },
     pollActionCount: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#F9FAFB' },
 
@@ -1365,7 +1403,7 @@ function createStyles(Brand: BrandPalette) {
     replyBannerText: { fontFamily: BrandFonts.interMedium, fontSize: 13, flex: 1 },
 
     // ── Input ──
-    inputBar: { flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 14, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
+    inputBar: { position: 'absolute', left: 0, right: 0, flexDirection: 'row', alignItems: 'flex-end', gap: 10, paddingHorizontal: 14, paddingTop: 10, borderTopWidth: StyleSheet.hairlineWidth },
     input: { flex: 1, borderWidth: 1, borderRadius: 22, paddingHorizontal: 14, paddingVertical: 10, fontFamily: BrandFonts.interRegular, fontSize: 14, maxHeight: 100 },
     spoilerBtn: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
     sendBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },

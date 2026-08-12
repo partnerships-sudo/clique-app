@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import { router } from 'expo-router';
+import { supabase } from '@/lib/supabase';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useCloseFriendIds } from '@/features/close-friends/api';
@@ -65,6 +66,7 @@ export function SearchStep({
     externalId?: string;
     mediaType?: string;
     visibility?: 'everyone' | 'close_friends';
+    watchedWith?: { id: string; username: string; avatar_url: string | null }[];
   }) => void;
   isSubmitting: boolean;
   prefill?: { title: string; sub: string; poster: string | null; externalId: string | null; mediaType: string | null; extRating?: string | null; square?: boolean };
@@ -84,6 +86,9 @@ export function SearchStep({
   const [note, setNote] = useState('');
   const [rating, setRating] = useState<number | null>(null);
   const [closeFriendsOnly, setCloseFriendsOnly] = useState(false);
+  const [watchedWith, setWatchedWith] = useState<{ id: string; username: string; avatar_url: string | null }[]>([]);
+  const [watchedWithQuery, setWatchedWithQuery] = useState('');
+  const [watchedWithResults, setWatchedWithResults] = useState<{ id: string; username: string; full_name: string; avatar_url: string | null }[]>([]);
   const [selectedSeason, setSelectedSeason] = useState<number | null>(null);
   const [selectedEpisode, setSelectedEpisode] = useState<{ number: number; name: string } | null>(null);
   const { data: closeFriendIds } = useCloseFriendIds();
@@ -100,6 +105,16 @@ export function SearchStep({
     const timer = setTimeout(() => setDebouncedQuery(query), 400);
     return () => clearTimeout(timer);
   }, [query]);
+
+  useEffect(() => {
+    if (!watchedWithQuery.trim()) { setWatchedWithResults([]); return; }
+    supabase
+      .from('profiles')
+      .select('id, username, full_name, avatar_url')
+      .ilike('username', `%${watchedWithQuery.trim()}%`)
+      .limit(6)
+      .then(({ data }) => setWatchedWithResults(data ?? []));
+  }, [watchedWithQuery]);
 
   const { data: results, isFetching, isError } = useTitleSearch(manualMode ? null : type, debouncedQuery);
 
@@ -142,6 +157,7 @@ export function SearchStep({
       externalId: selected?.externalId ?? undefined,
       mediaType: selected?.mediaType ?? undefined,
       visibility: intent === 'log' && closeFriendsOnly ? 'close_friends' : 'everyone',
+      watchedWith: watchedWith.length > 0 ? watchedWith : undefined,
     });
   }
 
@@ -149,16 +165,30 @@ export function SearchStep({
     <View>
       {selected ? (
         <View style={styles.selectedCard}>
-          {selected.poster ? (
-            <Image
-              source={{ uri: selected.poster }}
-              style={[styles.selectedImg, selected.square && styles.selectedImgSquare]}
-            />
-          ) : (
-            <View style={[styles.selectedImg, selected.square && styles.selectedImgSquare, styles.selectedImgFallback]}>
-              <Text style={styles.selectedImgIcon}>{(TypeColors[type] ?? TypeColors.watch).icon}</Text>
-            </View>
-          )}
+          <Pressable
+            onPress={() => router.push({
+              pathname: '/content-detail-modal',
+              params: {
+                title: selected.title,
+                type,
+                poster: selected.poster ?? undefined,
+                sub: selected.sub ?? undefined,
+                externalId: selected.externalId ?? undefined,
+                mediaType: selected.mediaType ?? undefined,
+              },
+            })}
+            hitSlop={4}>
+            {selected.poster ? (
+              <Image
+                source={{ uri: selected.poster }}
+                style={[styles.selectedImg, selected.square && styles.selectedImgSquare]}
+              />
+            ) : (
+              <View style={[styles.selectedImg, selected.square && styles.selectedImgSquare, styles.selectedImgFallback]}>
+                <Text style={styles.selectedImgIcon}>{(TypeColors[type] ?? TypeColors.watch).icon}</Text>
+              </View>
+            )}
+          </Pressable>
           <View style={styles.selectedInfo}>
             <Text style={styles.selectedTitle} numberOfLines={1}>
               {selected.title}
@@ -342,6 +372,53 @@ export function SearchStep({
             />
           </View>
 
+          {intent === 'log' ? (
+            <View style={styles.watchedWithCard}>
+              <Text style={styles.watchedWithLabel}>👥 Watched with</Text>
+              {/* Tagged friends chips */}
+              {watchedWith.length > 0 && (
+                <View style={styles.watchedWithChips}>
+                  {watchedWith.map((f) => (
+                    <Pressable
+                      key={f.id}
+                      style={styles.watchedWithChip}
+                      onPress={() => setWatchedWith((prev) => prev.filter((x) => x.id !== f.id))}
+                      hitSlop={4}>
+                      <Text style={styles.watchedWithChipText}>@{f.username} ✕</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              )}
+              <TextInput
+                style={styles.watchedWithInput}
+                placeholder="Search friends…"
+                placeholderTextColor={Brand.muted}
+                value={watchedWithQuery}
+                onChangeText={setWatchedWithQuery}
+                autoCapitalize="none"
+              />
+              {watchedWithResults.length > 0 && (
+                <View style={styles.watchedWithDropdown}>
+                  {watchedWithResults
+                    .filter((r) => !watchedWith.find((w) => w.id === r.id))
+                    .map((r) => (
+                      <Pressable
+                        key={r.id}
+                        style={styles.watchedWithRow}
+                        onPress={() => {
+                          setWatchedWith((prev) => [...prev, { id: r.id, username: r.username, avatar_url: r.avatar_url }]);
+                          setWatchedWithQuery('');
+                          setWatchedWithResults([]);
+                        }}>
+                        <Text style={[styles.watchedWithRowText, { color: Brand.ink }]}>@{r.username}</Text>
+                        {r.full_name ? <Text style={[styles.watchedWithRowSub, { color: Brand.muted }]}>{r.full_name}</Text> : null}
+                      </Pressable>
+                    ))}
+                </View>
+              )}
+            </View>
+          ) : null}
+
           {intent === 'log' && hasCloseFriends ? (
             <Pressable
               style={styles.closeFriendsRow}
@@ -457,8 +534,10 @@ function createStyles(Brand: BrandPalette) {
     borderWidth: 1,
     borderColor: Brand.border,
     borderRadius: 14,
-    padding: 14,
+    paddingTop: 14,
+    paddingBottom: 0,
     marginBottom: 12,
+    overflow: 'hidden',
   },
   episodeSectionLabel: {
     fontFamily: BrandFonts.syneBold,
@@ -466,9 +545,10 @@ function createStyles(Brand: BrandPalette) {
     color: Brand.muted,
     letterSpacing: 0.8,
     marginBottom: 10,
+    paddingHorizontal: 14,
   },
   seasonScroll: { flexGrow: 0 },
-  seasonScrollContent: { flexDirection: 'row', gap: 8, paddingBottom: 10 },
+  seasonScrollContent: { flexDirection: 'row', gap: 8, paddingBottom: 10, paddingHorizontal: 14 },
   seasonChip: {
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -485,6 +565,7 @@ function createStyles(Brand: BrandPalette) {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 11,
+    paddingHorizontal: 14,
     borderBottomWidth: 1,
     borderBottomColor: Brand.border,
   },
@@ -520,6 +601,56 @@ function createStyles(Brand: BrandPalette) {
     letterSpacing: 0.8,
     marginBottom: 10,
   },
+  watchedWithCard: {
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  watchedWithLabel: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 13,
+    color: Brand.ink,
+  },
+  watchedWithChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  watchedWithChip: {
+    backgroundColor: Brand.tlight,
+    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  watchedWithChipText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 12,
+    color: Brand.trust,
+  },
+  watchedWithInput: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 13,
+    color: Brand.ink,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  watchedWithDropdown: {
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  watchedWithRow: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: Brand.border,
+  },
+  watchedWithRowText: { fontFamily: BrandFonts.syneBold, fontSize: 13 },
+  watchedWithRowSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, marginTop: 1 },
   closeFriendsRow: {
     flexDirection: 'row',
     alignItems: 'center',

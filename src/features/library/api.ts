@@ -37,7 +37,7 @@ const STATUS_BY_TYPE: Record<EntryType, LibraryStatus> = {
   podcast: 'listening',
 };
 
-function libraryQueryKey(userId: string | undefined) {
+export function libraryQueryKey(userId: string | undefined) {
   return ['library', userId] as const;
 }
 
@@ -61,6 +61,8 @@ export function useLibraryItems() {
       return data as LibraryItem[];
     },
     enabled: !!user,
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
   const items = query.data ?? [];
   const watchlist = items.filter((i) => i.status === 'watchlist');
@@ -173,8 +175,9 @@ export function useAddLibraryItem() {
       return item;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: libraryQueryKey(user?.id) });
+      queryClient.refetchQueries({ queryKey: libraryQueryKey(user?.id) });
       queryClient.invalidateQueries({ queryKey: ['collection-items'] });
+      queryClient.invalidateQueries({ queryKey: ['posts'] });
     },
   });
 }

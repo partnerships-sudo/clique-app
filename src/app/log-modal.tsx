@@ -6,8 +6,9 @@ import { IntentToggle, type LogIntent } from '@/components/log-modal/intent-togg
 import { SearchStep } from '@/components/log-modal/search-step';
 import { TypePickerStep } from '@/components/log-modal/type-picker-step';
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
+import { useQueryClient } from '@tanstack/react-query';
 import { useCreatePost } from '@/features/feed/api';
-import { useAddLibraryItem } from '@/features/library/api';
+import { useAddLibraryItem, libraryQueryKey } from '@/features/library/api';
 import { track, Events } from '@/features/analytics/api';
 import { useSession } from '@/hooks/use-session';
 import type { SearchResult } from '@/features/search/api';
@@ -24,7 +25,7 @@ export default function LogModal() {
     prefillMediaType?: string;
   }>();
   const hasPrefill = !!params.prefillTitle && !!params.prefillType;
-  const [type, setType] = useState<EntryType | null>(hasPrefill ? (params.prefillType ?? null) : null);
+  const [type, setType] = useState<EntryType | null>(hasPrefill ? (params.prefillType ?? null) : 'watch');
   const [intent, setIntent] = useState<LogIntent>(params.intent === 'watchlist' ? 'watchlist' : 'log');
   const [universalPrefill, setUniversalPrefill] = useState<{ title: string; sub: string; poster: string | null; externalId: string | null; mediaType: string | null; extRating: string | null; square: boolean } | null>(null);
 
@@ -35,6 +36,7 @@ export default function LogModal() {
   const createPost = useCreatePost();
   const addLibraryItem = useAddLibraryItem();
   const { user } = useSession();
+  const queryClient = useQueryClient();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
@@ -48,13 +50,16 @@ export default function LogModal() {
     externalId?: string;
     mediaType?: string;
     visibility?: 'everyone' | 'close_friends';
+    watchedWith?: { id: string; username: string; avatar_url: string | null }[];
   }) {
     if (!type) return;
     try {
-      const { visibility, ...libraryInput } = input;
+      const { visibility, watchedWith, ...libraryInput } = input;
       await addLibraryItem.mutateAsync({ type, intent, ...libraryInput });
+      // Await the library refetch so the banner updates before the modal closes
+      await queryClient.refetchQueries({ queryKey: libraryQueryKey(user?.id) });
       if (intent === 'log') {
-        await createPost.mutateAsync({ type, ...libraryInput, visibility });
+        await createPost.mutateAsync({ type, ...libraryInput, visibility, watchedWith: watchedWith?.map((w) => w.id) });
         track(user?.id, Events.POST_CREATED, {
           type,
           title: input.title,
@@ -97,7 +102,7 @@ export default function LogModal() {
         {!hasPrefill && <TypePickerStep value={type} onSelect={(t) => { setUniversalPrefill(null); setType(t); }} onUniversalPick={handleUniversalPick} />}
         {/* For watchlist intent, only show SearchStep once the user has picked a result (universalPrefill set).
             For log intent (or hasPrefill), show SearchStep as soon as a type is selected. */}
-        {type && (hasPrefill || intent === 'log' || universalPrefill) ? (
+        {type && (hasPrefill || intent === 'log' || intent === 'watchlist' || universalPrefill) ? (
           <View style={hasPrefill ? undefined : styles.entrySection}>
             {/* Hide intent toggle when intent is locked from params (e.g. opened via + Watchlist) */}
             {!hasPrefill && !params.intent && <IntentToggle value={intent} onChange={setIntent} />}

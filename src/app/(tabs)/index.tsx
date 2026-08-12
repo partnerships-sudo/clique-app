@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -89,7 +90,11 @@ export default function FeedScreen() {
   const { data: commentCounts } = usePostCommentCounts(posts.map((p) => p.id));
   const { data: globalPosts } = useGlobalPosts();
   const deletePost = useDeletePost();
-  const { logged } = useLibraryItems();
+  const { logged, refetch: refetchLibrary } = useLibraryItems();
+
+  // Re-fetch library whenever the feed tab comes into focus so the banner
+  // reflects the most recently logged item after returning from log-modal
+  useFocusEffect(useCallback(() => { refetchLibrary(); }, [refetchLibrary]));
   const { items: collectionItems } = useCollectionItems();
   // Build a map of external_id → collection item for page tracking
   const collectionByExternalId = useMemo(() => {
@@ -320,8 +325,14 @@ export default function FeedScreen() {
     .sort((a, b) => (b.score ?? Math.min(100, b.count * 20)) - (a.score ?? Math.min(100, a.count * 20)))
     .slice(0, 60);
 
-  const latest = logged[0] ?? allPosts[0];
-  const nowLabel = latest ? `You're ${VERBS[latest.type].toLowerCase()}` : 'Get started';
+  // Use the user's own most-recent post as the banner source — library items get
+  // moved to collection after logging so they don't reliably appear in `logged`.
+  const myLatestPost = useMemo(
+    () => rawPosts.find((p) => p.user_id === user?.id) ?? null,
+    [rawPosts, user?.id],
+  );
+  const latest = myLatestPost ?? logged[0] ?? null;
+  const nowLabel = latest ? `You're ${(VERBS[latest.type as Post['type']] ?? 'into').toLowerCase()}` : 'Get started';
   const nowTitle = latest ? latest.title : 'Log your first watch, read, or play';
   const nowPoster = latest?.poster ?? null;
 
@@ -373,6 +384,13 @@ export default function FeedScreen() {
         </View>
       </View>
       <FeedViewSwitcher value={feedView} onChange={setFeedView} />
+      <FilterChips
+        value={filter}
+        onChange={setFilter}
+        hiddenTypes={feedView === 'global' ? undefined : hiddenCategories}
+        onHide={feedView === 'global' ? undefined : hideCategory}
+        onShow={feedView === 'global' ? undefined : showCategory}
+      />
       {feedView === 'feed' && (
         <NowBanner
           label={nowLabel}
@@ -381,13 +399,6 @@ export default function FeedScreen() {
           onPressLog={() => router.push('/log-modal')}
         />
       )}
-      <FilterChips
-        value={filter}
-        onChange={setFilter}
-        hiddenTypes={feedView === 'global' ? undefined : hiddenCategories}
-        onHide={feedView === 'global' ? undefined : hideCategory}
-        onShow={feedView === 'global' ? undefined : showCategory}
-      />
       {feedView !== 'foryou' && feedView !== 'feed' && feedView !== 'circle' && <SectionLabel>{SECTION_TITLES[feedView]}</SectionLabel>}
       {feedView === 'feed' && activeAd && !adDismissed ? (
         <View style={{ marginBottom: 6 }}>

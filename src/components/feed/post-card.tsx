@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/lib/supabase';
 import { Alert, Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -288,6 +290,22 @@ export function PostCard({
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const ratingIcon = (post.user_rating_icon as RatingIconStyle) ?? 'stars';
   const type = TypeColors[post.type as keyof typeof TypeColors] ?? { color: '#888', bg: '#EEE', icon: '📝', label: post.type };
+
+  // Resolve watched_with user IDs → avatars
+  const watchedWithIds = post.watched_with ?? [];
+  const { data: watchedWithProfiles = [] } = useQuery({
+    queryKey: ['profiles-mini', watchedWithIds.slice().sort().join(',')],
+    queryFn: async () => {
+      if (watchedWithIds.length === 0) return [];
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', watchedWithIds);
+      return (data ?? []) as { id: string; username: string; avatar_url: string | null }[];
+    },
+    enabled: watchedWithIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
   const meReacted = reactions.some((r) => r.user_id === currentUserId);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [spoilerRevealed, setSpoilerRevealed] = useState(false);
@@ -358,7 +376,11 @@ export function PostCard({
                 {post.user_verified_tier ? <VerifiedBadge tier={post.user_verified_tier} size={12} /> : null}
               </Pressable>
               <View style={[styles.pill, { backgroundColor: type.bg }]}>
-                <Text style={[styles.pillText, { color: type.color }]}>{type.label}</Text>
+                <Text style={[styles.pillText, { color: type.color }]}>
+                  {(post.watch_count ?? 1) > 1
+                    ? `${ordinal(post.watch_count)} ${REWATCH_VERB[post.type] ?? 'time'}`
+                    : type.label}
+                </Text>
               </View>
               {post.visibility === 'close_friends' ? (
                 <View style={styles.closeFriendsPill}>
@@ -368,11 +390,19 @@ export function PostCard({
               <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
             </View>
 
-            {(post.watch_count ?? 1) > 1 && (
-              <View style={styles.rewatchBadge}>
-                <Text style={styles.rewatchText}>
-                  {ordinal(post.watch_count)} {REWATCH_VERB[post.type] ?? 'time'}
-                </Text>
+            {watchedWithProfiles.length > 0 && (
+              <View style={styles.watchedWithInlinePill}>
+                {watchedWithProfiles.map((p, i) => (
+                  <Pressable
+                    key={p.id}
+                    style={styles.watchedWithInlinePerson}
+                    onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: p.id } })}
+                    hitSlop={4}>
+                    {i > 0 && <Text style={styles.watchedWithInlineAmp}> & </Text>}
+                    <Avatar name={p.username} avatarUrl={p.avatar_url} size={14} />
+                    <Text style={styles.watchedWithInlineLabel}> @{p.username}</Text>
+                  </Pressable>
+                ))}
               </View>
             )}
 
@@ -424,8 +454,10 @@ export function PostCard({
                 externalId={pageProgress.externalId}
               />
             ) : null}
+
           </View>
         </View>
+
 
         {/* ── BOTTOM BAR: emoji picker + reactions + me too + share + comment ── */}
         <View style={styles.bottomBar}>
@@ -942,6 +974,32 @@ function createStyles(Brand: BrandPalette) {
       overflow: 'hidden',
       borderWidth: 1.5,
       borderColor: Brand.card,
+    },
+    watchedWithInlinePill: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      backgroundColor: Brand.tlight,
+      borderRadius: 6,
+      paddingHorizontal: 7,
+      paddingVertical: 2,
+      marginBottom: 3,
+      gap: 4,
+    },
+    watchedWithInlinePerson: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+    watchedWithInlineAmp: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 11,
+      color: Brand.trust,
+    },
+    watchedWithInlineLabel: {
+      fontFamily: BrandFonts.interMedium,
+      fontSize: 11,
+      color: Brand.trust,
     },
     shareChatRow: {
       flexDirection: 'row',

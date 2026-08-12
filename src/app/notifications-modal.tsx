@@ -11,14 +11,15 @@ import { useBrand } from '@/hooks/use-brand';
 
 type KindSymbol = { name: SymbolViewProps['name']; color: string };
 const KIND_SYMBOL: Record<string, KindSymbol> = {
-  new_follower:       { name: 'person.fill',    color: '#5B8DEF' },
-  follow_request:     { name: 'bell.fill',      color: '#F4A340' },
-  follow_accepted:    { name: 'checkmark',      color: '#34D399' },
-  reaction:           { name: 'heart.fill',     color: '#E84F4F' },
-  story_like:         { name: 'heart.fill',     color: '#E84F4F' },
-  message:            { name: 'message.fill',   color: '#8C82FF' },
-  rate_reminder:      { name: 'star.fill',      color: '#F4A340' },
-  watch_party_invite: { name: 'tv.fill',        color: '#8C82FF' },
+  new_follower:       { name: 'person.fill',       color: '#5B8DEF' },
+  follow_request:     { name: 'bell.fill',         color: '#F4A340' },
+  follow_accepted:    { name: 'checkmark',         color: '#34D399' },
+  reaction:           { name: 'heart.fill',        color: '#E84F4F' },
+  story_like:         { name: 'heart.fill',        color: '#E84F4F' },
+  message:            { name: 'message.fill',      color: '#8C82FF' },
+  rate_reminder:      { name: 'star.fill',         color: '#F4A340' },
+  watch_party_invite: { name: 'tv.fill',           color: '#8C82FF' },
+  watched_with:       { name: 'person.2.fill',     color: '#34D399' },
 };
 
 function timeAgo(iso: string): string {
@@ -37,7 +38,18 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
   const sym = KIND_SYMBOL[item.kind] ?? { name: 'bell.fill', color: Brand.trust };
 
   function handlePress() {
-    if (item.kind === 'rate_reminder' && item.postTitle) {
+    if (item.kind === 'watched_with' && item.postTitle) {
+      router.back();
+      router.push({
+        pathname: '/log-modal',
+        params: {
+          intent: 'log',
+          prefillTitle: item.postTitle,
+          prefillType: item.postType ?? 'watch',
+          prefillPoster: item.postPoster ?? undefined,
+        },
+      });
+    } else if (item.kind === 'rate_reminder' && item.postTitle) {
       router.back();
       router.push({
         pathname: '/log-modal',

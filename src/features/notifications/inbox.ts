@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
-export type NotificationKind = 'new_follower' | 'follow_request' | 'follow_accepted' | 'reaction' | 'message' | 'story_like' | 'rate_reminder' | 'watch_party_invite';
+export type NotificationKind = 'new_follower' | 'follow_request' | 'follow_accepted' | 'reaction' | 'message' | 'story_like' | 'rate_reminder' | 'watch_party_invite' | 'watched_with';
 
 export interface ActivityItem {
   id: string;

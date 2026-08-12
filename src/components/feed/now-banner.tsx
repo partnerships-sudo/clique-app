@@ -50,8 +50,8 @@ export function NowBanner({
   );
 }
 
-const POSTER_WIDTH = 120;
 const BANNER_HEIGHT = 140;
+const POSTER_WIDTH = Math.round(BANNER_HEIGHT / 1.5); // exact 2:3 ratio — matches post card tiles
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({

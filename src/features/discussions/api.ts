@@ -363,21 +363,27 @@ export function useAddDiscussionComment() {
         is_spoiler: isSpoiler ?? false,
       });
       if (error) throw error;
-      // Keep denormalized comment_count in sync
-      const { count } = await supabase
-        .from('discussion_comments')
-        .select('*', { count: 'exact', head: true })
-        .eq('discussion_id', discussionId);
-      await supabase
-        .from('discussions')
-        .update({ comment_count: count ?? 0 })
-        .eq('id', discussionId);
+      // comment_count is maintained by the sync_discussion_comment_count DB trigger
     },
     onSuccess: (_data, { discussionId }) => {
+      // Optimistically bump comment_count in every cached list so cards update instantly
+      function bumpCount(old: Discussion[] | undefined): Discussion[] {
+        return (old ?? []).map((d) =>
+          d.id === discussionId ? { ...d, comment_count: d.comment_count + 1 } : d,
+        );
+      }
+      queryClient.setQueriesData<Discussion[]>({ queryKey: ['discussions'] }, bumpCount);
+      queryClient.setQueriesData<Discussion[]>({ queryKey: ['trending-discussions'] }, bumpCount);
+      queryClient.setQueriesData<Discussion[]>({ queryKey: ['content-room-discussions'] }, bumpCount);
+
       queryClient.invalidateQueries({ queryKey: ['discussion-comments', discussionId] });
       queryClient.invalidateQueries({ queryKey: ['discussion', discussionId] });
-      queryClient.invalidateQueries({ queryKey: ['discussions'] });
-      queryClient.invalidateQueries({ queryKey: ['trending-discussions'] });
+      // Delay list refetches so the trigger has time to commit before we read back
+      setTimeout(() => {
+        queryClient.refetchQueries({ queryKey: ['discussions'] });
+        queryClient.refetchQueries({ queryKey: ['trending-discussions'] });
+        queryClient.refetchQueries({ queryKey: ['content-room-discussions'] });
+      }, 500);
     },
   });
 }

@@ -27,6 +27,7 @@ export interface Post {
   visibility: 'everyone' | 'close_friends';
   watch_count: number; // 1 = first log, 2 = rewatch/re-read, etc.
   is_spoiler: boolean;
+  watched_with: string[]; // user IDs of tagged co-watchers
 }
 
 export type FeedFilterValue = EntryType | 'all';
@@ -201,6 +202,7 @@ type CreatePostInput = {
   mediaType?: string;
   visibility?: 'everyone' | 'close_friends';
   isSpoiler?: boolean;
+  watchedWith?: string[]; // array of user IDs
 };
 
 export function useCreatePost() {
@@ -242,11 +244,34 @@ export function useCreatePost() {
           visibility: input.visibility ?? 'everyone',
           watch_count,
           is_spoiler: input.isSpoiler ?? false,
+          watched_with: input.watchedWith ?? [],
         })
         .select()
         .single();
       if (error) throw error;
-      return data as Post;
+      const post = data as Post;
+
+      // Notify each tagged friend
+      if (input.watchedWith && input.watchedWith.length > 0) {
+        const myName = user?.user_metadata?.username ?? user?.email?.split('@')[0] ?? 'Someone';
+        const typeLabel = input.type === 'watch' || input.type === 'tv' ? 'watched' : input.type === 'read' ? 'read' : input.type === 'listen' || input.type === 'podcast' ? 'listened to' : 'played';
+        await supabase.from('notifications').insert(
+          input.watchedWith.map((friendId) => ({
+            user_id: friendId,
+            from_user_id: user!.id,
+            from_user_name: myName,
+            type: 'watched_with',
+            post_id: post.id,
+            post_title: input.title,
+            post_type: input.type,
+            post_poster: input.poster ?? null,
+            message: `${myName} ${typeLabel} ${input.title} with you — log your review!`,
+            read: false,
+          })),
+        );
+      }
+
+      return post;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts-feed', user?.id] });
