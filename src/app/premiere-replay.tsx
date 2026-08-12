@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { usePremiere, usePremiereMessages, usePremiereMembers } from '@/features/premieres/api';
+import { usePremiere, usePremiereMessages, usePremiereMembers, useTrackReplayView } from '@/features/premieres/api';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 
@@ -28,6 +28,13 @@ export default function PremiereReplay() {
   const { data: premiere } = usePremiere(id ?? null);
   const { data: messages = [] } = usePremiereMessages(id ?? null);
   const { data: members = [] } = usePremiereMembers(id ?? null);
+  const trackReplay = useTrackReplayView();
+
+  // Record this user as a replay viewer on mount
+  useEffect(() => {
+    if (id) trackReplay.mutate(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const [playing, setPlaying] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);

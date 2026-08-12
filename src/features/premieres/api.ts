@@ -294,6 +294,17 @@ export function useJoinPremiere() {
   });
 }
 
+export function useTrackReplayView() {
+  const { user } = useSession();
+  return useMutation({
+    mutationFn: async (premiereId: string) => {
+      await supabase
+        .from('premiere_replay_views')
+        .upsert({ premiere_id: premiereId, user_id: user!.id }, { ignoreDuplicates: true });
+    },
+  });
+}
+
 export function useLeavePremiere() {
   const { user } = useSession();
   return useMutation({
@@ -311,16 +322,18 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
   return useQuery({
     queryKey: ['watch-party-analytics', premiereId],
     queryFn: async () => {
-      const [premiereRes, membersRes, messagesRes] = await Promise.all([
-        supabase.from('premieres').select('*').eq('id', premiereId!).single(),
+      const [premiereRes, membersRes, messagesRes, replayRes] = await Promise.all([
+        supabase.from('premieres').select('*, host_user_id').eq('id', premiereId!).single(),
         supabase.from('premiere_members').select('user_id, joined_at, left_at, watch_ms').eq('premiere_id', premiereId!),
-        supabase.from('premiere_messages').select('created_at, content, user_name').eq('premiere_id', premiereId!).order('created_at', { ascending: true }),
+        supabase.from('premiere_messages').select('created_at, content, user_name, user_id').eq('premiere_id', premiereId!).order('created_at', { ascending: true }),
+        supabase.from('premiere_replay_views').select('user_id', { count: 'exact', head: true }).eq('premiere_id', premiereId!),
       ]);
       if (premiereRes.error) throw premiereRes.error;
 
       const premiere = premiereRes.data as any;
       const members = (membersRes.data ?? []) as { user_id: string; joined_at: string | null; left_at: string | null; watch_ms: number | null }[];
-      const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string }[];
+      const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string; user_id: string }[];
+      const replayViews = replayRes.count ?? 0;
 
       const totalViewers = members.length;
       const totalMessages = messages.length;
@@ -337,6 +350,52 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
       const durationMs = start && end ? end - start : null;
 
       const engagementRate = totalViewers > 0 ? totalMessages / totalViewers : null;
+
+      // Joined late: arrived more than 2 min after live_started_at
+      const lateThresholdMs = 2 * 60 * 1000;
+      const joinedLate = start
+        ? members.filter((m) => m.joined_at && new Date(m.joined_at).getTime() > start + lateThresholdMs).length
+        : 0;
+      const joinedLatePct = totalViewers > 0 ? Math.round((joinedLate / totalViewers) * 100) : null;
+
+      // Unique chatters vs. lurkers
+      const uniqueChatters = new Set(messages.map((m) => m.user_id)).size;
+      const lurkers = totalViewers - uniqueChatters;
+      const lurkPct = totalViewers > 0 ? Math.round((lurkers / totalViewers) * 100) : null;
+
+      // Top contributors (top 5 by message count, excluding host)
+      const msgByUser = new Map<string, { name: string; count: number }>();
+      for (const m of messages) {
+        if (m.user_id === premiere.host_user_id) continue;
+        const prev = msgByUser.get(m.user_id) ?? { name: m.user_name, count: 0 };
+        msgByUser.set(m.user_id, { name: m.user_name, count: prev.count + 1 });
+      }
+      const topContributors = [...msgByUser.values()]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      // First message time (relative to start)
+      const firstMsgMs = messages.length > 0 && start
+        ? new Date(messages[0].created_at).getTime() - start
+        : null;
+
+      // Returning viewers: users who attended a previous premiere by the same host
+      let returningViewers = 0;
+      if (premiere.host_user_id && totalViewers > 0) {
+        const memberIds = members.map((m) => m.user_id);
+        const { data: pastAttendance } = await supabase
+          .from('premiere_members')
+          .select('user_id, premieres!inner(host_user_id, id)')
+          .in('user_id', memberIds)
+          .neq('premiere_id', premiereId!);
+        const prevAttendees = new Set(
+          (pastAttendance ?? [])
+            .filter((r: any) => r.premieres?.host_user_id === premiere.host_user_id)
+            .map((r: any) => r.user_id),
+        );
+        returningViewers = prevAttendees.size;
+      }
+      const newViewerPct = totalViewers > 0 ? Math.round(((totalViewers - returningViewers) / totalViewers) * 100) : null;
 
       // 5-min message buckets for chat activity chart
       const bucketMs = 5 * 60 * 1000;
@@ -361,7 +420,7 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
         .filter((m) => m.count > 0);
 
       // Retention curve: % of peak still present at each 5-min bucket
-      const retentionCurve = start && durationMs && totalViewers > 0
+      const retentionCurve = start && totalViewers > 0
         ? Array.from({ length: maxBucket + 1 }, (_, i) => {
             const bucketStart = start + i * bucketMs;
             const bucketEnd = bucketStart + bucketMs;
@@ -384,6 +443,16 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
         totalWatchMs,
         durationMs,
         engagementRate,
+        joinedLate,
+        joinedLatePct,
+        uniqueChatters,
+        lurkers,
+        lurkPct,
+        topContributors,
+        firstMsgMs,
+        returningViewers,
+        newViewerPct,
+        replayViews,
         messageBuckets,
         topMoments,
         retentionCurve,

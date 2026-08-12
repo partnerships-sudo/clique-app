@@ -301,13 +301,13 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
       const [roomRes, membersRes, messagesRes] = await Promise.all([
         supabase.from('screening_rooms').select('*').eq('id', roomId!).single(),
         supabase.from('screening_room_members').select('user_id, joined_at, left_at, watch_ms').eq('room_id', roomId!),
-        supabase.from('screening_room_messages').select('created_at, content, user_name').eq('room_id', roomId!).order('created_at', { ascending: true }),
+        supabase.from('screening_room_messages').select('created_at, content, user_name, user_id').eq('room_id', roomId!).order('created_at', { ascending: true }),
       ]);
       if (roomRes.error) throw roomRes.error;
 
       const room = roomRes.data as ScreeningRoom;
       const members = (membersRes.data ?? []) as { user_id: string; joined_at: string | null; left_at: string | null; watch_ms: number | null }[];
-      const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string }[];
+      const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string; user_id: string }[];
 
       const totalViewers = members.length;
       const totalMessages = messages.length;
@@ -322,6 +322,52 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
       const watchTimes = members.map((m) => m.watch_ms).filter((ms): ms is number => ms != null);
       const avgWatchMs = watchTimes.length > 0 ? watchTimes.reduce((a, b) => a + b, 0) / watchTimes.length : null;
       const totalWatchMs = watchTimes.length > 0 ? watchTimes.reduce((a, b) => a + b, 0) : null;
+
+      // Joined late: arrived more than 2 min after live_started_at
+      const lateThresholdMs = 2 * 60 * 1000;
+      const joinedLate = start
+        ? members.filter((m) => m.joined_at && new Date(m.joined_at).getTime() > start + lateThresholdMs).length
+        : 0;
+      const joinedLatePct = totalViewers > 0 ? Math.round((joinedLate / totalViewers) * 100) : null;
+
+      // Unique chatters vs. lurkers
+      const uniqueChatters = new Set(messages.map((m) => m.user_id)).size;
+      const lurkers = totalViewers - uniqueChatters;
+      const lurkPct = totalViewers > 0 ? Math.round((lurkers / totalViewers) * 100) : null;
+
+      // Top contributors (top 5 by message count, excluding host)
+      const msgByUser = new Map<string, { name: string; count: number }>();
+      for (const m of messages) {
+        if (m.user_id === room.host_user_id) continue;
+        const prev = msgByUser.get(m.user_id) ?? { name: m.user_name, count: 0 };
+        msgByUser.set(m.user_id, { name: m.user_name, count: prev.count + 1 });
+      }
+      const topContributors = [...msgByUser.values()]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5);
+
+      // First message time (relative to start)
+      const firstMsgMs = messages.length > 0 && start
+        ? new Date(messages[0].created_at).getTime() - start
+        : null;
+
+      // Returning viewers: users who attended a previous screening room by the same host
+      let returningViewers = 0;
+      if (room.host_user_id && totalViewers > 0) {
+        const memberIds = members.map((m) => m.user_id);
+        const { data: pastAttendance } = await supabase
+          .from('screening_room_members')
+          .select('user_id, screening_rooms!inner(host_user_id, id)')
+          .in('user_id', memberIds)
+          .neq('room_id', roomId!);
+        const prevAttendees = new Set(
+          (pastAttendance ?? [])
+            .filter((r: any) => r.screening_rooms?.host_user_id === room.host_user_id)
+            .map((r: any) => r.user_id),
+        );
+        returningViewers = prevAttendees.size;
+      }
+      const newViewerPct = totalViewers > 0 ? Math.round(((totalViewers - returningViewers) / totalViewers) * 100) : null;
 
       // Group messages into 5-minute buckets relative to stream start
       const bucketMs = 5 * 60 * 1000;
@@ -369,6 +415,15 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
         totalWatchMs,
         durationMs,
         engagementRate,
+        joinedLate,
+        joinedLatePct,
+        uniqueChatters,
+        lurkers,
+        lurkPct,
+        topContributors,
+        firstMsgMs,
+        returningViewers,
+        newViewerPct,
         messageBuckets,
         topMoments,
         retentionCurve,
