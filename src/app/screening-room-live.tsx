@@ -22,6 +22,7 @@ import {
   useGoLiveScreeningRoom,
   useInviteToScreeningRoom,
   useJoinScreeningRoom,
+  useLeaveScreeningRoom,
   usePushPlaybackState,
   useScreeningRoom,
   useScreeningRoomMessages,
@@ -81,6 +82,7 @@ export default function ScreeningRoomLive() {
   const { data: viewerCount = 0 } = useScreeningRoomViewerCount(id ?? null);
 
   const joinRoom = useJoinScreeningRoom();
+  const leaveRoom = useLeaveScreeningRoom();
   const sendMsg = useSendScreeningRoomMessage();
   const goLive = useGoLiveScreeningRoom();
   const endRoom = useEndScreeningRoom();
@@ -133,9 +135,11 @@ export default function ScreeningRoomLive() {
   // Heartbeat interval ref (host only)
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Join on mount
+  // Join on mount; stamp left_at on unmount for watch-time analytics
   useEffect(() => {
-    if (id) joinRoom.mutate(id);
+    if (!id) return;
+    joinRoom.mutate(id);
+    return () => { leaveRoom.mutate(id!); };
   }, [id]);
 
   // Seed messages once

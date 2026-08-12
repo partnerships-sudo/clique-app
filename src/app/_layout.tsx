@@ -89,6 +89,7 @@ function RootNavigator() {
       <Stack.Screen name="add-to-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
       <Stack.Screen name="create-screening-room-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.85], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
       <Stack.Screen name="screening-room-analytics-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="watch-party-analytics-modal" options={{ headerShown: false }} />
       <Stack.Screen name="screening-room-live" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="premiere-replay" options={{ headerShown: false }} />
       <Stack.Screen name="saved-discussions-modal" options={{ headerShown: false }} />

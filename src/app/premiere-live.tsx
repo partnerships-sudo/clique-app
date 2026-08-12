@@ -28,6 +28,7 @@ import {
   useInviteToPremiere,
   useSendPremiereMessage,
   useEndPremiere,
+  useLeavePremiere,
   useIsCoHost,
   usePremiereCoHosts,
   useMessageReactions,
@@ -58,6 +59,7 @@ export default function PremiereLive() {
   const { data: premiere, isLoading: premiereLoading, isError: premiereError } = usePremiere(params.id ?? null);
   const { data: initialMessages = [], isSuccess: messagesLoaded } = usePremiereMessages(params.id ?? null);
   const joinPremiere = useJoinPremiere();
+  const leavePremiere = useLeavePremiere();
   const sendMsg = useSendPremiereMessage();
   const endPremiere = useEndPremiere();
   const [viewerCount, setViewerCount] = useState(0);
@@ -89,9 +91,11 @@ export default function PremiereLive() {
   const [quickRating, setQuickRating] = useState<number | null>(null);
   const [rated, setRated] = useState(false);
 
-  // Join on mount
+  // Join on mount; stamp left_at on unmount for watch-time analytics
   useEffect(() => {
-    if (params.id) joinPremiere.mutate(params.id);
+    if (!params.id) return;
+    joinPremiere.mutate(params.id);
+    return () => { leavePremiere.mutate(params.id!); };
   }, [params.id]);
 
   // Auto-post to feed when the party ends — once per session, for every member

@@ -271,11 +271,125 @@ export function useJoinPremiere() {
   const { user } = useSession();
   return useMutation({
     mutationFn: async (premiereId: string) => {
+      const now = new Date().toISOString();
+      // Upsert member row and stamp joined_at (clears left_at for rejoin)
       const { error } = await supabase
         .from('premiere_members')
-        .upsert({ premiere_id: premiereId, user_id: user!.id }, { ignoreDuplicates: true });
+        .upsert(
+          { premiere_id: premiereId, user_id: user!.id, joined_at: now, left_at: null },
+          { onConflict: 'premiere_id,user_id' },
+        );
       if (error) throw error;
+
+      // Update peak viewer count
+      const { count } = await supabase
+        .from('premiere_members')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('premiere_id', premiereId)
+        .is('left_at', null);
+      if (count != null) {
+        await supabase.rpc('update_premiere_peak_viewers', { p_premiere_id: premiereId, p_count: count });
+      }
     },
+  });
+}
+
+export function useLeavePremiere() {
+  const { user } = useSession();
+  return useMutation({
+    mutationFn: async (premiereId: string) => {
+      await supabase
+        .from('premiere_members')
+        .update({ left_at: new Date().toISOString() })
+        .eq('premiere_id', premiereId)
+        .eq('user_id', user!.id);
+    },
+  });
+}
+
+export function useWatchPartyAnalytics(premiereId: string | null) {
+  return useQuery({
+    queryKey: ['watch-party-analytics', premiereId],
+    queryFn: async () => {
+      const [premiereRes, membersRes, messagesRes] = await Promise.all([
+        supabase.from('premieres').select('*').eq('id', premiereId!).single(),
+        supabase.from('premiere_members').select('user_id, joined_at, left_at, watch_ms').eq('premiere_id', premiereId!),
+        supabase.from('premiere_messages').select('created_at, content, user_name').eq('premiere_id', premiereId!).order('created_at', { ascending: true }),
+      ]);
+      if (premiereRes.error) throw premiereRes.error;
+
+      const premiere = premiereRes.data as any;
+      const members = (membersRes.data ?? []) as { user_id: string; joined_at: string | null; left_at: string | null; watch_ms: number | null }[];
+      const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string }[];
+
+      const totalViewers = members.length;
+      const totalMessages = messages.length;
+      const peakViewerCount = premiere.peak_viewer_count ?? totalViewers;
+
+      // Watch time stats
+      const watchTimes = members.map((m) => m.watch_ms).filter((ms): ms is number => ms != null);
+      const avgWatchMs = watchTimes.length > 0 ? watchTimes.reduce((a, b) => a + b, 0) / watchTimes.length : null;
+      const totalWatchMs = watchTimes.length > 0 ? watchTimes.reduce((a, b) => a + b, 0) : null;
+
+      // Duration
+      const start = premiere.live_started_at ? new Date(premiere.live_started_at).getTime() : null;
+      const end = premiere.ended_at ? new Date(premiere.ended_at).getTime() : null;
+      const durationMs = start && end ? end - start : null;
+
+      const engagementRate = totalViewers > 0 ? totalMessages / totalViewers : null;
+
+      // 5-min message buckets for chat activity chart
+      const bucketMs = 5 * 60 * 1000;
+      const bucketMap = new Map<number, number>();
+      for (const m of messages) {
+        const ts = new Date(m.created_at).getTime();
+        const offset = start ? Math.max(0, ts - start) : 0;
+        const bucket = Math.floor(offset / bucketMs);
+        bucketMap.set(bucket, (bucketMap.get(bucket) ?? 0) + 1);
+      }
+      const maxBucket = bucketMap.size > 0 ? Math.max(...bucketMap.keys()) : 0;
+      const messageBuckets = Array.from({ length: maxBucket + 1 }, (_, i) => ({
+        label: `${i * 5}m`,
+        count: bucketMap.get(i) ?? 0,
+      }));
+
+      // Top 3 most active moments
+      const topMoments = [...messageBuckets]
+        .map((b, i) => ({ ...b, index: i }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3)
+        .filter((m) => m.count > 0);
+
+      // Retention curve: % of peak still present at each 5-min bucket
+      const retentionCurve = start && durationMs && totalViewers > 0
+        ? Array.from({ length: maxBucket + 1 }, (_, i) => {
+            const bucketStart = start + i * bucketMs;
+            const bucketEnd = bucketStart + bucketMs;
+            const present = members.filter((m) => {
+              const joined = m.joined_at ? new Date(m.joined_at).getTime() : null;
+              const left = m.left_at ? new Date(m.left_at).getTime() : null;
+              if (!joined) return false;
+              return joined <= bucketEnd && (left == null || left >= bucketStart);
+            }).length;
+            return { label: `${i * 5}m`, pct: Math.round((present / totalViewers) * 100) };
+          })
+        : [];
+
+      return {
+        premiere,
+        totalViewers,
+        peakViewerCount,
+        totalMessages,
+        avgWatchMs,
+        totalWatchMs,
+        durationMs,
+        engagementRate,
+        messageBuckets,
+        topMoments,
+        retentionCurve,
+      };
+    },
+    enabled: !!premiereId,
   });
 }
 

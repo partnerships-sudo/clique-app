@@ -237,10 +237,27 @@ export function useJoinScreeningRoom() {
   const { user } = useSession();
   return useMutation({
     mutationFn: async (roomId: string) => {
+      const now = new Date().toISOString();
       const { error } = await supabase
         .from('screening_room_members')
-        .upsert({ room_id: roomId, user_id: user!.id }, { ignoreDuplicates: true });
+        .upsert(
+          { room_id: roomId, user_id: user!.id, joined_at: now, left_at: null },
+          { onConflict: 'room_id,user_id' },
+        );
       if (error) throw error;
+    },
+  });
+}
+
+export function useLeaveScreeningRoom() {
+  const { user } = useSession();
+  return useMutation({
+    mutationFn: async (roomId: string) => {
+      await supabase
+        .from('screening_room_members')
+        .update({ left_at: new Date().toISOString() })
+        .eq('room_id', roomId)
+        .eq('user_id', user!.id);
     },
   });
 }
@@ -283,20 +300,28 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
     queryFn: async () => {
       const [roomRes, membersRes, messagesRes] = await Promise.all([
         supabase.from('screening_rooms').select('*').eq('id', roomId!).single(),
-        supabase.from('screening_room_members').select('user_id', { count: 'exact' }).eq('room_id', roomId!),
-        supabase.from('screening_room_messages').select('created_at').eq('room_id', roomId!).order('created_at', { ascending: true }),
+        supabase.from('screening_room_members').select('user_id, joined_at, left_at, watch_ms').eq('room_id', roomId!),
+        supabase.from('screening_room_messages').select('created_at, content, user_name').eq('room_id', roomId!).order('created_at', { ascending: true }),
       ]);
       if (roomRes.error) throw roomRes.error;
 
       const room = roomRes.data as ScreeningRoom;
-      const totalViewers = membersRes.count ?? 0;
-      const messages = (messagesRes.data ?? []) as { created_at: string }[];
+      const members = (membersRes.data ?? []) as { user_id: string; joined_at: string | null; left_at: string | null; watch_ms: number | null }[];
+      const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string }[];
+
+      const totalViewers = members.length;
       const totalMessages = messages.length;
+      const peakViewerCount = room.peak_viewer_count ?? totalViewers;
 
       const start = room.live_started_at ? new Date(room.live_started_at).getTime() : null;
       const end = room.ended_at ? new Date(room.ended_at).getTime() : null;
       const durationMs = start && end ? end - start : null;
       const engagementRate = totalViewers > 0 ? totalMessages / totalViewers : null;
+
+      // Watch time stats from stored watch_ms column
+      const watchTimes = members.map((m) => m.watch_ms).filter((ms): ms is number => ms != null);
+      const avgWatchMs = watchTimes.length > 0 ? watchTimes.reduce((a, b) => a + b, 0) / watchTimes.length : null;
+      const totalWatchMs = watchTimes.length > 0 ? watchTimes.reduce((a, b) => a + b, 0) : null;
 
       // Group messages into 5-minute buckets relative to stream start
       const bucketMs = 5 * 60 * 1000;
@@ -313,7 +338,41 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
         count: bucketMap.get(i) ?? 0,
       }));
 
-      return { room, totalViewers, totalMessages, durationMs, engagementRate, messageBuckets } as ScreeningRoomAnalytics;
+      // Top 3 most active chat moments
+      const topMoments = [...messageBuckets]
+        .map((b, i) => ({ ...b, index: i }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3)
+        .filter((m) => m.count > 0);
+
+      // Retention curve: % of peak still present at each 5-min bucket
+      const retentionCurve = start && totalViewers > 0
+        ? Array.from({ length: maxBucket + 1 }, (_, i) => {
+            const bucketStart = start + i * bucketMs;
+            const bucketEnd = bucketStart + bucketMs;
+            const present = members.filter((m) => {
+              const joined = m.joined_at ? new Date(m.joined_at).getTime() : null;
+              const left = m.left_at ? new Date(m.left_at).getTime() : null;
+              if (!joined) return false;
+              return joined <= bucketEnd && (left == null || left >= bucketStart);
+            }).length;
+            return { label: `${i * 5}m`, pct: Math.round((present / totalViewers) * 100) };
+          })
+        : [] as { label: string; pct: number }[];
+
+      return {
+        room,
+        totalViewers,
+        peakViewerCount,
+        totalMessages,
+        avgWatchMs,
+        totalWatchMs,
+        durationMs,
+        engagementRate,
+        messageBuckets,
+        topMoments,
+        retentionCurve,
+      };
     },
     enabled: !!roomId,
   });

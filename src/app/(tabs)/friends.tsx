@@ -564,6 +564,12 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                           {item.tagline ? <Text style={styles.wpTagline} numberOfLines={1}>"{item.tagline}"</Text> : null}
                         </View>
                       </Pressable>
+                      <View style={styles.wpCardActions}>
+                        <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/watch-party-analytics-modal', params: { premiereId: item.id, showTitle: item.show_title } })}>
+                          <SymbolView name="chart.bar.fill" size={13} tintColor={Brand.trust} type="monochrome" />
+                          <Text style={styles.wpActionBtnText}>Analytics</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   </View>
                 );

@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
-import { useScreeningRoomAnalytics } from '@/features/screening-rooms/api';
+import { useWatchPartyAnalytics } from '@/features/premieres/api';
 import { useBrand } from '@/hooks/use-brand';
 
 function formatDuration(ms: number): string {
@@ -18,11 +18,11 @@ function formatDuration(ms: number): string {
   return `${s}s`;
 }
 
-export default function ScreeningRoomAnalyticsModal() {
-  const { roomId, roomTitle } = useLocalSearchParams<{ roomId: string; roomTitle: string }>();
+export default function WatchPartyAnalyticsModal() {
+  const { premiereId, showTitle } = useLocalSearchParams<{ premiereId: string; showTitle: string }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data, isLoading } = useScreeningRoomAnalytics(roomId ?? null);
+  const { data, isLoading } = useWatchPartyAnalytics(premiereId ?? null);
 
   const barMax = data ? Math.max(...data.messageBuckets.map((b) => b.count), 1) : 1;
 
@@ -34,8 +34,8 @@ export default function ScreeningRoomAnalyticsModal() {
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
         <View style={styles.headerCenter}>
-          <Text style={styles.headerTitle} numberOfLines={1}>{roomTitle ?? 'Analytics'}</Text>
-          <Text style={styles.headerSub}>Screening Room</Text>
+          <Text style={styles.headerTitle} numberOfLines={1}>{showTitle ?? 'Analytics'}</Text>
+          <Text style={styles.headerSub}>Watch Party</Text>
         </View>
         <View style={{ width: 32 }} />
       </View>
@@ -50,20 +50,20 @@ export default function ScreeningRoomAnalyticsModal() {
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
           {/* Status pill */}
           <View style={styles.statusRow}>
-            <View style={[styles.statusPill, { backgroundColor: data.room.status === 'ended' ? '#6B7280' : data.room.status === 'live' ? '#22C55E' : '#F59E0B' }]}>
+            <View style={[styles.statusPill, { backgroundColor: data.premiere.status === 'ended' ? '#6B7280' : data.premiere.status === 'live' ? '#22C55E' : '#F59E0B' }]}>
               <Text style={styles.statusText}>
-                {data.room.status === 'ended' ? 'Ended' : data.room.status === 'live' ? '● Live' : 'Waiting'}
+                {data.premiere.status === 'ended' ? 'Ended' : data.premiere.status === 'live' ? '● Live' : 'Waiting'}
               </Text>
             </View>
             <Text style={styles.dateText}>
-              {new Date(data.room.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+              {new Date(data.premiere.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </Text>
           </View>
 
-          {/* Stat cards */}
+          {/* Stat cards — 6-up grid */}
           <View style={styles.grid}>
             <StatCard label="Total Viewers" value={String(data.totalViewers)} icon="person.2.fill" color="#5B8DEF" Brand={Brand} styles={styles} />
-            <StatCard label="Peak Viewers" value={String(data.peakViewerCount ?? data.totalViewers)} icon="chart.line.uptrend.xyaxis" color="#8B5CF6" Brand={Brand} styles={styles} />
+            <StatCard label="Peak Viewers" value={String(data.peakViewerCount)} icon="chart.line.uptrend.xyaxis" color="#8B5CF6" Brand={Brand} styles={styles} />
             <StatCard label="Messages" value={String(data.totalMessages)} icon="bubble.left.fill" color="#D4AF37" Brand={Brand} styles={styles} />
             <StatCard
               label="Duration"
@@ -75,22 +75,32 @@ export default function ScreeningRoomAnalyticsModal() {
             />
             <StatCard
               label="Avg Watch Time"
-              value={(data as any).avgWatchMs != null ? formatDuration((data as any).avgWatchMs) : '—'}
+              value={data.avgWatchMs != null ? formatDuration(data.avgWatchMs) : '—'}
               icon="timer"
               color="#06B6D4"
               Brand={Brand}
               styles={styles}
             />
             <StatCard
-              label="Engagement"
-              value={data.engagementRate != null ? `${data.engagementRate.toFixed(1)}x` : '—'}
-              icon="heart.fill"
-              color="#EF4444"
+              label="Total Watch Time"
+              value={data.totalWatchMs != null ? formatDuration(data.totalWatchMs) : '—'}
+              icon="clock.badge.fill"
+              color="#F97316"
               Brand={Brand}
               styles={styles}
-              sub="msgs per viewer"
+              sub="across all viewers"
             />
           </View>
+
+          {/* Engagement */}
+          {data.engagementRate != null && (
+            <View style={styles.engagementCard}>
+              <SymbolView name="heart.fill" size={16} tintColor="#EF4444" type="monochrome" />
+              <Text style={styles.engagementText}>
+                <Text style={styles.engagementBold}>{data.engagementRate.toFixed(1)}x</Text> engagement — {data.engagementRate.toFixed(1)} messages per viewer
+              </Text>
+            </View>
+          )}
 
           {/* Chat activity chart */}
           {data.messageBuckets.length > 0 && (
@@ -115,18 +125,16 @@ export default function ScreeningRoomAnalyticsModal() {
             </View>
           )}
 
-          {/* Retention curve */}
-          {(data as any).retentionCurve?.length > 0 && (
+          {/* Viewer retention curve */}
+          {data.retentionCurve.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>Viewer Retention</Text>
               <Text style={styles.sectionSub}>% of viewers still present per interval</Text>
               <View style={styles.chart}>
-                {(data as any).retentionCurve.map((b: { label: string; pct: number }, i: number) => (
+                {data.retentionCurve.map((b, i) => (
                   <View key={i} style={styles.barCol}>
                     <View style={styles.barTrack}>
-                      <View
-                        style={[styles.bar, { height: `${b.pct}%`, backgroundColor: '#8B5CF6' }]}
-                      />
+                      <View style={[styles.bar, { height: `${b.pct}%`, backgroundColor: '#8B5CF6' }]} />
                     </View>
                     {i % 3 === 0 && <Text style={styles.barLabel}>{b.label}</Text>}
                   </View>
@@ -136,11 +144,11 @@ export default function ScreeningRoomAnalyticsModal() {
           )}
 
           {/* Most active moments */}
-          {(data as any).topMoments?.length > 0 && (
+          {data.topMoments.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>🔥 Most Active Moments</Text>
-              <Text style={styles.sectionSub}>Top chat spikes during the screening</Text>
-              {(data as any).topMoments.map((m: { label: string; count: number }, i: number) => (
+              <Text style={styles.sectionSub}>Top chat spikes during the watch party</Text>
+              {data.topMoments.map((m, i) => (
                 <View key={i} style={styles.momentRow}>
                   <Text style={styles.momentRank}>#{i + 1}</Text>
                   <Text style={styles.momentLabel}>{m.label} mark</Text>
@@ -149,12 +157,6 @@ export default function ScreeningRoomAnalyticsModal() {
               ))}
             </View>
           )}
-
-          {/* Video source */}
-          <View style={styles.sourceCard}>
-            <SymbolView name="link" size={14} tintColor={Brand.muted} type="monochrome" />
-            <Text style={styles.sourceText} numberOfLines={1}>{data.room.video_url}</Text>
-          </View>
         </ScrollView>
       )}
     </SafeAreaView>
@@ -212,7 +214,7 @@ function createStyles(Brand: BrandPalette) {
     statusText: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: '#fff' },
     dateText: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
 
-    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 16 },
     statCard: {
       width: '47%',
       backgroundColor: Brand.card,
@@ -226,6 +228,20 @@ function createStyles(Brand: BrandPalette) {
     statValue: { fontFamily: BrandFonts.syneBold, fontSize: 24, color: Brand.ink, marginTop: 4 },
     statLabel: { fontFamily: BrandFonts.interMedium, fontSize: 12, color: Brand.muted },
     statSub: { fontFamily: BrandFonts.interRegular, fontSize: 10, color: Brand.muted },
+
+    engagementCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      borderRadius: 12,
+      padding: 12,
+      marginBottom: 16,
+    },
+    engagementText: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, flex: 1 },
+    engagementBold: { fontFamily: BrandFonts.syneBold, color: Brand.ink },
 
     chartSection: {
       backgroundColor: Brand.card,
@@ -242,7 +258,6 @@ function createStyles(Brand: BrandPalette) {
     barTrack: { flex: 1, width: '100%', justifyContent: 'flex-end' },
     bar: { width: '100%', borderRadius: 3, minHeight: 2 },
     barLabel: { fontFamily: BrandFonts.interRegular, fontSize: 9, color: Brand.muted },
-    chartEmpty: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted, textAlign: 'center', marginTop: 12 },
 
     momentRow: {
       flexDirection: 'row',
@@ -254,18 +269,6 @@ function createStyles(Brand: BrandPalette) {
     momentRank: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.muted, width: 28 },
     momentLabel: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.ink, flex: 1 },
     momentCount: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
-
-    sourceCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      backgroundColor: Brand.card,
-      borderWidth: 1,
-      borderColor: Brand.border,
-      borderRadius: 12,
-      padding: 12,
-    },
-    sourceText: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
 
     empty: { flex: 1, alignItems: 'center', justifyContent: 'center' },
     emptyText: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted },
