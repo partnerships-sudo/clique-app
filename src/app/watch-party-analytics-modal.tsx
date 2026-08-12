@@ -8,7 +8,7 @@ import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useWatchPartyAnalytics } from '@/features/premieres/api';
 import { useBrand } from '@/hooks/use-brand';
 
-function formatDuration(ms: number): string {
+function fmt(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
@@ -25,10 +25,12 @@ export default function WatchPartyAnalyticsModal() {
   const { data, isLoading } = useWatchPartyAnalytics(premiereId ?? null);
 
   const barMax = data ? Math.max(...data.messageBuckets.map((b) => b.count), 1) : 1;
+  const histMax = data?.hostEventHistory?.length
+    ? Math.max(...data.hostEventHistory.map((e) => e.viewers), 1)
+    : 1;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
@@ -43,24 +45,21 @@ export default function WatchPartyAnalyticsModal() {
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: 60 }} color={Brand.trust} />
       ) : !data ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>No data available.</Text>
-        </View>
+        <View style={styles.empty}><Text style={styles.emptyText}>No data available.</Text></View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          {/* Status pill */}
+          {/* Status */}
           <View style={styles.statusRow}>
-            <View style={[styles.statusPill, { backgroundColor: data.premiere.status === 'ended' ? '#6B7280' : data.premiere.status === 'live' ? '#22C55E' : '#F59E0B' }]}>
-              <Text style={styles.statusText}>
-                {data.premiere.status === 'ended' ? 'Ended' : data.premiere.status === 'live' ? '● Live' : 'Waiting'}
-              </Text>
+            <View style={[styles.statusPill, { backgroundColor: data.premiere.status === 'ended' ? '#6B7280' : '#22C55E' }]}>
+              <Text style={styles.statusText}>{data.premiere.status === 'ended' ? 'Ended' : '● Live'}</Text>
             </View>
             <Text style={styles.dateText}>
+              {data.timeOfDay ? `${data.timeOfDay} · ` : ''}
               {new Date(data.premiere.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </Text>
           </View>
 
-          {/* ── Section: Viewership ── */}
+          {/* ── Viewership ── */}
           <Text style={styles.sectionHeader}>Viewership</Text>
           <View style={styles.grid}>
             <StatCard label="Total Viewers" value={String(data.totalViewers)} icon="person.2.fill" color="#5B8DEF" Brand={Brand} styles={styles} />
@@ -68,92 +67,98 @@ export default function WatchPartyAnalyticsModal() {
             <StatCard
               label="New Viewers"
               value={data.newViewerPct != null ? `${data.newViewerPct}%` : '—'}
-              icon="person.badge.plus"
-              color="#22C55E"
-              Brand={Brand}
-              styles={styles}
+              icon="person.badge.plus" color="#22C55E" Brand={Brand} styles={styles}
               sub={data.returningViewers > 0 ? `${data.returningViewers} returning` : 'first event'}
             />
             <StatCard
               label="Joined Late"
               value={data.joinedLatePct != null ? `${data.joinedLatePct}%` : '—'}
-              icon="clock.badge.exclamationmark"
-              color="#F59E0B"
-              Brand={Brand}
-              styles={styles}
+              icon="clock.badge.exclamationmark" color="#F59E0B" Brand={Brand} styles={styles}
               sub={data.joinedLate > 0 ? `${data.joinedLate} viewers` : 'all on time'}
             />
-            <StatCard
-              label="Replay Views"
-              value={String(data.replayViews)}
-              icon="arrow.counterclockwise.circle.fill"
-              color="#64748B"
-              Brand={Brand}
-              styles={styles}
-              sub="unique viewers"
-            />
+            <StatCard label="Replay Views" value={String(data.replayViews)} icon="arrow.counterclockwise.circle.fill" color="#64748B" Brand={Brand} styles={styles} sub="unique viewers" />
           </View>
 
-          {/* ── Section: Watch Time ── */}
-          <Text style={styles.sectionHeader}>Watch Time</Text>
+          {/* ── RSVP & Invite Conversion ── */}
+          <Text style={styles.sectionHeader}>RSVP & Invite Conversion</Text>
           <View style={styles.grid}>
             <StatCard
-              label="Duration"
-              value={data.durationMs ? formatDuration(data.durationMs) : '—'}
-              icon="clock.fill"
-              color="#22C55E"
-              Brand={Brand}
-              styles={styles}
+              label="Invited"
+              value={String(data.invited)}
+              icon="envelope.fill" color="#6366F1" Brand={Brand} styles={styles}
+              sub="people sent an invite"
             />
             <StatCard
-              label="Avg Watch Time"
-              value={data.avgWatchMs != null ? formatDuration(data.avgWatchMs) : '—'}
-              icon="timer"
-              color="#06B6D4"
-              Brand={Brand}
-              styles={styles}
+              label="RSVP'd Going"
+              value={String(data.rsvpdAttending)}
+              icon="checkmark.circle.fill" color="#22C55E" Brand={Brand} styles={styles}
             />
             <StatCard
-              label="Total Watch Time"
-              value={data.totalWatchMs != null ? formatDuration(data.totalWatchMs) : '—'}
-              icon="clock.badge.fill"
-              color="#F97316"
-              Brand={Brand}
-              styles={styles}
-              sub="across all viewers"
+              label="No-Shows"
+              value={String(Math.max(0, data.noShows))}
+              icon="person.fill.xmark" color="#EF4444" Brand={Brand} styles={styles}
+              sub="RSVP'd but didn't join"
+            />
+            <StatCard
+              label="Conversion"
+              value={data.inviteConversionPct != null ? `${data.inviteConversionPct}%` : '—'}
+              icon="arrow.up.right.circle.fill" color="#D4AF37" Brand={Brand} styles={styles}
+              sub="invited → joined"
             />
           </View>
 
-          {/* ── Section: Chat & Engagement ── */}
+          {/* ── Watch Time ── */}
+          <Text style={styles.sectionHeader}>Watch Time</Text>
+          <View style={styles.grid}>
+            <StatCard label="Duration" value={data.durationMs ? fmt(data.durationMs) : '—'} icon="clock.fill" color="#22C55E" Brand={Brand} styles={styles} />
+            <StatCard label="Avg Watch Time" value={data.avgWatchMs != null ? fmt(data.avgWatchMs) : '—'} icon="timer" color="#06B6D4" Brand={Brand} styles={styles} />
+            <StatCard label="Total Watch Time" value={data.totalWatchMs != null ? fmt(data.totalWatchMs) : '—'} icon="clock.badge.fill" color="#F97316" Brand={Brand} styles={styles} sub="across all viewers" />
+          </View>
+
+          {/* ── Growth & Discovery ── */}
+          <Text style={styles.sectionHeader}>Growth & Discovery</Text>
+          <View style={styles.grid}>
+            <StatCard
+              label="Shares"
+              value={String(data.totalShares)}
+              icon="square.and.arrow.up.fill" color="#EC4899" Brand={Brand} styles={styles}
+              sub="times shared externally"
+            />
+            <StatCard
+              label="New Followers"
+              value={String(data.followsGained)}
+              icon="person.crop.circle.badge.plus" color="#8B5CF6" Brand={Brand} styles={styles}
+              sub="gained during event window"
+            />
+            <StatCard
+              label="Post-Event Logs"
+              value={data.postEventLogPct != null ? `${data.postEventLogPct}%` : '—'}
+              icon="star.fill" color="#D4AF37" Brand={Brand} styles={styles}
+              sub={data.postEventLogs > 0 ? `${data.postEventLogs} viewers logged it` : 'of viewers logged it'}
+            />
+          </View>
+
+          {/* ── Chat & Engagement ── */}
           <Text style={styles.sectionHeader}>Chat & Engagement</Text>
           <View style={styles.grid}>
             <StatCard label="Messages" value={String(data.totalMessages)} icon="bubble.left.fill" color="#D4AF37" Brand={Brand} styles={styles} />
             <StatCard
               label="Active Chatters"
               value={String(data.uniqueChatters)}
-              icon="person.wave.2.fill"
-              color="#EC4899"
-              Brand={Brand}
-              styles={styles}
+              icon="person.wave.2.fill" color="#EC4899" Brand={Brand} styles={styles}
               sub={data.lurkPct != null ? `${data.lurkPct}% lurked` : undefined}
             />
             <StatCard
               label="Engagement"
               value={data.engagementRate != null ? `${data.engagementRate.toFixed(1)}x` : '—'}
-              icon="heart.fill"
-              color="#EF4444"
-              Brand={Brand}
-              styles={styles}
+              icon="heart.fill" color="#EF4444" Brand={Brand} styles={styles}
               sub="msgs per viewer"
             />
             {data.firstMsgMs != null && (
               <StatCard
                 label="First Message"
-                value={formatDuration(Math.max(0, data.firstMsgMs))}
-                icon="message.badge.filled.fill"
-                color="#6366F1"
-                Brand={Brand}
-                styles={styles}
+                value={fmt(Math.max(0, data.firstMsgMs))}
+                icon="message.badge.filled.fill" color="#6366F1" Brand={Brand} styles={styles}
                 sub="into the party"
               />
             )}
@@ -174,7 +179,7 @@ export default function WatchPartyAnalyticsModal() {
             </View>
           )}
 
-          {/* Chat activity chart */}
+          {/* Chat activity */}
           {data.messageBuckets.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>Chat Activity</Text>
@@ -207,7 +212,7 @@ export default function WatchPartyAnalyticsModal() {
             </View>
           )}
 
-          {/* Viewer retention curve */}
+          {/* Retention curve */}
           {data.retentionCurve.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>Viewer Retention</Text>
@@ -224,15 +229,42 @@ export default function WatchPartyAnalyticsModal() {
               </View>
             </View>
           )}
+
+          {/* Host performance trend */}
+          {data.hostEventHistory.length > 1 && (
+            <View style={styles.chartSection}>
+              <Text style={styles.sectionLabel}>📈 Your Watch Party History</Text>
+              <Text style={styles.sectionSub}>Peak viewers per event (most recent first)</Text>
+              <View style={[styles.chart, { marginTop: 8 }]}>
+                {data.hostEventHistory.map((e, i) => (
+                  <View key={i} style={styles.barCol}>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.bar, { height: `${Math.round((e.viewers / histMax) * 100)}%`, backgroundColor: '#D4AF37' }]} />
+                    </View>
+                    <Text style={styles.barLabel}>{e.date}</Text>
+                  </View>
+                ))}
+              </View>
+              {data.hostEventHistory.length >= 2 && (() => {
+                const latest = data.hostEventHistory[0].viewers;
+                const prev = data.hostEventHistory[1].viewers;
+                const delta = prev > 0 ? Math.round(((latest - prev) / prev) * 100) : null;
+                if (delta == null) return null;
+                return (
+                  <Text style={[styles.sectionSub, { marginTop: 8, marginBottom: 0 }]}>
+                    {delta >= 0 ? `↑ ${delta}% vs previous party` : `↓ ${Math.abs(delta)}% vs previous party`}
+                  </Text>
+                );
+              })()}
+            </View>
+          )}
         </ScrollView>
       )}
     </SafeAreaView>
   );
 }
 
-function StatCard({
-  label, value, icon, color, Brand, styles, sub,
-}: {
+function StatCard({ label, value, icon, color, Brand, styles, sub }: {
   label: string; value: string; icon: SymbolViewProps['name'];
   color: string; Brand: BrandPalette; styles: ReturnType<typeof createStyles>; sub?: string;
 }) {
@@ -260,7 +292,7 @@ function createStyles(Brand: BrandPalette) {
     headerTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink },
     headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 1 },
     scroll: { flex: 1, backgroundColor: Brand.paper },
-    content: { flexGrow: 1, padding: Spacing.three, paddingBottom: 40 },
+    content: { flexGrow: 1, padding: Spacing.three, paddingBottom: 48 },
 
     statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
     statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
@@ -271,7 +303,6 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.syneExtraBold, fontSize: 11, color: Brand.muted,
       textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10, marginTop: 4,
     },
-
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
     statCard: {
       width: '47%', backgroundColor: Brand.card,

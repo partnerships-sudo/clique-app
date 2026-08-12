@@ -302,6 +302,10 @@ export default function ScreeningRoomLive() {
   async function handleShare() {
     try {
       await Share.share({ message: `Join my Screening Room on Clique: "${room?.title}" — clique://screening-room/${id}` });
+      // Record share for analytics
+      if (id) {
+        await supabase.from('screening_room_shares').insert({ room_id: id, user_id: user?.id });
+      }
     } catch {}
   }
 

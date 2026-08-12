@@ -8,6 +8,7 @@ import {
   Modal,
   Pressable,
   ScrollView,
+  Share,
   StyleSheet,
   Text,
   TextInput,
@@ -29,6 +30,7 @@ import {
   useSendPremiereMessage,
   useEndPremiere,
   useLeavePremiere,
+  useTrackPremiereShare,
   useIsCoHost,
   usePremiereCoHosts,
   useMessageReactions,
@@ -60,6 +62,7 @@ export default function PremiereLive() {
   const { data: initialMessages = [], isSuccess: messagesLoaded } = usePremiereMessages(params.id ?? null);
   const joinPremiere = useJoinPremiere();
   const leavePremiere = useLeavePremiere();
+  const trackShare = useTrackPremiereShare();
   const sendMsg = useSendPremiereMessage();
   const endPremiere = useEndPremiere();
   const [viewerCount, setViewerCount] = useState(0);
@@ -219,6 +222,13 @@ export default function PremiereLive() {
     });
   }
 
+  async function handleShare() {
+    try {
+      await Share.share({ message: `Join my Watch Party on Clique: "${premiere?.show_title}" — clique://premiere/${params.id}` });
+      if (params.id) trackShare.mutate(params.id);
+    } catch {}
+  }
+
   function handleEnd() {
     Alert.alert(
       'End Premiere?',
@@ -376,6 +386,9 @@ export default function PremiereLive() {
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: 14, alignItems: 'center' }}>
+            <Pressable onPress={handleShare} hitSlop={16}>
+              <Text style={styles.addBtn}>↑</Text>
+            </Pressable>
             <Pressable onPress={() => setInviteOpen(true)} hitSlop={16}>
               <Text style={styles.addBtn}>＋</Text>
             </Pressable>

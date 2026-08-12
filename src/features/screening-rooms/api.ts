@@ -298,16 +298,18 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
   return useQuery({
     queryKey: ['screening-room-analytics', roomId],
     queryFn: async () => {
-      const [roomRes, membersRes, messagesRes] = await Promise.all([
+      const [roomRes, membersRes, messagesRes, sharesRes] = await Promise.all([
         supabase.from('screening_rooms').select('*').eq('id', roomId!).single(),
         supabase.from('screening_room_members').select('user_id, joined_at, left_at, watch_ms').eq('room_id', roomId!),
         supabase.from('screening_room_messages').select('created_at, content, user_name, user_id').eq('room_id', roomId!).order('created_at', { ascending: true }),
+        supabase.from('screening_room_shares').select('user_id', { count: 'exact', head: true }).eq('room_id', roomId!),
       ]);
       if (roomRes.error) throw roomRes.error;
 
       const room = roomRes.data as ScreeningRoom;
       const members = (membersRes.data ?? []) as { user_id: string; joined_at: string | null; left_at: string | null; watch_ms: number | null }[];
       const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string; user_id: string }[];
+      const totalShares = sharesRes.count ?? 0;
 
       const totalViewers = members.length;
       const totalMessages = messages.length;
@@ -369,6 +371,44 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
       }
       const newViewerPct = totalViewers > 0 ? Math.round(((totalViewers - returningViewers) / totalViewers) * 100) : null;
 
+      // Follows gained during event window
+      let followsGained = 0;
+      if (room.host_user_id && start) {
+        const windowEnd = end ? end + 24 * 60 * 60 * 1000 : start + 48 * 60 * 60 * 1000;
+        const { count: followCount } = await supabase
+          .from('follows')
+          .select('id', { count: 'exact', head: true })
+          .eq('followed_id', room.host_user_id)
+          .gte('created_at', new Date(start).toISOString())
+          .lte('created_at', new Date(windowEnd).toISOString());
+        followsGained = followCount ?? 0;
+      }
+
+      // Host screening room history: peak viewers per past room
+      let hostEventHistory: { title: string; viewers: number; date: string }[] = [];
+      if (room.host_user_id) {
+        const { data: pastRooms } = await supabase
+          .from('screening_rooms')
+          .select('id, title, live_started_at, peak_viewer_count')
+          .eq('host_user_id', room.host_user_id)
+          .eq('status', 'ended')
+          .order('live_started_at', { ascending: false })
+          .limit(6);
+        hostEventHistory = (pastRooms ?? []).map((r: any) => ({
+          title: r.title,
+          viewers: r.peak_viewer_count ?? 0,
+          date: r.live_started_at
+            ? new Date(r.live_started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : '—',
+        }));
+      }
+
+      // Time of day
+      const startHour = start ? new Date(start).getUTCHours() : null;
+      const timeOfDay = startHour != null
+        ? startHour < 6 ? 'Late Night' : startHour < 12 ? 'Morning' : startHour < 17 ? 'Afternoon' : startHour < 21 ? 'Evening' : 'Night'
+        : null;
+
       // Group messages into 5-minute buckets relative to stream start
       const bucketMs = 5 * 60 * 1000;
       const bucketMap = new Map<number, number>();
@@ -415,15 +455,23 @@ export function useScreeningRoomAnalytics(roomId: string | null) {
         totalWatchMs,
         durationMs,
         engagementRate,
+        // Audience
         joinedLate,
         joinedLatePct,
+        returningViewers,
+        newViewerPct,
+        // Chat
         uniqueChatters,
         lurkers,
         lurkPct,
         topContributors,
         firstMsgMs,
-        returningViewers,
-        newViewerPct,
+        // Growth
+        totalShares,
+        followsGained,
+        hostEventHistory,
+        timeOfDay,
+        // Charts
         messageBuckets,
         topMoments,
         retentionCurve,

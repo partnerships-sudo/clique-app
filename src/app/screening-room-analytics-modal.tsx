@@ -8,7 +8,7 @@ import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useScreeningRoomAnalytics } from '@/features/screening-rooms/api';
 import { useBrand } from '@/hooks/use-brand';
 
-function formatDuration(ms: number): string {
+function fmt(ms: number): string {
   const totalSec = Math.floor(ms / 1000);
   const h = Math.floor(totalSec / 3600);
   const m = Math.floor((totalSec % 3600) / 60);
@@ -25,10 +25,11 @@ export default function ScreeningRoomAnalyticsModal() {
   const { data, isLoading } = useScreeningRoomAnalytics(roomId ?? null);
 
   const barMax = data ? Math.max(...data.messageBuckets.map((b) => b.count), 1) : 1;
+  const d = data as any;
+  const histMax = d?.hostEventHistory?.length ? Math.max(...d.hostEventHistory.map((e: any) => e.viewers), 1) : 1;
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={12}>
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
@@ -43,12 +44,10 @@ export default function ScreeningRoomAnalyticsModal() {
       {isLoading ? (
         <ActivityIndicator style={{ marginTop: 60 }} color={Brand.trust} />
       ) : !data ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyText}>No data available.</Text>
-        </View>
+        <View style={styles.empty}><Text style={styles.emptyText}>No data available.</Text></View>
       ) : (
         <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
-          {/* Status pill */}
+          {/* Status */}
           <View style={styles.statusRow}>
             <View style={[styles.statusPill, { backgroundColor: data.room.status === 'ended' ? '#6B7280' : data.room.status === 'live' ? '#22C55E' : '#F59E0B' }]}>
               <Text style={styles.statusText}>
@@ -56,106 +55,87 @@ export default function ScreeningRoomAnalyticsModal() {
               </Text>
             </View>
             <Text style={styles.dateText}>
+              {d.timeOfDay ? `${d.timeOfDay} · ` : ''}
               {new Date(data.room.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
             </Text>
           </View>
 
-          {/* ── Section: Viewership ── */}
+          {/* ── Viewership ── */}
           <Text style={styles.sectionHeader}>Viewership</Text>
           <View style={styles.grid}>
             <StatCard label="Total Viewers" value={String(data.totalViewers)} icon="person.2.fill" color="#5B8DEF" Brand={Brand} styles={styles} />
-            <StatCard label="Peak Viewers" value={String(data.peakViewerCount ?? data.totalViewers)} icon="chart.line.uptrend.xyaxis" color="#8B5CF6" Brand={Brand} styles={styles} />
+            <StatCard label="Peak Viewers" value={String(d.peakViewerCount ?? data.totalViewers)} icon="chart.line.uptrend.xyaxis" color="#8B5CF6" Brand={Brand} styles={styles} />
             <StatCard
               label="New Viewers"
-              value={(data as any).newViewerPct != null ? `${(data as any).newViewerPct}%` : '—'}
-              icon="person.badge.plus"
-              color="#22C55E"
-              Brand={Brand}
-              styles={styles}
-              sub={(data as any).returningViewers > 0 ? `${(data as any).returningViewers} returning` : 'first event'}
+              value={d.newViewerPct != null ? `${d.newViewerPct}%` : '—'}
+              icon="person.badge.plus" color="#22C55E" Brand={Brand} styles={styles}
+              sub={d.returningViewers > 0 ? `${d.returningViewers} returning` : 'first event'}
             />
             <StatCard
               label="Joined Late"
-              value={(data as any).joinedLatePct != null ? `${(data as any).joinedLatePct}%` : '—'}
-              icon="clock.badge.exclamationmark"
-              color="#F59E0B"
-              Brand={Brand}
-              styles={styles}
-              sub={(data as any).joinedLate > 0 ? `${(data as any).joinedLate} viewers` : 'all on time'}
+              value={d.joinedLatePct != null ? `${d.joinedLatePct}%` : '—'}
+              icon="clock.badge.exclamationmark" color="#F59E0B" Brand={Brand} styles={styles}
+              sub={d.joinedLate > 0 ? `${d.joinedLate} viewers` : 'all on time'}
             />
           </View>
 
-          {/* ── Section: Watch Time ── */}
+          {/* ── Watch Time ── */}
           <Text style={styles.sectionHeader}>Watch Time</Text>
           <View style={styles.grid}>
+            <StatCard label="Duration" value={data.durationMs ? fmt(data.durationMs) : '—'} icon="clock.fill" color="#22C55E" Brand={Brand} styles={styles} />
+            <StatCard label="Avg Watch Time" value={d.avgWatchMs != null ? fmt(d.avgWatchMs) : '—'} icon="timer" color="#06B6D4" Brand={Brand} styles={styles} />
+            <StatCard label="Total Watch Time" value={d.totalWatchMs != null ? fmt(d.totalWatchMs) : '—'} icon="clock.badge.fill" color="#F97316" Brand={Brand} styles={styles} sub="across all viewers" />
+          </View>
+
+          {/* ── Growth & Discovery ── */}
+          <Text style={styles.sectionHeader}>Growth & Discovery</Text>
+          <View style={styles.grid}>
             <StatCard
-              label="Duration"
-              value={data.durationMs ? formatDuration(data.durationMs) : '—'}
-              icon="clock.fill"
-              color="#22C55E"
-              Brand={Brand}
-              styles={styles}
+              label="Shares"
+              value={String(d.totalShares ?? 0)}
+              icon="square.and.arrow.up.fill" color="#EC4899" Brand={Brand} styles={styles}
+              sub="times shared externally"
             />
             <StatCard
-              label="Avg Watch Time"
-              value={(data as any).avgWatchMs != null ? formatDuration((data as any).avgWatchMs) : '—'}
-              icon="timer"
-              color="#06B6D4"
-              Brand={Brand}
-              styles={styles}
-            />
-            <StatCard
-              label="Total Watch Time"
-              value={(data as any).totalWatchMs != null ? formatDuration((data as any).totalWatchMs) : '—'}
-              icon="clock.badge.fill"
-              color="#F97316"
-              Brand={Brand}
-              styles={styles}
-              sub="across all viewers"
+              label="New Followers"
+              value={String(d.followsGained ?? 0)}
+              icon="person.crop.circle.badge.plus" color="#8B5CF6" Brand={Brand} styles={styles}
+              sub="gained during event window"
             />
           </View>
 
-          {/* ── Section: Chat & Engagement ── */}
+          {/* ── Chat & Engagement ── */}
           <Text style={styles.sectionHeader}>Chat & Engagement</Text>
           <View style={styles.grid}>
             <StatCard label="Messages" value={String(data.totalMessages)} icon="bubble.left.fill" color="#D4AF37" Brand={Brand} styles={styles} />
             <StatCard
               label="Active Chatters"
-              value={String((data as any).uniqueChatters ?? 0)}
-              icon="person.wave.2.fill"
-              color="#EC4899"
-              Brand={Brand}
-              styles={styles}
-              sub={(data as any).lurkPct != null ? `${(data as any).lurkPct}% lurked` : undefined}
+              value={String(d.uniqueChatters ?? 0)}
+              icon="person.wave.2.fill" color="#EC4899" Brand={Brand} styles={styles}
+              sub={d.lurkPct != null ? `${d.lurkPct}% lurked` : undefined}
             />
             <StatCard
               label="Engagement"
               value={data.engagementRate != null ? `${data.engagementRate.toFixed(1)}x` : '—'}
-              icon="heart.fill"
-              color="#EF4444"
-              Brand={Brand}
-              styles={styles}
+              icon="heart.fill" color="#EF4444" Brand={Brand} styles={styles}
               sub="msgs per viewer"
             />
-            {(data as any).firstMsgMs != null && (
+            {d.firstMsgMs != null && (
               <StatCard
                 label="First Message"
-                value={formatDuration(Math.max(0, (data as any).firstMsgMs))}
-                icon="message.badge.filled.fill"
-                color="#6366F1"
-                Brand={Brand}
-                styles={styles}
+                value={fmt(Math.max(0, d.firstMsgMs))}
+                icon="message.badge.filled.fill" color="#6366F1" Brand={Brand} styles={styles}
                 sub="into the screening"
               />
             )}
           </View>
 
           {/* Top contributors */}
-          {(data as any).topContributors?.length > 0 && (
+          {d.topContributors?.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>⭐ Top Contributors</Text>
               <Text style={styles.sectionSub}>Most active viewers in chat (excluding host)</Text>
-              {(data as any).topContributors.map((c: { name: string; count: number }, i: number) => (
+              {d.topContributors.map((c: { name: string; count: number }, i: number) => (
                 <View key={i} style={styles.momentRow}>
                   <Text style={styles.momentRank}>#{i + 1}</Text>
                   <Text style={styles.momentLabel}>{c.name}</Text>
@@ -165,7 +145,7 @@ export default function ScreeningRoomAnalyticsModal() {
             </View>
           )}
 
-          {/* Chat activity chart */}
+          {/* Chat activity */}
           {data.messageBuckets.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>Chat Activity</Text>
@@ -184,11 +164,11 @@ export default function ScreeningRoomAnalyticsModal() {
           )}
 
           {/* Most active moments */}
-          {(data as any).topMoments?.length > 0 && (
+          {d.topMoments?.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>🔥 Most Active Moments</Text>
               <Text style={styles.sectionSub}>Top chat spikes during the screening</Text>
-              {(data as any).topMoments.map((m: { label: string; count: number }, i: number) => (
+              {d.topMoments.map((m: { label: string; count: number }, i: number) => (
                 <View key={i} style={styles.momentRow}>
                   <Text style={styles.momentRank}>#{i + 1}</Text>
                   <Text style={styles.momentLabel}>{m.label} mark</Text>
@@ -198,13 +178,13 @@ export default function ScreeningRoomAnalyticsModal() {
             </View>
           )}
 
-          {/* Viewer retention curve */}
-          {(data as any).retentionCurve?.length > 0 && (
+          {/* Retention curve */}
+          {d.retentionCurve?.length > 0 && (
             <View style={styles.chartSection}>
               <Text style={styles.sectionLabel}>Viewer Retention</Text>
               <Text style={styles.sectionSub}>% of viewers still present per interval</Text>
               <View style={styles.chart}>
-                {(data as any).retentionCurve.map((b: { label: string; pct: number }, i: number) => (
+                {d.retentionCurve.map((b: { label: string; pct: number }, i: number) => (
                   <View key={i} style={styles.barCol}>
                     <View style={styles.barTrack}>
                       <View style={[styles.bar, { height: `${b.pct}%`, backgroundColor: '#8B5CF6' }]} />
@@ -213,6 +193,35 @@ export default function ScreeningRoomAnalyticsModal() {
                   </View>
                 ))}
               </View>
+            </View>
+          )}
+
+          {/* Host performance trend */}
+          {d.hostEventHistory?.length > 1 && (
+            <View style={styles.chartSection}>
+              <Text style={styles.sectionLabel}>📈 Your Screening Room History</Text>
+              <Text style={styles.sectionSub}>Peak viewers per event (most recent first)</Text>
+              <View style={[styles.chart, { marginTop: 8 }]}>
+                {d.hostEventHistory.map((e: { title: string; viewers: number; date: string }, i: number) => (
+                  <View key={i} style={styles.barCol}>
+                    <View style={styles.barTrack}>
+                      <View style={[styles.bar, { height: `${Math.round((e.viewers / histMax) * 100)}%`, backgroundColor: '#D4AF37' }]} />
+                    </View>
+                    <Text style={styles.barLabel}>{e.date}</Text>
+                  </View>
+                ))}
+              </View>
+              {d.hostEventHistory.length >= 2 && (() => {
+                const latest = d.hostEventHistory[0].viewers;
+                const prev = d.hostEventHistory[1].viewers;
+                const delta = prev > 0 ? Math.round(((latest - prev) / prev) * 100) : null;
+                if (delta == null) return null;
+                return (
+                  <Text style={[styles.sectionSub, { marginTop: 8, marginBottom: 0 }]}>
+                    {delta >= 0 ? `↑ ${delta}% vs previous screening` : `↓ ${Math.abs(delta)}% vs previous screening`}
+                  </Text>
+                );
+              })()}
             </View>
           )}
 
@@ -227,9 +236,7 @@ export default function ScreeningRoomAnalyticsModal() {
   );
 }
 
-function StatCard({
-  label, value, icon, color, Brand, styles, sub,
-}: {
+function StatCard({ label, value, icon, color, Brand, styles, sub }: {
   label: string; value: string; icon: SymbolViewProps['name'];
   color: string; Brand: BrandPalette; styles: ReturnType<typeof createStyles>; sub?: string;
 }) {
@@ -257,7 +264,7 @@ function createStyles(Brand: BrandPalette) {
     headerTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink },
     headerSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted, marginTop: 1 },
     scroll: { flex: 1, backgroundColor: Brand.paper },
-    content: { flexGrow: 1, padding: Spacing.three, paddingBottom: 40 },
+    content: { flexGrow: 1, padding: Spacing.three, paddingBottom: 48 },
 
     statusRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 20 },
     statusPill: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 20 },
@@ -268,7 +275,6 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.syneExtraBold, fontSize: 11, color: Brand.muted,
       textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 10, marginTop: 4,
     },
-
     grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
     statCard: {
       width: '47%', backgroundColor: Brand.card,

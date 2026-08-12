@@ -294,6 +294,17 @@ export function useJoinPremiere() {
   });
 }
 
+export function useTrackPremiereShare() {
+  const { user } = useSession();
+  return useMutation({
+    mutationFn: async (premiereId: string) => {
+      await supabase
+        .from('premiere_shares')
+        .insert({ premiere_id: premiereId, user_id: user!.id });
+    },
+  });
+}
+
 export function useTrackReplayView() {
   const { user } = useSession();
   return useMutation({
@@ -322,18 +333,20 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
   return useQuery({
     queryKey: ['watch-party-analytics', premiereId],
     queryFn: async () => {
-      const [premiereRes, membersRes, messagesRes, replayRes] = await Promise.all([
+      const [premiereRes, membersRes, messagesRes, replayRes, sharesRes] = await Promise.all([
         supabase.from('premieres').select('*, host_user_id').eq('id', premiereId!).single(),
-        supabase.from('premiere_members').select('user_id, joined_at, left_at, watch_ms').eq('premiere_id', premiereId!),
+        supabase.from('premiere_members').select('user_id, joined_at, left_at, watch_ms, rsvp_status').eq('premiere_id', premiereId!),
         supabase.from('premiere_messages').select('created_at, content, user_name, user_id').eq('premiere_id', premiereId!).order('created_at', { ascending: true }),
         supabase.from('premiere_replay_views').select('user_id', { count: 'exact', head: true }).eq('premiere_id', premiereId!),
+        supabase.from('premiere_shares').select('user_id', { count: 'exact', head: true }).eq('premiere_id', premiereId!),
       ]);
       if (premiereRes.error) throw premiereRes.error;
 
       const premiere = premiereRes.data as any;
-      const members = (membersRes.data ?? []) as { user_id: string; joined_at: string | null; left_at: string | null; watch_ms: number | null }[];
+      const members = (membersRes.data ?? []) as { user_id: string; joined_at: string | null; left_at: string | null; watch_ms: number | null; rsvp_status: string | null }[];
       const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string; user_id: string }[];
       const replayViews = replayRes.count ?? 0;
+      const totalShares = sharesRes.count ?? 0;
 
       const totalViewers = members.length;
       const totalMessages = messages.length;
@@ -397,6 +410,67 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
       }
       const newViewerPct = totalViewers > 0 ? Math.round(((totalViewers - returningViewers) / totalViewers) * 100) : null;
 
+      // RSVP conversion: invited/attending/maybe vs actually showed up
+      const invited = members.filter((m) => m.rsvp_status === 'invited').length;
+      const rsvpdAttending = members.filter((m) => m.rsvp_status === 'attending' || m.rsvp_status === 'maybe').length;
+      const actuallyJoined = members.filter((m) => m.joined_at != null).length;
+      const noShows = rsvpdAttending - actuallyJoined;
+      const inviteConversionPct = invited > 0
+        ? Math.round((actuallyJoined / (invited + rsvpdAttending)) * 100)
+        : rsvpdAttending > 0 ? Math.round((actuallyJoined / rsvpdAttending) * 100) : null;
+
+      // Follows gained: new follows of the host during the event window (live_started_at → ended_at + 24h)
+      let followsGained = 0;
+      if (premiere.host_user_id && start) {
+        const windowEnd = end ? end + 24 * 60 * 60 * 1000 : start + 48 * 60 * 60 * 1000;
+        const { count: followCount } = await supabase
+          .from('follows')
+          .select('id', { count: 'exact', head: true })
+          .eq('followed_id', premiere.host_user_id)
+          .gte('created_at', new Date(start).toISOString())
+          .lte('created_at', new Date(windowEnd).toISOString());
+        followsGained = followCount ?? 0;
+      }
+
+      // Post-event logs: attendees who logged/rated the same title after the party ended
+      let postEventLogs = 0;
+      if (end && premiere.show_title && members.length > 0) {
+        const attendeeIds = members.map((m) => m.user_id);
+        const { count: logCount } = await supabase
+          .from('posts')
+          .select('id', { count: 'exact', head: true })
+          .in('user_id', attendeeIds)
+          .eq('title', premiere.show_title)
+          .gte('created_at', new Date(end).toISOString());
+        postEventLogs = logCount ?? 0;
+      }
+      const postEventLogPct = totalViewers > 0 ? Math.round((postEventLogs / totalViewers) * 100) : null;
+
+      // Host event history: performance trend across this host's past watch parties
+      let hostEventHistory: { title: string; viewers: number; date: string }[] = [];
+      if (premiere.host_user_id) {
+        const { data: pastEvents } = await supabase
+          .from('premieres')
+          .select('id, show_title, live_started_at, peak_viewer_count')
+          .eq('host_user_id', premiere.host_user_id)
+          .eq('status', 'ended')
+          .order('live_started_at', { ascending: false })
+          .limit(6);
+        hostEventHistory = (pastEvents ?? []).map((e: any) => ({
+          title: e.show_title,
+          viewers: e.peak_viewer_count ?? 0,
+          date: e.live_started_at
+            ? new Date(e.live_started_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+            : '—',
+        }));
+      }
+
+      // Time of day: hour the party started (local UTC hour)
+      const startHour = start ? new Date(start).getUTCHours() : null;
+      const timeOfDay = startHour != null
+        ? startHour < 6 ? 'Late Night' : startHour < 12 ? 'Morning' : startHour < 17 ? 'Afternoon' : startHour < 21 ? 'Evening' : 'Night'
+        : null;
+
       // 5-min message buckets for chat activity chart
       const bucketMs = 5 * 60 * 1000;
       const bucketMap = new Map<number, number>();
@@ -443,16 +517,34 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
         totalWatchMs,
         durationMs,
         engagementRate,
+        // Audience
         joinedLate,
         joinedLatePct,
+        returningViewers,
+        newViewerPct,
+        replayViews,
+        // RSVP & invite conversion
+        invited,
+        rsvpdAttending,
+        actuallyJoined,
+        noShows,
+        inviteConversionPct,
+        // Chat
         uniqueChatters,
         lurkers,
         lurkPct,
         topContributors,
         firstMsgMs,
-        returningViewers,
-        newViewerPct,
-        replayViews,
+        // Shares
+        totalShares,
+        // Growth
+        followsGained,
+        postEventLogs,
+        postEventLogPct,
+        // Host trends
+        hostEventHistory,
+        timeOfDay,
+        // Charts
         messageBuckets,
         topMoments,
         retentionCurve,
