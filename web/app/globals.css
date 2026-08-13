@@ -1,0 +1,129 @@
+@import "tailwindcss";
+
+/* ── Satoshi ──────────────────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi-Light.otf') format('opentype');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi-Bold.otf') format('opentype');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Satoshi';
+  src: url('/fonts/Satoshi-Black.otf') format('opentype');
+  font-weight: 900;
+  font-display: swap;
+}
+
+/* ── Brand tokens — light (default) ─────────────────────────────────────── */
+:root {
+  --ink:     #0E0E10;
+  --paper:   #F7F6F2;
+  --trust:   #5B4FE8;
+  --tlight:  #EAE8FF;
+  --warm:    #F4A340;
+  --danger:  #E84F4F;
+  --muted:   #9E9E9E;
+  --border:  #E2E0DA;
+  --card:    #FFFFFF;
+
+  --bg:      var(--paper);
+  --fg:      var(--ink);
+
+  /* type colors */
+  --watch-color: #E84F4F;  --watch-bg: #FFEDED;
+  --read-color:  #4F9CE8;  --read-bg:  #EDF4FF;
+  --play-color:  #4FE87B;  --play-bg:  #EDFFF3;
+  --listen-color:#E8A84F;  --listen-bg:#FFF6ED;
+}
+
+/* ── Brand tokens — dark ─────────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink:     #F5F4F7;
+    --paper:   #121214;
+    --trust:   #8C82FF;
+    --tlight:  #2A2750;
+    --warm:    #FFB35C;
+    --danger:  #FF6363;
+    --muted:   #9A98A0;
+    --border:  #2C2B30;
+    --card:    #1C1C1F;
+
+    --bg:      var(--paper);
+    --fg:      var(--ink);
+
+    --watch-color: #FF6B6B;  --watch-bg: #3A2020;
+    --read-color:  #6CB2FF;  --read-bg:  #1E2C3D;
+    --play-color:  #5FFF96;  --play-bg:  #1A3324;
+    --listen-color:#FFC069;  --listen-bg:#3A2A18;
+  }
+}
+
+/* Manual dark override (user toggle) */
+[data-theme='dark'] {
+  --ink:     #F5F4F7;
+  --paper:   #121214;
+  --trust:   #8C82FF;
+  --tlight:  #2A2750;
+  --warm:    #FFB35C;
+  --danger:  #FF6363;
+  --muted:   #9A98A0;
+  --border:  #2C2B30;
+  --card:    #1C1C1F;
+  --bg:      var(--paper);
+  --fg:      var(--ink);
+}
+
+[data-theme='light'] {
+  --ink:     #0E0E10;
+  --paper:   #F7F6F2;
+  --trust:   #5B4FE8;
+  --tlight:  #EAE8FF;
+  --warm:    #F4A340;
+  --danger:  #E84F4F;
+  --muted:   #9E9E9E;
+  --border:  #E2E0DA;
+  --card:    #FFFFFF;
+  --bg:      var(--paper);
+  --fg:      var(--ink);
+}
+
+/* ── Base ────────────────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  font-family: 'Satoshi', system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  -webkit-font-smoothing: antialiased;
+}
+
+body { min-height: 100dvh; }
+
+a { color: inherit; text-decoration: none; }
+a:hover { opacity: 0.8; }
+
+img { max-width: 100%; }
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
