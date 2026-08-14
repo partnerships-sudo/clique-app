@@ -90,6 +90,18 @@ target 'Clique' do
           config.build_settings['OTHER_SWIFT_FLAGS'] << '-DBYPASS_SIMULATED_STORE_RELEASE_CHECK'
         end
       end
+
+      # @react-native-google-signin v16 ships a Fabric GoogleSigninButton that
+      # references debug Fabric symbols stripped from the prebuilt RN framework.
+      # We don't use GoogleSigninButton, so exclude those files from compilation.
+      if target.name == 'RNGoogleSignin'
+        target.build_configurations.each do |config|
+          config.build_settings['EXCLUDED_SOURCE_FILE_NAMES'] = [
+            'RNGoogleSigninButtonComponentView.mm',
+            'RNGoogleSigninButtonComponentView.h',
+          ].join(' ')
+        end
+      end
     end
   end
 end
