@@ -26,7 +26,4 @@ ALTER TABLE group_chats DROP CONSTRAINT IF EXISTS group_chats_created_by_fkey;
 ALTER TABLE group_chats ADD CONSTRAINT group_chats_created_by_fkey
   FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE CASCADE;
 
--- list_items
-ALTER TABLE list_items DROP CONSTRAINT IF EXISTS list_items_user_id_fkey;
-ALTER TABLE list_items ADD CONSTRAINT list_items_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+-- list_items has no direct user_id — it cascades via lists.user_id already covered above
