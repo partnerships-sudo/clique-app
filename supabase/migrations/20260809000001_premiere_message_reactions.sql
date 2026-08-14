@@ -10,13 +10,16 @@ create table if not exists premiere_message_reactions (
 
 alter table premiere_message_reactions enable row level security;
 
+drop policy if exists "Anyone can read reactions" on premiere_message_reactions;
 create policy "Anyone can read reactions"
   on premiere_message_reactions for select using (true);
 
+drop policy if exists "Users can insert their own reactions" on premiere_message_reactions;
 create policy "Users can insert their own reactions"
   on premiere_message_reactions for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can delete their own reactions" on premiere_message_reactions;
 create policy "Users can delete their own reactions"
   on premiere_message_reactions for delete
   using (auth.uid() = user_id);

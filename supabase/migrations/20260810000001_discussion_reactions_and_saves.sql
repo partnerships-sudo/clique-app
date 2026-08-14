@@ -10,9 +10,11 @@ create table if not exists discussion_reactions (
 
 alter table discussion_reactions enable row level security;
 
+drop policy if exists "Anyone can read discussion reactions" on discussion_reactions;
 create policy "Anyone can read discussion reactions"
   on discussion_reactions for select using (true);
 
+drop policy if exists "Users can manage own discussion reactions" on discussion_reactions;
 create policy "Users can manage own discussion reactions"
   on discussion_reactions for all using (auth.uid() = user_id);
 
@@ -27,8 +29,10 @@ create table if not exists discussion_saves (
 
 alter table discussion_saves enable row level security;
 
+drop policy if exists "Users can manage own saves" on discussion_saves;
 create policy "Users can manage own saves"
   on discussion_saves for all using (auth.uid() = user_id);
 
+drop policy if exists "Users can read own saves" on discussion_saves;
 create policy "Users can read own saves"
   on discussion_saves for select using (auth.uid() = user_id);

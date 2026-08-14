@@ -9,12 +9,15 @@ create table if not exists post_likes (
 
 alter table post_likes enable row level security;
 
+drop policy if exists "Users can see all likes" on post_likes;
 create policy "Users can see all likes"
   on post_likes for select using (true);
 
+drop policy if exists "Users can like posts" on post_likes;
 create policy "Users can like posts"
   on post_likes for insert with check (auth.uid() = user_id);
 
+drop policy if exists "Users can unlike posts" on post_likes;
 create policy "Users can unlike posts"
   on post_likes for delete using (auth.uid() = user_id);
 

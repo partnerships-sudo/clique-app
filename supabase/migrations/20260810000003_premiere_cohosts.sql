@@ -14,6 +14,7 @@ create table if not exists premiere_cohosts (
 -- Hosts can manage their own party's co-hosts; co-hosts can see their own row
 alter table premiere_cohosts enable row level security;
 
+drop policy if exists "Host can manage cohosts" on premiere_cohosts;
 create policy "Host can manage cohosts"
   on premiere_cohosts for all
   using (
@@ -24,10 +25,12 @@ create policy "Host can manage cohosts"
     )
   );
 
+drop policy if exists "Cohost can read and update own row" on premiere_cohosts;
 create policy "Cohost can read and update own row"
   on premiere_cohosts for all
   using (premiere_cohosts.user_id = auth.uid());
 
+drop policy if exists "Members can read cohosts" on premiere_cohosts;
 create policy "Members can read cohosts"
   on premiere_cohosts for select
   using (
