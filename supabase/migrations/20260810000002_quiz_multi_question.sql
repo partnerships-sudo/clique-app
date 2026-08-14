@@ -13,5 +13,7 @@ alter table discussion_poll_votes
 
 -- New unique: one vote per user per question per poll
 alter table discussion_poll_votes
+  drop constraint if exists discussion_poll_votes_poll_question_user_key;
+alter table discussion_poll_votes
   add constraint discussion_poll_votes_poll_question_user_key
   unique (poll_id, question_index, user_id);
