@@ -421,19 +421,28 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   <Pressable
                     style={[styles.wpActionBtn, item.rsvp_status === 'attending' && { borderColor: Brand.trust }]}
                     hitSlop={16}
-                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'attending' })}>
+                    disabled={updateRsvp.isPending}
+                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'attending' }, {
+                      onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.'),
+                    })}>
                     <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'attending' ? Brand.trust : Brand.muted }]}>✓ Going</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.wpActionBtn, styles.wpActionBtnDelete, item.rsvp_status === 'maybe' && { borderColor: Brand.muted }]}
                     hitSlop={16}
-                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'maybe' })}>
+                    disabled={updateRsvp.isPending}
+                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'maybe' }, {
+                      onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.'),
+                    })}>
                     <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'maybe' ? Brand.ink : Brand.muted }]}>? Maybe</Text>
                   </Pressable>
                   <Pressable
                     style={[styles.wpActionBtn, styles.wpActionBtnDelete, item.rsvp_status === 'not_attending' && { borderColor: '#E84F4F' }]}
                     hitSlop={16}
-                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'not_attending' })}>
+                    disabled={updateRsvp.isPending}
+                    onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'not_attending' }, {
+                      onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.'),
+                    })}>
                     <Text style={[styles.wpActionBtnText, { color: item.rsvp_status === 'not_attending' ? '#E84F4F' : Brand.muted }]}>✕ Can't</Text>
                   </Pressable>
                 </View>
@@ -898,7 +907,11 @@ export default function FriendsScreen() {
         hasUnread={unreadFriendIds.has(item.id)}
         currentlyWatching={activePost}
         isTopMatch={index === 0 && tab === 'following'}
-        onFollowBack={tab === 'followers' && !isFollowingBack ? () => follow.mutate({ targetUserId: item.id, isTargetPrivate: item.is_private ?? false }) : undefined}
+        onFollowBack={tab === 'followers' && !isFollowingBack && !follow.isPending
+          ? () => follow.mutate({ targetUserId: item.id, isTargetPrivate: item.is_private ?? false }, {
+              onError: () => Alert.alert('Could not follow', 'Check your connection and try again.'),
+            })
+          : undefined}
       />
     );
   }, [compatScores, activePostByUser, tab, followingSet, unreadFriendIds, follow]);

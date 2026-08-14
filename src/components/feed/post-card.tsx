@@ -86,11 +86,17 @@ function PageTracker({
     setPageVal((v) => Math.max(0, Math.min(v + delta, totalPages ?? 9999)));
   }
 
-  function handleSave() {
+  async function handleSave() {
     if (pageVal > 0) {
-      updateProgress.mutate({ id: libraryItemId, page: pageVal, ...(totalPages ? { totalPages } : {}) });
+      try {
+        await updateProgress.mutateAsync({ id: libraryItemId, page: pageVal, ...(totalPages ? { totalPages } : {}) });
+        setOpen(false);
+      } catch {
+        Alert.alert('Could not save', 'Check your connection and try again.');
+      }
+    } else {
+      setOpen(false);
     }
-    setOpen(false);
   }
 
   const pct = currentPage && totalPages ? Math.min(currentPage / totalPages, 1) : null;
@@ -142,8 +148,8 @@ function PageTracker({
             <Pressable style={styles.pageModalCancel} onPress={() => setOpen(false)}>
               <Text style={styles.pageModalCancelText}>Cancel</Text>
             </Pressable>
-            <Pressable style={styles.pageModalSave} onPress={handleSave}>
-              <Text style={styles.pageModalSaveText}>Save</Text>
+            <Pressable style={[styles.pageModalSave, updateProgress.isPending && { opacity: 0.5 }]} onPress={handleSave} disabled={updateProgress.isPending}>
+              <Text style={styles.pageModalSaveText}>{updateProgress.isPending ? 'Saving…' : 'Save'}</Text>
             </Pressable>
           </View>
         </View>

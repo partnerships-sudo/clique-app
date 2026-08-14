@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { useRef } from 'react';
 import { SymbolView } from 'expo-symbols';
-import { Image, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Alert, Image, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -56,13 +56,19 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
   function handleVote() {
     const event = item.has_voted && !item.has_disagreed ? Events.DISCUSSION_UNVOTED : Events.DISCUSSION_AGREED;
     track(user?.id, event, { discussion_id: item.id });
-    vote.mutate({ discussionId: item.id, hasVoted: item.has_voted, hasDisagreed: item.has_disagreed });
+    vote.mutate(
+      { discussionId: item.id, hasVoted: item.has_voted, hasDisagreed: item.has_disagreed },
+      { onError: () => Alert.alert('Could not save vote', 'Check your connection and try again.') },
+    );
   }
 
   function handleDisagree() {
     const event = item.has_disagreed && !item.has_voted ? Events.DISCUSSION_UNVOTED : Events.DISCUSSION_DISAGREED;
     track(user?.id, event, { discussion_id: item.id });
-    disagree.mutate({ discussionId: item.id, hasDisagreed: item.has_disagreed, hasVoted: item.has_voted });
+    disagree.mutate(
+      { discussionId: item.id, hasDisagreed: item.has_disagreed, hasVoted: item.has_voted },
+      { onError: () => Alert.alert('Could not save vote', 'Check your connection and try again.') },
+    );
   }
 
   const navigating = useRef(false);
