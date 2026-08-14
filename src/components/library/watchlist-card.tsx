@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
 import { extractArtistName } from '@/features/artist/api';
@@ -27,7 +28,7 @@ export function WatchlistCard({
   return (
     <View style={styles.card}>
       {item.poster ? (
-        <Image source={{ uri: item.poster }} style={styles.poster} />
+        <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" />
       ) : (
         <View style={[styles.typeIcon, { backgroundColor: type.bg }]}>
           <Text style={styles.typeIconText}>{type.icon}</Text>

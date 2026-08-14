@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import React, { useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
   FlatList,
   Image,
   Pressable,
@@ -57,6 +58,8 @@ const CATEGORY_FILTERS: { value: FeedFilterValue; label: string; sf: string }[] 
   { value: 'podcast', label: 'Podcasts', sf: 'mic.fill' },
   { value: 'listen', label: 'Music', sf: 'headphones' },
 ];
+
+const MovieRowSeparator = () => <View style={{ width: 16 }} />;
 
 export default function NewsScreen() {
   const Brand = useBrand();
@@ -366,6 +369,9 @@ export default function NewsScreen() {
       {/* Cinema mode */}
       {mode === 'cinema' ? (
         <ScrollView contentContainerStyle={styles.movieContent}>
+          {loadingNow && loadingUpcoming ? (
+            <ActivityIndicator style={{ marginTop: 60 }} color={Brand.trust} />
+          ) : null}
           <Text style={styles.sectionTitle}>In cinemas now</Text>
           <FlatList
             horizontal
@@ -373,7 +379,7 @@ export default function NewsScreen() {
             data={nowPlaying ?? []}
             keyExtractor={(m) => `now-${m.id}`}
             contentContainerStyle={styles.circleRow}
-            ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
+            ItemSeparatorComponent={MovieRowSeparator}
             renderItem={({ item }) => (
               <MovieCircle title={item.title} poster={item.poster} boxOffice={boxOfficeByMovie.get(item.id)} onPress={() => openMovie(item)} />
             )}
@@ -386,7 +392,7 @@ export default function NewsScreen() {
             data={upcoming ?? []}
             keyExtractor={(m) => `soon-${m.id}`}
             contentContainerStyle={styles.circleRow}
-            ItemSeparatorComponent={() => <View style={{ width: 16 }} />}
+            ItemSeparatorComponent={MovieRowSeparator}
             renderItem={({ item }) => (
               <MovieCircle
                 title={item.title}
@@ -450,7 +456,9 @@ export default function NewsScreen() {
               tintColor={Brand.trust}
             />
           }>
-          {articles.length === 0 && !isLoading ? (
+          {isLoading && articles.length === 0 ? (
+            <ActivityIndicator style={{ marginTop: 60 }} color={Brand.trust} />
+          ) : articles.length === 0 ? (
             <Text style={styles.empty}>
               {isError ? "Couldn't load stories — pull down to try again." : 'No stories found right now.'}
             </Text>

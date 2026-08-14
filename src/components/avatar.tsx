@@ -1,4 +1,5 @@
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts } from '@/constants/theme';
 
@@ -50,6 +51,8 @@ export function Avatar({
     <Image
       source={{ uri: avatarUrl }}
       style={{ width: size, height: size, borderRadius: size / 2 }}
+      contentFit="cover"
+      cachePolicy="memory-disk"
     />
   ) : (
     <View

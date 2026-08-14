@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
 import { InstagramIcon } from '@/components/share/instagram-icon';
@@ -46,7 +47,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
     <View style={styles.card}>
       <Pressable onPress={openRateModal} hitSlop={4}>
         {item.poster ? (
-          <Image source={{ uri: item.poster }} style={styles.poster} />
+          <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" />
         ) : (
           <View style={[styles.typeIcon, { backgroundColor: type.bg }]}>
             <Text style={styles.typeIconText}>{type.icon}</Text>

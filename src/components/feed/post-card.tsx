@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { Image } from 'expo-image';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { useUpdateCollectionItemPage } from '@/features/collection/api';
@@ -345,7 +346,7 @@ export function PostCard({
             accessibilityRole="button"
             style={[styles.posterPress, isSquareType && styles.posterPressSquare]}>
             {post.poster ? (
-              <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} resizeMode="cover" />
+              <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} contentFit="cover" cachePolicy="memory-disk" />
             ) : (
               <View style={[styles.poster, isSquareType && styles.posterSquare, styles.posterFallback, { backgroundColor: type.bg }]}>
                 <Text style={styles.posterFallbackEmoji}>{type.icon}</Text>

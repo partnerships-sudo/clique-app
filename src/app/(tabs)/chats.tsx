@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SymbolView } from 'expo-symbols';
@@ -25,8 +25,9 @@ export default function ChatsScreen() {
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [mode, setMode] = useState<ChatsMode>('private');
   const [query, setQuery] = useState('');
-  const { threads: dmThreads, requestThreads, markRead: markDmRead } = useDmThreads();
-  const { threads: groupThreads, markRead: markGroupRead } = useGroupThreads();
+  const { threads: dmThreads, requestThreads, markRead: markDmRead, isLoading: dmLoading } = useDmThreads();
+  const { threads: groupThreads, markRead: markGroupRead, isLoading: groupLoading } = useGroupThreads();
+  const isLoading = dmLoading && groupLoading;
   const { archived, archive, softDelete } = useArchivedChats();
   const trimmedQuery = query.trim().toLowerCase();
   const isRequests = mode === 'requests';
@@ -156,6 +157,14 @@ export default function ChatsScreen() {
   const renderRequestItem = useCallback(({ item }: { item: DmThread }) => (
     <DmListItem thread={item} onPress={() => openDm(item)} />
   ), [openDm]);
+
+  if (isLoading && privateItems.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ActivityIndicator style={{ flex: 1 }} color={Brand.trust} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
