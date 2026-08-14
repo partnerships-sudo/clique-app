@@ -112,14 +112,14 @@ export default function ListDetailModal() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.navigate({ pathname: '/(tabs)/profile', params: { initialTab: 'watchlist' } })} hitSlop={12}>
+        <Pressable onPress={() => router.navigate({ pathname: '/(tabs)/profile', params: { initialTab: 'watchlist' } })} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>{listTitle}</Text>
           {listPublic === 'false' && <Text style={styles.privateBadge}>Private</Text>}
         </View>
-        <Pressable onPress={handleOptions} hitSlop={12}>
+        <Pressable onPress={handleOptions} hitSlop={12} accessibilityRole="button" accessibilityLabel="List options">
           <SymbolView name="ellipsis" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
       </View>
@@ -130,7 +130,9 @@ export default function ListDetailModal() {
           <Pressable
             style={styles.socialBtn}
             onPress={() => likeState && toggleLike.mutate({ listId, liked: likeState.liked })}
-            hitSlop={10}>
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={likeState?.liked ? 'Unlike list' : 'Like list'}>
             <SymbolView
               name={likeState?.liked ? 'heart.fill' : 'heart'}
               size={18}
@@ -146,7 +148,9 @@ export default function ListDetailModal() {
           <Pressable
             style={styles.socialBtn}
             onPress={() => router.push({ pathname: '/list-comments-modal', params: { listId, listTitle } })}
-            hitSlop={10}>
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel="View comments">
             <SymbolView name="bubble.left" size={18} tintColor={Brand.muted} type="monochrome" />
             {commentCount > 0 && (
               <Text style={styles.socialCount}>{commentCount}</Text>
@@ -159,7 +163,9 @@ export default function ListDetailModal() {
       {isOwn && (
         <Pressable
           style={styles.addBar}
-          onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}>
+          onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}
+          accessibilityRole="button"
+          accessibilityLabel="Search and add items">
           <SymbolView name="plus" size={13} tintColor={Brand.trust} style={{ width: 14, height: 14 }} />
           <Text style={styles.addBarText}>Search &amp; add items</Text>
         </Pressable>
@@ -180,7 +186,9 @@ export default function ListDetailModal() {
               <Text style={styles.emptyTitle}>No items yet</Text>
               <Pressable
                 style={styles.emptyBtn}
-                onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}>
+                onPress={() => router.push({ pathname: '/pick-for-list-modal', params: { listId, listTitle } })}
+                accessibilityRole="button"
+                accessibilityLabel="Search and add items">
                 <Text style={styles.emptyBtnText}>+ Search &amp; add items</Text>
               </Pressable>
             </View>
@@ -198,7 +206,7 @@ export default function ListDetailModal() {
               <Text style={styles.itemTitle} numberOfLines={2}>{item.title}</Text>
               {!!item.sub && <Text style={styles.itemSub} numberOfLines={1}>{item.sub}</Text>}
             </View>
-            <Pressable onPress={() => handleItemOptions(item)} hitSlop={10} style={styles.itemMore}>
+            <Pressable onPress={() => handleItemOptions(item)} hitSlop={10} style={styles.itemMore} accessibilityRole="button" accessibilityLabel="Item options">
               <SymbolView name="ellipsis" size={16} tintColor={Brand.muted} type="monochrome" />
             </Pressable>
           </Pressable>

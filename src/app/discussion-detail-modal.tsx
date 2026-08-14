@@ -221,7 +221,9 @@ function PollBlock({
                 onPress={() => onQuestionChange?.(qi - 1)}
                 disabled={qi === 0}
                 style={[pStyles.qNavBtn, { opacity: qi === 0 ? 0.3 : 1 }]}
-                hitSlop={8}>
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Previous question">
                 <Text style={[pStyles.qNavText, { color: Brand.trust }]}>‹ Prev</Text>
               </Pressable>
               <Text style={[pStyles.qNavCount, { color: Brand.muted }]}>{qi + 1} / {total}</Text>
@@ -229,7 +231,9 @@ function PollBlock({
                 onPress={() => onQuestionChange?.(qi + 1)}
                 disabled={qi === total - 1 || !voted}
                 style={[pStyles.qNavBtn, { opacity: (qi === total - 1 || !voted) ? 0.3 : 1 }]}
-                hitSlop={8}>
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel="Next question">
                 <Text style={[pStyles.qNavText, { color: Brand.trust }]}>Next ›</Text>
               </Pressable>
             </View>
@@ -349,7 +353,7 @@ function CommentRow({
         </View>
 
         {showBlur ? (
-          <Pressable onPress={() => setSpoilerRevealed(true)}>
+          <Pressable onPress={() => setSpoilerRevealed(true)} accessibilityRole="button" accessibilityLabel="Tap to reveal spoiler">
             <Text style={[cStyles.body, { color: 'transparent', textShadowColor: 'rgba(0,0,0,0.25)', textShadowRadius: 8 }]} numberOfLines={2}>{comment.body}</Text>
             <Text style={[cStyles.revealText, { color: Brand.muted }]}>Tap to reveal spoiler</Text>
           </Pressable>
@@ -361,11 +365,13 @@ function CommentRow({
           <Pressable
             onPress={() => onReply(comment)}
             style={[cStyles.replyBtn, { backgroundColor: Brand.tlight }]}
-            hitSlop={6}>
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel={`Reply to ${comment.author_name}`}>
             <Text style={[cStyles.replyBtnText, { color: Brand.trust }]}>Reply</Text>
           </Pressable>
           {isOwn && (
-            <Pressable onPress={showOptions} hitSlop={8} style={cStyles.moreBtn}>
+            <Pressable onPress={showOptions} hitSlop={8} style={cStyles.moreBtn} accessibilityRole="button" accessibilityLabel="Comment options">
               <Text style={[cStyles.moreDots, { color: Brand.muted }]}>···</Text>
             </Pressable>
           )}
@@ -776,7 +782,7 @@ export default function DiscussionDetailModal() {
           {/* Nav row overlaid on image */}
           <View style={[styles_.heroNav, { paddingTop: top + 8 }]}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <Pressable onPress={() => router.back()} hitSlop={12} style={styles_.heroNavBtn}>
+              <Pressable onPress={() => router.back()} hitSlop={12} style={styles_.heroNavBtn} accessibilityRole="button" accessibilityLabel="Go back">
                 <SymbolView name="chevron.left" size={18} tintColor="#fff" type="monochrome" style={{ width: 18, height: 18 }} />
               </Pressable>
               <View style={styles_.heroPollBadge}>
@@ -784,11 +790,11 @@ export default function DiscussionDetailModal() {
               </View>
             </View>
             <View style={{ flexDirection: 'row', gap: 10 }}>
-              <Pressable hitSlop={12} style={styles_.heroNavBtn}>
+              <Pressable hitSlop={12} style={styles_.heroNavBtn} accessibilityRole="button" accessibilityLabel="Share">
                 <SymbolView name="square.and.arrow.up" size={17} tintColor="#fff" type="monochrome" style={{ width: 17, height: 17 }} />
               </Pressable>
               {isOwner && (
-                <Pressable onPress={showOwnerMenu} hitSlop={12} style={styles_.heroNavBtn}>
+                <Pressable onPress={showOwnerMenu} hitSlop={12} style={styles_.heroNavBtn} accessibilityRole="button" accessibilityLabel="More options">
                   <Text style={styles_.heroNavDots}>···</Text>
                 </Pressable>
               )}
@@ -866,7 +872,7 @@ export default function DiscussionDetailModal() {
           {/* Action bar */}
           <View style={styles_.pollActionBar}>
             {/* Emoji reaction */}
-            <Pressable style={styles_.pollActionPill} onPress={showEmojiPicker} hitSlop={6}>
+            <Pressable style={styles_.pollActionPill} onPress={showEmojiPicker} hitSlop={6} accessibilityRole="button" accessibilityLabel="Add reaction">
               <Text style={styles_.pollActionEmoji}>
                 {reactions?.mine && reactions.mine.size > 0 ? [...reactions.mine][0] : '🔥'}
               </Text>
@@ -878,7 +884,9 @@ export default function DiscussionDetailModal() {
             <Pressable
               style={[styles_.pollActionPill, discussion.has_voted && !discussion.has_disagreed && { backgroundColor: '#4F46E5' }]}
               onPress={() => vote.mutate({ discussionId: discussion.id, hasVoted: discussion.has_voted, hasDisagreed: discussion.has_disagreed })}
-              hitSlop={6}>
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={discussion.has_voted && !discussion.has_disagreed ? 'Remove upvote' : 'Upvote'}>
               <Text style={{ fontSize: 14 }}>👍</Text>
               {discussion.upvote_count > 0 && (
                 <Text style={[styles_.pollActionCount, discussion.has_voted && !discussion.has_disagreed && { color: '#fff' }]}>{discussion.upvote_count}</Text>
@@ -888,7 +896,9 @@ export default function DiscussionDetailModal() {
             <Pressable
               style={[styles_.pollActionPill, discussion.has_disagreed && { backgroundColor: '#991B1B' }]}
               onPress={() => disagree.mutate({ discussionId: discussion.id, hasDisagreed: discussion.has_disagreed, hasVoted: discussion.has_voted })}
-              hitSlop={6}>
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={discussion.has_disagreed ? 'Remove disagree' : 'Disagree'}>
               <Text style={{ fontSize: 14 }}>👎</Text>
               {discussion.disagree_count > 0 && (
                 <Text style={[styles_.pollActionCount, discussion.has_disagreed && { color: '#fff' }]}>{discussion.disagree_count}</Text>
@@ -898,11 +908,13 @@ export default function DiscussionDetailModal() {
             <Pressable
               style={[styles_.pollActionPill, isSaved && { backgroundColor: Brand.trust }]}
               onPress={handleToggleSave}
-              hitSlop={6}>
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={isSaved ? 'Remove bookmark' : 'Save discussion'}>
               <SymbolView name={isSaved ? 'bookmark.fill' : 'bookmark'} size={15} tintColor={isSaved ? '#fff' : '#9CA3AF'} type="monochrome" style={{ width: 15, height: 15 }} />
             </Pressable>
             {/* Share */}
-            <Pressable style={styles_.pollActionPill} onPress={handleShare} hitSlop={6}>
+            <Pressable style={styles_.pollActionPill} onPress={handleShare} hitSlop={6} accessibilityRole="button" accessibilityLabel="Share discussion">
               <SymbolView name="arrowshape.turn.up.right" size={15} tintColor="#9CA3AF" type="monochrome" style={{ width: 15, height: 15 }} />
             </Pressable>
           </View>
@@ -912,7 +924,9 @@ export default function DiscussionDetailModal() {
         <Pressable
           style={[styles_.pollCommentsToggle, { backgroundColor: showComments ? Brand.paper : '#111' }]}
           onPress={() => setShowComments(v => !v)}
-          hitSlop={6}>
+          hitSlop={6}
+          accessibilityRole="button"
+          accessibilityLabel={showComments ? 'Hide comments' : `Show comments (${comments.length})`}>
           <SymbolView name="bubble.left" size={15} tintColor={showComments ? Brand.trust : '#9CA3AF'} type="monochrome" style={{ width: 15, height: 15 }} />
           <Text style={[styles_.pollCommentsToggleText, { color: showComments ? Brand.trust : '#9CA3AF' }]}>
             {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
@@ -928,7 +942,7 @@ export default function DiscussionDetailModal() {
         {showComments && (
           <View style={[styles_.sortBar, { borderBottomColor: Brand.border, borderTopColor: Brand.border }]}>
             {(['popular', 'recent', 'oldest'] as SortMode[]).map((s) => (
-              <Pressable key={s} onPress={() => setSort(s)} style={styles_.sortTab} hitSlop={6}>
+              <Pressable key={s} onPress={() => setSort(s)} style={styles_.sortTab} hitSlop={6} accessibilityRole="button" accessibilityLabel={s.charAt(0).toUpperCase() + s.slice(1)}>
                 <Text style={[styles_.sortLabel, { color: sort === s ? Brand.trust : Brand.muted }]}>
                   {s.charAt(0).toUpperCase() + s.slice(1)}
                 </Text>
@@ -950,12 +964,12 @@ export default function DiscussionDetailModal() {
       <View>
         {/* Nav bar */}
         <View style={[styles_.navBar, { borderBottomColor: Brand.border }]}>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={styles_.navBack}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles_.navBack} accessibilityRole="button" accessibilityLabel="Go back">
             <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" style={{ width: 20, height: 20 }} />
           </Pressable>
           <Text style={[styles_.navTitle, { color: Brand.ink }]}>Discussion</Text>
           {isOwner ? (
-            <Pressable onPress={showOwnerMenu} hitSlop={12} style={styles_.navMore}>
+            <Pressable onPress={showOwnerMenu} hitSlop={12} style={styles_.navMore} accessibilityRole="button" accessibilityLabel="More options">
               <Text style={[styles_.navDots, { color: Brand.ink }]}>···</Text>
             </Pressable>
           ) : (
@@ -1040,6 +1054,8 @@ export default function DiscussionDetailModal() {
                   <Image source={{ uri: editImageUri }} style={styles_.attachedImage} resizeMode="cover" />
                   <Pressable
                     style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove image"
                     onPress={() => { setEditImageUri(null); setEditImageUrl(null); setLocalImageUrl(null); }}>
                     <SymbolView name="xmark" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
                   </Pressable>
@@ -1049,6 +1065,8 @@ export default function DiscussionDetailModal() {
                   <Image source={{ uri: discussion.image_url }} style={styles_.attachedImage} resizeMode="cover" />
                   <Pressable
                     style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 4 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Remove image"
                     onPress={() => setEditImageUrl(null)}>
                     <SymbolView name="xmark" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
                   </Pressable>
@@ -1056,6 +1074,8 @@ export default function DiscussionDetailModal() {
               ) : (
                 <Pressable
                   onPress={pickEditImage}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add a photo"
                   style={{ borderWidth: 1.5, borderColor: Brand.border, borderStyle: 'dashed', borderRadius: 12, padding: 12, alignItems: 'center', flexDirection: 'row', gap: 8, marginTop: 8 }}>
                   <SymbolView name="photo.badge.plus" size={18} tintColor={Brand.muted} type="monochrome" style={{ width: 18, height: 18 }} />
                   <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 13, color: Brand.muted }}>Add a photo</Text>
@@ -1078,7 +1098,7 @@ export default function DiscussionDetailModal() {
           {/* Action pills */}
           <View style={styles_.actionBar}>
             {/* Emoji reactions */}
-            <Pressable style={styles_.actionPill} onPress={showEmojiPicker} hitSlop={6}>
+            <Pressable style={styles_.actionPill} onPress={showEmojiPicker} hitSlop={6} accessibilityRole="button" accessibilityLabel="Add reaction">
               <Text style={{ fontSize: 14 }}>
                 {reactions?.mine && reactions.mine.size > 0
                   ? [...reactions.mine][0]
@@ -1092,7 +1112,9 @@ export default function DiscussionDetailModal() {
             <Pressable
               style={styles_.actionPill}
               onPress={() => inputRef.current?.focus()}
-              hitSlop={6}>
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={`${comments.length} ${comments.length === 1 ? 'comment' : 'comments'}, tap to add a comment`}>
               <SymbolView name="bubble.left" size={15} tintColor={Brand.muted} type="monochrome" style={{ width: 15, height: 15 }} />
               <Text style={[styles_.actionPillText, { color: Brand.ink }]}>{comments.length}</Text>
             </Pressable>
@@ -1100,11 +1122,13 @@ export default function DiscussionDetailModal() {
             <Pressable
               style={[styles_.actionPill, styles_.actionIconPill, isSaved && { backgroundColor: Brand.trust }]}
               onPress={handleToggleSave}
-              hitSlop={6}>
+              hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel={isSaved ? 'Remove bookmark' : 'Save discussion'}>
               <SymbolView name={isSaved ? 'bookmark.fill' : 'bookmark'} size={15} tintColor={isSaved ? '#fff' : Brand.muted} type="monochrome" style={{ width: 15, height: 15 }} />
             </Pressable>
             {/* Share */}
-            <Pressable style={[styles_.actionPill, styles_.actionIconPill]} onPress={handleShare} hitSlop={6}>
+            <Pressable style={[styles_.actionPill, styles_.actionIconPill]} onPress={handleShare} hitSlop={6} accessibilityRole="button" accessibilityLabel="Share discussion">
               <SymbolView name="square.and.arrow.up" size={15} tintColor={Brand.muted} type="monochrome" style={{ width: 15, height: 15 }} />
             </Pressable>
           </View>
@@ -1113,7 +1137,7 @@ export default function DiscussionDetailModal() {
         {/* Sort tabs */}
         <View style={[styles_.sortBar, { borderBottomColor: Brand.border, borderTopColor: Brand.border }]}>
           {(['popular', 'recent', 'oldest'] as SortMode[]).map((s) => (
-            <Pressable key={s} onPress={() => setSort(s)} style={styles_.sortTab} hitSlop={6}>
+            <Pressable key={s} onPress={() => setSort(s)} style={styles_.sortTab} hitSlop={6} accessibilityRole="button" accessibilityLabel={s.charAt(0).toUpperCase() + s.slice(1)}>
               <Text style={[styles_.sortLabel, { color: sort === s ? Brand.trust : Brand.muted }]}>
                 {s.charAt(0).toUpperCase() + s.slice(1)}
               </Text>
@@ -1157,7 +1181,9 @@ export default function DiscussionDetailModal() {
                         return next;
                       });
                     }}
-                    hitSlop={6}>
+                    hitSlop={6}
+                    accessibilityRole="button"
+                    accessibilityLabel={isExpanding ? `View ${hidden} more ${hidden === 1 ? 'reply' : 'replies'}` : 'Collapse replies'}>
                     <Text style={[styles_.viewMoreText, { color: Brand.trust }]}>
                       {isExpanding ? `View ${hidden} more ${hidden === 1 ? 'reply' : 'replies'}` : 'Collapse replies'}
                     </Text>
@@ -1191,7 +1217,7 @@ export default function DiscussionDetailModal() {
             <Text style={[styles_.replyBannerText, { color: Brand.trust }]} numberOfLines={1}>
               Replying to {replyTo.author_name}
             </Text>
-            <Pressable onPress={() => { setReplyTo(null); setText(''); }} hitSlop={8}>
+            <Pressable onPress={() => { setReplyTo(null); setText(''); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="Cancel reply">
               <SymbolView name="xmark" size={14} tintColor={Brand.muted} type="monochrome" style={{ width: 14, height: 14 }} />
             </Pressable>
           </View>
@@ -1236,6 +1262,8 @@ export default function DiscussionDetailModal() {
             <Pressable
               onPress={() => setIsSpoiler((v) => !v)}
               hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={isSpoiler ? 'Remove spoiler tag' : 'Mark as spoiler'}
               style={[styles_.spoilerBtn, isSpoiler && { backgroundColor: Brand.tlight }]}>
               <SymbolView
                 name={isSpoiler ? 'eye.slash.fill' : 'eye.slash'}
@@ -1246,7 +1274,7 @@ export default function DiscussionDetailModal() {
               />
             </Pressable>
           )}
-          <Pressable onPress={handleSend} disabled={!text.trim() || addComment.isPending} hitSlop={8}>
+          <Pressable onPress={handleSend} disabled={!text.trim() || addComment.isPending} hitSlop={8} accessibilityRole="button" accessibilityLabel="Send comment">
             {addComment.isPending
               ? <ActivityIndicator color={Brand.trust} />
               : (

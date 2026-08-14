@@ -109,7 +109,7 @@ function ScreeningRoomCard({ item, Brand, styles, deleteScreeningRoom }: {
     : null;
   return (
     <View style={styles.wpCard}>
-      <Pressable style={styles.wpCardMain} onPress={() => !ended && router.push({ pathname: '/screening-room-live', params: { id: item.id } })}>
+      <Pressable style={styles.wpCardMain} onPress={() => !ended && router.push({ pathname: '/screening-room-live', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`Open ${item.title} screening room`}>
         <View style={[styles.wpPoster, styles.wpPosterFallback, { backgroundColor: '#1A0E2E' }]}>
           <Text style={styles.wpPosterEmoji}>🎬</Text>
         </View>
@@ -126,17 +126,17 @@ function ScreeningRoomCard({ item, Brand, styles, deleteScreeningRoom }: {
       </Pressable>
       <View style={styles.wpCardActions}>
         {!ended ? (
-          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/screening-room-live', params: { id: item.id } })}>
+          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/screening-room-live', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel="Open screening room">
             <SymbolView name="play.fill" size={14} tintColor={Brand.trust} type="monochrome" />
             <Text style={styles.wpActionBtnText}>Open</Text>
           </Pressable>
         ) : (
-          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/screening-room-analytics-modal', params: { roomId: item.id, roomTitle: item.title } })}>
+          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/screening-room-analytics-modal', params: { roomId: item.id, roomTitle: item.title } })} accessibilityRole="button" accessibilityLabel="View analytics">
             <SymbolView name="chart.bar.fill" size={14} tintColor={Brand.trust} type="monochrome" />
             <Text style={styles.wpActionBtnText}>Analytics</Text>
           </Pressable>
         )}
-        <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() =>
+        <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} accessibilityRole="button" accessibilityLabel="Delete screening room" onPress={() =>
           Alert.alert('Delete screening room?', `"${item.title}" will be removed.`, [
             { text: 'Cancel', style: 'cancel' },
             { text: 'Delete', style: 'destructive', onPress: () => deleteScreeningRoom.mutate(item.id) },
@@ -306,7 +306,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
           { id: 'attending' as const, label: "RSVP's", count: attending.length },
           { id: 'screening' as const, label: '🎬 Screenings', count: screeningRooms.length },
         ]).map((t) => (
-          <Pressable key={t.id} style={[styles.wpSubTab, wpTab === t.id && styles.wpSubTabActive]} onPress={() => setWpTab(t.id)}>
+          <Pressable key={t.id} style={[styles.wpSubTab, wpTab === t.id && styles.wpSubTabActive]} onPress={() => setWpTab(t.id)} accessibilityRole="button" accessibilityLabel={t.label}>
             <Text style={[styles.wpSubTabText, wpTab === t.id && styles.wpSubTabTextActive]}>
               {t.label}{t.count > 0 ? ` (${t.count})` : ''}
             </Text>
@@ -319,6 +319,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
         <View style={styles.wpCreateRow}>
           <Pressable
             style={[styles.wpCreateBtn, wpTab === 'screening' && { backgroundColor: '#F59E0B' }]}
+            accessibilityRole="button"
+            accessibilityLabel={wpTab === 'screening' ? 'New Screening Room' : 'Host a Watch Party'}
             onPress={() => {
               if (wpTab === 'screening') {
                 if (!isUpperTier) { router.push('/get-verified-modal'); return; }
@@ -395,7 +397,9 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 <Pressable style={styles.wpCardMain} onPress={() =>
                   canEnter
                     ? router.push({ pathname: '/premiere-waiting-room', params: { id: item.id } })
-                    : router.push({ pathname: '/premiere/[id]', params: { id: item.id } })}>
+                    : router.push({ pathname: '/premiere/[id]', params: { id: item.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${item.show_title} watch party`}>
                   {item.show_poster ? (
                     <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
                   ) : (
@@ -422,6 +426,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     style={[styles.wpActionBtn, item.rsvp_status === 'attending' && { borderColor: Brand.trust }]}
                     hitSlop={16}
                     disabled={updateRsvp.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel="Going"
                     onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'attending' }, {
                       onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.'),
                     })}>
@@ -431,6 +437,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     style={[styles.wpActionBtn, styles.wpActionBtnDelete, item.rsvp_status === 'maybe' && { borderColor: Brand.muted }]}
                     hitSlop={16}
                     disabled={updateRsvp.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel="Maybe"
                     onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'maybe' }, {
                       onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.'),
                     })}>
@@ -440,6 +448,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     style={[styles.wpActionBtn, styles.wpActionBtnDelete, item.rsvp_status === 'not_attending' && { borderColor: '#E84F4F' }]}
                     hitSlop={16}
                     disabled={updateRsvp.isPending}
+                    accessibilityRole="button"
+                    accessibilityLabel="Can't go"
                     onPress={() => updateRsvp.mutate({ premiereId: item.id, status: 'not_attending' }, {
                       onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.'),
                     })}>
@@ -479,7 +489,9 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 <View style={{ marginTop: 24, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: Brand.border, paddingTop: 4 }}>
                   <Pressable
                     style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 12 }}
-                    onPress={() => setPastExpanded((v) => !v)}>
+                    onPress={() => setPastExpanded((v) => !v)}
+                    accessibilityRole="button"
+                    accessibilityLabel={pastExpanded ? 'Collapse past parties' : 'Expand past parties'}>
                     <Text style={{ fontFamily: BrandFonts.interMedium, fontSize: 13, color: Brand.muted }}>
                       Past parties ({pastAttending.length})
                     </Text>
@@ -520,7 +532,9 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 <Pressable style={styles.wpCardMain} onPress={() =>
                   canEnter
                     ? router.push({ pathname: '/premiere-waiting-room', params: { id: item.id } })
-                    : router.push({ pathname: '/premiere/[id]', params: { id: item.id } })}>
+                    : router.push({ pathname: '/premiere/[id]', params: { id: item.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${item.show_title} watch party`}>
                   {item.show_poster ? (
                     <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
                   ) : (
@@ -543,15 +557,15 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 </Pressable>
                 {effStatus !== 'ended' && effStatus !== 'replay' ? (
                   <View style={styles.wpCardActions}>
-                    <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => openInvite(item)}>
+                    <Pressable style={styles.wpActionBtn} hitSlop={16} onPress={() => openInvite(item)} accessibilityRole="button" accessibilityLabel="Invite friends">
                       <SymbolView name="paperplane.fill" size={15} tintColor={Brand.trust} type="monochrome" />
                       <Text style={styles.wpActionBtnText}>Invite</Text>
                     </Pressable>
-                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() => openEdit(item)} hitSlop={16}>
+                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() => openEdit(item)} hitSlop={16} accessibilityRole="button" accessibilityLabel="Edit watch party">
                       <SymbolView name="pencil" size={15} tintColor={Brand.trust} type="monochrome" />
                       <Text style={styles.wpActionBtnText}>Edit</Text>
                     </Pressable>
-                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() => handleDelete(item)} hitSlop={16}>
+                    <Pressable style={[styles.wpActionBtn, styles.wpActionBtnDelete]} onPress={() => handleDelete(item)} hitSlop={16} accessibilityRole="button" accessibilityLabel="Delete watch party">
                       <SymbolView name="trash" size={15} tintColor="#E84F4F" type="monochrome" />
                       <Text style={[styles.wpActionBtnText, { color: '#E84F4F' }]}>Delete</Text>
                     </Pressable>
@@ -577,7 +591,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   <View key={item.id}>
                     {i > 0 && <View style={{ height: 12 }} />}
                     <View style={styles.wpCard}>
-                      <Pressable style={styles.wpCardMain} onPress={() => router.push({ pathname: '/premiere-replay', params: { id: item.id } })}>
+                      <Pressable style={styles.wpCardMain} onPress={() => router.push({ pathname: '/premiere-replay', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`View ${item.show_title} replay`}>
                         {item.show_poster ? (
                           <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
                         ) : (
@@ -601,12 +615,12 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                       {wpTab === 'hosting' && (
                         <View style={styles.wpCardActions}>
                           {item.status !== 'ended' && (
-                            <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/trivia-setup-modal', params: { id: item.id, type: 'premiere', showTitle: item.show_title } })}>
+                            <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/trivia-setup-modal', params: { id: item.id, type: 'premiere', showTitle: item.show_title } })} accessibilityRole="button" accessibilityLabel="Set up trivia">
                               <Text style={{ fontSize: 12 }}>📋</Text>
                               <Text style={styles.wpActionBtnText}>Trivia</Text>
                             </Pressable>
                           )}
-                          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/watch-party-analytics-modal', params: { premiereId: item.id, showTitle: item.show_title } })}>
+                          <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/watch-party-analytics-modal', params: { premiereId: item.id, showTitle: item.show_title } })} accessibilityRole="button" accessibilityLabel="View analytics">
                             <SymbolView name="chart.bar.fill" size={13} tintColor={Brand.trust} type="monochrome" />
                             <Text style={styles.wpActionBtnText}>Analytics</Text>
                           </Pressable>
@@ -633,7 +647,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 <Text style={styles.wpEditTitle}>Edit Watch Party</Text>
                 {editingPremiere ? <Text style={styles.wpEditShow} numberOfLines={1}>{editingPremiere.show_title}{editingPremiere.episode_name ? ` · ${editingPremiere.episode_name}` : ''}</Text> : null}
               </View>
-              <Pressable onPress={() => setEditingPremiere(null)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Brand.border, justifyContent: 'center', alignItems: 'center', marginLeft: 8, marginTop: 2 }}>
+              <Pressable onPress={() => setEditingPremiere(null)} style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: Brand.border, justifyContent: 'center', alignItems: 'center', marginLeft: 8, marginTop: 2 }} accessibilityRole="button" accessibilityLabel="Close edit panel">
                 <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 14, color: Brand.muted }}>✕</Text>
               </Pressable>
             </View>
@@ -741,7 +755,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 </>
               )}
             </View>
-            <Pressable style={[styles.wpSaveBtn, updatePremiere.isPending && { opacity: 0.5 }]} onPress={handleSaveEdit} disabled={updatePremiere.isPending}>
+            <Pressable style={[styles.wpSaveBtn, updatePremiere.isPending && { opacity: 0.5 }]} onPress={handleSaveEdit} disabled={updatePremiere.isPending} accessibilityRole="button" accessibilityLabel="Save changes">
               {updatePremiere.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.wpSaveBtnText}>Save changes</Text>}
             </Pressable>
           </View>
@@ -774,7 +788,9 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   return (
                     <Pressable
                       onPress={() => toggleFriend(f.id)}
-                      style={[styles.wpInviteRow, selected && styles.wpInviteRowSelected]}>
+                      style={[styles.wpInviteRow, selected && styles.wpInviteRowSelected]}
+                      accessibilityRole="button"
+                      accessibilityLabel={selected ? `${f.full_name || f.username}, selected` : `Select ${f.full_name || f.username}`}>
                       <View style={styles.wpInviteAvatar}>
                         {f.avatar_url ? (
                           <Image source={{ uri: f.avatar_url }} style={styles.wpInviteAvatarImg} />
@@ -799,7 +815,9 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
             <Pressable
               style={[styles.wpSaveBtn, (selectedFriends.size === 0 || sendingInvites) && { opacity: 0.4 }]}
               disabled={selectedFriends.size === 0 || sendingInvites}
-              onPress={sendInvites}>
+              onPress={sendInvites}
+              accessibilityRole="button"
+              accessibilityLabel={selectedFriends.size === 0 ? 'Select friends to invite' : `Send invites to ${selectedFriends.size} friend${selectedFriends.size === 1 ? '' : 's'}`}>
               {sendingInvites ? (
                 <ActivityIndicator color="#fff" />
               ) : (
@@ -923,11 +941,11 @@ export default function FriendsScreen() {
         <Text style={styles.headerTitle}>Friends</Text>
         <View style={styles.headerActions}>
           {tab !== 'watchparties' && (
-            <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)}>
+            <Pressable style={styles.inviteBtn} onPress={() => setInviteSheetVisible(true)} accessibilityRole="button" accessibilityLabel="Invite contacts">
               <Text style={styles.inviteBtnText}>+ Invite</Text>
             </Pressable>
           )}
-          <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
+          <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')} accessibilityRole="button" accessibilityLabel="Discover people">
             <SymbolView name="person.badge.plus" size={22} tintColor={Brand.muted} style={{ width: 26, height: 24 }} />
           </Pressable>
         </View>
@@ -935,17 +953,17 @@ export default function FriendsScreen() {
 
       {/* Tab bar — always visible */}
       <View style={styles.tabRow}>
-        <Pressable style={[styles.tabBtn, tab === 'following' && styles.tabBtnActive]} onPress={() => setTab('following')}>
+        <Pressable style={[styles.tabBtn, tab === 'following' && styles.tabBtnActive]} onPress={() => setTab('following')} accessibilityRole="button" accessibilityLabel="Following">
           <Text style={[styles.tabBtnText, tab === 'following' && styles.tabBtnTextActive]}>
             Following {following?.length ?? ''}
           </Text>
         </Pressable>
-        <Pressable style={[styles.tabBtn, tab === 'followers' && styles.tabBtnActive]} onPress={() => setTab('followers')}>
+        <Pressable style={[styles.tabBtn, tab === 'followers' && styles.tabBtnActive]} onPress={() => setTab('followers')} accessibilityRole="button" accessibilityLabel="Followers">
           <Text style={[styles.tabBtnText, tab === 'followers' && styles.tabBtnTextActive]}>
             Followers {followers?.length ?? ''}
           </Text>
         </Pressable>
-        <Pressable style={[styles.tabBtn, styles.tabBtnWatchParties, tab === 'watchparties' && styles.tabBtnActive]} onPress={() => setTab('watchparties')}>
+        <Pressable style={[styles.tabBtn, styles.tabBtnWatchParties, tab === 'watchparties' && styles.tabBtnActive]} onPress={() => setTab('watchparties')} accessibilityRole="button" accessibilityLabel="Watch Parties">
           <Text style={[styles.tabBtnText, tab === 'watchparties' && styles.tabBtnTextActive]}>Watch Parties</Text>
         </Pressable>
       </View>
@@ -985,7 +1003,7 @@ export default function FriendsScreen() {
                 <View style={styles.section}>
                   <View style={styles.sectionHeaderRow}>
                     <Text style={styles.sectionLabelInline}>People you may know</Text>
-                    <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')}>
+                    <Pressable hitSlop={16} onPress={() => router.push('/discover-people-modal')} accessibilityRole="button" accessibilityLabel="See all suggested people">
                       <Text style={styles.seeAll}>See all</Text>
                     </Pressable>
                   </View>
@@ -1018,7 +1036,7 @@ export default function FriendsScreen() {
                   <Text style={styles.emptyEmoji}>👥</Text>
                   <Text style={styles.emptyTitle}>Toto, I've a feeling we need more friends.</Text>
                   <Text style={styles.emptyBody}>Search above to find people you know on Clique.</Text>
-                  <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')}>
+                  <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')} accessibilityRole="button" accessibilityLabel="Find people">
                     <Text style={styles.emptyBtnText}>Find people →</Text>
                   </Pressable>
                 </View>

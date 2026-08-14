@@ -151,7 +151,7 @@ export function EditProfile({
     <View>
       {/* Avatar */}
       <View style={styles.avatarRow}>
-        <Pressable style={styles.avatarPressable} onPress={handleChangePhoto} disabled={uploadAvatar.isPending}>
+        <Pressable style={styles.avatarPressable} onPress={handleChangePhoto} disabled={uploadAvatar.isPending} accessibilityRole="button" accessibilityLabel="Change profile photo">
           <View style={styles.avatarWrap}>
             <Avatar name={fullName || 'You'} size={64} avatarUrl={profile?.avatar_url} />
             <View style={styles.cameraBadge}>
@@ -165,7 +165,7 @@ export function EditProfile({
             {username ? <Text style={styles.avatarHandle}>@{username}</Text> : null}
           </View>
         </Pressable>
-        <Pressable style={styles.cogBtn} onPress={() => router.push('/settings')}>
+        <Pressable style={styles.cogBtn} onPress={() => router.push('/settings')} accessibilityRole="button" accessibilityLabel="Settings">
           <SymbolView name="gearshape" size={20} tintColor={Brand.muted} type="monochrome" />
         </Pressable>
       </View>
@@ -213,6 +213,8 @@ export function EditProfile({
             <Pressable
               key={option.value}
               style={[styles.ratingIconBtn, active && styles.ratingIconBtnActive]}
+              accessibilityRole="button"
+              accessibilityLabel={option.label}
               onPress={() => setRatingIcon(option.value)}>
               <Text style={styles.ratingIconEmoji}>{option.emoji}</Text>
               <Text style={[styles.ratingIconLabel, active && styles.ratingIconLabelActive]}>
@@ -240,7 +242,7 @@ export function EditProfile({
         onToggle={(i) => setGenres((prev) => prev.map((c, idx) => (idx === i ? { ...c, on: !c.on } : c)))}
       />
 
-      <Pressable style={styles.logoutBtn} onPress={() => signOut()}>
+      <Pressable style={styles.logoutBtn} onPress={() => signOut()} accessibilityRole="button" accessibilityLabel="Log out">
         <Text style={styles.logoutText}>Log out</Text>
       </Pressable>
     </View>

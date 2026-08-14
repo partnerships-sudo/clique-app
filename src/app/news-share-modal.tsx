@@ -119,6 +119,8 @@ export default function NewsShareModal() {
                   <Pressable
                     key={f.id}
                     style={styles.friendItem}
+                    accessibilityRole="button"
+                    accessibilityLabel={isSent ? `Sent to ${f.full_name ?? f.username ?? 'friend'}` : `Send to ${f.full_name ?? f.username ?? 'friend'}`}
                     onPress={() => sendToFriend(f.id)}
                     disabled={isSent || !!sending}>
                     <View style={styles.avatarWrap}>
@@ -147,25 +149,25 @@ export default function NewsShareModal() {
 
         <Text style={styles.sectionLabel}>Share via</Text>
         <View style={styles.iconRow}>
-          <Pressable style={styles.iconItem} onPress={openSms}>
+          <Pressable style={styles.iconItem} onPress={openSms} accessibilityRole="button" accessibilityLabel="Share via Messages">
             <Image source={ic.messages} style={styles.iconImg} />
             <Text style={styles.iconLabel}>Messages</Text>
           </Pressable>
-          <Pressable style={styles.iconItem} onPress={openMail}>
+          <Pressable style={styles.iconItem} onPress={openMail} accessibilityRole="button" accessibilityLabel="Share via Mail">
             <Image source={ic.mail} style={styles.iconImg} />
             <Text style={styles.iconLabel}>Mail</Text>
           </Pressable>
-          <Pressable style={styles.iconItem} onPress={openAirDrop}>
+          <Pressable style={styles.iconItem} onPress={openAirDrop} accessibilityRole="button" accessibilityLabel="Share via AirDrop">
             <Image source={ic.airdrop} style={styles.iconImg} />
             <Text style={styles.iconLabel}>AirDrop</Text>
           </Pressable>
-          <Pressable style={styles.iconItem} onPress={openWhatsApp}>
+          <Pressable style={styles.iconItem} onPress={openWhatsApp} accessibilityRole="button" accessibilityLabel="Share via WhatsApp">
             <Image source={ic.whatsapp} style={styles.iconImg} />
             <Text style={styles.iconLabel}>WhatsApp</Text>
           </Pressable>
         </View>
 
-        <Pressable style={styles.cancelBtn} onPress={() => router.back()}>
+        <Pressable style={styles.cancelBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
           <Text style={styles.cancelText}>Cancel</Text>
         </Pressable>
       </Pressable>

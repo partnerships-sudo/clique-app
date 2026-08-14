@@ -114,7 +114,7 @@ export function ProfileCard({
       <View style={styles.contentPad}>
         {/* Header: avatar left, name/actions right */}
         <View style={styles.headerRow}>
-          <Pressable style={styles.avWrap} onPress={() => profile?.avatar_url && setAvatarZoom(true)} hitSlop={4}>
+          <Pressable style={styles.avWrap} onPress={() => profile?.avatar_url && setAvatarZoom(true)} hitSlop={4} accessibilityRole="button" accessibilityLabel="View profile photo">
             <View style={styles.avRing}>
               {profile?.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.avImg} />
@@ -136,6 +136,8 @@ export function ProfileCard({
                   onPress={friendAction.onPress}
                   disabled={!friendAction.onPress}
                   hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel={friendAction.label}
                   style={[styles.friendActionBtn, styles.friendActionBtnInline, friendAction.variant === 'muted' && styles.friendActionBtnMuted]}>
                   <Text style={[styles.friendActionBtnText, styles.friendActionBtnTextInline, friendAction.variant === 'muted' && styles.friendActionBtnTextMuted]}>
                     {friendAction.label}
@@ -146,6 +148,8 @@ export function ProfileCard({
                 <Pressable
                   hitSlop={12}
                   style={{ marginLeft: 'auto' }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Profile options"
                   onPress={() => {
                     if (Platform.OS === 'ios') {
                       ActionSheetIOS.showActionSheetWithOptions(
@@ -168,7 +172,7 @@ export function ProfileCard({
               <View style={styles.handleRow}>
                 <Text style={styles.name} numberOfLines={1}>{profile.full_name}</Text>
                 {onShare ? (
-                  <Pressable onPress={onShare} hitSlop={10} style={styles.iconBtnSmall}>
+                  <Pressable onPress={onShare} hitSlop={10} style={styles.iconBtnSmall} accessibilityRole="button" accessibilityLabel="Share profile">
                     <SymbolView name="square.and.arrow.up" size={11} tintColor={Brand.muted} type="monochrome" />
                   </Pressable>
                 ) : null}
@@ -180,6 +184,8 @@ export function ProfileCard({
                   <Pressable
                     onPress={closeFriendAction.onPress}
                     hitSlop={16}
+                    accessibilityRole="button"
+                    accessibilityLabel={closeFriendAction.isCloseFriend ? 'Remove from close friends' : 'Add as close friend'}
                     style={[styles.friendActionBtn, closeFriendAction.isCloseFriend ? styles.closeFriendBtnActive : styles.friendActionBtnMuted]}>
                     <Text style={[styles.friendActionBtnText, closeFriendAction.isCloseFriend ? styles.closeFriendBtnTextActive : styles.friendActionBtnTextMuted]}>
                       {closeFriendAction.isCloseFriend ? '💚 Close Friend' : '+ Close Friend'}
@@ -187,7 +193,7 @@ export function ProfileCard({
                   </Pressable>
                 ) : null}
                 {onMessage ? (
-                  <Pressable onPress={onMessage} hitSlop={16} style={styles.msgBtn}>
+                  <Pressable onPress={onMessage} hitSlop={16} style={styles.msgBtn} accessibilityRole="button" accessibilityLabel="Send message">
                     <Text style={styles.msgBtnText}>Message</Text>
                   </Pressable>
                 ) : null}
@@ -197,11 +203,11 @@ export function ProfileCard({
         </View>
 
         <View style={styles.followCountRow}>
-          <Pressable onPress={onFollowingPress} hitSlop={8} style={styles.followCountBtn}>
+          <Pressable onPress={onFollowingPress} hitSlop={8} style={styles.followCountBtn} accessibilityRole="button" accessibilityLabel={`${followingCount} following`}>
             <Text style={styles.followCountNum}>{followingCount}</Text>
             <Text style={styles.followCountLabel}>Following</Text>
           </Pressable>
-          <Pressable onPress={onFollowersPress} hitSlop={8} style={styles.followCountBtn}>
+          <Pressable onPress={onFollowersPress} hitSlop={8} style={styles.followCountBtn} accessibilityRole="button" accessibilityLabel={`${followersCount} followers`}>
             <Text style={styles.followCountNum}>{followersCount}</Text>
             <Text style={styles.followCountLabel}>Followers</Text>
           </Pressable>
@@ -212,7 +218,7 @@ export function ProfileCard({
       {/* Tab bar — outside contentPad so it spans full width */}
       <View style={styles.tabRow}>
         {PROFILE_TABS.map((tab) => (
-          <Pressable key={tab.key} style={[styles.tab, profileTab === tab.key && styles.tabActive]} onPress={() => { setProfileTab(tab.key); onTabChange?.(tab.key); }}>
+          <Pressable key={tab.key} style={[styles.tab, profileTab === tab.key && styles.tabActive]} accessibilityRole="button" accessibilityLabel={tab.label} onPress={() => { setProfileTab(tab.key); onTabChange?.(tab.key); }}>
             <Text style={[styles.tabLabel, profileTab === tab.key && styles.tabLabelActive]}>{tab.label}</Text>
           </Pressable>
         ))}

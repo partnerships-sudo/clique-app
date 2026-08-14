@@ -138,7 +138,7 @@ function ContentSearchStep({
         <Text style={[searchStyles.noResults, { color: Brand.muted }]}>No results for "{query}"</Text>
       )}
 
-      <Pressable style={searchStyles.skipBtn} onPress={onSkip}>
+      <Pressable style={searchStyles.skipBtn} onPress={onSkip} accessibilityRole="button" accessibilityLabel="Skip, post without linking to a title">
         <Text style={[searchStyles.skipText, { color: Brand.muted }]}>Skip, post without linking to a title</Text>
       </Pressable>
     </View>
@@ -196,7 +196,9 @@ function TypePickerStep({
         <Pressable
           key={opt.value}
           style={[typeStyles.card, { backgroundColor: opt.cardBg }]}
-          onPress={() => onPick(opt.value)}>
+          onPress={() => onPick(opt.value)}
+          accessibilityRole="button"
+          accessibilityLabel={opt.label}>
           <Text style={typeStyles.cardEmoji}>{opt.emoji}</Text>
           <View style={typeStyles.cardBody}>
             <Text style={[typeStyles.cardLabel, { color: opt.labelColor }]}>{opt.label.toUpperCase()}</Text>
@@ -422,14 +424,16 @@ export default function CreateDiscussionModal() {
               else if (step === 'type' && !params.prefillExternalId) setStep('search');
               else router.back();
             }}
-            hitSlop={12}>
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel={step === 'search' ? 'Cancel' : 'Go back'}>
             <Text style={styles.cancel}>{step === 'search' ? 'Cancel' : 'Back'}</Text>
           </Pressable>
           <Text style={styles.headerTitle}>
             {step === 'search' ? 'Search a title' : step === 'type' ? 'Start a conversation' : FORMAT_OPTIONS.find(f => f.value === format)?.label ?? 'New Discussion'}
           </Text>
           {step === 'write' ? (
-            <Pressable onPress={handlePost} disabled={!canPost} hitSlop={12}>
+            <Pressable onPress={handlePost} disabled={!canPost} hitSlop={12} accessibilityRole="button" accessibilityLabel="Post discussion">
               {createDiscussion.isPending || imageUploading
                 ? <ActivityIndicator color={Brand.trust} />
                 : <Text style={[styles.post, !canPost && styles.postDisabled]}>Post</Text>}
@@ -528,7 +532,9 @@ export default function CreateDiscussionModal() {
                 <Pressable
                   style={styles.imageRemoveBtn}
                   hitSlop={8}
-                  onPress={() => setImageUri(null)}>
+                  onPress={() => setImageUri(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove image">
                   <View style={styles.imageRemoveCircle}>
                     <SymbolView name="xmark" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
                   </View>
@@ -537,7 +543,9 @@ export default function CreateDiscussionModal() {
             ) : (
               <Pressable
                 style={[styles.addPhotoBtn, { borderColor: Brand.border }]}
-                onPress={pickImage}>
+                onPress={pickImage}
+                accessibilityRole="button"
+                accessibilityLabel="Add a photo">
                 <SymbolView name="photo.badge.plus" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
                 <Text style={[styles.addPhotoText, { color: Brand.muted }]}>Add a photo</Text>
                 <Text style={[styles.addPhotoOptional, { color: Brand.muted }]}>optional</Text>
@@ -548,6 +556,8 @@ export default function CreateDiscussionModal() {
             {!isPoll && (
               <Pressable
                 style={[styles.pollToggleRow, { borderColor: pollEnabled ? Brand.trust : Brand.border, backgroundColor: pollEnabled ? Brand.tlight : Brand.card }]}
+                accessibilityRole="button"
+                accessibilityLabel={pollEnabled ? 'Remove poll' : 'Add a poll'}
                 onPress={() => {
                   setPollEnabled((v) => !v);
                   setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 50);

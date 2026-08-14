@@ -59,6 +59,8 @@ export function FilterChips({
             <Pressable
               key={filter.value}
               onPress={() => onChange(filter.value)}
+              accessibilityRole="button"
+              accessibilityLabel={filter.label}
               style={[styles.labelPill, active && styles.labelPillActive]}>
               <Text style={[styles.labelPillText, active && styles.labelPillTextActive]}>{filter.label}</Text>
             </Pressable>
@@ -102,6 +104,8 @@ export function FilterChips({
               <Pressable
                 key={filter.value}
                 onPress={() => onChange(filter.value)}
+                accessibilityRole="button"
+                accessibilityLabel={filter.label}
                 style={[styles.pill, active && styles.pillActive]}>
                 <SymbolView
                   name={filter.symbol as any}
@@ -120,6 +124,8 @@ export function FilterChips({
               onPress={() => onChange(filter.value)}
               onLongPress={() => handleLongPress(filter)}
               delayLongPress={350}
+              accessibilityRole="button"
+              accessibilityLabel={filter.label}
               style={styles.item}>
               <View style={[styles.tile, active && styles.tileActive]}>
                 <SymbolView
@@ -134,7 +140,7 @@ export function FilterChips({
           );
         })}
         {customizable && hiddenFilters.length > 0 && (
-          <Pressable onPress={() => setRestoreSheetVisible(true)} style={compact ? styles.pill : styles.item}>
+          <Pressable onPress={() => setRestoreSheetVisible(true)} style={compact ? styles.pill : styles.item} accessibilityRole="button" accessibilityLabel="Add back hidden filters">
             {compact ? (
               <SymbolView name="plus" size={13} tintColor={Brand.muted} type="monochrome" style={{ width: 14, height: 14 }} />
             ) : (
@@ -184,6 +190,8 @@ function RestoreSheet({
             <Pressable
               key={filter.value}
               style={styles.restoreRow}
+              accessibilityRole="button"
+              accessibilityLabel={`Add back ${filter.label}`}
               onPress={() => {
                 onShow(filter.value as EntryType);
                 if (hiddenFilters.length === 1) onClose();
@@ -197,7 +205,7 @@ function RestoreSheet({
               </View>
             </Pressable>
           ))}
-          <Pressable style={styles.cancelBtn} onPress={onClose}>
+          <Pressable style={styles.cancelBtn} onPress={onClose} accessibilityRole="button" accessibilityLabel="Done">
             <Text style={styles.cancelText}>Done</Text>
           </Pressable>
         </Pressable>

@@ -95,21 +95,21 @@ export function ShareSheet({ visible, onClose, post, isMine, onWatchlist }: Prop
 
           {/* Primary actions */}
           <View style={styles.actionsRow}>
-            <Pressable style={styles.actionBtn} onPress={handleRecommend}>
+            <Pressable style={styles.actionBtn} onPress={handleRecommend} accessibilityRole="button" accessibilityLabel="Recommend">
               <View style={styles.actionIcon}>
                 <SymbolView name="person.2.fill" size={22} tintColor={Brand.trust} type="monochrome" />
               </View>
               <Text style={styles.actionLabel}>Recommend</Text>
             </Pressable>
 
-            <Pressable style={styles.actionBtn} onPress={handleLogIt}>
+            <Pressable style={styles.actionBtn} onPress={handleLogIt} accessibilityRole="button" accessibilityLabel="Log it">
               <View style={styles.actionIcon}>
                 <SymbolView name="checkmark.circle.fill" size={22} tintColor={Brand.trust} type="monochrome" />
               </View>
               <Text style={styles.actionLabel}>Log it</Text>
             </Pressable>
 
-            <Pressable style={styles.actionBtn} onPress={handleWatchlist}>
+            <Pressable style={styles.actionBtn} onPress={handleWatchlist} accessibilityRole="button" accessibilityLabel="Add to watchlist">
               <View style={styles.actionIcon}>
                 <SymbolView name="bookmark.fill" size={22} tintColor={Brand.trust} type="monochrome" />
               </View>
@@ -121,22 +121,22 @@ export function ShareSheet({ visible, onClose, post, isMine, onWatchlist }: Prop
 
           {/* External share row */}
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.externalRow}>
-            <Pressable style={styles.externalItem} onPress={handleMessages}>
+            <Pressable style={styles.externalItem} onPress={handleMessages} accessibilityRole="button" accessibilityLabel="Share via Messages">
               <Image source={ic.messages} style={styles.externalIcon} />
               <Text style={styles.externalLabel}>Messages</Text>
             </Pressable>
 
-            <Pressable style={styles.externalItem} onPress={handleMail}>
+            <Pressable style={styles.externalItem} onPress={handleMail} accessibilityRole="button" accessibilityLabel="Share via Mail">
               <Image source={ic.mail} style={styles.externalIcon} />
               <Text style={styles.externalLabel}>Mail</Text>
             </Pressable>
 
-            <Pressable style={styles.externalItem} onPress={handleWhatsApp}>
+            <Pressable style={styles.externalItem} onPress={handleWhatsApp} accessibilityRole="button" accessibilityLabel="Share via WhatsApp">
               <Image source={ic.whatsapp} style={styles.externalIcon} />
               <Text style={styles.externalLabel}>WhatsApp</Text>
             </Pressable>
 
-            <Pressable style={styles.externalItem} onPress={handleAirDrop}>
+            <Pressable style={styles.externalItem} onPress={handleAirDrop} accessibilityRole="button" accessibilityLabel="Share via AirDrop">
               <Image source={ic.airdrop} style={styles.externalIcon} />
               <Text style={styles.externalLabel}>AirDrop</Text>
             </Pressable>
@@ -144,7 +144,7 @@ export function ShareSheet({ visible, onClose, post, isMine, onWatchlist }: Prop
           </ScrollView>
 
 
-          <Pressable style={styles.cancelBtn} onPress={close}>
+          <Pressable style={styles.cancelBtn} onPress={close} accessibilityRole="button" accessibilityLabel="Cancel">
             <Text style={styles.cancelText}>Cancel</Text>
           </Pressable>
         </Pressable>

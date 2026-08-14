@@ -383,11 +383,13 @@ export default function ScreeningRoomLive() {
               onPress={() => {
                 router.back();
                 router.push({ pathname: '/screening-room-analytics-modal', params: { roomId: id, roomTitle: room?.title ?? '' } });
-              }}>
+              }}
+              accessibilityRole="button"
+              accessibilityLabel="View analytics">
               <Text style={styles.leaveBtnText}>View Analytics →</Text>
             </Pressable>
           )}
-          <Pressable style={styles.leaveBtn} onPress={() => router.back()}>
+          <Pressable style={styles.leaveBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Leave">
             <Text style={styles.leaveBtnText}>Leave</Text>
           </Pressable>
         </View>
@@ -409,21 +411,21 @@ export default function ScreeningRoomLive() {
           </View>
           <View style={styles.headerRight}>
             {isHost && (
-              <Pressable onPress={() => setInviteOpen(true)} hitSlop={12}>
+              <Pressable onPress={() => setInviteOpen(true)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Invite friends">
                 <SymbolView name="person.badge.plus" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
               </Pressable>
             )}
             {isHost && (
-              <Pressable onPress={handleShare} hitSlop={12}>
+              <Pressable onPress={handleShare} hitSlop={12} accessibilityRole="button" accessibilityLabel="Share screening room">
                 <SymbolView name="square.and.arrow.up" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
               </Pressable>
             )}
             {isHost ? (
-              <Pressable onPress={handleEnd} hitSlop={12}>
+              <Pressable onPress={handleEnd} hitSlop={12} accessibilityRole="button" accessibilityLabel="Cancel screening">
                 <Text style={styles.endText}>Cancel</Text>
               </Pressable>
             ) : (
-              <Pressable onPress={() => router.back()} hitSlop={12}>
+              <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Leave room">
                 <Text style={styles.leaveText}>Leave</Text>
               </Pressable>
             )}
@@ -453,7 +455,7 @@ export default function ScreeningRoomLive() {
           )}
           {/* Host can start early */}
           {isHost && (
-            <Pressable style={styles.startEarlyBtn} onPress={handleGoLive} disabled={goLive.isPending}>
+            <Pressable style={styles.startEarlyBtn} onPress={handleGoLive} disabled={goLive.isPending} accessibilityRole="button" accessibilityLabel="Start now">
               <Text style={styles.startEarlyBtnText}>🔴  Start now</Text>
             </Pressable>
           )}
@@ -538,7 +540,7 @@ export default function ScreeningRoomLive() {
             returnKeyType="send"
             editable={!!id}
           />
-          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()}>
+          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
             <SymbolView name="arrow.up" size={16} tintColor="#fff" type="monochrome" />
           </Pressable>
         </View>
@@ -567,26 +569,28 @@ export default function ScreeningRoomLive() {
             <Pressable
               onPress={() => router.push({ pathname: '/trivia-setup-modal', params: { id, type: 'screening_room', showTitle: room?.title ?? '' } })}
               hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Set up trivia"
             >
               <Text style={styles.triviaSetupBtn}>Trivia</Text>
             </Pressable>
           )}
           {isHost && (
-            <Pressable onPress={() => setInviteOpen(true)} hitSlop={12}>
+            <Pressable onPress={() => setInviteOpen(true)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Invite friends">
               <SymbolView name="person.badge.plus" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
             </Pressable>
           )}
           {isHost && (
-            <Pressable onPress={handleShare} hitSlop={12}>
+            <Pressable onPress={handleShare} hitSlop={12} accessibilityRole="button" accessibilityLabel="Share screening room">
               <SymbolView name="square.and.arrow.up" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
             </Pressable>
           )}
           {isHost ? (
-            <Pressable onPress={handleEnd} hitSlop={12}>
+            <Pressable onPress={handleEnd} hitSlop={12} accessibilityRole="button" accessibilityLabel="End screening">
               <Text style={styles.endText}>End</Text>
             </Pressable>
           ) : (
-            <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Leave room">
               <Text style={styles.leaveText}>Leave</Text>
             </Pressable>
           )}
@@ -615,7 +619,9 @@ export default function ScreeningRoomLive() {
               // First interaction unlocks iOS autoplay
               videoRef.current?.play();
               setTimeout(() => videoRef.current?.pause(), 100);
-            }}>
+            }}
+            accessibilityRole="button"
+            accessibilityLabel="Tap to join the stream">
             <SymbolView name="play.circle.fill" size={52} tintColor="rgba(255,255,255,0.85)" type="monochrome" />
             <Text style={styles.syncOverlayText}>Tap to join the stream</Text>
           </Pressable>
@@ -626,13 +632,13 @@ export default function ScreeningRoomLive() {
       {isHost && (
         <View style={styles.controls}>
           <View style={styles.playbackControls}>
-            <Pressable style={styles.controlBtn} onPress={() => handleSkip(-15_000)} hitSlop={8}>
+            <Pressable style={styles.controlBtn} onPress={() => handleSkip(-15_000)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Skip back 15 seconds">
               <SymbolView name="gobackward.15" size={22} tintColor="#fff" type="monochrome" />
             </Pressable>
-            <Pressable style={styles.playPauseBtn} onPress={handlePlayPause}>
+            <Pressable style={styles.playPauseBtn} onPress={handlePlayPause} accessibilityRole="button" accessibilityLabel={isPlaying ? 'Pause' : 'Play'}>
               <SymbolView name={isPlaying ? 'pause.fill' : 'play.fill'} size={26} tintColor="#fff" type="monochrome" />
             </Pressable>
-            <Pressable style={styles.controlBtn} onPress={() => handleSkip(15_000)} hitSlop={8}>
+            <Pressable style={styles.controlBtn} onPress={() => handleSkip(15_000)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Skip forward 15 seconds">
               <SymbolView name="goforward.15" size={22} tintColor="#fff" type="monochrome" />
             </Pressable>
             <Text style={styles.timeCode}>{formatTime(positionMs)}</Text>
@@ -690,6 +696,8 @@ export default function ScreeningRoomLive() {
                 return (
                   <Pressable
                     style={styles.inviteRow}
+                    accessibilityRole="button"
+                    accessibilityLabel={invitedIds.has(item.friendId) ? `${item.name}, invited` : `Invite ${item.name}`}
                     onPress={async () => {
                       if (sent || !id || !room) return;
                       await inviteToRoom.mutateAsync({ roomId: id, friendId: item.friendId, title: room.title });
@@ -716,7 +724,7 @@ export default function ScreeningRoomLive() {
             <Text style={styles.triviaCardType}>
               {activeTriviaCard.type === 'trivia' ? '🧠 TRIVIA' : '📊 POLL'}
             </Text>
-            <Pressable onPress={() => setActiveTriviaCard(null)} hitSlop={12}>
+            <Pressable onPress={() => setActiveTriviaCard(null)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close trivia card">
               <Text style={styles.triviaCardClose}>✕</Text>
             </Pressable>
           </View>
@@ -739,6 +747,8 @@ export default function ScreeningRoomLive() {
                   ]}
                   onPress={() => handleTriviaAnswer(i)}
                   disabled={answered}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Option ${['A','B','C','D'][i]}: ${opt.label}`}
                 >
                   <View style={styles.triviaOptionInner}>
                     <Text style={styles.triviaOptionLetter}>{['A', 'B', 'C', 'D'][i]})</Text>
@@ -772,7 +782,7 @@ export default function ScreeningRoomLive() {
           returnKeyType="send"
           editable={!!id}
         />
-        <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()}>
+        <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
           <SymbolView name="arrow.up" size={16} tintColor="#fff" type="monochrome" />
         </Pressable>
       </View>

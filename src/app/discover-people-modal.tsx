@@ -52,7 +52,7 @@ export default function DiscoverPeopleModal() {
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.topSection} collapsable={false}>
           <View style={styles.header}>
-            <Pressable onPress={() => router.back()} hitSlop={16}>
+            <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Go back">
               <Text style={styles.backBtn}>‹ Back</Text>
             </Pressable>
             <Text style={styles.title}>Discover People</Text>
@@ -91,7 +91,9 @@ export default function DiscoverPeopleModal() {
                   <Pressable
                     key={opt.value}
                     style={[styles.sortBtn, active && styles.sortBtnActive]}
-                    onPress={() => setSortBy(opt.value)}>
+                    onPress={() => setSortBy(opt.value)}
+                    accessibilityRole="button"
+                    accessibilityLabel={opt.label}>
                     <Text style={[styles.sortBtnText, active && styles.sortBtnTextActive]} numberOfLines={1}>
                       {opt.label}
                     </Text>

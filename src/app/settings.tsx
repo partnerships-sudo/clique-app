@@ -158,6 +158,8 @@ export default function SettingsScreen() {
                   <Pressable
                     key={opt.value}
                     style={[styles.pickerTile, active && styles.pickerTileActive]}
+                    accessibilityRole="button"
+                    accessibilityLabel={opt.label}
                     onPress={() => handleRatingIcon(opt.value)}>
                     <Text style={styles.pickerEmoji}>{opt.emoji}</Text>
                     <Text style={[styles.pickerLabel, active && styles.pickerLabelActive]}>{opt.label}</Text>
@@ -178,6 +180,8 @@ export default function SettingsScreen() {
                   <Pressable
                     key={opt.value}
                     style={[styles.pickerTile, active && styles.pickerTileActive]}
+                    accessibilityRole="button"
+                    accessibilityLabel={opt.label}
                     onPress={() => setAppearancePref(opt.value)}>
                     <SymbolView
                       name={opt.sf as any}

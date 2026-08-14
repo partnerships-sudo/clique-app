@@ -131,15 +131,15 @@ export default function NewsScreen() {
 
         {/* Headlines / Cinema tabs */}
         <View style={styles.modeRow}>
-          <Pressable style={styles.modeTab} onPress={() => setMode('headlines')}>
+          <Pressable style={styles.modeTab} onPress={() => setMode('headlines')} accessibilityRole="button" accessibilityLabel="Headlines">
             <Text style={[styles.modeTabText, mode === 'headlines' && styles.modeTabTextActive]}>Headlines</Text>
             {mode === 'headlines' ? <View style={styles.modeUnderline} /> : null}
           </Pressable>
-          <Pressable style={styles.modeTab} onPress={() => setMode('cinema')}>
+          <Pressable style={styles.modeTab} onPress={() => setMode('cinema')} accessibilityRole="button" accessibilityLabel="Cinema">
             <Text style={[styles.modeTabText, mode === 'cinema' && styles.modeTabTextActive]}>Cinema</Text>
             {mode === 'cinema' ? <View style={styles.modeUnderline} /> : null}
           </Pressable>
-          <Pressable style={styles.modeTab} onPress={() => setMode('radar')}>
+          <Pressable style={styles.modeTab} onPress={() => setMode('radar')} accessibilityRole="button" accessibilityLabel="On the Radar">
             <Text style={[styles.modeTabText, mode === 'radar' && styles.modeTabTextActive]}>On the Radar</Text>
             {mode === 'radar' ? <View style={styles.modeUnderline} /> : null}
           </Pressable>
@@ -158,6 +158,8 @@ export default function NewsScreen() {
                 <Pressable
                   key={cat.value}
                   style={styles.catItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={cat.label}
                   onPress={() => setFilter(cat.value)}>
                   <View style={[styles.catChip, active && styles.catChipActive]}>
                     <SymbolView name={cat.sf as any} size={26} tintColor={active ? '#fff' : '#888'} type="monochrome" />
@@ -185,6 +187,8 @@ export default function NewsScreen() {
                 <Pressable
                   key={cat.value}
                   style={styles.catItem}
+                  accessibilityRole="button"
+                  accessibilityLabel={cat.label}
                   onPress={() => setRadarCat(cat.value)}>
                   <View style={[styles.catChip, active && styles.catChipActive]}>
                     <SymbolView name={cat.sf as any} size={26} tintColor={active ? '#fff' : '#888'} type="monochrome" />

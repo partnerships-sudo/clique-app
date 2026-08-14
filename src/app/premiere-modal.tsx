@@ -203,7 +203,7 @@ export default function PremiereModal() {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={16}>
+          <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Go back">
             <Text style={styles.back}>‹ Back</Text>
           </Pressable>
           <Text style={styles.heading}>Host a Watch Party</Text>
@@ -233,7 +233,7 @@ export default function PremiereModal() {
           contentContainerStyle={styles.resultsList}
           keyboardShouldPersistTaps="handled"
           renderItem={({ item }) => (
-            <Pressable style={styles.resultRow} onPress={() => handleSelectShow(item)}>
+            <Pressable style={styles.resultRow} onPress={() => handleSelectShow(item)} accessibilityRole="button" accessibilityLabel={item.title}>
               {item.img ? (
                 <Image source={{ uri: item.img }} style={styles.resultPoster} />
               ) : (
@@ -283,7 +283,7 @@ export default function PremiereModal() {
             keyExtractor={(s) => String(s.seasonNumber)}
             contentContainerStyle={styles.resultsList}
             renderItem={({ item: season }) => (
-              <Pressable style={styles.resultRow} onPress={() => handleSelectSeason(season)}>
+              <Pressable style={styles.resultRow} onPress={() => handleSelectSeason(season)} accessibilityRole="button" accessibilityLabel={`Season ${season.seasonNumber}`}>
                 {season.poster ? (
                   <Image source={{ uri: season.poster }} style={styles.resultPoster} />
                 ) : (
@@ -327,7 +327,7 @@ export default function PremiereModal() {
             keyExtractor={(e) => String(e.episodeNumber)}
             contentContainerStyle={styles.resultsList}
             renderItem={({ item: ep }) => (
-              <Pressable style={styles.resultRow} onPress={() => handleSelectEpisode(ep)}>
+              <Pressable style={styles.resultRow} onPress={() => handleSelectEpisode(ep)} accessibilityRole="button" accessibilityLabel={`Episode ${ep.episodeNumber}, ${ep.name}`}>
                 {ep.stillPath ? (
                   <Image source={{ uri: ep.stillPath }} style={styles.resultStill} />
                 ) : (
@@ -503,7 +503,9 @@ export default function PremiereModal() {
         <Pressable
           style={[styles.createBtn, createPremiere.isPending && styles.createBtnDisabled]}
           disabled={createPremiere.isPending || isSharing}
-          onPress={handleCreate}>
+          onPress={handleCreate}
+          accessibilityRole="button"
+          accessibilityLabel="Create and share invite">
           {createPremiere.isPending || isSharing ? (
             <ActivityIndicator color="#fff" />
           ) : (
@@ -530,6 +532,8 @@ export default function PremiereModal() {
                 return (
                   <Pressable
                     style={styles.sharePickerRow}
+                    accessibilityRole="button"
+                    accessibilityLabel={sentToIds.has(thread.friendId) ? `${thread.name}, invited` : `Invite ${thread.name}`}
                     onPress={async () => {
                       if (sent || !createdPremiereId) return;
                       await inviteToPremiere.mutateAsync({ premiereId: createdPremiereId, friendId: thread.friendId, showTitle });
@@ -547,6 +551,8 @@ export default function PremiereModal() {
             />
             <Pressable
               style={styles.calendarBtn}
+              accessibilityRole="button"
+              accessibilityLabel="Add to Calendar"
               onPress={() => addPremiereToCalendar({
                 showTitle, episodeName, episodeNumber, seasonNumber,
                 airDate: partyDate, airTime: airTime.trim() || null,
@@ -554,7 +560,7 @@ export default function PremiereModal() {
               })}>
               <Text style={styles.calendarBtnText}>📅  Add to Calendar</Text>
             </Pressable>
-            <Pressable style={styles.shareCancelBtn} onPress={() => {
+            <Pressable style={styles.shareCancelBtn} accessibilityRole="button" accessibilityLabel="Done" onPress={() => {
               setShareSheetVisible(false);
               setSentToIds(new Set());
               router.replace({ pathname: '/premiere-waiting-room', params: { id: createdPremiereId! } });

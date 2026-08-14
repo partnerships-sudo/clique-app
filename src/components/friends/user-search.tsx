@@ -71,6 +71,8 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
         <Pressable
           style={styles.filterBtn}
           hitSlop={16}
+          accessibilityRole="button"
+          accessibilityLabel="Filter people"
           onPress={() => router.push('/discover-people-modal')}>
           <SlidersIcon color={Brand.trust} />
         </Pressable>
@@ -89,6 +91,8 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
                 <Pressable
                   key={profile.id}
                   style={styles.row}
+                  accessibilityRole="button"
+                  accessibilityLabel={`View ${name}'s profile`}
                   onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: profile.id } })}>
                   <Avatar name={name} size={40} avatarUrl={profile.avatar_url} />
                   <View style={styles.rowInfo}>
@@ -98,6 +102,8 @@ export const UserSearch = forwardRef<UserSearchHandle>(function UserSearch(_prop
                   <Pressable
                     style={[styles.addBtn, requested && styles.addBtnDone]}
                     disabled={requested}
+                    accessibilityRole="button"
+                    accessibilityLabel={requested ? (profile.is_private ? 'Follow request sent' : `Following ${name}`) : `Follow ${name}`}
                     onPress={(e) => { e.stopPropagation(); handleAdd(profile.id, profile.is_private); }}>
                     <Text style={[styles.addBtnText, requested && styles.addBtnTextDone]}>
                       {requested ? (profile.is_private ? 'Requested ✓' : 'Following ✓') : '+ Follow'}

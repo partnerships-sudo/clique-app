@@ -252,7 +252,9 @@ function TrailerPlayer({ trailerUrl, thumbnail, site }: { trailerUrl: string; th
         ) : (
           <Pressable
             onPress={() => canPlayInline ? setPlaying(true) : WebBrowser.openBrowserAsync(trailerUrl)}
-            style={trailerStyles.thumbPress}>
+            style={trailerStyles.thumbPress}
+            accessibilityRole="button"
+            accessibilityLabel="Play trailer">
             <Image source={{ uri: thumbnail }} style={trailerStyles.thumb} resizeMode="cover" />
             <View style={trailerStyles.playBtn}>
               <SymbolView name="play.fill" size={20} tintColor="#fff" type="monochrome" />
@@ -491,7 +493,9 @@ export default function ContentDetailModal() {
               {synopsisTruncated ? (
                 <Pressable
                   onPress={() => setSynopsisExpanded((v) => !v)}
-                  hitSlop={16}>
+                  hitSlop={16}
+                  accessibilityRole="button"
+                  accessibilityLabel={synopsisExpanded ? 'See less synopsis' : 'See full synopsis'}>
                   <Text style={styles.synopsisToggle}>
                     {synopsisExpanded ? 'See less' : 'See more...'}
                   </Text>
@@ -509,6 +513,8 @@ export default function ContentDetailModal() {
                   <Pressable
                     key={s.seasonNumber}
                     style={[styles.seasonPill, activeSeason === s.seasonNumber && styles.seasonPillActive]}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Season ${s.seasonNumber}, ${s.episodeCount} episodes`}
                     onPress={() => setSelectedSeason(activeSeason === s.seasonNumber ? null : s.seasonNumber)}>
                     <Text style={[styles.seasonPillText, activeSeason === s.seasonNumber && styles.seasonPillTextActive]}>
                       S{s.seasonNumber}
@@ -761,6 +767,8 @@ export default function ContentDetailModal() {
             <Pressable
               style={styles.shareIconBtn}
               hitSlop={6}
+              accessibilityRole="button"
+              accessibilityLabel="View discussion room"
               onPress={() => router.push({ pathname: '/content-room-modal', params: { title: params.title, externalId: params.externalId ?? '', mediaType: resolvedMediaType ?? '', poster: params.poster ?? '' } })}>
               <SymbolView name="bubble.left.and.bubble.right" size={17} tintColor={Brand.trust} type="monochrome" style={{ width: 20, height: 18 }} />
             </Pressable>
@@ -769,7 +777,7 @@ export default function ContentDetailModal() {
       </ScrollView>
 
       {/* Share button — absolutely pinned to top-right, same height as Done */}
-      <Pressable style={styles.floatingShareBtn} hitSlop={12} onPress={() => setShareSheetVisible(true)}>
+      <Pressable style={styles.floatingShareBtn} hitSlop={12} onPress={() => setShareSheetVisible(true)} accessibilityRole="button" accessibilityLabel="Share">
         <SymbolView name="square.and.arrow.up" size={20} tintColor={Brand.trust} type="monochrome" style={{ width: 22, height: 22 }} />
       </Pressable>
 

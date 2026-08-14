@@ -336,7 +336,7 @@ export default function YearlyWrappedModal() {
             <ViewShot ref={shareRef} options={{ format: 'png', quality: 1.0 }} style={styles.shareCardWrap}>
               <ShareCard stats={stats} year={year} name={displayName} />
             </ViewShot>
-            <Pressable style={styles.shareBtn} onPress={handleShare}>
+            <Pressable style={styles.shareBtn} onPress={handleShare} accessibilityRole="button" accessibilityLabel="Share to Instagram">
               <SymbolView name="square.and.arrow.up" size={18} tintColor="#fff" type="monochrome" />
               <Text style={styles.shareBtnText}>Share to Instagram</Text>
             </Pressable>
@@ -350,7 +350,7 @@ export default function YearlyWrappedModal() {
     <View style={styles.container}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <SymbolView name="xmark" size={18} tintColor="#fff" type="monochrome" />
         </Pressable>
         {/* Progress dots */}
@@ -371,7 +371,7 @@ export default function YearlyWrappedModal() {
           <Text style={{ fontSize: 48, marginBottom: 16 }}>📭</Text>
           <Text style={styles.emptyTitle}>Nothing logged in {year}</Text>
           <Text style={styles.emptySub}>Start logging to see your Wrapped.</Text>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <Pressable onPress={() => router.back()} style={styles.backBtn} accessibilityRole="button">
             <Text style={styles.backBtnText}>Go back</Text>
           </Pressable>
         </View>

@@ -21,6 +21,8 @@ function TasteRow({ entry, rank, styles, Brand }: { entry: MyTasteEntry; rank: n
   return (
     <Pressable
       style={styles.row}
+      accessibilityRole="button"
+      accessibilityLabel={`${name}, ${entry.compatibility}% taste match`}
       onPress={() => router.push({ pathname: '/taste-detail-modal', params: { friendId: entry.id } })}>
       <Text style={styles.rank}>#{rank}</Text>
       <Avatar name={name} size={48} avatarUrl={entry.avatar_url} />

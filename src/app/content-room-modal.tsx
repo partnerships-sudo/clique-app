@@ -89,11 +89,11 @@ export default function ContentRoomModal() {
       {/* Poster + info */}
       <View style={styles.heroRow}>
         {poster ? (
-          <Pressable onPress={handlePosterPress} hitSlop={4}>
+          <Pressable onPress={handlePosterPress} hitSlop={4} accessibilityRole="button" accessibilityLabel="View content details">
             <Image source={{ uri: poster }} style={styles.poster} resizeMode="cover" />
           </Pressable>
         ) : (
-          <Pressable onPress={handlePosterPress} hitSlop={4} style={[styles.posterPlaceholder, { backgroundColor: typeColors.bg }]}>
+          <Pressable onPress={handlePosterPress} hitSlop={4} style={[styles.posterPlaceholder, { backgroundColor: typeColors.bg }]} accessibilityRole="button" accessibilityLabel="View content details">
             <SymbolView name="photo" size={28} tintColor={typeColors.color} type="monochrome" style={{ width: 28, height: 28 }} />
           </Pressable>
         )}
@@ -117,7 +117,7 @@ export default function ContentRoomModal() {
       {/* Tab bar */}
       <View style={[styles.tabBar, { borderBottomColor: Brand.border }]}>
         {(['discussions', 'news'] as Tab[]).map((t) => (
-          <Pressable key={t} onPress={() => setTab(t)} style={styles.tabItem}>
+          <Pressable key={t} onPress={() => setTab(t)} style={styles.tabItem} accessibilityRole="button" accessibilityLabel={t === 'discussions' ? 'Discussions' : 'News'}>
             <Text style={[styles.tabLabel, { color: tab === t ? Brand.trust : Brand.muted }]}>
               {t === 'discussions' ? 'Discussions' : 'News'}
             </Text>
@@ -135,7 +135,9 @@ export default function ContentRoomModal() {
               <Pressable
                 key={opt}
                 onPress={() => setSort(opt)}
-                style={[styles.sortBtn, sort === opt && { backgroundColor: Brand.trust }]}>
+                style={[styles.sortBtn, sort === opt && { backgroundColor: Brand.trust }]}
+                accessibilityRole="button"
+                accessibilityLabel={opt === 'popular' ? 'Sort by most popular' : 'Sort by newest'}>
                 <Text style={[styles.sortBtnText, { color: sort === opt ? '#fff' : Brand.muted }]}>
                   {opt === 'popular' ? 'Most Popular' : 'Newest'}
                 </Text>
@@ -164,7 +166,9 @@ export default function ContentRoomModal() {
                 { rowId: followState.rowId!, muted: !followState.muted, externalId: externalId!, mediaType: mediaType!, userId: user?.id },
                 { onError: (err: any) => Alert.alert('Mute error', err?.message ?? JSON.stringify(err)) },
               )}
-              disabled={muteFollow.isPending}>
+              disabled={muteFollow.isPending}
+              accessibilityRole="button"
+              accessibilityLabel={followState.muted ? 'Unmute room' : 'Mute room'}>
               <SymbolView
                 name={followState.muted ? 'bell.slash.fill' : 'bell.fill'}
                 size={14}
@@ -180,7 +184,9 @@ export default function ContentRoomModal() {
               ? { backgroundColor: Brand.trust }
               : { backgroundColor: 'transparent', borderWidth: 1, borderColor: Brand.trust }]}
             onPress={() => toggleFollow.mutate({ externalId: externalId!, mediaType: mediaType!, following: followState.following })}
-            disabled={toggleFollow.isPending}>
+            disabled={toggleFollow.isPending}
+            accessibilityRole="button"
+            accessibilityLabel={followState.following ? 'Unfollow room' : 'Follow room'}>
             <Text style={[styles.followBtnText, { color: followState.following ? '#fff' : Brand.trust }]}>
               {followState.following ? 'Following' : 'Follow'}
             </Text>

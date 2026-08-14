@@ -93,7 +93,9 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
   return (
     <Pressable
       style={({ pressed }) => [styles.row, !item.read && styles.rowUnread, pressed && styles.rowPressed]}
-      onPress={handlePress}>
+      onPress={handlePress}
+      accessibilityRole="button"
+      accessibilityLabel={item.message}>
       <View style={styles.avatarWrap}>
         <Avatar name={item.fromUserName} avatarUrl={item.fromAvatarUrl} size={40} />
         <View style={[styles.iconBadge, { backgroundColor: sym.color }]}>
@@ -138,7 +140,7 @@ export default function NotificationsModal() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Activity</Text>
-        <Pressable onPress={() => router.back()} hitSlop={16}>
+        <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Done">
           <Text style={styles.closeBtn}>Done</Text>
         </Pressable>
       </View>

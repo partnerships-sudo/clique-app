@@ -96,19 +96,19 @@ export default function ChatsScreen() {
           <Pressable onPress={() => router.push('/archived-chats-modal')} hitSlop={16} style={styles.archivedBtn}>
             <Text style={styles.archivedBtnText}>Archived</Text>
           </Pressable>
-          <Pressable onPress={() => router.push('/new-chat-modal')} hitSlop={16}>
+          <Pressable onPress={() => router.push('/new-chat-modal')} hitSlop={16} accessibilityRole="button" accessibilityLabel="New chat">
             <SymbolView name="square.and.pencil" size={22} tintColor={Brand.ink} style={{ width: 24, height: 24 }} />
           </Pressable>
         </View>
       </View>
       <View style={styles.modeRow}>
-        <Pressable style={styles.modeTab} onPress={() => setMode('private')}>
+        <Pressable style={styles.modeTab} onPress={() => setMode('private')} accessibilityRole="button" accessibilityLabel="Chats">
           <Text style={[styles.modeTabText, mode === 'private' && styles.modeTabTextActive]}>
             Chats
           </Text>
           {mode === 'private' && <View style={styles.modeTabUnderline} />}
         </Pressable>
-        <Pressable style={[styles.modeTab, { marginRight: 0 }]} onPress={() => setMode('requests')}>
+        <Pressable style={[styles.modeTab, { marginRight: 0 }]} onPress={() => setMode('requests')} accessibilityRole="button" accessibilityLabel="Requests">
           <Text style={[styles.modeTabText, mode === 'requests' && styles.modeTabTextActive]}>
             Requests
           </Text>
@@ -131,7 +131,7 @@ export default function ChatsScreen() {
           autoCapitalize="none"
         />
         {query.length > 0 ? (
-          <Pressable onPress={() => setQuery('')} hitSlop={16}>
+          <Pressable onPress={() => setQuery('')} hitSlop={16} accessibilityRole="button" accessibilityLabel="Clear search">
             <Text style={styles.searchClear}>✕</Text>
           </Pressable>
         ) : null}

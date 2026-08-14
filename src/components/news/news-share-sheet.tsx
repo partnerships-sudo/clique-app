@@ -102,6 +102,8 @@ export function NewsShareSheet({ visible, onClose, title, url }: Props) {
                     <Pressable
                       key={f.id}
                       style={styles.friendItem}
+                      accessibilityRole="button"
+                      accessibilityLabel={isSent ? `Sent to ${f.full_name ?? f.username ?? 'friend'}` : `Send to ${f.full_name ?? f.username ?? 'friend'}`}
                       onPress={() => sendToFriend(f.id)}
                       disabled={isSent || !!sending}>
                       <View style={[styles.avatarWrap, isSent && styles.avatarSent]}>
@@ -134,19 +136,19 @@ export function NewsShareSheet({ visible, onClose, title, url }: Props) {
           {/* Platform icons */}
           <Text style={styles.sectionLabel}>Share via</Text>
           <View style={styles.iconRow}>
-            <Pressable style={styles.iconItem} onPress={openSms}>
+            <Pressable style={styles.iconItem} onPress={openSms} accessibilityRole="button" accessibilityLabel="Share via Messages">
               <Image source={ic.messages} style={styles.iconWrap} />
               <Text style={styles.iconLabel}>Messages</Text>
             </Pressable>
-            <Pressable style={styles.iconItem} onPress={openMail}>
+            <Pressable style={styles.iconItem} onPress={openMail} accessibilityRole="button" accessibilityLabel="Share via Mail">
               <Image source={ic.mail} style={styles.iconWrap} />
               <Text style={styles.iconLabel}>Mail</Text>
             </Pressable>
-            <Pressable style={styles.iconItem} onPress={openAirDrop}>
+            <Pressable style={styles.iconItem} onPress={openAirDrop} accessibilityRole="button" accessibilityLabel="Share via AirDrop">
               <Image source={ic.airdrop} style={styles.iconWrap} />
               <Text style={styles.iconLabel}>AirDrop</Text>
             </Pressable>
-            <Pressable style={styles.iconItem} onPress={openWhatsApp}>
+            <Pressable style={styles.iconItem} onPress={openWhatsApp} accessibilityRole="button" accessibilityLabel="Share via WhatsApp">
               <Image source={ic.whatsapp} style={styles.iconWrap} />
               <Text style={styles.iconLabel}>WhatsApp</Text>
             </Pressable>

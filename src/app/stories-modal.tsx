@@ -179,7 +179,7 @@ export default function StoriesModal() {
           <Text style={{ color: 'rgba(255,255,255,0.5)', fontFamily: BrandFonts.interRegular, fontSize: 14, textAlign: 'center', paddingHorizontal: 40, lineHeight: 20 }}>
             None of your close friends have posted in the last 48 hours
           </Text>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginTop: 8 }}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={{ marginTop: 8 }} accessibilityRole="button" accessibilityLabel="Close">
             <Text style={{ color: '#fff', fontFamily: BrandFonts.syneBold, fontSize: 14 }}>Close</Text>
           </Pressable>
         </SafeAreaView>
@@ -244,14 +244,14 @@ export default function StoriesModal() {
         </View>
 
         <View style={styles.header}>
-          <Pressable onPress={(e) => { e.stopPropagation(); isOwnStory ? router.push('/profile') : router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } }); }} hitSlop={16}>
+          <Pressable onPress={(e) => { e.stopPropagation(); isOwnStory ? router.push('/profile') : router.push({ pathname: '/friend-profile-modal', params: { userId: post.user_id } }); }} hitSlop={16} accessibilityRole="button" accessibilityLabel={`View ${post.user_name}'s profile`}>
             <Avatar name={post.user_name} avatarUrl={post.user_avatar_url} size={34} ring="#34D399" />
           </Pressable>
           <View style={styles.headerMeta}>
             <Text style={styles.headerName}>{post.user_name}</Text>
             <Text style={styles.headerTime}>{timeAgo(post.created_at)}</Text>
           </View>
-          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.closeBtn}>
+          <Pressable onPress={() => router.back()} hitSlop={12} style={styles.closeBtn} accessibilityRole="button" accessibilityLabel="Close">
             <SymbolView name="xmark" size={16} tintColor="#fff" type="monochrome" />
           </Pressable>
         </View>
@@ -271,7 +271,9 @@ export default function StoriesModal() {
             <Pressable
               style={styles.activityWrap}
               onPress={(e) => { e.stopPropagation(); setActivitySheetVisible((v) => !v); }}
-              hitSlop={16}>
+              hitSlop={16}
+              accessibilityRole="button"
+              accessibilityLabel="View story activity">
               {/* Viewer avatar stack */}
               {(activity?.viewers ?? []).length > 0 && (
                 <View style={styles.activityAvatarRow}>
@@ -314,6 +316,8 @@ export default function StoriesModal() {
             /* Friend story: heart button on left */
             <Pressable
               style={[styles.actionBtn, meReacted && styles.actionBtnActive]}
+              accessibilityRole="button"
+              accessibilityLabel={meReacted ? 'Unlike story' : 'Like story'}
               onPress={() => {
                 if (meReacted) {
                   setLikedIds((prev) => { const s = new Set(prev); s.delete(post.id); return s; });
@@ -351,7 +355,7 @@ export default function StoriesModal() {
                 onBlur={() => { if (!sent) startProgress(pausedAt.current); }}
               />
               {message.length > 0 && !sent && (
-                <Pressable onPress={handleSendMessage} hitSlop={16} style={styles.sendBtn}>
+                <Pressable onPress={handleSendMessage} hitSlop={16} style={styles.sendBtn} accessibilityRole="button" accessibilityLabel="Send reply">
                   <SymbolView name="arrow.up.circle.fill" size={30} tintColor="#fff" type="monochrome" />
                 </Pressable>
               )}
@@ -362,7 +366,9 @@ export default function StoriesModal() {
             <Pressable
               onPress={(e) => { e.stopPropagation(); handleSave(); }}
               hitSlop={12}
-              style={styles.actionBtn}>
+              style={styles.actionBtn}
+              accessibilityRole="button"
+              accessibilityLabel={meSaved ? 'Remove from watchlist' : 'Add to watchlist'}>
               <SymbolView name={meSaved ? 'bookmark.fill' : 'bookmark'} size={22} tintColor={meSaved ? '#34D399' : '#fff'} type="monochrome" />
             </Pressable>
           )}
@@ -383,7 +389,7 @@ export default function StoriesModal() {
             </View>
             <View style={styles.sheetTitleRow}>
               <Text style={styles.sheetTitle}>Story activity</Text>
-              <Pressable onPress={() => setActivitySheetVisible(false)} hitSlop={12}>
+              <Pressable onPress={() => setActivitySheetVisible(false)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close activity sheet">
                 <SymbolView name="xmark.circle.fill" size={22} tintColor="rgba(255,255,255,0.3)" type="monochrome" />
               </Pressable>
             </View>

@@ -59,7 +59,9 @@ function CommentRow({
     <View style={styles.commentRow}>
       <Pressable
         onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: comment.user_id } })}
-        style={styles.avatarWrap}>
+        style={styles.avatarWrap}
+        accessibilityRole="button"
+        accessibilityLabel={`View ${comment.user_name}'s profile`}>
         <Avatar name={comment.user_name} avatarUrl={comment.user_avatar_url} size={36} />
       </Pressable>
       <View style={styles.bubble}>
@@ -69,13 +71,15 @@ function CommentRow({
         </View>
         <Text style={styles.content}>{comment.content}</Text>
         <View style={styles.commentActions}>
-          <Pressable hitSlop={8} onPress={() => onReply(comment.id, comment.user_name)}>
+          <Pressable hitSlop={8} onPress={() => onReply(comment.id, comment.user_name)} accessibilityRole="button" accessibilityLabel={`Reply to ${comment.user_name}`}>
             <Text style={styles.replyBtn}>Reply</Text>
           </Pressable>
           <View style={styles.commentActionsRight}>
             <Pressable
               hitSlop={8}
               style={styles.heartBtn}
+              accessibilityRole="button"
+              accessibilityLabel={comment.liked_by_me ? 'Unlike comment' : 'Like comment'}
               onPress={() => toggleLike.mutate({ commentId: comment.id, listId, liked: comment.liked_by_me })}>
               <SymbolView
                 name={comment.liked_by_me ? 'heart.fill' : 'heart'}
@@ -153,7 +157,9 @@ export default function ListCommentsModal() {
           <Pressable
             style={styles.likeBtn}
             onPress={() => likeState && toggleLike.mutate({ listId, liked: likeState.liked })}
-            hitSlop={10}>
+            hitSlop={10}
+            accessibilityRole="button"
+            accessibilityLabel={likeState?.liked ? 'Unlike list' : 'Like list'}>
             <SymbolView
               name={likeState?.liked ? 'heart.fill' : 'heart'}
               size={20}
@@ -172,7 +178,7 @@ export default function ListCommentsModal() {
         {replyTo && (
           <View style={styles.replyBanner}>
             <Text style={styles.replyBannerText}>Replying to <Text style={styles.replyBannerName}>@{replyTo.username}</Text></Text>
-            <Pressable hitSlop={8} onPress={cancelReply}>
+            <Pressable hitSlop={8} onPress={cancelReply} accessibilityRole="button" accessibilityLabel="Cancel reply">
               <SymbolView name="xmark" size={12} tintColor={Brand.muted} type="monochrome" />
             </Pressable>
           </View>

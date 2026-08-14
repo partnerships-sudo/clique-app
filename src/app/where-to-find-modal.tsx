@@ -165,6 +165,8 @@ export default function WhereToFindModal() {
         {cinemaDetails?.trailerUrl && cinemaDetails?.trailerThumbnail ? (
           <Pressable
             style={styles.trailerContainer}
+            accessibilityRole="button"
+            accessibilityLabel="Play trailer"
             onPress={() => WebBrowser.openBrowserAsync(cinemaDetails.trailerUrl!)}>
             <Image source={{ uri: cinemaDetails.trailerThumbnail! }} style={styles.trailerThumb} resizeMode="cover" />
             <View style={styles.trailerOverlay} />

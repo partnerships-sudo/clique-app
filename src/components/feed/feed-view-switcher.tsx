@@ -29,7 +29,7 @@ export function FeedViewSwitcher({
       {VIEWS.map((view) => {
         const active = view.value === value;
         return (
-          <Pressable key={view.value} onPress={() => onChange(view.value)} style={styles.item}>
+          <Pressable key={view.value} onPress={() => onChange(view.value)} style={styles.item} accessibilityRole="button" accessibilityLabel={view.label}>
             <SymbolView
               name={view.symbol as any}
               size={24}

@@ -31,7 +31,7 @@ export default function ScreeningRoomAnalyticsModal() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
         <View style={styles.headerCenter}>

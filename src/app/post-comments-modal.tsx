@@ -71,7 +71,9 @@ function ReplyThread({
           <View style={styles.commentInner}>
             <Pressable
               onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: reply.user_id } })}
-              style={styles.commentAvatarWrap}>
+              style={styles.commentAvatarWrap}
+              accessibilityRole="button"
+              accessibilityLabel={`View ${reply.user_name}'s profile`}>
               <Avatar name={reply.user_name} avatarUrl={reply.user_avatar_url} size={28} />
             </Pressable>
             <View style={styles.commentBubble}>
@@ -88,7 +90,9 @@ function ReplyThread({
                       onError: () => Alert.alert('Could not update', 'Check your connection and try again.'),
                     })
                   }
-                  style={styles.upvoteBtn}>
+                  style={styles.upvoteBtn}
+                  accessibilityRole="button"
+                  accessibilityLabel={reply.did_upvote ? 'Unlike comment' : 'Like comment'}>
                   <SymbolView
                     name={reply.did_upvote ? 'heart.fill' : 'heart'}
                     size={13}
@@ -100,7 +104,7 @@ function ReplyThread({
                     </Text>
                   )}
                 </Pressable>
-                <Pressable hitSlop={8} onPress={() => onReply(reply.user_name, comment.id)}>
+                <Pressable hitSlop={8} onPress={() => onReply(reply.user_name, comment.id)} accessibilityRole="button" accessibilityLabel={`Reply to ${reply.user_name}`}>
                   <Text style={styles.replyBtn}>Reply</Text>
                 </Pressable>
                 {reply.user_id === currentUserId && (
@@ -114,7 +118,7 @@ function ReplyThread({
         </View>
       ))}
       {comment.reply_count > 0 && !expanded && (
-        <Pressable style={styles.viewRepliesBtn} onPress={() => setExpanded(true)}>
+        <Pressable style={styles.viewRepliesBtn} onPress={() => setExpanded(true)} accessibilityRole="button" accessibilityLabel={`View ${comment.reply_count} ${comment.reply_count === 1 ? 'reply' : 'replies'}`}>
           <View style={styles.viewRepliesLine} />
           <Text style={styles.viewRepliesText}>
             {isLoading ? 'Loading…' : `View ${comment.reply_count} ${comment.reply_count === 1 ? 'reply' : 'replies'}`}
@@ -162,7 +166,9 @@ function CommentRow({
       <View style={styles.commentInner}>
         <Pressable
           onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: comment.user_id } })}
-          style={styles.commentAvatarWrap}>
+          style={styles.commentAvatarWrap}
+          accessibilityRole="button"
+          accessibilityLabel={`View ${comment.user_name}'s profile`}>
           <Avatar name={comment.user_name} avatarUrl={comment.user_avatar_url} size={36} />
         </Pressable>
         <View style={styles.commentBubble}>
@@ -179,7 +185,9 @@ function CommentRow({
                   onError: () => Alert.alert('Could not update', 'Check your connection and try again.'),
                 })
               }
-              style={styles.upvoteBtn}>
+              style={styles.upvoteBtn}
+              accessibilityRole="button"
+              accessibilityLabel={comment.did_upvote ? 'Unlike comment' : 'Like comment'}>
               <SymbolView
                 name={comment.did_upvote ? 'heart.fill' : 'heart'}
                 size={13}
@@ -191,7 +199,7 @@ function CommentRow({
                 </Text>
               )}
             </Pressable>
-            <Pressable hitSlop={8} onPress={() => onReply(comment.user_name, comment.id)}>
+            <Pressable hitSlop={8} onPress={() => onReply(comment.user_name, comment.id)} accessibilityRole="button" accessibilityLabel={`Reply to ${comment.user_name}`}>
               <Text style={styles.replyBtn}>Reply</Text>
             </Pressable>
             {comment.user_id === currentUserId && (
@@ -319,7 +327,7 @@ export default function PostCommentsModal() {
         {replyTo && (
           <View style={styles.replyContext}>
             <Text style={styles.replyContextText}>Replying to @{replyTo.username}</Text>
-            <Pressable hitSlop={8} onPress={() => { setReplyTo(null); setText(''); }}>
+            <Pressable hitSlop={8} onPress={() => { setReplyTo(null); setText(''); }} accessibilityRole="button" accessibilityLabel="Cancel reply">
               <SymbolView name="xmark.circle.fill" size={16} tintColor={Brand.muted} />
             </Pressable>
           </View>

@@ -284,28 +284,36 @@ export default function LibraryScreen() {
         <View style={styles.tabRow}>
           <Pressable
             style={[styles.tab, tab === 'logged' && styles.tabActive]}
-            onPress={() => handleTabChange('logged')}>
+            onPress={() => handleTabChange('logged')}
+            accessibilityRole="button"
+            accessibilityLabel="Logged">
             <Text style={[styles.tabText, tab === 'logged' && styles.tabTextActive]}>
               📚 Logged
             </Text>
           </Pressable>
           <Pressable
             style={[styles.tab, tab === 'watchlist' && styles.tabActive]}
-            onPress={() => handleTabChange('watchlist')}>
+            onPress={() => handleTabChange('watchlist')}
+            accessibilityRole="button"
+            accessibilityLabel="Watchlist">
             <Text style={[styles.tabText, tab === 'watchlist' && styles.tabTextActive]}>
               🔖 Watchlist
             </Text>
           </Pressable>
           <Pressable
             style={[styles.tab, tab === 'collection' && styles.tabActive]}
-            onPress={() => handleTabChange('collection')}>
+            onPress={() => handleTabChange('collection')}
+            accessibilityRole="button"
+            accessibilityLabel="Collection">
             <Text style={[styles.tabText, tab === 'collection' && styles.tabTextActive]}>
               📦 Collection
             </Text>
           </Pressable>
           <Pressable
             style={[styles.tab, tab === 'lists' && styles.tabActive]}
-            onPress={() => handleTabChange('lists')}>
+            onPress={() => handleTabChange('lists')}
+            accessibilityRole="button"
+            accessibilityLabel="Lists">
             <Text style={[styles.tabText, tab === 'lists' && styles.tabTextActive]}>
               📋 Lists
             </Text>
@@ -341,7 +349,7 @@ export default function LibraryScreen() {
                 <Text style={styles.emptyEmoji}>🎬</Text>
                 <Text style={styles.emptyTitle}>Nothing to see here — yet.</Text>
                 <Text style={styles.emptyBody}>Start logging films, shows, books, and games to build your feed.</Text>
-                <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'log' } })}>
+                <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'log' } })} accessibilityRole="button" accessibilityLabel="Log something">
                   <Text style={styles.emptyBtnText}>Log something →</Text>
                 </Pressable>
               </View>
@@ -366,21 +374,27 @@ export default function LibraryScreen() {
               <View style={styles.subToggleRow}>
                 <Pressable
                   style={[styles.subToggle, watchlistView === 'mine' && styles.subToggleActive]}
-                  onPress={() => setWatchlistView('mine')}>
+                  onPress={() => setWatchlistView('mine')}
+                  accessibilityRole="button"
+                  accessibilityLabel="My Watchlist">
                   <Text style={[styles.subToggleText, watchlistView === 'mine' && styles.subToggleTextActive]}>
                     🔖 My Watchlist
                   </Text>
                 </Pressable>
                 <Pressable
                   style={[styles.subToggle, watchlistView === 'friends' && styles.subToggleActive]}
-                  onPress={() => setWatchlistView('friends')}>
+                  onPress={() => setWatchlistView('friends')}
+                  accessibilityRole="button"
+                  accessibilityLabel="From Friends">
                   <Text style={[styles.subToggleText, watchlistView === 'friends' && styles.subToggleTextActive]}>
                     💌 From Friends{friendRecItems.length ? ` ${friendRecItems.length}` : ''}
                   </Text>
                 </Pressable>
                 <Pressable
                   style={[styles.subToggle, watchlistView === 'their-watchlist' && styles.subToggleActive]}
-                  onPress={() => setWatchlistView('their-watchlist')}>
+                  onPress={() => setWatchlistView('their-watchlist')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Their Lists">
                   <Text style={[styles.subToggleText, watchlistView === 'their-watchlist' && styles.subToggleTextActive]}>
                     👀 Their Lists{friendWatchlistItems.length ? ` ${friendWatchlistItems.length}` : ''}
                   </Text>
@@ -389,7 +403,9 @@ export default function LibraryScreen() {
               {watchlistView === 'mine' ? (
                 <Pressable
                   style={styles.addBtn}
-                  onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })}>
+                  onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })}
+                  accessibilityRole="button"
+                  accessibilityLabel="Add something to your watchlist">
                   <Text style={styles.addBtnText}>+ Add something to your watchlist</Text>
                 </Pressable>
               ) : null}
@@ -404,7 +420,7 @@ export default function LibraryScreen() {
                   <Text style={styles.emptyEmoji}>🍿</Text>
                   <Text style={styles.emptyTitle}>We're gonna need a bigger watchlist.</Text>
                   <Text style={styles.emptyBody}>Add films, shows, books, and games you want to get to.</Text>
-                  <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })}>
+                  <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'watchlist' } })} accessibilityRole="button" accessibilityLabel="Add something to watchlist">
                     <Text style={styles.emptyBtnText}>Add something →</Text>
                   </Pressable>
                 </View>
@@ -413,7 +429,7 @@ export default function LibraryScreen() {
                   <Text style={styles.emptyEmoji}>📬</Text>
                   <Text style={styles.emptyTitle}>E.T. phone home.</Text>
                   <Text style={styles.emptyBody}>Or just ask a friend to send you a rec — it'll show up here automatically.</Text>
-                  <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')}>
+                  <Pressable style={styles.emptyBtn} onPress={() => router.push('/discover-people-modal')} accessibilityRole="button" accessibilityLabel="Find friends">
                     <Text style={styles.emptyBtnText}>Find friends →</Text>
                   </Pressable>
                 </View>
@@ -438,13 +454,15 @@ export default function LibraryScreen() {
           }
           ListHeaderComponent={
             <View>
-              <Pressable style={styles.collectionSearchRow} onPress={() => router.push('/collection-add-modal')}>
+              <Pressable style={styles.collectionSearchRow} onPress={() => router.push('/collection-add-modal')} accessibilityRole="button" accessibilityLabel="Search and add to your collection">
                 <SymbolView name="magnifyingglass" size={15} tintColor="#999" style={{ width: 16, height: 16, marginRight: 8 }} />
                 <Text style={styles.collectionSearchPlaceholder}>Search & add to your collection…</Text>
                 <Pressable
                   style={styles.collectionScanBtn}
                   hitSlop={16}
-                  onPress={() => router.push('/collection-scan-modal')}>
+                  onPress={() => router.push('/collection-scan-modal')}
+                  accessibilityRole="button"
+                  accessibilityLabel="Scan to add to collection">
                   <Text style={styles.collectionScanBtnIcon}>📷</Text>
                 </Pressable>
               </Pressable>
@@ -463,7 +481,9 @@ export default function LibraryScreen() {
                     <Pressable
                       key={view}
                       style={[styles.subToggle6, active && styles.subToggleActive]}
-                      onPress={() => setCollectionView(view)}>
+                      onPress={() => setCollectionView(view)}
+                      accessibilityRole="button"
+                      accessibilityLabel={label}>
                       <SymbolView
                         name={sf as any}
                         size={15}
@@ -488,7 +508,9 @@ export default function LibraryScreen() {
                     <Pressable
                       key={opt.value}
                       onPress={() => setCollectionSort(opt.value)}
-                      style={[styles.sortBtn, active && styles.sortBtnActive]}>
+                      style={[styles.sortBtn, active && styles.sortBtnActive]}
+                      accessibilityRole="button"
+                      accessibilityLabel={opt.label}>
                       <Text style={[styles.sortBtnText, active && styles.sortBtnTextActive]}>
                         {opt.label}
                       </Text>
@@ -505,7 +527,7 @@ export default function LibraryScreen() {
                 <Text style={styles.emptyEmoji}>{COLLECTION_EMPTY[collectionView].emoji}</Text>
                 <Text style={styles.emptyTitle}>{COLLECTION_EMPTY[collectionView].title}</Text>
                 <Text style={styles.emptyBody}>{COLLECTION_EMPTY[collectionView].body}</Text>
-                <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'log' } })}>
+                <Pressable style={styles.emptyBtn} onPress={() => router.push({ pathname: '/log-modal', params: { intent: 'log' } })} accessibilityRole="button" accessibilityLabel="Log something">
                   <Text style={styles.emptyBtnText}>Log something →</Text>
                 </Pressable>
               </View>

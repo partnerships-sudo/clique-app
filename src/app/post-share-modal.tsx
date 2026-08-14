@@ -70,7 +70,7 @@ export default function PostShareModal() {
       {/* In-app actions */}
       <View style={styles.actionsRow}>
         {APP_ACTIONS.map((action) => (
-          <Pressable key={action.id} style={styles.actionTile} onPress={() => handleAction(action.id)}>
+          <Pressable key={action.id} style={styles.actionTile} onPress={() => handleAction(action.id)} accessibilityRole="button" accessibilityLabel={action.label}>
             <View style={styles.actionIcon}>
               <SymbolView name={action.sf as any} size={26} tintColor={Brand.trust} type="monochrome" />
             </View>
@@ -84,7 +84,7 @@ export default function PostShareModal() {
       {/* Native share app row */}
       <View style={styles.nativeRow}>
         {NATIVE_APPS.map((app) => (
-          <Pressable key={app.label} style={styles.nativeTile} onPress={handleNativeShare}>
+          <Pressable key={app.label} style={styles.nativeTile} onPress={handleNativeShare} accessibilityRole="button" accessibilityLabel={`Share via ${app.label}`}>
             <View style={[styles.nativeIcon, { backgroundColor: app.bg }]}>
               <Text style={styles.nativeEmoji}>{app.emoji}</Text>
             </View>
@@ -93,7 +93,7 @@ export default function PostShareModal() {
         ))}
       </View>
 
-      <Pressable style={styles.cancelBtn} onPress={() => router.back()}>
+      <Pressable style={styles.cancelBtn} onPress={() => router.back()} accessibilityRole="button" accessibilityLabel="Cancel">
         <Text style={styles.cancelText}>Cancel</Text>
       </Pressable>
     </View>

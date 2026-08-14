@@ -125,7 +125,7 @@ export default function ProfileStatsModal() {
   const renderProfileItem = useCallback(({ item }: { item: Profile }) => {
     const isMutual = myFollowingSet?.has(item.id) ?? false;
     return (
-      <Pressable style={styles.row} onPress={() => openProfile(item.id)}>
+      <Pressable style={styles.row} onPress={() => openProfile(item.id)} accessibilityRole="button" accessibilityLabel={`View ${item.full_name || item.username || 'profile'}`}>
         {item.avatar_url ? (
           <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
         ) : (
@@ -159,7 +159,7 @@ export default function ProfileStatsModal() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} hitSlop={16}>
+          <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Go back">
             <Text style={styles.backBtn}>‹ Back</Text>
           </Pressable>
           <Text style={styles.title}>Yearly Wrapped</Text>
@@ -178,7 +178,7 @@ export default function ProfileStatsModal() {
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={16}>
+        <Pressable onPress={() => router.back()} hitSlop={16} accessibilityRole="button" accessibilityLabel="Go back">
           <Text style={styles.backBtn}>‹ Back</Text>
         </Pressable>
         <Text style={styles.title}>

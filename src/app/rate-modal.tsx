@@ -47,7 +47,7 @@ export default function RateModal() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
-      <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backRow}>
+      <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backRow} accessibilityRole="button" accessibilityLabel="Go back">
         <Text style={styles.backBtn}>‹ Back</Text>
       </Pressable>
 
@@ -68,7 +68,9 @@ export default function RateModal() {
         <Pressable
           style={[styles.saveBtn, !rating && styles.saveBtnDisabled]}
           disabled={!rating || rateItem.isPending}
-          onPress={handleSave}>
+          onPress={handleSave}
+          accessibilityRole="button"
+          accessibilityLabel="Save rating">
           {rateItem.isPending ? (
             <ActivityIndicator color="#fff" />
           ) : (
