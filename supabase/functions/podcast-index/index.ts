@@ -33,6 +33,8 @@ Deno.serve(async (req) => {
     let url: string;
     if (action === 'byId') {
       url = `https://api.podcastindex.org/api/1.0/podcasts/byfeedid?id=${encodeURIComponent(id)}`;
+    } else if (action === 'trending') {
+      url = 'https://api.podcastindex.org/api/1.0/podcasts/trending?max=20&lang=en&pretty';
     } else {
       // default: search by term
       url = `https://api.podcastindex.org/api/1.0/search/byterm?q=${encodeURIComponent(query)}&max=1`;

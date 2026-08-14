@@ -8,10 +8,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 
+import { supabase } from '@/lib/supabase';
+
 const GOOGLE_BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY ?? '';
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN ?? '';
-const PODCAST_KEY = process.env.EXPO_PUBLIC_PODCAST_INDEX_KEY ?? '';
-const PODCAST_SECRET = process.env.EXPO_PUBLIC_PODCAST_INDEX_SECRET ?? '';
 
 
 // ── Albums ────────────────────────────────────────────────────────────────────
@@ -138,27 +138,13 @@ export interface UpcomingPodcast {
 
 async function fetchNewPodcasts(): Promise<UpcomingPodcast[]> {
   try {
-    // Podcast Index: recently added/trending podcasts
-    const now = Math.floor(Date.now() / 1000);
-    // HMAC-SHA1 auth header required by Podcast Index
-    const { createHmac } = await import('crypto');
-    const hash = createHmac('sha1', PODCAST_SECRET)
-      .update(`${PODCAST_KEY}${PODCAST_SECRET}${now}`)
-      .digest('hex');
-    const res = await fetch(
-      'https://api.podcastindex.org/api/1.0/podcasts/trending?max=20&lang=en&pretty',
-      {
-        headers: {
-          'X-Auth-Key': PODCAST_KEY,
-          'X-Auth-Date': String(now),
-          Authorization: hash,
-          'User-Agent': 'Clique/1.0',
-        },
-      },
-    );
-    if (!res.ok) return [];
-    const data = await res.json() as { feeds?: any[] };
-    return (data.feeds ?? [])
+    // Route through the podcast-index Supabase Edge Function so the
+    // HMAC secret never touches the client bundle.
+    const { data, error } = await supabase.functions.invoke('podcast-index', {
+      body: { action: 'trending' },
+    });
+    if (error || !data) return [];
+    return ((data.feeds ?? []) as any[])
       .filter((f) => f.title && f.artwork)
       .map((f): UpcomingPodcast => ({
         id: f.id,
