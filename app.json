@@ -11,6 +11,9 @@
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.lanapolitano.thecliqueapp",
       "buildNumber": "10",
+      "entitlements": {
+        "com.apple.developer.applesignin": ["Default"]
+      },
       "associatedDomains": [
         "applinks:vaultedmediagroup.com"
       ],

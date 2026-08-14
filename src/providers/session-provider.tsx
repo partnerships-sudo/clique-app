@@ -1,6 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { router } from 'expo-router';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { getLocales } from 'expo-localization';
 
@@ -30,6 +31,7 @@ type SessionContextValue = {
   savedAccounts: SavedAccount[];
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (params: SignUpParams) => Promise<{ error: string | null }>;
+  signInWithApple: () => Promise<{ error: string | null }>;
   switchAccount: (userId: string) => Promise<void>;
   /** `forgetDevice` also removes this device's push token from the outgoing
    * account, so it stops receiving notifications here — off by default so
@@ -169,6 +171,53 @@ export function SessionProvider({ children }: PropsWithChildren) {
         getSavedAccounts().then(setSavedAccounts).catch(() => {});
       }
       return { error: null };
+    },
+
+    async signInWithApple() {
+      try {
+        const credential = await AppleAuthentication.signInAsync({
+          requestedScopes: [
+            AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+            AppleAuthentication.AppleAuthenticationScope.EMAIL,
+          ],
+        });
+
+        if (!credential.identityToken) {
+          return { error: 'Apple sign-in failed: no identity token returned.' };
+        }
+
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'apple',
+          token: credential.identityToken,
+        });
+
+        if (error) return { error: error.message };
+
+        // Apple only provides name/email on the very first sign-in;
+        // upsert whatever we received (may be null on subsequent logins).
+        const fullName = credential.fullName
+          ? [credential.fullName.givenName, credential.fullName.familyName]
+              .filter(Boolean)
+              .join(' ')
+          : undefined;
+
+        if (data.user) {
+          await upsertProfile(data.user, fullName || undefined);
+        }
+
+        if (data.session) {
+          await saveAccountFromSession(data.session);
+          getSavedAccounts().then(setSavedAccounts).catch(() => {});
+        }
+
+        return { error: null };
+      } catch (e: unknown) {
+        // ERR_REQUEST_CANCELED = user dismissed the sheet — not a real error
+        if ((e as { code?: string }).code === 'ERR_REQUEST_CANCELED') {
+          return { error: null };
+        }
+        return { error: (e as Error).message ?? 'Apple sign-in failed.' };
+      }
     },
 
     async switchAccount(userId) {

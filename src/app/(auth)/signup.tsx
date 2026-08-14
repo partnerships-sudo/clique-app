@@ -3,6 +3,7 @@ import { Link, useRouter } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,6 +11,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 import { DrumPicker, daysInMonth, MONTH_LABELS, ITEM_H } from '@/components/drum-picker';
@@ -137,7 +139,7 @@ function AgeGate({ onPass }: { onPass: () => void }) {
 }
 
 export default function SignupScreen() {
-  const { signUp, session } = useSession();
+  const { signUp, signInWithApple, session } = useSession();
   const router = useRouter();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -270,6 +272,23 @@ export default function SignupScreen() {
               {message.text}
             </Text>
           ) : null}
+
+          <View style={styles.dividerRow}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
+
+          <AppleAuthentication.AppleAuthenticationButton
+            buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_UP}
+            buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+            cornerRadius={12}
+            style={styles.appleBtn}
+            onPress={async () => {
+              const { error } = await signInWithApple();
+              if (error) Alert.alert('Sign in failed', error);
+            }}
+          />
         </View>
       </View>
     </KeyboardAvoidingWrapper>
@@ -369,6 +388,27 @@ function createStyles(Brand: BrandPalette) {
     textAlign: 'center',
     fontSize: 12.8,
     fontFamily: BrandFonts.interRegular,
+  },
+  dividerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 18,
+    marginBottom: 14,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: Brand.border,
+  },
+  dividerText: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 12,
+    color: Brand.muted,
+    marginHorizontal: 10,
+  },
+  appleBtn: {
+    width: '100%',
+    height: 50,
   },
   ageGateTitle: {
     fontFamily: BrandFonts.syneExtraBold,
