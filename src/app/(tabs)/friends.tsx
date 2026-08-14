@@ -871,6 +871,13 @@ export default function FriendsScreen() {
     [dmThreads],
   );
 
+  // O(1) follower-back check — avoids an O(n) .some() inside renderItem
+  // which runs for every visible row on every render.
+  const followingSet = useMemo(
+    () => new Set((following ?? []).map((f) => f.id)),
+    [following],
+  );
+
   const visibleSuggestions = useMemo(
     () => (suggestions ?? []).filter((s) => !dismissedIds.has(s.id)),
     [suggestions, dismissedIds],
@@ -973,7 +980,7 @@ export default function FriendsScreen() {
           renderItem={({ item, index }: { item: Profile; index: number }) => {
             const compat = compatScores.get(item.id) ?? 0;
             const activePost = activePostByUser.get(item.id) ?? null;
-            const isFollowingBack = tab === 'followers' && (following ?? []).some((f) => f.id === item.id);
+            const isFollowingBack = tab === 'followers' && followingSet.has(item.id);
             return (
               <FriendCard
                 profile={item}

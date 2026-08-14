@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useFocusEffect } from 'expo-router';
+import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -44,6 +45,7 @@ import { useProfile } from '@/features/profile/api';
 import { useCloseFriendsPosts } from '@/features/close-friends/posts';
 import { usePostCommentCounts } from '@/features/comments/api';
 import { useUnreadCount } from '@/features/notifications/inbox';
+import { supabase } from '@/lib/supabase';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -69,6 +71,10 @@ const PAST_VERBS: Record<Post['type'], string> = {
   listen: 'listened to',
   podcast: 'listened to',
 };
+
+// Defined outside the component so the reference is stable across renders —
+// an inline () => <View /> creates a new function on every render.
+const FeedItemSeparator = () => <View style={{ height: 6 }} />;
 
 export default function FeedScreen() {
   const { user } = useSession();
@@ -114,19 +120,52 @@ export default function FeedScreen() {
   const { data: activeAd } = useActiveAd();
   const toggleReaction = useToggleReaction();
 
+  // Batch-fetch all watched_with profiles for the current page of posts in a
+  // single query rather than firing one query per PostCard.
+  const allWatchedWithIds = useMemo(
+    () => [...new Set(posts.flatMap((p) => p.watched_with ?? []))],
+    [posts],
+  );
+  const { data: watchedWithProfilesList = [] } = useQuery({
+    queryKey: ['profiles-mini-batch', allWatchedWithIds.slice().sort().join(',')],
+    queryFn: async () => {
+      if (allWatchedWithIds.length === 0) return [];
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url')
+        .in('id', allWatchedWithIds);
+      return (data ?? []) as { id: string; username: string; avatar_url: string | null }[];
+    },
+    enabled: allWatchedWithIds.length > 0,
+    staleTime: 5 * 60 * 1000,
+  });
+  const watchedWithProfilesMap = useMemo(
+    () => new Map(watchedWithProfilesList.map((p) => [p.id, p])),
+    [watchedWithProfilesList],
+  );
+
   // Keyed by type + title, not title alone — a logged book and a recommended
   // game can share an exact title (e.g. "Dune"), and a title-only check would
   // wrongly treat the game as "already logged" and filter it out.
   // Normalize 'tv' → 'watch' so TV shows logged under either type are caught.
-  const normType = (t: string) => (t === 'tv' ? 'watch' : t);
-  const loggedTitles = new Set([
+  const normType = useCallback((t: string) => (t === 'tv' ? 'watch' : t), []);
+  const loggedTitles = useMemo(() => new Set([
     ...logged.map((item) => `${normType(item.type)}:${item.title.toLowerCase()}`),
     ...collectionItems.map((item) => `${normType(item.type)}:${item.title.toLowerCase()}`),
-  ]);
-  const matchesFilter = (type: Post['type']) => (filter === 'all' || type === filter) && !hiddenCategories.has(type);
+  ]), [logged, collectionItems, normType]);
+  const matchesFilter = useCallback(
+    (type: Post['type']) => (filter === 'all' || type === filter) && !hiddenCategories.has(type),
+    [filter, hiddenCategories],
+  );
 
-  const circleTrendingRaw = computeTrendingInCircle(circleActivity, 20).filter((e) => matchesFilter(e.type));
-  const globalTrendingRaw = computeTrendingInCircle(globalPosts ?? [], 20).filter((e) => matchesFilter(e.type));
+  const circleTrendingRaw = useMemo(
+    () => computeTrendingInCircle(circleActivity, 20).filter((e) => matchesFilter(e.type)),
+    [circleActivity, matchesFilter],
+  );
+  const globalTrendingRaw = useMemo(
+    () => computeTrendingInCircle(globalPosts ?? [], 20).filter((e) => matchesFilter(e.type)),
+    [globalPosts, matchesFilter],
+  );
 
   const compatScores = useMemo(() => {
     const map = new Map<string, number>();
@@ -200,108 +239,113 @@ export default function FeedScreen() {
     return Math.round(compat * 0.7 + ratingNorm * 0.3);
   }
 
-  const friendPickMap = new Map<string, TrendingEntry>();
+  const { friendCollectionPicks, apiEntries, circleFallbackEntriesRaw } = useMemo(() => {
+    const friendPickMap = new Map<string, TrendingEntry>();
 
-  // Source 1: following collections (explicit ratings)
-  for (const item of followingCollections) {
-    const key = `${normType(item.type)}:${item.title.toLowerCase()}`;
-    if (loggedTitles.has(key)) continue;
-    if (!matchesFilter(item.type as Post['type'])) continue;
-    const rating = item.user_rating ?? 0;
-    if (rating < 3) continue;
-    const compat = compatScores.get(item.user_id) ?? 0;
-    const score = friendScore(compat, rating, 5);
-    const existing = friendPickMap.get(key);
-    if (!existing || score > existing.score!) {
-      friendPickMap.set(key, {
-        title: item.title,
-        sub: item.sub ?? null,
-        type: item.type as EntryType,
-        poster: item.poster ?? null,
-        count: 1,
-        score,
-        users: [],
-        loggers: [{ name: followingProfileMap[item.user_id]?.username ?? 'Friend', avatarUrl: followingProfileMap[item.user_id]?.avatar_url ?? null }],
-        externalId: item.external_id ?? undefined,
-        mediaType: item.media_type ?? undefined,
-      });
+    // Source 1: following collections (explicit ratings)
+    for (const item of followingCollections) {
+      const key = `${normType(item.type)}:${item.title.toLowerCase()}`;
+      if (loggedTitles.has(key)) continue;
+      if (!matchesFilter(item.type as Post['type'])) continue;
+      const rating = item.user_rating ?? 0;
+      if (rating < 3) continue;
+      const compat = compatScores.get(item.user_id) ?? 0;
+      const score = friendScore(compat, rating, 5);
+      const existing = friendPickMap.get(key);
+      if (!existing || score > existing.score!) {
+        friendPickMap.set(key, {
+          title: item.title,
+          sub: item.sub ?? null,
+          type: item.type as EntryType,
+          poster: item.poster ?? null,
+          count: 1,
+          score,
+          users: [],
+          loggers: [{ name: followingProfileMap[item.user_id]?.username ?? 'Friend', avatarUrl: followingProfileMap[item.user_id]?.avatar_url ?? null }],
+          externalId: item.external_id ?? undefined,
+          mediaType: item.media_type ?? undefined,
+        });
+      }
     }
-  }
 
-  // Source 2: friend posts (logged activity) — rating out of 10
-  for (const p of allPosts) {
-    if (p.user_id === user?.id) continue;
-    if (!p.rating) continue;
-    if (p.rating < 6) continue; // only well-rated posts
-    const key = `${p.type}:${p.title.toLowerCase()}`;
-    if (loggedTitles.has(key)) continue;
-    if (!matchesFilter(p.type)) continue;
-    const compat = compatScores.get(p.user_id) ?? 0;
-    const score = friendScore(compat, p.rating, 10);
-    const existing = friendPickMap.get(key);
-    if (!existing || score > existing.score!) {
-      friendPickMap.set(key, {
-        title: p.title,
-        sub: p.sub ?? null,
-        type: p.type as EntryType,
-        poster: p.poster ?? null,
-        count: 1,
-        score,
-        users: [],
-        loggers: [{ name: p.user_name, avatarUrl: p.user_avatar_url ?? null }],
-        externalId: p.external_id ?? undefined,
-        mediaType: p.media_type ?? undefined,
-      });
+    // Source 2: friend posts (logged activity) — rating out of 10
+    for (const p of allPosts) {
+      if (p.user_id === user?.id) continue;
+      if (!p.rating) continue;
+      if (p.rating < 6) continue; // only well-rated posts
+      const key = `${p.type}:${p.title.toLowerCase()}`;
+      if (loggedTitles.has(key)) continue;
+      if (!matchesFilter(p.type)) continue;
+      const compat = compatScores.get(p.user_id) ?? 0;
+      const score = friendScore(compat, p.rating, 10);
+      const existing = friendPickMap.get(key);
+      if (!existing || score > existing.score!) {
+        friendPickMap.set(key, {
+          title: p.title,
+          sub: p.sub ?? null,
+          type: p.type as EntryType,
+          poster: p.poster ?? null,
+          count: 1,
+          score,
+          users: [],
+          loggers: [{ name: p.user_name, avatarUrl: p.user_avatar_url ?? null }],
+          externalId: p.external_id ?? undefined,
+          mediaType: p.media_type ?? undefined,
+        });
+      }
     }
-  }
 
-  const friendCollectionPicks: TrendingEntry[] = [...friendPickMap.values()]
-    .sort((a, b) => b.score! - a.score!);
+    const friendCollectionPicks: TrendingEntry[] = [...friendPickMap.values()]
+      .sort((a, b) => b.score! - a.score!);
 
-  // For types the API returned results for, show those discoveries.
-  // For types it didn't cover (or where the user has no logged items of that type),
-  // fall back to circle-based trending so the section always has variety.
-  // Type + title keyed for the same reason as loggedTitles above.
-  const circleTitles = new Set(circleTrendingRaw.map((e) => `${normType(e.type)}:${e.title.toLowerCase()}`));
-  const apiTypes = new Set(rawApiRecs.map((e) => e.type));
+    // For types the API returned results for, show those discoveries.
+    // For types it didn't cover (or where the user has no logged items of that type),
+    // fall back to circle-based trending so the section always has variety.
+    // Type + title keyed for the same reason as loggedTitles above.
+    const circleTitles = new Set(circleTrendingRaw.map((e) => `${normType(e.type)}:${e.title.toLowerCase()}`));
+    const apiTypes = new Set(rawApiRecs.map((e) => e.type));
 
-  // Build a map of type:title → friend posts so we can surface recs that
-  // overlap with what high-compat friends have logged.
-  const friendPostsByKey = new Map<string, Post[]>();
-  for (const p of allPosts) {
-    if (p.user_id === user?.id) continue;
-    const key = `${p.type}:${p.title.toLowerCase()}`;
-    const bucket = friendPostsByKey.get(key) ?? [];
-    bucket.push(p);
-    friendPostsByKey.set(key, bucket);
-  }
+    // Build a map of type:title → friend posts so we can surface recs that
+    // overlap with what high-compat friends have logged.
+    const friendPostsByKey = new Map<string, Post[]>();
+    for (const p of allPosts) {
+      if (p.user_id === user?.id) continue;
+      const key = `${p.type}:${p.title.toLowerCase()}`;
+      const bucket = friendPostsByKey.get(key) ?? [];
+      bucket.push(p);
+      friendPostsByKey.set(key, bucket);
+    }
 
-  const apiEntries = rawApiRecs
-    .filter(
+    const apiEntries = rawApiRecs
+      .filter(
+        (e) =>
+          matchesFilter(e.type) &&
+          !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`) &&
+          !circleTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`),
+      )
+      .map((e) => {
+        const friendPosts = friendPostsByKey.get(`${normType(e.type)}:${e.title.toLowerCase()}`) ?? [];
+        if (friendPosts.length === 0) return e;
+        // Weight by the highest compat among friends who logged it — one 🔥 friend
+        // is a stronger signal than averaging across all friends including weak matches.
+        const maxCompat = Math.max(...friendPosts.map((p) => compatScores.get(p.user_id) ?? 50));
+        return {
+          ...e,
+          loggers: friendPosts.map((p) => ({ name: p.user_name, avatarUrl: p.user_avatar_url ?? null })),
+          score: Math.min(100, (e.score ?? 50) * 0.3 + maxCompat * 0.7),
+        };
+      });
+
+    const circleFallbackEntriesRaw = computeTrendingInCircle(circleActivity, 30).filter(
       (e) =>
+        !apiTypes.has(e.type) &&
         matchesFilter(e.type) &&
-        !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`) &&
-        !circleTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`),
-    )
-    .map((e) => {
-      const friendPosts = friendPostsByKey.get(`${normType(e.type)}:${e.title.toLowerCase()}`) ?? [];
-      if (friendPosts.length === 0) return e;
-      // Weight by the highest compat among friends who logged it — one 🔥 friend
-      // is a stronger signal than averaging across all friends including weak matches.
-      const maxCompat = Math.max(...friendPosts.map((p) => compatScores.get(p.user_id) ?? 50));
-      return {
-        ...e,
-        loggers: friendPosts.map((p) => ({ name: p.user_name, avatarUrl: p.user_avatar_url ?? null })),
-        score: Math.min(100, (e.score ?? 50) * 0.3 + maxCompat * 0.7),
-      };
-    });
+        !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`),
+    );
 
-  const circleFallbackEntriesRaw = computeTrendingInCircle(circleActivity, 30).filter(
-    (e) =>
-      !apiTypes.has(e.type) &&
-      matchesFilter(e.type) &&
-      !loggedTitles.has(`${normType(e.type)}:${e.title.toLowerCase()}`),
-  );
+    return { friendCollectionPicks, apiEntries, circleFallbackEntriesRaw };
+  }, [followingCollections, allPosts, loggedTitles, compatScores, matchesFilter, normType,
+      followingProfileMap, circleTrendingRaw, rawApiRecs, circleActivity, user?.id]);
 
   // Trending entries carry whatever poster was saved on the post at log
   // time — for games logged before IGDB was wired in, that's RAWG's
@@ -501,6 +545,40 @@ export default function FeedScreen() {
     topPicks.push(e);
   }
 
+  const renderFeedItem = useCallback(({ item }: { item: Post }) => {
+    const reactions = reactionsByPost.get(item.id) ?? [];
+    const meReacted = reactions.some((r) => r.user_id === user?.id);
+    const ci = item.user_id === user?.id && item.type === 'read' && item.external_id
+      ? collectionByExternalId.get(item.external_id!)
+      : undefined;
+    return (
+      <PostCard
+        post={item}
+        isMine={item.user_id === user?.id}
+        currentUserId={user?.id}
+        reactions={reactions}
+        emojiReactions={emojiByPost.get(item.id)}
+        compatScore={item.user_id === user?.id ? undefined : compatScores.get(item.user_id)}
+        commentCount={commentCounts?.get(item.id) ?? 0}
+        onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
+        onDelete={() => deletePost.mutate(item.id)}
+        pageProgress={ci ? { libraryItemId: ci.id, currentPage: ci.current_page, totalPages: ci.total_pages, externalId: item.external_id! } : undefined}
+        onEdit={item.user_id === user?.id ? () => router.push({
+          pathname: '/edit-post-modal',
+          params: {
+            postId: item.id,
+            postTitle: item.title,
+            currentNote: item.note ?? '',
+            currentRating: String(item.rating ?? 0),
+            currentVisibility: item.visibility ?? 'everyone',
+          },
+        }) : undefined}
+        watchedWithProfilesMap={watchedWithProfilesMap}
+      />
+    );
+  }, [reactionsByPost, emojiByPost, commentCounts, user?.id, compatScores,
+      collectionByExternalId, toggleReaction, deletePost, watchedWithProfilesMap]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {feedView === 'foryou' ? (
@@ -534,39 +612,12 @@ export default function FeedScreen() {
             <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={Brand.trust} />
           }
           ListHeaderComponent={header}
-          renderItem={({ item, index }) => {
-            const reactions = reactionsByPost.get(item.id) ?? [];
-            const meReacted = reactions.some((r) => r.user_id === user?.id);
-            return (
-              <>
-                <PostCard
-                  post={item}
-                  isMine={item.user_id === user?.id}
-                  currentUserId={user?.id}
-                  reactions={reactions}
-                  emojiReactions={emojiByPost.get(item.id)}
-                  compatScore={item.user_id === user?.id ? undefined : compatScores.get(item.user_id)}
-                  commentCount={commentCounts?.get(item.id) ?? 0}
-                  onToggleReaction={() => toggleReaction.mutate({ postId: item.id, reacted: meReacted })}
-                  onDelete={() => deletePost.mutate(item.id)}
-                  pageProgress={item.user_id === user?.id && item.type === 'read' && item.external_id
-                    ? (() => { const ci = collectionByExternalId.get(item.external_id!); return ci ? { libraryItemId: ci.id, currentPage: ci.current_page, totalPages: ci.total_pages, externalId: item.external_id! } : undefined; })()
-                    : undefined}
-                  onEdit={item.user_id === user?.id ? () => router.push({
-                    pathname: '/edit-post-modal',
-                    params: {
-                      postId: item.id,
-                      postTitle: item.title,
-                      currentNote: item.note ?? '',
-                      currentRating: String(item.rating ?? 0),
-                      currentVisibility: item.visibility ?? 'everyone',
-                    },
-                  }) : undefined}
-                />
-              </>
-            );
-          }}
-          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          renderItem={renderFeedItem}
+          ItemSeparatorComponent={FeedItemSeparator}
+          removeClippedSubviews
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
           onEndReachedThreshold={0.4}
           onEndReached={() => { if (hasNextPage && !isFetchingNextPage) fetchNextPage(); }}
           ListFooterComponent={

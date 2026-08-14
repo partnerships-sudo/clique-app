@@ -1,8 +1,6 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '@/lib/supabase';
 import { Alert, Animated, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -270,6 +268,7 @@ export function PostCard({
   commentCount,
   onToggleReaction,
   onDelete,
+  watchedWithProfilesMap,
   onEdit,
   pageProgress,
 }: {
@@ -284,6 +283,8 @@ export function PostCard({
   onDelete: () => void;
   onEdit?: () => void;
   pageProgress?: { libraryItemId: string; currentPage: number | null; totalPages: number | null; externalId: string };
+  /** Pre-fetched by the feed parent in one batch query — avoids N per-card requests. */
+  watchedWithProfilesMap?: Map<string, { id: string; username: string; avatar_url: string | null }>;
 }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
@@ -291,21 +292,12 @@ export function PostCard({
   const ratingIcon = (post.user_rating_icon as RatingIconStyle) ?? 'stars';
   const type = TypeColors[post.type as keyof typeof TypeColors] ?? { color: '#888', bg: '#EEE', icon: '📝', label: post.type };
 
-  // Resolve watched_with user IDs → avatars
+  // Resolve watched_with user IDs → avatars.
+  // Profiles are batch-fetched by the feed parent; we just look them up here.
   const watchedWithIds = post.watched_with ?? [];
-  const { data: watchedWithProfiles = [] } = useQuery({
-    queryKey: ['profiles-mini', watchedWithIds.slice().sort().join(',')],
-    queryFn: async () => {
-      if (watchedWithIds.length === 0) return [];
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url')
-        .in('id', watchedWithIds);
-      return (data ?? []) as { id: string; username: string; avatar_url: string | null }[];
-    },
-    enabled: watchedWithIds.length > 0,
-    staleTime: 5 * 60 * 1000,
-  });
+  const watchedWithProfiles = watchedWithIds
+    .map((id) => watchedWithProfilesMap?.get(id))
+    .filter((p): p is { id: string; username: string; avatar_url: string | null } => p != null);
   const meReacted = reactions.some((r) => r.user_id === currentUserId);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [spoilerRevealed, setSpoilerRevealed] = useState(false);

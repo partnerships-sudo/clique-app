@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -46,6 +46,8 @@ const COLLECTION_EMPTY: Record<CollectionView, { emoji: string; title: string; b
   play:    { emoji: '🎮', title: "It's dangerous to go alone",        body: "Log the games you've conquered." },
   podcast: { emoji: '🎙️', title: 'Houston, we have a podcast problem', body: 'Add podcasts you love to your collection.' },
 };
+
+const LibItemSeparator = () => <View style={{ height: 6 }} />;
 
 export default function LibraryScreen() {
   const Brand = useBrand();
@@ -168,6 +170,110 @@ export default function LibraryScreen() {
   const activeList = tab === 'watchlist' ? watchlist : loggedFiltered;
   const allSelected = selectMode && selectedIds.size > 0 && selectedIds.size === activeList.length;
 
+  const renderLoggedItem = useCallback(({ item }: { item: LibraryItem }) => (
+    <Pressable
+      onLongPress={() => { if (!selectMode) enterSelectMode(item.id); }}
+      delayLongPress={400}>
+      <View>
+        <LibCard item={item} />
+        {selectMode ? (
+          <Pressable
+            style={[StyleSheet.absoluteFill, styles.selectOverlay, selectedIds.has(item.id) && styles.selectOverlayActive]}
+            onPress={() => toggleSelect(item.id)}>
+            <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxChecked]}>
+              {selectedIds.has(item.id) ? <Text style={styles.checkmark}>✓</Text> : null}
+            </View>
+          </Pressable>
+        ) : null}
+      </View>
+    </Pressable>
+  ), [selectMode, selectedIds, styles]);
+
+  const renderWatchlistItem = useCallback(({ item }: { item: LibraryItem }) => (
+    <Pressable
+      onLongPress={() => { if (!selectMode && watchlistView === 'mine') enterSelectMode(item.id); }}
+      delayLongPress={400}>
+      <View>
+        <WatchlistCard
+          item={item}
+          onLogIt={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}
+          onRemove={() => removeItem.mutate(item.id)}
+        />
+        {selectMode && watchlistView === 'mine' ? (
+          <Pressable
+            style={[StyleSheet.absoluteFill, styles.selectOverlay, selectedIds.has(item.id) && styles.selectOverlayActive]}
+            onPress={() => toggleSelect(item.id)}>
+            <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxChecked]}>
+              {selectedIds.has(item.id) ? <Text style={styles.checkmark}>✓</Text> : null}
+            </View>
+          </Pressable>
+        ) : null}
+      </View>
+    </Pressable>
+  ), [selectMode, watchlistView, selectedIds, styles, removeItem]);
+
+  const renderCollectionItem = useCallback(({ item }: { item: CollectionItem }) => (
+    <CollectionItemCard
+      item={item}
+      onPress={() =>
+        router.push({
+          pathname: '/collection-item-detail-modal',
+          params: {
+            id: item.id,
+            title: item.title,
+            sub: item.sub ?? undefined,
+            poster: item.poster ?? undefined,
+            type: item.type,
+            format: item.format ?? undefined,
+            userRating: item.user_rating?.toString() ?? undefined,
+            externalId: item.external_id ?? undefined,
+            mediaType: item.media_type ?? undefined,
+            isOwner: '1',
+          },
+        })
+      }
+      onRemove={() => removeFromCollection.mutate(item.id)}
+    />
+  ), [removeFromCollection]);
+
+  const renderListItem = useCallback(({ item }: { item: ListSummary }) => (
+    <ListCard
+      list={item}
+      Brand={Brand}
+      onPress={() =>
+        router.push({
+          pathname: '/list-detail-modal',
+          params: {
+            listId: item.id,
+            listTitle: item.title,
+            listDesc: item.description ?? undefined,
+            listPublic: item.is_public ? 'true' : 'false',
+          },
+        })
+      }
+      onLongPress={() =>
+        router.push({
+          pathname: '/create-list-modal',
+          params: {
+            listId: item.id,
+            listTitle: item.title,
+            listDesc: item.description ?? undefined,
+            listPublic: item.is_public ? 'true' : 'false',
+          },
+        })
+      }
+    />
+  ), [Brand]);
+
+  // Show a spinner instead of a blank screen while the initial fetch runs.
+  if (isLoading && logged.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ActivityIndicator style={{ flex: 1 }} color={Brand.trust} />
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <View style={styles.header}>
@@ -223,25 +329,8 @@ export default function LibraryScreen() {
               <SortRow value={sort} onChange={setSort} />
             </View>
           }
-          renderItem={({ item }) => (
-            <Pressable
-              onLongPress={() => { if (!selectMode) enterSelectMode(item.id); }}
-              delayLongPress={400}>
-              <View>
-                <LibCard item={item} />
-                {selectMode ? (
-                  <Pressable
-                    style={[StyleSheet.absoluteFill, styles.selectOverlay, selectedIds.has(item.id) && styles.selectOverlayActive]}
-                    onPress={() => toggleSelect(item.id)}>
-                    <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxChecked]}>
-                      {selectedIds.has(item.id) ? <Text style={styles.checkmark}>✓</Text> : null}
-                    </View>
-                  </Pressable>
-                ) : null}
-              </View>
-            </Pressable>
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          renderItem={renderLoggedItem}
+          ItemSeparatorComponent={LibItemSeparator}
           ListEmptyComponent={
             !isLoading ? (
               <View style={styles.emptyWrap}>
@@ -302,29 +391,8 @@ export default function LibraryScreen() {
               ) : null}
             </View>
           }
-          renderItem={({ item }: { item: LibraryItem }) => (
-            <Pressable
-              onLongPress={() => { if (!selectMode && watchlistView === 'mine') enterSelectMode(item.id); }}
-              delayLongPress={400}>
-              <View>
-                <WatchlistCard
-                  item={item}
-                  onLogIt={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}
-                  onRemove={() => removeItem.mutate(item.id)}
-                />
-                {selectMode && watchlistView === 'mine' ? (
-                  <Pressable
-                    style={[StyleSheet.absoluteFill, styles.selectOverlay, selectedIds.has(item.id) && styles.selectOverlayActive]}
-                    onPress={() => toggleSelect(item.id)}>
-                    <View style={[styles.checkbox, selectedIds.has(item.id) && styles.checkboxChecked]}>
-                      {selectedIds.has(item.id) ? <Text style={styles.checkmark}>✓</Text> : null}
-                    </View>
-                  </Pressable>
-                ) : null}
-              </View>
-            </Pressable>
-          )}
-          ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
+          renderItem={renderWatchlistItem}
+          ItemSeparatorComponent={LibItemSeparator}
           ListEmptyComponent={
             !isLoading ? (
               watchlistView === 'mine' ? (
@@ -426,29 +494,7 @@ export default function LibraryScreen() {
               </View>
             </View>
           }
-          renderItem={({ item }: { item: CollectionItem }) => (
-            <CollectionItemCard
-              item={item}
-              onPress={() =>
-                router.push({
-                  pathname: '/collection-item-detail-modal',
-                  params: {
-                    id: item.id,
-                    title: item.title,
-                    sub: item.sub ?? undefined,
-                    poster: item.poster ?? undefined,
-                    type: item.type,
-                    format: item.format ?? undefined,
-                    userRating: item.user_rating?.toString() ?? undefined,
-                    externalId: item.external_id ?? undefined,
-                    mediaType: item.media_type ?? undefined,
-                    isOwner: '1',
-                  },
-                })
-              }
-              onRemove={() => removeFromCollection.mutate(item.id)}
-            />
-          )}
+          renderItem={renderCollectionItem}
           ListEmptyComponent={
             !isCollectionLoading ? (
               <View style={styles.emptyWrap}>
@@ -482,34 +528,7 @@ export default function LibraryScreen() {
               <Text style={styles.addBtnText}>+ Create a new list</Text>
             </Pressable>
           }
-          renderItem={({ item }: { item: ListSummary }) => (
-            <ListCard
-              list={item}
-              Brand={Brand}
-              onPress={() =>
-                router.push({
-                  pathname: '/list-detail-modal',
-                  params: {
-                    listId: item.id,
-                    listTitle: item.title,
-                    listDesc: item.description ?? undefined,
-                    listPublic: item.is_public ? 'true' : 'false',
-                  },
-                })
-              }
-              onLongPress={() =>
-                router.push({
-                  pathname: '/create-list-modal',
-                  params: {
-                    listId: item.id,
-                    listTitle: item.title,
-                    listDesc: item.description ?? undefined,
-                    listPublic: item.is_public ? 'true' : 'false',
-                  },
-                })
-              }
-            />
-          )}
+          renderItem={renderListItem}
           ListEmptyComponent={
             !isListsLoading ? (
               <View style={styles.emptyWrap}>

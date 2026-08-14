@@ -73,7 +73,10 @@ export default function NewsScreen() {
   const { data: upcomingTV, isLoading: loadingTV } = useUpcomingTV();
   const { data: upcomingAlbums, isLoading: loadingAlbums } = useUpcomingAlbums();
   const { data: upcomingBooks, isLoading: loadingBooks } = useUpcomingBooks();
-  const boxOfficeByMovie = new Map((boxOffice ?? []).map((e) => [e.id, e.revenue]));
+  const boxOfficeByMovie = useMemo(
+    () => new Map((boxOffice ?? []).map((e) => [e.id, e.revenue])),
+    [boxOffice],
+  );
 
   function openArticle(article: NewsArticle) {
     track(user?.id, Events.NEWS_CARD_TAPPED, {
@@ -307,7 +310,7 @@ export default function NewsScreen() {
                       <Text style={styles.radarDate}>{album.artist}</Text>
                       <View style={styles.radarTagRow}>
                         <View style={styles.radarTag}><Text style={styles.radarTagText}>{formatRadarDate(album.releaseDate)}</Text></View>
-                        {album.albumType ? <View style={styles.radarTag}><Text style={styles.radarTagText} style={{ textTransform: 'capitalize' }}>{album.albumType}</Text></View> : null}
+                        {album.albumType ? <View style={styles.radarTag}><Text style={[styles.radarTagText, { textTransform: 'capitalize' }]}>{album.albumType}</Text></View> : null}
                       </View>
                     </View>
                     <SymbolView name="chevron.right" size={14} tintColor={Brand.muted} style={{ width: 14, height: 14 }} />
