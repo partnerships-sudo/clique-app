@@ -102,7 +102,10 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
   return (
     <Pressable
       style={[styles.card, { borderColor: palette.border, backgroundColor: Brand.card }]}
-      onPress={handleOpenDiscussion}>
+      onPress={handleOpenDiscussion}
+      accessibilityLabel={item.title}
+      accessibilityHint="Opens discussion"
+      accessibilityRole="button">
 
       {/* ── Top row: poster LEFT + body RIGHT — height locked to POSTER_H ── */}
       <View style={styles.topRow}>
@@ -166,7 +169,9 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
           <Pressable
             style={[styles.voteBtn, { backgroundColor: voteBtnBg }, item.has_voted && { backgroundColor: voteBtnActiveBg }]}
             onPress={(e) => { e.stopPropagation(); handleVote(); }}
-            hitSlop={6}>
+            hitSlop={6}
+            accessibilityLabel={item.has_voted ? `Unvote. ${item.upvote_count} agrees` : `Agree. ${item.upvote_count} agrees`}
+            accessibilityRole="button">
             <Text style={[styles.voteBtnText, { color: item.has_voted ? palette.barText : Brand.muted }]}>
               👍{item.upvote_count > 0 ? `  ${item.upvote_count}` : ''}
             </Text>
@@ -174,7 +179,9 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
           <Pressable
             style={[styles.voteBtn, { backgroundColor: voteBtnBg }, item.has_disagreed && { backgroundColor: disagreeBg }]}
             onPress={(e) => { e.stopPropagation(); handleDisagree(); }}
-            hitSlop={6}>
+            hitSlop={6}
+            accessibilityLabel={item.has_disagreed ? `Remove disagree. ${item.disagree_count} disagree` : `Disagree. ${item.disagree_count} disagree`}
+            accessibilityRole="button">
             <Text style={[styles.voteBtnText, { color: item.has_disagreed ? (isDark ? '#FCA5A5' : '#991B1B') : Brand.muted }]}>
               👎{item.disagree_count > 0 ? `  ${item.disagree_count}` : ''}
             </Text>

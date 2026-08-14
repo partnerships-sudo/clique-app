@@ -103,7 +103,7 @@ function PageTracker({
 
   return (
     <>
-      <Pressable style={styles.pageTrackerRow} onPress={() => { setPageVal(currentPage ?? 0); setOpen(true); }} hitSlop={8}>
+      <Pressable style={styles.pageTrackerRow} onPress={() => { setPageVal(currentPage ?? 0); setOpen(true); }} hitSlop={8} accessibilityLabel={currentPage ? `Page ${currentPage}${totalPages ? ` of ${totalPages}` : ''}. Tap to update` : 'Log current page'} accessibilityRole="button">
         <SymbolView name="book.pages" size={12} tintColor={Brand.muted} style={{ width: 13, height: 13 }} />
         {currentPage && totalPages ? (
           <View style={styles.pageTrackerBarWrap}>
@@ -138,14 +138,14 @@ function PageTracker({
           {/* ±1 / ±10 / ±50 stepper row */}
           <View style={styles.stepperRow}>
             {[-50, -10, -1, +1, +10, +50].map((delta) => (
-              <Pressable key={delta} style={styles.stepperBtn} onPress={() => nudge(delta)}>
+              <Pressable key={delta} style={styles.stepperBtn} onPress={() => nudge(delta)} accessibilityLabel={`${delta > 0 ? `+${delta}` : delta} pages`} accessibilityRole="button">
                 <Text style={styles.stepperBtnText}>{delta > 0 ? `+${delta}` : delta}</Text>
               </Pressable>
             ))}
           </View>
 
           <View style={styles.pageModalActions}>
-            <Pressable style={styles.pageModalCancel} onPress={() => setOpen(false)}>
+            <Pressable style={styles.pageModalCancel} onPress={() => setOpen(false)} accessibilityRole="button">
               <Text style={styles.pageModalCancelText}>Cancel</Text>
             </Pressable>
             <Pressable style={[styles.pageModalSave, updateProgress.isPending && { opacity: 0.5 }]} onPress={handleSave} disabled={updateProgress.isPending}>
@@ -396,7 +396,9 @@ export function PostCard({
                     key={p.id}
                     style={styles.watchedWithInlinePerson}
                     onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: p.id } })}
-                    hitSlop={4}>
+                    hitSlop={4}
+                    accessibilityLabel={`View @${p.username}'s profile`}
+                    accessibilityRole="button">
                     {i > 0 && <Text style={styles.watchedWithInlineAmp}> & </Text>}
                     <Avatar name={p.username} avatarUrl={p.avatar_url} size={14} />
                     <Text style={styles.watchedWithInlineLabel}> @{p.username}</Text>
@@ -489,12 +491,14 @@ export function PostCard({
                 onLongPress={() =>
                   router.push({ pathname: '/post-reactions-modal', params: { postId: post.id, emoji } })
                 }
-                hitSlop={4}>
+                hitSlop={4}
+                accessibilityLabel={emojiSummary.mine.has(emoji) ? `Remove ${emoji} reaction, ${count} total` : `React with ${emoji}, ${count} total`}
+                accessibilityRole="button">
                 <Text style={styles.emojiPillText}>{emoji} {count}</Text>
               </Pressable>
             ))}
             {!isMine && (
-              <Pressable style={styles.emojiAddBtn} onPress={() => setShowEmojiPicker((v) => !v)} hitSlop={16}>
+              <Pressable style={styles.emojiAddBtn} onPress={() => setShowEmojiPicker((v) => !v)} hitSlop={16} accessibilityLabel="Add emoji reaction" accessibilityRole="button">
                 <Text style={styles.emojiAddText}>+</Text>
               </Pressable>
             )}
@@ -510,7 +514,9 @@ export function PostCard({
             {reactions.length > 0 && (
               <Pressable
                 style={styles.reactorRow}
-                onPress={() => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}>
+                onPress={() => router.push({ pathname: '/post-reactions-modal', params: { postId: post.id } })}
+                accessibilityLabel={`${reactions.length} people reacted. View all`}
+                accessibilityRole="button">
                 {reactions.slice(0, 4).map((r, i) => (
                   <View key={r.user_id} style={[styles.reactorAvatar, i > 0 && { marginLeft: -6 }]}>
                     <Avatar name={r.user_name} avatarUrl={r.avatar_url} size={18} />

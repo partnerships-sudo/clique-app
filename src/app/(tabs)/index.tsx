@@ -409,7 +409,12 @@ export default function FeedScreen() {
 
         {/* Right: bell + avatar */}
         <View style={styles.headerRight}>
-          <Pressable hitSlop={16} onPress={() => router.push('/notifications-modal')} style={styles.bellWrap}>
+          <Pressable
+            hitSlop={16}
+            onPress={() => router.push('/notifications-modal')}
+            style={styles.bellWrap}
+            accessibilityLabel={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : 'Notifications'}
+            accessibilityRole="button">
             <SymbolView name="bell" size={22} tintColor={Brand.ink} style={{ width: 24, height: 24 }} />
             {unreadCount > 0 && (
               <View style={styles.bellBadge}>
@@ -417,7 +422,7 @@ export default function FeedScreen() {
               </View>
             )}
           </Pressable>
-          <Pressable onPress={() => router.push('/profile')} hitSlop={16}>
+          <Pressable onPress={() => router.push('/profile')} hitSlop={16} accessibilityLabel="Your profile" accessibilityRole="button">
             <Avatar
               name={profile?.full_name ?? user?.email ?? 'You'}
               size={36}

@@ -44,7 +44,9 @@ export function FriendCard({
         {/* Left: avatar + % badge */}
         <Pressable
           style={styles.avatarWrap}
-          onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: profile.id } })}>
+          onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: profile.id } })}
+          accessibilityLabel={`View ${name}'s profile`}
+          accessibilityRole="button">
           <View style={[styles.avatarRing, { borderColor: color }]}>
             <Avatar name={name} size={52} avatarUrl={profile.avatar_url} />
           </View>
@@ -56,7 +58,9 @@ export function FriendCard({
         {/* Middle: name, handle, label — flex so it takes remaining space */}
         <Pressable
           style={styles.info}
-          onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: profile.id } })}>
+          onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: profile.id } })}
+          accessibilityLabel={`${name}${profile.username ? `, @${profile.username}` : ''}`}
+          accessibilityRole="button">
           <View style={styles.nameRow}>
             <Text style={styles.name} numberOfLines={1}>{name}</Text>
             {profile.verified_tier ? <VerifiedBadge tier={profile.verified_tier} /> : null}
@@ -70,6 +74,8 @@ export function FriendCard({
           {currentlyWatching ? (
             <Pressable
               style={styles.watching}
+              accessibilityLabel={`${name}'s recently ${currentlyWatching?.type === 'read' ? 'read' : currentlyWatching?.type === 'play' ? 'played' : currentlyWatching?.type === 'listen' || currentlyWatching?.type === 'podcast' ? 'listened to' : 'watched'}: ${currentlyWatching?.title}`}
+              accessibilityRole="button"
               onPress={() => router.push({
                 pathname: '/collection-item-detail-modal',
                 params: {
@@ -102,6 +108,8 @@ export function FriendCard({
           <Pressable
             style={styles.chatBtn}
             hitSlop={16}
+            accessibilityLabel={`Message ${name}`}
+            accessibilityRole="button"
             onPress={() =>
               router.push({
                 pathname: '/chat-modal',
@@ -115,7 +123,7 @@ export function FriendCard({
       </View>
 
       {onFollowBack && (
-        <Pressable style={styles.followBackStrip} onPress={onFollowBack}>
+        <Pressable style={styles.followBackStrip} onPress={onFollowBack} accessibilityLabel={`Follow back ${name}`} accessibilityRole="button">
           <Text style={styles.followBackText}>Follow back</Text>
         </Pressable>
       )}
