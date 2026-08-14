@@ -2,6 +2,11 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
+import { GoogleSignin } from '@react-native-google-signin/google-signin';
+
+GoogleSignin.configure({
+  iosClientId: '721803355925-iegocavo7h2dcefvr2llgait6g08205f.apps.googleusercontent.com',
+});
 
 import { getLocales } from 'expo-localization';
 
@@ -32,6 +37,7 @@ type SessionContextValue = {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (params: SignUpParams) => Promise<{ error: string | null }>;
   signInWithApple: () => Promise<{ error: string | null }>;
+  signInWithGoogle: () => Promise<{ error: string | null }>;
   switchAccount: (userId: string) => Promise<void>;
   /** `forgetDevice` also removes this device's push token from the outgoing
    * account, so it stops receiving notifications here — off by default so
@@ -217,6 +223,36 @@ export function SessionProvider({ children }: PropsWithChildren) {
           return { error: null };
         }
         return { error: (e as Error).message ?? 'Apple sign-in failed.' };
+      }
+    },
+
+    async signInWithGoogle() {
+      try {
+        await GoogleSignin.hasPlayServices();
+        const response = await GoogleSignin.signIn();
+        const idToken = response.data?.idToken;
+        if (!idToken) return { error: 'Google sign-in failed: no ID token returned.' };
+
+        const { data, error } = await supabase.auth.signInWithIdToken({
+          provider: 'google',
+          token: idToken,
+        });
+
+        if (error) return { error: error.message };
+
+        if (data.user) await upsertProfile(data.user);
+
+        if (data.session) {
+          await saveAccountFromSession(data.session);
+          getSavedAccounts().then(setSavedAccounts).catch(() => {});
+        }
+
+        return { error: null };
+      } catch (e: unknown) {
+        const code = (e as { code?: string }).code;
+        // User cancelled — not a real error
+        if (code === 'SIGN_IN_CANCELLED' || code === '12501') return { error: null };
+        return { error: (e as Error).message ?? 'Google sign-in failed.' };
       }
     },
 

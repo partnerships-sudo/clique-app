@@ -12,7 +12,9 @@
       "bundleIdentifier": "com.lanapolitano.thecliqueapp",
       "buildNumber": "10",
       "entitlements": {
-        "com.apple.developer.applesignin": ["Default"]
+        "com.apple.developer.applesignin": [
+          "Default"
+        ]
       },
       "associatedDomains": [
         "applinks:vaultedmediagroup.com"
@@ -88,6 +90,12 @@
         "@stripe/stripe-react-native",
         {
           "merchantIdentifier": "merchant.com.thecliqueapp"
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.721803355925-iegocavo7h2dcefvr2llgait6g08205f"
         }
       ]
     ],
