@@ -16,6 +16,7 @@ import {
   type ListItem,
 } from '@/features/lists/api';
 import { useBrand } from '@/hooks/use-brand';
+import { useProfile } from '@/features/profile/api';
 import { useSession } from '@/hooks/use-session';
 
 export default function ListDetailModal() {
@@ -28,7 +29,9 @@ export default function ListDetailModal() {
   }>();
 
   const { user } = useSession();
+  const { data: profile } = useProfile();
   const isOwn = !listOwnerId || listOwnerId === user?.id;
+  const isGold = (profile?.verified_tier ?? 0) >= 1;
   const { data: items = [], isLoading } = useListItems(listId);
   const deleteList = useDeleteList();
   const removeItem = useRemoveFromList();
@@ -50,6 +53,10 @@ export default function ListDetailModal() {
             router.push({ pathname: '/create-list-modal', params: { listId, listTitle, listDesc, listPublic } });
           }
           if (idx === 2) {
+            if (!isGold) {
+              router.push({ pathname: '/get-verified-modal' });
+              return;
+            }
             if (listPublic === 'false') {
               Alert.alert('Private list', 'Make this list public in Edit list before sharing.');
               return;

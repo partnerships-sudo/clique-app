@@ -241,12 +241,18 @@ export default function ChatModal() {
   }
 
   useEffect(() => {
-    if (isGroup && params.groupId) markGroupRead(params.groupId);
-    else if (isDm && params.friendId) {
-      markDmRead(params.friendId);
+    if (isGroup && params.groupId) {
+      const latest = groupMessages.data?.at(-1)?.created_at;
+      markGroupRead(params.groupId, latest);
+    } else if (isDm && params.friendId) {
+      // Pass the latest message's server timestamp so the read pointer is
+      // anchored to the DB clock, not the client clock (avoids skew ghosts).
+      const latest = dmMessages.data?.at(-1)?.created_at;
+      markDmRead(params.friendId, latest);
       markDmReadReceipt(params.friendId);
+    } else if (params.title) {
+      markChatRead(params.title);
     }
-    else if (params.title) markChatRead(params.title);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [messages.length]);
 

@@ -194,3 +194,44 @@ export function useUpcomingMovies() {
     staleTime: 30 * 60 * 1000,
   });
 }
+
+// ── Upcoming TV (On the Radar) ────────────────────────────────────────────────
+
+export interface UpcomingTV {
+  id: number;
+  title: string;
+  poster: string | null;
+  firstAirDate: string;
+  genre: string | null;
+  network: string | null;
+}
+
+async function fetchUpcomingTV(): Promise<UpcomingTV[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const future = new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const res = await fetch(
+    `https://api.themoviedb.org/3/discover/tv?include_adult=false&language=en-US&first_air_date.gte=${today}&first_air_date.lte=${future}&with_original_language=en&sort_by=popularity.desc&page=1`,
+    { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+  );
+  if (!res.ok) throw new Error(`TMDB TV error: ${res.status}`);
+  const data = await res.json();
+  return ((data.results ?? []) as any[])
+    .filter((s) => s.first_air_date && s.poster_path)
+    .map((s) => ({
+      id: s.id,
+      title: s.name,
+      poster: `https://image.tmdb.org/t/p/w185${s.poster_path}`,
+      firstAirDate: s.first_air_date,
+      genre: null,
+      network: s.origin_country?.[0] ?? null,
+    }))
+    .sort((a, b) => a.firstAirDate.localeCompare(b.firstAirDate));
+}
+
+export function useUpcomingTV() {
+  return useQuery({
+    queryKey: ['tv', 'upcoming'],
+    queryFn: fetchUpcomingTV,
+    staleTime: 30 * 60 * 1000,
+  });
+}

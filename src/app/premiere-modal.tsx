@@ -115,6 +115,9 @@ export default function PremiereModal() {
 
   // Form state
   const [tagline, setTagline] = useState('');
+  const [buyUrl, setBuyUrl] = useState('');
+  const [buyLabel, setBuyLabel] = useState('');
+  const isUpperTier = (profile?.verified_tier ?? 0) >= 2;
   const [isSharing, setIsSharing] = useState(false);
   const [shareSheetVisible, setShareSheetVisible] = useState(false);
   const [capturedUri, setCapturedUri] = useState<string | null>(null);
@@ -176,6 +179,8 @@ export default function PremiereModal() {
         airDate: partyDate,
         airTime: airTime.trim() || null,
         tagline: tagline.trim() || null,
+        buyUrl: isUpperTier && buyUrl.trim().startsWith('https://') ? buyUrl.trim() : null,
+        buyLabel: isUpperTier && buyUrl.trim() ? (buyLabel.trim() || 'Buy / Rent Now') : null,
       });
 
       setIsSharing(true);
@@ -392,6 +397,33 @@ export default function PremiereModal() {
           maxLength={80}
           multiline
         />
+
+        {/* Buy / Rent link — upper-tier verified only */}
+        {isUpperTier && (
+          <>
+            <Text style={styles.sectionLabel}>Buy / Rent link <Text style={{ color: Brand.muted, fontFamily: BrandFonts.interRegular }}>(optional)</Text></Text>
+            <TextInput
+              style={styles.taglineInput}
+              placeholder="https://tv.apple.com/..."
+              placeholderTextColor={Brand.muted}
+              value={buyUrl}
+              onChangeText={setBuyUrl}
+              autoCapitalize="none"
+              keyboardType="url"
+              autoCorrect={false}
+            />
+            {buyUrl.trim().length > 0 && (
+              <TextInput
+                style={[styles.taglineInput, { marginTop: 8 }]}
+                placeholder='Button label, e.g. "Buy on Apple TV"'
+                placeholderTextColor={Brand.muted}
+                value={buyLabel}
+                onChangeText={setBuyLabel}
+                maxLength={40}
+              />
+            )}
+          </>
+        )}
 
         {/* Watch party date */}
         <Text style={styles.sectionLabel}>Watch party date</Text>

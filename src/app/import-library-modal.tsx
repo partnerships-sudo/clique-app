@@ -37,8 +37,8 @@ const TMDB_TV_GENRES: Record<number, string> = {
   10766: 'Soap', 10767: 'Talk', 10768: 'War & Politics', 37: 'Western',
 };
 
-type ImportSource = 'letterboxd' | 'goodreads';
-type ImportStep = 'source' | 'preview' | 'importing' | 'done';
+type ImportSource = 'letterboxd' | 'goodreads' | 'letterboxd-list';
+type ImportStep = 'source' | 'preview' | 'importing' | 'done' | 'list-preview' | 'list-importing' | 'list-done';
 
 interface ParsedRow {
   title: string;
@@ -55,6 +55,13 @@ interface ImportResult {
   updated: number;
   skipped: number;
   unmatched: number;
+}
+
+interface ParsedListItem {
+  position: number;
+  title: string;
+  year: string;
+  description: string | null;
 }
 
 // ── CSV parser ────────────────────────────────────────────────────────────────
@@ -178,6 +185,32 @@ function parseGoodreads(text: string): ParsedRow[] {
     .filter((r) => r.title);
 }
 
+// ── Letterboxd list parser ────────────────────────────────────────────────────
+
+function parseLetterboxdList(text: string): ParsedListItem[] {
+  if (text.startsWith('PK')) throw new Error('zip');
+  const { headers, rows } = parseCSV(text);
+  return rows
+    .filter((r) => r.length > 1)
+    .map((row) => {
+      const pos = parseInt(colFuzzy(headers, row, 'position') || '0', 10);
+      const title = colFuzzy(headers, row, 'name', 'title');
+      const year = colFuzzy(headers, row, 'year');
+      const desc = colFuzzy(headers, row, 'description') || null;
+      return { position: pos || 0, title, year, description: desc };
+    })
+    .filter((r) => r.title)
+    .sort((a, b) => a.position - b.position);
+}
+
+function listNameFromFilename(filename: string): string {
+  return filename
+    .replace(/\.csv$/i, '')
+    .replace(/[-_]/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .trim();
+}
+
 // ── API lookups ───────────────────────────────────────────────────────────────
 
 function tmdbTitleMatches(input: string, result: any): boolean {
@@ -257,6 +290,11 @@ export default function ImportLibraryModal() {
   const [progress, setProgress] = useState(0);
   const [result, setResult] = useState<ImportResult | null>(null);
   const cancelledRef = useRef(false);
+
+  // List import state
+  const [listItems, setListItems] = useState<ParsedListItem[]>([]);
+  const [listName, setListName] = useState('');
+  const [listImported, setListImported] = useState(0);
 
   // Build lookup maps for dedup + update detection
   const existingByExternalId = useMemo(
@@ -440,6 +478,116 @@ export default function ImportLibraryModal() {
     setStep('done');
   }
 
+  async function pickListFile() {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['text/csv', 'text/comma-separated-values', 'public.comma-separated-values-text', '*/*'],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      const name = asset.name ?? '';
+
+      if (name.toLowerCase().endsWith('.zip') || asset.mimeType === 'application/zip') {
+        Alert.alert(
+          'Unzip required',
+          'Letterboxd exports a ZIP file. Open it in the Files app → lists folder, then pick one of the list CSVs.',
+        );
+        return;
+      }
+
+      let readUri = asset.uri;
+      try {
+        const dest = `${FileSystem.cacheDirectory}clique_list_${Date.now()}.csv`;
+        await FileSystem.copyAsync({ from: asset.uri, to: dest });
+        readUri = dest;
+      } catch { /* fall through */ }
+
+      let text: string;
+      try {
+        text = await FileSystem.readAsStringAsync(readUri, { encoding: 'utf8' as any });
+      } catch {
+        const b64 = await FileSystem.readAsStringAsync(readUri, { encoding: 'base64' as any });
+        text = atob(b64);
+      }
+
+      let items: ParsedListItem[] = [];
+      try {
+        items = parseLetterboxdList(text);
+      } catch (e: any) {
+        if (e?.message === 'zip') {
+          Alert.alert('Unzip required', 'Open the Letterboxd ZIP in Files, go into the lists folder, then pick a CSV.');
+          return;
+        }
+        throw e;
+      }
+
+      if (items.length === 0) {
+        Alert.alert('Nothing found', 'This doesn\'t look like a Letterboxd list CSV. The file should have Position, Name, and Year columns.');
+        return;
+      }
+
+      setListItems(items);
+      setListName(listNameFromFilename(name));
+      setFileName(name);
+      setStep('list-preview');
+    } catch (e: any) {
+      Alert.alert('Could not read file', e?.message ?? 'Unknown error — please try again.');
+    }
+  }
+
+  async function runListImport() {
+    if (!user) return;
+    cancelledRef.current = false;
+    setStep('list-importing');
+    setProgress(0);
+
+    // 1. Create the list row
+    const { data: newList, error: listErr } = await supabase
+      .from('lists')
+      .insert({ user_id: user.id, title: listName.trim(), description: null, is_public: true })
+      .select()
+      .single();
+    if (listErr || !newList) {
+      Alert.alert('Error', 'Could not create list — please try again.');
+      setStep('list-preview');
+      return;
+    }
+
+    // 2. Look up each item and build list_items rows
+    const inserts: object[] = [];
+    for (let i = 0; i < listItems.length; i++) {
+      if (cancelledRef.current) break;
+      setProgress(i / listItems.length);
+
+      const item = listItems[i];
+      const lookup = await lookupTMDB(item.title, item.year);
+
+      inserts.push({
+        list_id: (newList as any).id,
+        title: item.title,
+        sub: lookup?.sub ?? (item.year || null),
+        poster: lookup?.poster ?? null,
+        type: lookup?.mediaType === 'tv' ? 'tv' : 'watch',
+        position: item.position || i + 1,
+        library_item_id: null,
+      });
+
+      await new Promise((r) => setTimeout(r, 80));
+    }
+
+    // 3. Insert all items in batches
+    for (let i = 0; i < inserts.length; i += 50) {
+      await supabase.from('list_items').insert(inserts.slice(i, i + 50));
+    }
+
+    await queryClient.invalidateQueries({ queryKey: ['lists', user.id] });
+
+    setListImported(inserts.length);
+    setProgress(1);
+    setStep('list-done');
+  }
+
   // ── Step: source ────────────────────────────────────────────────────────────
   if (step === 'source') {
     return (
@@ -465,6 +613,21 @@ export default function ImportLibraryModal() {
               <View style={styles.rowBody}>
                 <Text style={styles.rowLabel}>Letterboxd</Text>
                 <Text style={styles.rowSub}>Movies & TV you've logged — export from letterboxd.com/data</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+
+            <View style={styles.divider} />
+
+            <Pressable
+              style={styles.row}
+              onPress={() => { setSource('letterboxd-list'); pickListFile(); }}>
+              <View style={styles.rowIcon}>
+                <SymbolView name="list.bullet" size={18} tintColor={Brand.muted} type="monochrome" />
+              </View>
+              <View style={styles.rowBody}>
+                <Text style={styles.rowLabel}>Letterboxd Lists</Text>
+                <Text style={styles.rowSub}>Import a curated list — from the lists/ folder in your export ZIP</Text>
               </View>
               <Text style={styles.chevron}>›</Text>
             </Pressable>
@@ -600,6 +763,124 @@ export default function ImportLibraryModal() {
             <View style={[styles.progressFill, { width: `${pct}%` }]} />
           </View>
           <Text style={styles.importingSub}>Looking up posters and metadata</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Step: list-preview ──────────────────────────────────────────────────────
+  if (step === 'list-preview') {
+    const preview = listItems.slice(0, 5);
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.container}>
+          <Text style={styles.title}>Import List</Text>
+          <Text style={styles.sub}>{listItems.length} titles from {fileName}</Text>
+
+          <Text style={styles.sectionLabel}>List name</Text>
+          <View style={[styles.card, { marginBottom: Spacing.three }]}>
+            <View style={styles.row}>
+              <View style={{ flex: 1 }}>
+                <Text
+                  style={[styles.rowLabel, { fontSize: 14 }]}
+                  onPress={() =>
+                    Alert.prompt('List name', undefined, (text) => { if (text?.trim()) setListName(text.trim()); }, 'plain-text', listName)
+                  }>
+                  {listName}
+                </Text>
+                <Text style={styles.rowSub}>Tap to rename</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </View>
+          </View>
+
+          <Text style={styles.sectionLabel}>Preview</Text>
+          <View style={styles.card}>
+            <FlatList
+              data={preview}
+              keyExtractor={(_, i) => String(i)}
+              scrollEnabled={false}
+              renderItem={({ item, index }) => (
+                <View style={[styles.previewRow, index > 0 && styles.previewDivider]}>
+                  <Text style={[styles.previewSub, { width: 24, textAlign: 'right', flexShrink: 0 }]}>{item.position || index + 1}</Text>
+                  <View style={styles.previewBody}>
+                    <Text style={styles.previewTitle} numberOfLines={1}>{item.title}</Text>
+                    {item.year ? <Text style={styles.previewSub}>{item.year}</Text> : null}
+                  </View>
+                </View>
+              )}
+            />
+            {listItems.length > 5 && (
+              <View style={[styles.previewRow, styles.previewDivider]}>
+                <Text style={[styles.previewMore, { paddingLeft: 32 }]}>+{listItems.length - 5} more titles</Text>
+              </View>
+            )}
+          </View>
+
+          <Text style={styles.note}>
+            Clique will look up each title to get posters and metadata. The list will appear in your Lists tab.
+          </Text>
+        </View>
+
+        <View style={styles.footer}>
+          <Pressable style={styles.cancelBtn} onPress={() => setStep('source')}>
+            <Text style={styles.cancelBtnText}>Back</Text>
+          </Pressable>
+          <Pressable style={styles.importBtn} onPress={runListImport}>
+            <Text style={styles.importBtnText}>Import {listItems.length} titles</Text>
+          </Pressable>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Step: list-importing ─────────────────────────────────────────────────────
+  if (step === 'list-importing') {
+    const pct = Math.round(progress * 100);
+    const current = Math.round(progress * listItems.length);
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.importingContainer}>
+          <ActivityIndicator size="large" color={Brand.trust} style={{ marginBottom: 24 }} />
+          <Text style={styles.importingTitle}>Building your list…</Text>
+          <Text style={styles.importingCount}>{current} of {listItems.length}</Text>
+          <View style={styles.progressTrack}>
+            <View style={[styles.progressFill, { width: `${pct}%` }]} />
+          </View>
+          <Text style={styles.importingSub}>Looking up posters and metadata</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // ── Step: list-done ──────────────────────────────────────────────────────────
+  if (step === 'list-done') {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <View style={styles.container}>
+          <Text style={styles.doneEmoji}>🎉</Text>
+          <Text style={styles.title}>List Imported!</Text>
+          <Text style={styles.sub}>"{listName}" is now in your Lists tab</Text>
+
+          <View style={styles.statsRow}>
+            <View style={styles.stat}>
+              <Text style={[styles.statNum, { color: Brand.trust }]}>{listImported}</Text>
+              <Text style={styles.statLabel}>Titles added</Text>
+            </View>
+          </View>
+
+          <Text style={styles.note}>
+            Find it in your profile under Lists. You can edit the name, reorder items, or make it private anytime.
+          </Text>
+        </View>
+
+        <View style={styles.footer}>
+          <Pressable style={styles.cancelBtn} onPress={() => { setStep('source'); setListItems([]); setListName(''); }}>
+            <Text style={styles.cancelBtnText}>Import another</Text>
+          </Pressable>
+          <Pressable style={styles.importBtn} onPress={() => router.back()}>
+            <Text style={styles.importBtnText}>Done</Text>
+          </Pressable>
         </View>
       </SafeAreaView>
     );

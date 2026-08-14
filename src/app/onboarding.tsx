@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Image,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -252,46 +253,45 @@ export default function OnboardingScreen() {
             Helps us tailor your experience. This stays private and is never shown on your profile.
           </Text>
 
-          <Text style={styles.aboutLabel}>Age range</Text>
-          <View style={styles.aboutGrid}>
-            {(['Under 18', '18 - 24', '25 - 34', '35 - 44', '45+', 'Prefer not to say'] as const).map((range) => {
-              const active = selectedAgeRange === range;
-              return (
-                <Pressable
-                  key={range}
-                  style={[styles.aboutChip, active && styles.aboutChipActive]}
-                  onPress={() => setSelectedAgeRange(range)}>
-                  <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{range}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <Text style={styles.aboutLabel}>Age range</Text>
+            <View style={styles.aboutGrid}>
+              {(['Under 18', '18 - 24', '25 - 34', '35 - 44', '45+', 'Prefer not to say'] as const).map((range) => {
+                const active = selectedAgeRange === range;
+                return (
+                  <Pressable
+                    key={range}
+                    style={[styles.aboutChip, active && styles.aboutChipActive]}
+                    onPress={() => setSelectedAgeRange(range)}>
+                    <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{range}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
 
-          <Text style={[styles.aboutLabel, { marginTop: 24 }]}>Gender</Text>
-          <View style={styles.aboutGrid}>
-            {(['Male', 'Female', 'Non-binary', 'Prefer not to say'] as const).map((g) => {
-              const active = selectedGender === g;
-              return (
-                <Pressable
-                  key={g}
-                  style={[styles.aboutChip, active && styles.aboutChipActive]}
-                  onPress={() => setSelectedGender(g)}>
-                  <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{g}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {(!selectedAgeRange || !selectedGender) && (
-            <Text style={styles.aboutRequiredHint}>
-              Please select an age range and gender to continue.
-            </Text>
-          )}
+            <Text style={[styles.aboutLabel, { marginTop: 24 }]}>Gender</Text>
+            <View style={[styles.aboutGrid, { marginBottom: 24 }]}>
+              {(['Male', 'Female', 'Non-binary', 'Prefer not to say'] as const).map((g) => {
+                const active = selectedGender === g;
+                return (
+                  <Pressable
+                    key={g}
+                    style={[styles.aboutChip, active && styles.aboutChipActive]}
+                    onPress={() => setSelectedGender(g)}>
+                    <Text style={[styles.aboutChipText, active && styles.aboutChipTextActive]}>{g}</Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </ScrollView>
 
           <Pressable
-            style={[styles.primaryBtn, { marginTop: 'auto' }, !(selectedAgeRange && selectedGender) && styles.primaryBtnDisabled]}
+            style={[styles.primaryBtn, { marginTop: 16 }, !(selectedAgeRange && selectedGender) && styles.primaryBtnDisabled]}
             onPress={selectedAgeRange && selectedGender ? next : undefined}>
             <Text style={styles.primaryBtnText}>Continue</Text>
+          </Pressable>
+          <Pressable style={styles.skipBtn} onPress={next} hitSlop={16}>
+            <Text style={styles.skipBtnText}>Skip for now</Text>
           </Pressable>
         </View>
       )}
@@ -360,31 +360,52 @@ export default function OnboardingScreen() {
       {/* ── Step 5: Find friends ── */}
       {step === 5 && (
         <View style={styles.stepWrap}>
+          {/* Hero icon */}
+          <View style={styles.findPeopleHero}>
+            <SymbolView name="person.2.fill" size={40} tintColor={Brand.trust} type="monochrome" style={{ width: 44, height: 44 }} />
+          </View>
           <Text style={styles.stepTitle}>Find your people</Text>
-          <Text style={styles.stepSub}>Follow friends to see their taste.</Text>
+          <Text style={styles.stepSub}>Follow friends to see what they're watching, reading, and loving.</Text>
 
-          {/* Quick-connect buttons */}
-          <Pressable
-            style={styles.connectBtn}
-            onPress={() => Alert.alert('Connect Facebook', 'Coming soon — find friends already on Clique through your Facebook account.')}>
-            <View style={[styles.connectIcon, { backgroundColor: '#1877F2' }]}>
-              <Text style={styles.connectIconLetter}>f</Text>
-            </View>
-            <Text style={styles.connectLabel}>Connect Facebook</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.connectBtn, { marginBottom: 20 }]}
-            onPress={handleSyncContacts}
-            disabled={contactsSyncing}>
-            <View style={[styles.connectIcon, { backgroundColor: '#8E44AD' }]}>
-              {contactsSyncing
-                ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={styles.connectIconGlyph}>👥</Text>}
-            </View>
-            <Text style={styles.connectLabel}>
-              {contactMatches !== null ? `${contactMatches.length} contact${contactMatches.length !== 1 ? 's' : ''} found` : 'Sync Contacts'}
-            </Text>
-          </Pressable>
+          {/* Quick-connect grid */}
+          <View style={styles.connectGrid}>
+            <Pressable
+              style={styles.connectTile}
+              onPress={() => Alert.alert('Connect Facebook', 'Coming soon — find friends already on Clique through your Facebook account.')}>
+              <View style={[styles.connectTileIcon, { backgroundColor: '#1877F2' }]}>
+                <Image
+                  source={require('../../assets/logos/Facebook_Logo_Primary.png')}
+                  style={{ width: 28, height: 28 }}
+                  resizeMode="contain"
+                />
+              </View>
+              <Text style={styles.connectTileLabel}>Facebook</Text>
+              <Text style={styles.connectTileSub}>Find friends</Text>
+            </Pressable>
+            <Pressable
+              style={styles.connectTile}
+              onPress={handleSyncContacts}
+              disabled={contactsSyncing}>
+              <View style={[styles.connectTileIcon, { backgroundColor: '#8E44AD' }]}>
+                {contactsSyncing
+                  ? <ActivityIndicator size="small" color="#fff" />
+                  : <SymbolView name="person.crop.circle.badge.checkmark" size={22} tintColor="#fff" type="monochrome" style={{ width: 24, height: 24 }} />}
+              </View>
+              <Text style={styles.connectTileLabel}>
+                {contactMatches !== null ? `${contactMatches.length} found` : 'Contacts'}
+              </Text>
+              <Text style={styles.connectTileSub}>
+                {contactMatches !== null ? 'From your phone' : 'Sync now'}
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* OR divider */}
+          <View style={styles.orRow}>
+            <View style={[styles.orLine, { backgroundColor: Brand.border }]} />
+            <Text style={[styles.orText, { color: Brand.muted }]}>or search</Text>
+            <View style={[styles.orLine, { backgroundColor: Brand.border }]} />
+          </View>
 
           <View style={styles.searchRow}>
             <SymbolView name="magnifyingglass" size={15} tintColor={Brand.muted} type="monochrome" />
@@ -408,7 +429,7 @@ export default function OnboardingScreen() {
               const followed = followedIds.has(profile.id);
               return (
                 <View key={profile.id} style={styles.friendRow}>
-                  <Avatar name={name} size={40} avatarUrl={profile.avatar_url} />
+                  <Avatar name={name} size={42} avatarUrl={profile.avatar_url} />
                   <View style={styles.friendInfo}>
                     <Text style={styles.friendName}>{name}</Text>
                     {profile.username ? (
@@ -420,7 +441,7 @@ export default function OnboardingScreen() {
                     onPress={() => !followed && handleFollow(profile)}
                     disabled={followed}>
                     <Text style={[styles.followBtnText, followed && styles.followBtnTextDone]}>
-                      {followed ? 'Following' : '+ Follow'}
+                      {followed ? '✓ Following' : '+ Follow'}
                     </Text>
                   </Pressable>
                 </View>
@@ -431,7 +452,7 @@ export default function OnboardingScreen() {
           </ScrollView>
           <Pressable style={styles.primaryBtn} onPress={next}>
             <Text style={styles.primaryBtnText}>
-              {followedIds.size > 0 ? `Continue (${followedIds.size} followed)` : 'Skip'}
+              {followedIds.size > 0 ? `Continue (${followedIds.size} followed)` : 'Skip for now'}
             </Text>
           </Pressable>
         </View>
@@ -473,12 +494,20 @@ export default function OnboardingScreen() {
           </Text>
           <View style={styles.importSources}>
             <View style={styles.importSource}>
-              <Text style={styles.importSourceEmoji}>🎬</Text>
+              <Image
+                source={require('../../assets/logos/Letterboxd_logo.png')}
+                style={styles.importSourceLogo}
+                resizeMode="contain"
+              />
               <Text style={styles.importSourceLabel}>Letterboxd</Text>
             </View>
             <View style={styles.importSourceDivider} />
             <View style={styles.importSource}>
-              <Text style={styles.importSourceEmoji}>📚</Text>
+              <Image
+                source={require('../../assets/logos/Goodreads_logo.png')}
+                style={styles.importSourceLogo}
+                resizeMode="contain"
+              />
               <Text style={styles.importSourceLabel}>Goodreads</Text>
             </View>
           </View>
@@ -696,6 +725,61 @@ function createStyles(Brand: BrandPalette) {
     },
     ratingPreviewIcon: { fontSize: 11 },
     // Friends step — connect buttons
+    // Find your people hero
+    findPeopleHero: {
+      width: 72,
+      height: 72,
+      borderRadius: 22,
+      backgroundColor: Brand.tlight,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 20,
+    },
+    connectGrid: {
+      flexDirection: 'row',
+      gap: 12,
+      marginBottom: 20,
+    },
+    connectTile: {
+      flex: 1,
+      alignItems: 'center',
+      backgroundColor: Brand.card,
+      borderWidth: 1,
+      borderColor: Brand.border,
+      borderRadius: 18,
+      paddingVertical: 18,
+      paddingHorizontal: 8,
+      gap: 8,
+    },
+    connectTileIcon: {
+      width: 52,
+      height: 52,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    connectTileLabel: {
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: Brand.ink,
+    },
+    connectTileSub: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 11.5,
+      color: Brand.muted,
+    },
+    orRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+      marginBottom: 14,
+    },
+    orLine: { flex: 1, height: 1 },
+    orText: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 12.5,
+    },
+    // kept for any remaining refs
     connectBtn: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -796,14 +880,15 @@ function createStyles(Brand: BrandPalette) {
       marginBottom: 28,
       alignSelf: 'stretch',
     },
-    importSource: { flex: 1, alignItems: 'center', gap: 6 },
+    importSource: { flex: 1, alignItems: 'center', gap: 10 },
+    importSourceLogo: { width: 52, height: 52, borderRadius: 14 },
     importSourceEmoji: { fontSize: 32 },
     importSourceLabel: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 13,
       color: Brand.ink,
     },
-    importSourceDivider: { width: 1, height: 40, backgroundColor: Brand.border },
+    importSourceDivider: { width: 1, height: 52, backgroundColor: Brand.border },
     // Notifications step
     notifIconWrap: {
       width: 96,

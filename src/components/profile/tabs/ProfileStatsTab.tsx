@@ -6,6 +6,7 @@ import { TIER_COLORS } from '@/features/badges/catalog';
 import { useMyPostCounts, usePostsByUser } from '@/features/feed/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
 import { type LibraryItem } from '@/features/library/api';
+import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 import { type ProfileCardBadge } from '../profile-card';
@@ -36,8 +37,11 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [ratingSheet, setRatingSheet] = useState<{ rating: number; label: string } | null>(null);
   const [monthSheet, setMonthSheet] = useState<{ month: number; label: string } | null>(null);
+  const [avgSheet, setAvgSheet] = useState(false);
   const { data: top4 = [] } = useMyTasteTop4();
   const { user } = useSession();
+  const { data: profile } = useProfile();
+  const tier = profile?.verified_tier ?? 0;
   const { data: postCounts } = useMyPostCounts(user?.id);
   const { data: allPosts = [] } = usePostsByUser(userId ?? user?.id);
 
@@ -197,7 +201,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
           <Text style={styles.statSubLbl}>items logged</Text>
         </Pressable>
         <View style={styles.statDiv} />
-        <View style={styles.stat}>
+        <Pressable style={styles.stat} onPress={() => avgRating != null && setAvgSheet(true)} hitSlop={4}>
           <View style={styles.statNumRow}>
             <Text style={[styles.statNum, styles.statNumAccent]}>
               {avgRating != null ? `★${avgRating}` : '—'}
@@ -205,14 +209,14 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
           </View>
           <Text style={styles.statLbl}>AVG RATING</Text>
           <Text style={styles.statSubLbl}>your taste</Text>
-        </View>
+        </Pressable>
         <View style={styles.statDiv} />
         <Pressable style={styles.stat} onPress={() => onThisYearPress?.()}>
           <View style={styles.statNumRow}>
             <Text style={[styles.statNum, styles.statNumAccent]}>{thisYearCount}</Text>
           </View>
-          <Text style={styles.statLbl}>THIS YEAR</Text>
-          <Text style={styles.statSubLbl}>in {thisYear}</Text>
+          <Text style={styles.statLbl}>WRAPPED</Text>
+          <Text style={styles.statSubLbl}>{thisYear} in review</Text>
         </Pressable>
       </View>
 
@@ -255,7 +259,10 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
             <Pressable
               key={i}
               style={styles.ratingBarCol}
-              onPress={() => ratingCounts[i] > 0 && setRatingSheet({ rating: bucket, label: RATING_LABELS[i] })}
+              onPress={() => {
+                if (ratingCounts[i] === 0) return;
+                setRatingSheet({ rating: bucket, label: RATING_LABELS[i] });
+              }}
               hitSlop={4}>
               <View style={styles.ratingBarTrack}>
                 <View style={[styles.ratingBarFill, { height: `${Math.round((ratingCounts[i] / maxRatingCount) * 100)}%` }]} />
@@ -277,7 +284,10 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
             <Pressable
               key={i}
               style={styles.ratingBarCol}
-              onPress={() => monthlyCounts[i] > 0 && setMonthSheet({ month: i, label: `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]} ${thisYear}` })}
+              onPress={() => {
+                if (monthlyCounts[i] === 0) return;
+                setMonthSheet({ month: i, label: `${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i]} ${thisYear}` });
+              }}
               hitSlop={4}>
               <Text style={styles.ratingBarCount}>{monthlyCounts[i] > 0 ? monthlyCounts[i] : ''}</Text>
               <View style={styles.ratingBarTrack}>
@@ -366,6 +376,92 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
           ))}
         </View>
       </View>
+
+      {/* Avg Rating drill-down sheet */}
+      <Modal
+        visible={avgSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setAvgSheet(false)}>
+        <View style={ratingSheetStyles.modalRoot}>
+          <Pressable style={ratingSheetStyles.backdrop} onPress={() => setAvgSheet(false)} />
+          <View style={[ratingSheetStyles.sheet, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+            <View style={[ratingSheetStyles.handle, { backgroundColor: Brand.border }]} />
+            <View style={ratingSheetStyles.headerRow}>
+              <Text style={[ratingSheetStyles.title, { color: Brand.ink }]}>★ {avgRating} Average</Text>
+              <Text style={[ratingSheetStyles.count, { color: Brand.muted }]}>{ratedPosts.length} rated</Text>
+            </View>
+            <ScrollView style={ratingSheetStyles.list} showsVerticalScrollIndicator={false}>
+              {/* Distribution summary */}
+              <View style={{ marginBottom: 20 }}>
+                {[5, 4, 3, 2, 1].map((star) => {
+                  const count = ratedPosts.filter((p) => Math.floor(p.rating ?? 0) === star || (star === 5 && p.rating === 5)).length;
+                  const pct = ratedPosts.length ? count / ratedPosts.length : 0;
+                  return (
+                    <View key={star} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted, width: 24, textAlign: 'right' }}>{star}★</Text>
+                      <View style={{ flex: 1, height: 8, backgroundColor: Brand.border, borderRadius: 4, overflow: 'hidden' }}>
+                        <View style={{ width: `${Math.round(pct * 100)}%`, height: '100%', backgroundColor: Brand.trust, borderRadius: 4 }} />
+                      </View>
+                      <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, width: 28 }}>{count}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+
+              {/* Highest rated */}
+              {ratedPosts.filter((p) => (p.rating ?? 0) >= 4.5).length > 0 && (
+                <>
+                  <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted, letterSpacing: 1.5, marginBottom: 8 }}>YOUR HIGHEST RATED</Text>
+                  {ratedPosts
+                    .filter((p) => (p.rating ?? 0) >= 4.5)
+                    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+                    .slice(0, 5)
+                    .map((p) => (
+                      <Pressable
+                        key={p.id}
+                        style={[ratingSheetStyles.row, { borderBottomColor: Brand.border }]}
+                        onPress={() => { setAvgSheet(false); router.push({ pathname: '/content-detail-modal', params: { title: p.title, type: p.type, poster: p.poster ?? undefined, sub: p.sub ?? undefined, externalId: p.external_id ?? undefined, mediaType: p.media_type ?? undefined } }); }}>
+                        {p.poster ? <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" /> : <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}><Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text></View>}
+                        <View style={ratingSheetStyles.meta}>
+                          <Text style={[ratingSheetStyles.itemTitle, { color: Brand.ink }]} numberOfLines={2}>{p.title}</Text>
+                          {p.sub ? <Text style={[ratingSheetStyles.itemSub, { color: Brand.muted }]} numberOfLines={1}>{p.sub}</Text> : null}
+                          <Text style={[ratingSheetStyles.itemSub, { color: Brand.trust }]}>{'★'.repeat(Math.floor(p.rating ?? 0))}{(p.rating ?? 0) % 1 ? '½' : ''}</Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                  <View style={{ height: 16 }} />
+                </>
+              )}
+
+              {/* Lowest rated */}
+              {ratedPosts.filter((p) => (p.rating ?? 0) <= 2).length > 0 && (
+                <>
+                  <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.muted, letterSpacing: 1.5, marginBottom: 8 }}>YOUR LOWEST RATED</Text>
+                  {ratedPosts
+                    .filter((p) => (p.rating ?? 0) <= 2)
+                    .sort((a, b) => (a.rating ?? 0) - (b.rating ?? 0))
+                    .slice(0, 5)
+                    .map((p) => (
+                      <Pressable
+                        key={p.id}
+                        style={[ratingSheetStyles.row, { borderBottomColor: Brand.border }]}
+                        onPress={() => { setAvgSheet(false); router.push({ pathname: '/content-detail-modal', params: { title: p.title, type: p.type, poster: p.poster ?? undefined, sub: p.sub ?? undefined, externalId: p.external_id ?? undefined, mediaType: p.media_type ?? undefined } }); }}>
+                        {p.poster ? <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" /> : <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}><Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text></View>}
+                        <View style={ratingSheetStyles.meta}>
+                          <Text style={[ratingSheetStyles.itemTitle, { color: Brand.ink }]} numberOfLines={2}>{p.title}</Text>
+                          {p.sub ? <Text style={[ratingSheetStyles.itemSub, { color: Brand.muted }]} numberOfLines={1}>{p.sub}</Text> : null}
+                          <Text style={[ratingSheetStyles.itemSub, { color: Brand.trust }]}>{'★'.repeat(Math.floor(p.rating ?? 0))}{(p.rating ?? 0) % 1 ? '½' : ''}</Text>
+                        </View>
+                      </Pressable>
+                    ))}
+                </>
+              )}
+              <View style={{ height: 40 }} />
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* Month drill-down sheet */}
       <Modal

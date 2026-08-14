@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import type { Post } from '@/features/feed/api';
-import { computeCompatibility, type CompatItem } from '@/features/friends/compatibility';
+import { computeCompatibility, computeDetailedCompatibility, type CompatItem, type CompatDetail } from '@/features/friends/compatibility';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
 
@@ -376,7 +376,11 @@ export function useDiscoverPeople(sortBy: DiscoverSortBy, location: string) {
       const profiles = ((pool ?? []) as Profile[]).filter((p) => !excludeIds.has(p.id));
       if (!profiles.length) return [];
 
-      if (sortBy === 'recent') return profiles;
+      // Always surface verified users first within any sort
+      const verifiedFirst = (a: Profile, b: Profile) =>
+        (b.verified_tier ?? 0) - (a.verified_tier ?? 0);
+
+      if (sortBy === 'recent') return [...profiles].sort(verifiedFirst);
 
       if (sortBy === 'mutual') {
         const acceptedFollowingIds = (myFollows ?? [])
@@ -396,7 +400,11 @@ export function useDiscoverPeople(sortBy: DiscoverSortBy, location: string) {
         }
         return profiles
           .map((p) => ({ ...p, mutualCount: mutualCountMap.get(p.id) ?? 0 }))
-          .sort((a, b) => (b.mutualCount ?? 0) - (a.mutualCount ?? 0));
+          .sort((a, b) => {
+            const tierDiff = (b.verified_tier ?? 0) - (a.verified_tier ?? 0);
+            if (tierDiff !== 0) return tierDiff;
+            return (b.mutualCount ?? 0) - (a.mutualCount ?? 0);
+          });
       }
 
       // sortBy === 'compatibility'
@@ -623,6 +631,32 @@ export function useDeclineFollowRequest() {
 
 export interface MyTasteEntry extends Profile {
   compatibility: number;
+  sharedCount: number;
+  topType: string | null;
+}
+
+export function useTasteDetail(friendId: string | null) {
+  const { user } = useSession();
+  return useQuery({
+    queryKey: ['taste-detail', user?.id, friendId],
+    queryFn: async (): Promise<{ profile: Profile; detail: CompatDetail } | null> => {
+      if (!friendId) return null;
+      const [{ data: profileData }, { data: myPosts }, { data: friendPosts }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', friendId).single(),
+        supabase.from('posts').select('title, post_type, rating, sub').eq('user_id', user!.id),
+        supabase.from('posts').select('title, post_type, rating, sub').eq('user_id', friendId),
+      ]);
+      if (!profileData) return null;
+      const toCompat = (p: any) => ({ title: p.title, type: p.post_type, rating: p.rating, sub: p.sub });
+      const detail = computeDetailedCompatibility(
+        (myPosts ?? []).map(toCompat),
+        (friendPosts ?? []).map(toCompat),
+      );
+      return { profile: profileData as Profile, detail };
+    },
+    enabled: !!user && !!friendId,
+    staleTime: 60_000,
+  });
 }
 
 export function useMyTasteTop4() {
@@ -697,7 +731,10 @@ export function useMyTasteAll() {
       }
 
       return ((profiles ?? []) as Profile[])
-        .map((p) => ({ ...p, compatibility: computeCompatibility((myPosts ?? []) as Post[], postsByUser.get(p.id) ?? []) }))
+        .map((p) => {
+          const detail = computeDetailedCompatibility((myPosts ?? []) as CompatItem[], (postsByUser.get(p.id) ?? []) as CompatItem[]);
+          return { ...p, compatibility: detail.total, sharedCount: detail.sharedCount, topType: detail.topType };
+        })
         .sort((a, b) => b.compatibility - a.compatibility);
     },
     enabled: !!user,

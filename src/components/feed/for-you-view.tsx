@@ -126,7 +126,7 @@ function StillOnYourList({ Brand }: { Brand: BrandPalette }) {
         <Text style={styles.title}>Still on your list</Text>
         <Text style={styles.sub}>Added a while ago</Text>
       </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 4 }}>
+      <ScrollView horizontal directionalLockEnabled showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingRight: 4 }}>
         {old.map((item) => (
           <Pressable
             key={item.id}

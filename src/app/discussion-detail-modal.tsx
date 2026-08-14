@@ -26,6 +26,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import {
   DISCUSSION_EMOJI_OPTIONS,
@@ -139,7 +140,7 @@ function QuestionBlock({
           </Pressable>
         );
       })}
-      <Text style={[pStyles.meta, { color: '#9CA3AF' }]}>
+      <Text style={[pStyles.meta, { color: Brand.muted }]}>
         {total.toLocaleString()} {total === 1 ? 'vote' : 'votes'}{!voted ? ' · tap to vote' : ''}
       </Text>
       {voted && hasAnswer && (
@@ -333,6 +334,7 @@ function CommentRow({
       <View style={{ flex: 1, gap: 5 }}>
         <View style={cStyles.header}>
           <Text style={[cStyles.author, { color: Brand.ink }]}>{comment.author_name}</Text>
+          {!!comment.author_verified_tier && <VerifiedBadge tier={comment.author_verified_tier} size={12} />}
           {isOp && (
             <View style={[cStyles.opBadge, { backgroundColor: Brand.tlight }]}>
               <Text style={[cStyles.opText, { color: Brand.trust }]}>OP</Text>
@@ -997,6 +999,7 @@ export default function DiscussionDetailModal() {
             hitSlop={6}>
             <Avatar avatarUrl={discussion.author_avatar} name={discussion.author_name} size={28} />
             <Text style={[styles_.authorName, { color: Brand.ink }]}>{discussion.author_name}</Text>
+            {!!discussion.author_verified_tier && <VerifiedBadge tier={discussion.author_verified_tier} size={13} />}
             <View style={[styles_.opBadge, { backgroundColor: Brand.tlight }]}>
               <Text style={[styles_.opBadgeText, { color: Brand.trust }]}>OP</Text>
             </View>

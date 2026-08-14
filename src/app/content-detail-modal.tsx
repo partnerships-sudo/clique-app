@@ -404,8 +404,7 @@ export default function ContentDetailModal() {
           {/* Poster on the left (kept in its natural aspect ratio, never
               stretched), title + meta on the right. */}
           <View style={styles.headerRow}>
-            <View
-              style={[styles.posterBox, isSquareCover && styles.posterBoxSquare]}>
+            <View style={[styles.posterBox, isSquareCover && styles.posterBoxSquare]}>
               {params.poster ? (
                 <Image source={{ uri: params.poster }} style={styles.posterImg} resizeMode="cover" />
               ) : (
@@ -747,7 +746,7 @@ export default function ContentDetailModal() {
             </View>
           ) : null}
 
-          {/* Watchlist / Log / Share buttons */}
+          {/* Watchlist / Log / Lounge / Share buttons */}
           <View style={styles.actionBar}>
             <Pressable style={styles.watchlistBtn} onPress={() => navigateToLog('watchlist')}>
               <Text style={styles.watchlistBtnText}>+ Watchlist</Text>
@@ -755,12 +754,20 @@ export default function ContentDetailModal() {
             <Pressable style={styles.logBtn} onPress={() => navigateToLog('log')}>
               <Text style={styles.logBtnText}>Log it</Text>
             </Pressable>
-            <Pressable style={styles.shareIconBtn} hitSlop={6} onPress={() => setShareSheetVisible(true)}>
-              <SymbolView name="square.and.arrow.up" size={17} tintColor={Brand.trust} type="monochrome" style={{ width: 18, height: 18 }} />
+            <Pressable
+              style={styles.shareIconBtn}
+              hitSlop={6}
+              onPress={() => router.push({ pathname: '/content-room-modal', params: { title: params.title, externalId: params.externalId ?? '', mediaType: resolvedMediaType ?? '', poster: params.poster ?? '' } })}>
+              <SymbolView name="bubble.left.and.bubble.right" size={17} tintColor={Brand.trust} type="monochrome" style={{ width: 20, height: 18 }} />
             </Pressable>
           </View>
         </View>
       </ScrollView>
+
+      {/* Share button — absolutely pinned to top-right, same height as Done */}
+      <Pressable style={styles.floatingShareBtn} hitSlop={12} onPress={() => setShareSheetVisible(true)}>
+        <SymbolView name="square.and.arrow.up" size={20} tintColor={Brand.trust} type="monochrome" style={{ width: 22, height: 22 }} />
+      </Pressable>
 
       <ShareSheet
         visible={shareSheetVisible}
@@ -784,6 +791,12 @@ function createStyles(Brand: BrandPalette) {
     paddingTop: 16,
     paddingBottom: 6,
     zIndex: 10,
+  },
+  floatingShareBtn: {
+    position: 'absolute',
+    top: 16,
+    right: 20,
+    zIndex: 20,
   },
   modalDoneBtn: {
     fontFamily: BrandFonts.syneBold,

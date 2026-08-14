@@ -31,16 +31,23 @@ import {
   useEndPremiere,
   useLeavePremiere,
   useTrackPremiereShare,
+  useTrackBuyClick,
   useIsCoHost,
   usePremiereCoHosts,
   useMessageReactions,
   useToggleReaction,
+  usePremiereTriviaItems,
+  useMarkPremiereTriviaFired,
+  useSubmitPremiereTriviaResponse,
+  usePremiereTriviaResponseCounts,
   type PremiereMessage,
+  type TriviaItem,
 } from '@/features/premieres/api';
 import { useAddLibraryItem } from '@/features/library/api';
 import { useCreatePost } from '@/features/feed/api';
 import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
+import { useProfile } from '@/features/profile/api';
 import { supabase } from '@/lib/supabase';
 
 const QUICK_EMOJIS = ['😂', '😱', '🔥', '❤️', '💀', '🤯', '👏', '😭', '😍', '🍿'];
@@ -54,6 +61,8 @@ function formatRelativeTime(ms: number) {
 
 export default function PremiereLive() {
   const { user } = useSession();
+  const { data: profile } = useProfile();
+  const isUpperTier = (profile?.verified_tier ?? 0) >= 2;
   const queryClient = useQueryClient();
   const params = useLocalSearchParams<{ id: string; fromWaiting?: string }>();
   const insets = useSafeAreaInsets();
@@ -93,6 +102,22 @@ export default function PremiereLive() {
   const autoPostedRef = useRef(false);
   const [quickRating, setQuickRating] = useState<number | null>(null);
   const [rated, setRated] = useState(false);
+  const trackBuyClick = useTrackBuyClick();
+
+  // Buy / Rent CTA state
+  const hasBuyLink = !!(premiere?.buy_url);
+  const [buyPinned, setBuyPinned] = useState(false);   // true once host fires the pin
+  const [buyDismissed, setBuyDismissed] = useState(false); // viewer dismissed pill
+  const buyPinFiredRef = useRef(false);                 // prevent double-fire
+  const showBuyPill = hasBuyLink && !buyDismissed && (buyPinned || isHostOrCoHost);
+
+  // Trivia & polls
+  const { data: triviaItems = [] } = usePremiereTriviaItems(params.id ?? null);
+  const markTriviaFired = useMarkPremiereTriviaFired();
+  const submitTriviaResponse = useSubmitPremiereTriviaResponse();
+  const [activeTriviaCard, setActiveTriviaCard] = useState<TriviaItem | null>(null);
+  const [triviaMyAnswer, setTriviaMyAnswer] = useState<number | null>(null);
+  const { data: triviaResponseCounts = {} } = usePremiereTriviaResponseCounts(activeTriviaCard?.id ?? null);
 
   // Join on mount; stamp left_at on unmount for watch-time analytics
   useEffect(() => {
@@ -100,6 +125,18 @@ export default function PremiereLive() {
     joinPremiere.mutate(params.id);
     return () => { leavePremiere.mutate(params.id!); };
   }, [params.id]);
+
+  // Host: stamp live_started_at the first time they open the live screen.
+  // Watch parties have no explicit "go live" action unlike screening rooms,
+  // so we set it here — the trivia timer depends on this value.
+  useEffect(() => {
+    if (!isHost || !params.id || premiere?.live_started_at) return;
+    supabase
+      .from('premieres')
+      .update({ live_started_at: new Date().toISOString() })
+      .eq('id', params.id)
+      .then(() => queryClient.invalidateQueries({ queryKey: ['premiere', params.id] }));
+  }, [isHost, params.id, premiere?.live_started_at]);
 
   // Auto-post to feed when the party ends — once per session, for every member
   useEffect(() => {
@@ -197,6 +234,88 @@ export default function PremiereLive() {
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [params.id]);
+
+  // Realtime: buy/rent pin broadcast
+  useEffect(() => {
+    if (!params.id) return;
+    const channel = supabase
+      .channel(`live-buy-pin-${params.id}`)
+      .on('broadcast', { event: 'buy_pinned' }, () => {
+        setBuyPinned(true);
+        setBuyDismissed(false);
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [params.id]);
+
+  // Trivia timer — host only fires items; everyone listens via broadcast
+  useEffect(() => {
+    if (!isHost || !premiere?.live_started_at || !params.id) return;
+    const startTime = new Date(premiere.live_started_at).getTime();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const next = triviaItems.find((t) => t.trigger_ms <= elapsed && !t.fired_at);
+      if (!next) return;
+      markTriviaFired.mutate({ id: next.id, premiereId: params.id! });
+      if (next.type === 'message') {
+        // Send as a regular chat message — appears naturally in the feed
+        sendMsg.mutate({ premiereId: params.id!, content: next.question, relativeMs: next.trigger_ms });
+      } else {
+        supabase.channel(`live-trivia-${params.id}`).send({
+          type: 'broadcast',
+          event: 'trivia_fire',
+          payload: next,
+        });
+        setActiveTriviaCard(next);
+        setTriviaMyAnswer(null);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isHost, premiere?.live_started_at, params.id, triviaItems]);
+
+  // All viewers receive the broadcast
+  useEffect(() => {
+    if (!params.id) return;
+    const channel = supabase
+      .channel(`live-trivia-${params.id}`)
+      .on('broadcast', { event: 'trivia_fire' }, ({ payload }) => {
+        if (!isHost) {
+          setActiveTriviaCard(payload as TriviaItem);
+          setTriviaMyAnswer(null);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [params.id, isHost]);
+
+  async function handleTriviaAnswer(optionIdx: number) {
+    if (!activeTriviaCard || !user?.id || triviaMyAnswer !== null) return;
+    setTriviaMyAnswer(optionIdx);
+    await submitTriviaResponse.mutateAsync({
+      triviaId: activeTriviaCard.id,
+      userId: user.id,
+      optionIdx,
+    });
+  }
+
+  async function handlePinBuy() {
+    if (!params.id || buyPinFiredRef.current) return;
+    buyPinFiredRef.current = true;
+    setBuyPinned(true);
+    await supabase.channel(`live-buy-pin-${params.id}`).send({
+      type: 'broadcast',
+      event: 'buy_pinned',
+      payload: {},
+    });
+  }
+
+  function handleBuyPress() {
+    if (!premiere?.buy_url) return;
+    trackBuyClick.mutate(params.id!);
+    // Open URL — Linking is already available via React Native
+    const { Linking } = require('react-native');
+    Linking.openURL(premiere.buy_url).catch(() => {});
+  }
 
   function handleSend() {
     if (!text.trim() || !params.id) return;
@@ -323,6 +442,12 @@ export default function PremiereLive() {
             </View>
           )}
 
+          {hasBuyLink && premiere?.buy_url && (
+            <Pressable style={styles.buyEndedBtn} onPress={handleBuyPress}>
+              <Text style={styles.buyEndedIcon}>🛒</Text>
+              <Text style={styles.buyEndedText}>{premiere?.buy_label ?? 'Buy / Rent Now'}</Text>
+            </Pressable>
+          )}
           {isHostOrCoHost && params.id && (
             <Pressable
               style={[styles.leaveEndedBtn, { backgroundColor: 'rgba(255,255,255,0.12)', marginBottom: 0 }]}
@@ -404,6 +529,20 @@ export default function PremiereLive() {
             </Pressable>
             {isHostOrCoHost ? (
               <>
+                {isHost && (
+                  <Pressable
+                    onPress={() => router.push({ pathname: '/trivia-setup-modal', params: { id: params.id, type: 'premiere', showTitle: premiere?.show_title ?? '' } })}
+                    style={styles.triviaSetupBtn}
+                    hitSlop={8}
+                  >
+                    <Text style={styles.triviaSetupBtnText}>Trivia</Text>
+                  </Pressable>
+                )}
+                {isHost && isUpperTier && hasBuyLink && !buyPinned && (
+                  <Pressable onPress={handlePinBuy} style={styles.pinBuyBtn} hitSlop={8}>
+                    <Text style={styles.pinBuyBtnText}>📌 Pin</Text>
+                  </Pressable>
+                )}
                 <Pressable onPress={() => router.back()} hitSlop={16}>
                   <Text style={styles.leaveText}>Back</Text>
                 </Pressable>
@@ -538,6 +677,75 @@ export default function PremiereLive() {
               ))}
             </ScrollView>
           )}
+          {/* Trivia / Poll card */}
+          {activeTriviaCard && (
+            <View style={styles.triviaCard}>
+              <View style={styles.triviaCardHeader}>
+                <Text style={styles.triviaCardType}>
+                  {activeTriviaCard.type === 'trivia' ? '🧠 TRIVIA' : '📊 POLL'}
+                </Text>
+                <Pressable onPress={() => setActiveTriviaCard(null)} hitSlop={12}>
+                  <Text style={styles.triviaCardClose}>✕</Text>
+                </Pressable>
+              </View>
+              <Text style={styles.triviaCardQuestion}>{activeTriviaCard.question}</Text>
+              <View style={styles.triviaOptions}>
+                {activeTriviaCard.options.map((opt, i) => {
+                  const totalVotes = Object.values(triviaResponseCounts).reduce((a, b) => a + b, 0);
+                  const votes = triviaResponseCounts[i] ?? 0;
+                  const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+                  const answered = triviaMyAnswer !== null;
+                  const isMyPick = triviaMyAnswer === i;
+                  const isCorrect = opt.is_correct === true;
+
+                  return (
+                    <Pressable
+                      key={i}
+                      style={[
+                        styles.triviaOption,
+                        answered && isMyPick && styles.triviaOptionMine,
+                        answered && activeTriviaCard.type === 'trivia' && isCorrect && styles.triviaOptionCorrect,
+                      ]}
+                      onPress={() => handleTriviaAnswer(i)}
+                      disabled={answered}
+                    >
+                      <View style={styles.triviaOptionInner}>
+                        <Text style={styles.triviaOptionLetter}>{['A', 'B', 'C', 'D'][i]})</Text>
+                        <Text style={styles.triviaOptionLabel}>{opt.label}</Text>
+                        {answered && (
+                          <Text style={styles.triviaOptionPct}>{pct}%</Text>
+                        )}
+                      </View>
+                      {answered && (
+                        <View style={[styles.triviaOptionBar, { width: `${pct}%` as any }]} />
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+              {triviaMyAnswer !== null && activeTriviaCard.type === 'trivia' && (
+                <Text style={styles.triviaResult}>
+                  {activeTriviaCard.options[triviaMyAnswer]?.is_correct
+                    ? '✅ Correct!'
+                    : `❌ The answer was: ${activeTriviaCard.options.find((o) => o.is_correct)?.label ?? '?'}`}
+                </Text>
+              )}
+            </View>
+          )}
+
+          {/* Buy / Rent pill — shown once host pins (or always for host) */}
+          {showBuyPill && premiere?.buy_url && (
+            <View style={styles.buyPill}>
+              <Pressable style={styles.buyPillBtn} onPress={handleBuyPress}>
+                <Text style={styles.buyPillIcon}>🛒</Text>
+                <Text style={styles.buyPillText}>{premiere.buy_label ?? 'Buy / Rent Now'}</Text>
+              </Pressable>
+              <Pressable onPress={() => setBuyDismissed(true)} hitSlop={12} style={styles.buyPillClose}>
+                <Text style={styles.buyPillCloseText}>✕</Text>
+              </Pressable>
+            </View>
+          )}
+
           <View style={styles.inputRow}>
             <Pressable style={styles.emojiToggleBtn} onPress={() => setShowEmojiBar((v) => !v)}>
               <Text style={styles.emojiToggleText}>{showEmojiBar ? '⌨️' : '😊'}</Text>
@@ -1009,5 +1217,124 @@ const styles = StyleSheet.create({
     fontFamily: BrandFonts.syneBold,
     fontSize: 14,
     color: 'rgba(255,255,255,0.4)',
+  },
+
+  // Trivia setup button (host header)
+  triviaSetupBtn: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  triviaSetupBtnText: { fontSize: 14 },
+
+  // Trivia / poll card
+  triviaCard: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.3)',
+  },
+  triviaCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  triviaCardType: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#A78BFA', letterSpacing: 0.8 },
+  triviaCardClose: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: 'rgba(255,255,255,0.4)' },
+  triviaCardQuestion: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff', marginBottom: 10, lineHeight: 20 },
+  triviaOptions: { gap: 6 },
+  triviaOption: {
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  triviaOptionMine: { borderWidth: 1, borderColor: 'rgba(167,139,250,0.6)' },
+  triviaOptionCorrect: { borderWidth: 1, borderColor: '#10B981' },
+  triviaOptionInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 8,
+    zIndex: 1,
+  },
+  triviaOptionLetter: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: 'rgba(255,255,255,0.5)', width: 18 },
+  triviaOptionLabel: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 13, color: '#fff' },
+  triviaOptionPct: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  triviaOptionBar: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    backgroundColor: 'rgba(167,139,250,0.15)',
+    borderRadius: 8,
+  },
+  triviaResult: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 13,
+    color: '#fff',
+    marginTop: 10,
+    textAlign: 'center',
+  },
+
+  // Buy / Rent pill (live view, above input)
+  buyPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 12,
+    marginHorizontal: 12,
+    marginBottom: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  buyPillBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  buyPillIcon: { fontSize: 16 },
+  buyPillText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 13,
+    color: '#fff',
+  },
+  buyPillClose: { paddingLeft: 8 },
+  buyPillCloseText: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 14,
+    color: 'rgba(255,255,255,0.5)',
+  },
+
+  // Pin buy button (host header controls)
+  pinBuyBtn: {
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  pinBuyBtnText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 12,
+    color: '#fff',
+  },
+
+  // Buy / Rent CTA on ended screen
+  buyEndedBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    borderRadius: 14,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  buyEndedIcon: { fontSize: 18 },
+  buyEndedText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 15,
+    color: '#fff',
   },
 });

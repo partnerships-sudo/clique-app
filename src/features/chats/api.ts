@@ -21,6 +21,8 @@ export interface Message {
   ep_episode: number | null;
   created_at: string;
   parent_id: string | null;
+  user_verified_tier?: number;
+  rec_read_at?: string | null;
 }
 
 export interface ChatThread {
@@ -188,6 +190,25 @@ export interface UnreadBreakdown {
   content: number;
   private: number;
   total: number;
+}
+
+/** Mark a rec message as seen (called by recipient when they tap the rec card). */
+export function useMarkRecSeen() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (messageId: string) => {
+      const { error } = await supabase
+        .from('messages')
+        .update({ rec_read_at: new Date().toISOString() })
+        .eq('id', messageId)
+        .is('rec_read_at', null); // idempotent — only set once
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      // Invalidate thread messages so sender sees the Seen label
+      queryClient.invalidateQueries({ queryKey: ['messages'] });
+    },
+  });
 }
 
 /** Unread message counts broken down by section (content chats, private chats, total). */

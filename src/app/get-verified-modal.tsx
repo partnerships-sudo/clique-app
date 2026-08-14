@@ -1,8 +1,8 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -15,46 +15,32 @@ import { purchaseVerified, restorePurchases, isVerifiedEntitled } from '@/featur
 const TIERS = [
   {
     id: 1,
-    name: 'Verified',
+    name: 'Silver',
     price: '$2.99',
     period: '/mo',
-    color: '#5B8DEF',
+    color: '#A8B8C8',
     features: [
-      'Blue checkmark on your profile and posts',
+      'Silver checkmark on your profile and posts',
       'Confirmed as a real, unique person',
       'ID verified securely by Stripe',
+      'Export your library',
+      'Shareable public links for your lists',
+      'Early access to new features',
     ],
   },
   {
     id: 2,
-    name: 'Power',
+    name: 'Gold',
     price: '$4.99',
-    period: '/mo',
-    color: '#8B5CF6',
-    features: [
-      'Everything in Verified',
-      'Advanced stats & yearly wrapped',
-      'Custom lists & collections',
-      'Export your library',
-      'Read receipts on recommendations',
-    ],
-    comingSoon: true,
-  },
-  {
-    id: 3,
-    name: 'Taste Maker',
-    price: '$9.99',
     period: '/mo',
     color: '#D4AF37',
     features: [
-      'Everything in Power',
-      'Shareable public profile link',
-      'Watch parties',
-      'Full taste compatibility breakdown',
-      'Ad-free experience',
+      'Everything in Silver',
+      'Gold checkmark on your profile and posts',
+      'Watch Party analytics dashboard',
+      'Your own personal screening room',
       'Early access to new features',
     ],
-    comingSoon: true,
   },
 ] as const;
 
@@ -62,13 +48,14 @@ export default function GetVerifiedModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: profile, refetch: refetchProfile } = useProfile();
+  const { devPreview } = useLocalSearchParams<{ devPreview?: string }>();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const [selectedTier, setSelectedTier] = useState<1 | 2 | 3>(1);
+  const [selectedTier, setSelectedTier] = useState<1 | 2>(1);
 
-  const alreadyVerified = (profile?.verified_tier ?? 0) >= 1;
+  const alreadyVerified = devPreview === '1' ? false : (profile?.verified_tier ?? 0) >= 1;
   const tier = TIERS.find((t) => t.id === selectedTier)!;
 
   async function startVerification() {
@@ -130,44 +117,64 @@ export default function GetVerifiedModal() {
         </Pressable>
       </View>
 
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Clique Membership</Text>
         <Text style={styles.subtitle}>Choose the plan that fits how you use Clique.</Text>
 
-        {/* Tier selector */}
-        <View style={styles.tierRow}>
+        {/* Tier selector — vertical cards */}
+        <View style={styles.tierCol}>
           {TIERS.map((t) => {
             const active = selectedTier === t.id;
+            const isGold = t.id === 2;
             return (
               <Pressable
                 key={t.id}
                 style={[styles.tierCard, active && { borderColor: t.color, borderWidth: 2 }]}
-                onPress={() => setSelectedTier(t.id as 1 | 2 | 3)}>
-                <SymbolView name="checkmark.seal.fill" size={20} tintColor={t.color} type="monochrome" />
-                <Text style={[styles.tierName, active && { color: t.color }]}>{t.name}</Text>
-                <Text style={styles.tierPrice}>
-                  {t.price}<Text style={styles.tierPeriod}>{t.period}</Text>
-                </Text>
-                {'comingSoon' in t && t.comingSoon && (
-                  <View style={styles.soonPill}>
-                    <Text style={styles.soonText}>Soon</Text>
+                onPress={() => setSelectedTier(t.id as 1 | 2)}>
+                {isGold && (
+                  <View style={[styles.popularPill, { backgroundColor: t.color }]}>
+                    <Text style={styles.popularText}>MOST POPULAR</Text>
                   </View>
                 )}
+                <View style={styles.tierCardInner}>
+                  <View style={styles.tierCardLeft}>
+                    <SymbolView name="checkmark.seal.fill" size={26} tintColor={t.color} type="monochrome" />
+                    <View>
+                      <Text style={[styles.tierName, active && { color: t.color }]}>{t.name}</Text>
+                      <Text style={styles.tierPrice}>
+                        {t.price}<Text style={styles.tierPeriod}>{t.period}</Text>
+                      </Text>
+                    </View>
+                  </View>
+                  <View style={[styles.tierRadio, active && { borderColor: t.color }]}>
+                    {active && <View style={[styles.tierRadioInner, { backgroundColor: t.color }]} />}
+                  </View>
+                </View>
               </Pressable>
             );
           })}
         </View>
 
-        {/* Badge preview (tier 1 only) */}
-        {selectedTier === 1 && (
-          <View style={styles.badgePreview}>
-            <View style={styles.badgeRow}>
-              <Text style={styles.previewName}>Your Name</Text>
-              <VerifiedBadge tier={1} size={22} />
-            </View>
-            <Text style={styles.previewHandle}>@yourhandle</Text>
+        {/* Badge preview — uses real profile name */}
+        <View style={styles.badgePreview}>
+          <View style={styles.badgeAvatarRow}>
+            {profile?.avatar_url ? (
+              <Image source={{ uri: profile.avatar_url }} style={styles.previewAvatar} />
+            ) : (
+              <View style={[styles.previewAvatarFallback, { borderColor: tier.color }]}>
+                <Text style={[styles.previewAvatarInitial, { color: tier.color }]}>
+                  {(profile?.full_name ?? profile?.username ?? 'Y')[0].toUpperCase()}
+                </Text>
+              </View>
+            )}
           </View>
-        )}
+          <View style={styles.badgeRow}>
+            <Text style={styles.previewName}>{profile?.full_name ?? profile?.username ?? 'Your Name'}</Text>
+            <VerifiedBadge tier={selectedTier} size={22} />
+          </View>
+          <Text style={styles.previewHandle}>@{profile?.username ?? 'yourhandle'}</Text>
+          <Text style={[styles.previewTierLabel, { color: tier.color }]}>{tier.name} Member</Text>
+        </View>
 
         {/* Features list */}
         <View style={styles.features}>
@@ -179,21 +186,27 @@ export default function GetVerifiedModal() {
           ))}
         </View>
 
-        {/* CTA */}
-        {'comingSoon' in tier && tier.comingSoon ? (
-          <View style={[styles.btn, styles.btnDisabled]}>
-            <Text style={styles.btnText}>Coming soon</Text>
+        {/* ID verification explainer (Silver only) */}
+        {selectedTier === 1 && !alreadyVerified && !submitted && (
+          <View style={[styles.infoBox, { borderColor: tier.color + '40', backgroundColor: tier.color + '10' }]}>
+            <SymbolView name="person.badge.shield.checkmark" size={18} tintColor={tier.color} type="monochrome" />
+            <Text style={[styles.infoText, { color: tier.color }]}>
+              After subscribing you'll complete a quick ID check via Stripe — takes about 60 seconds. Your checkmark appears as soon as it's confirmed.
+            </Text>
           </View>
-        ) : alreadyVerified ? (
+        )}
+
+        {/* CTA */}
+        {alreadyVerified ? (
           <View style={styles.successBox}>
-            <VerifiedBadge tier={1} size={20} />
-            <Text style={styles.successText}>You're already verified.</Text>
+            <VerifiedBadge tier={profile?.verified_tier ?? 1} size={20} />
+            <Text style={styles.successText}>You're already a {profile?.verified_tier === 2 ? 'Gold' : 'Silver'} member.</Text>
           </View>
         ) : submitted ? (
           <View style={styles.successBox}>
             <SymbolView name="clock.fill" size={20} tintColor="#22C55E" type="monochrome" />
             <Text style={styles.successText}>
-              Verification opened! Complete it in the browser, then come back. Your checkmark will appear once Stripe confirms your identity — usually within a few minutes.
+              ID check opened in your browser — complete it there and come back. Your checkmark usually appears within a few minutes.
             </Text>
           </View>
         ) : (
@@ -206,10 +219,12 @@ export default function GetVerifiedModal() {
               disabled={loading}>
               {loading
                 ? <ActivityIndicator color="#fff" />
-                : <Text style={styles.btnText}>{error ? 'Try Again' : `Subscribe & Verify — ${tier.price}/mo`}</Text>}
+                : <Text style={styles.btnText}>
+                    {error ? 'Try Again' : `Get ${tier.name} — ${tier.price}/mo`}
+                  </Text>}
             </Pressable>
             <Text style={styles.disclaimer}>
-              {tier.price}/month. Cancel anytime. ID verification powered by Stripe Identity.
+              {tier.price}/month · Cancel anytime · {selectedTier === 1 ? 'ID verification via Stripe Identity' : 'Includes ID verification'}
             </Text>
             <Pressable onPress={handleRestore} disabled={loading} style={styles.restoreBtn}>
               <Text style={styles.restoreText}>Restore purchases</Text>
@@ -234,7 +249,6 @@ function createStyles(Brand: BrandPalette) {
     content: {
       paddingHorizontal: Spacing.three,
       paddingBottom: 40,
-      alignItems: 'center',
     },
     title: {
       fontFamily: BrandFonts.syneExtraBold,
@@ -252,48 +266,54 @@ function createStyles(Brand: BrandPalette) {
       marginBottom: Spacing.three,
     },
 
-    // Tier cards
-    tierRow: { flexDirection: 'row', gap: 8, width: '100%', marginBottom: Spacing.three },
+    // Tier cards — vertical
+    tierCol: { width: '100%', gap: 10, marginBottom: Spacing.three },
     tierCard: {
-      flex: 1,
       backgroundColor: Brand.card,
       borderWidth: 1.5,
       borderColor: Brand.border,
-      borderRadius: 14,
-      padding: 10,
-      alignItems: 'center',
-      gap: 4,
+      borderRadius: 16,
+      overflow: 'hidden',
     },
-tierName: {
+    tierCardInner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      padding: 16,
+      gap: 12,
+    },
+    tierCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+    popularPill: {
+      paddingHorizontal: 12,
+      paddingVertical: 5,
+      alignItems: 'center',
+    },
+    popularText: {
       fontFamily: BrandFonts.syneBold,
-      fontSize: 11,
+      fontSize: 10,
+      color: '#fff',
+      letterSpacing: 1,
+    },
+    tierRadio: {
+      width: 20, height: 20, borderRadius: 10,
+      borderWidth: 2, borderColor: Brand.border,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    tierRadioInner: { width: 10, height: 10, borderRadius: 5 },
+    tierName: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 17,
       color: Brand.ink,
-      textAlign: 'center',
     },
     tierPrice: {
-      fontFamily: BrandFonts.syneExtraBold,
-      fontSize: 15,
-      color: Brand.ink,
-      textAlign: 'center',
+      fontFamily: BrandFonts.syneBold,
+      fontSize: 14,
+      color: Brand.muted,
     },
     tierPeriod: {
       fontFamily: BrandFonts.interRegular,
-      fontSize: 11,
+      fontSize: 13,
       color: Brand.muted,
-    },
-    soonPill: {
-      backgroundColor: Brand.border,
-      borderRadius: 20,
-      paddingHorizontal: 6,
-      paddingVertical: 2,
-      marginTop: 2,
-    },
-    soonText: {
-      fontFamily: BrandFonts.syneBold,
-      fontSize: 9,
-      color: Brand.muted,
-      textTransform: 'uppercase',
-      letterSpacing: 0.5,
     },
 
     // Badge preview
@@ -306,10 +326,38 @@ tierName: {
       alignItems: 'center',
       width: '100%',
       marginBottom: Spacing.three,
+      gap: 4,
     },
-    badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
-    previewName: { fontFamily: BrandFonts.syneExtraBold, fontSize: 20, color: Brand.ink },
+    badgeAvatarRow: { marginBottom: 8 },
+    previewAvatar: { width: 56, height: 56, borderRadius: 28 },
+    previewAvatarFallback: {
+      width: 56, height: 56, borderRadius: 28,
+      borderWidth: 2, backgroundColor: Brand.tlight,
+      alignItems: 'center', justifyContent: 'center',
+    },
+    previewAvatarInitial: { fontFamily: BrandFonts.syneExtraBold, fontSize: 22 },
+    badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    previewName: { fontFamily: BrandFonts.syneExtraBold, fontSize: 18, color: Brand.ink },
     previewHandle: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted },
+
+    // Info box
+    infoBox: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 10,
+      borderWidth: 1,
+      borderRadius: 12,
+      padding: 14,
+      width: '100%',
+      marginBottom: Spacing.two,
+    },
+    infoText: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 13,
+      flex: 1,
+      lineHeight: 19,
+    },
+    previewTierLabel: { fontFamily: BrandFonts.syneBold, fontSize: 12, marginTop: 6, letterSpacing: 0.5, textTransform: 'uppercase' },
 
     // Features
     features: { width: '100%', gap: 12, marginBottom: Spacing.three },

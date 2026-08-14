@@ -69,14 +69,26 @@ export default function PrivacySettingsScreen() {
             </View>
             <View style={styles.rowBody}>
               <Text style={styles.rowLabel}>Read receipts</Text>
-              <Text style={styles.rowSub}>Let others see when you've read their messages</Text>
+              <Text style={styles.rowSub}>
+                {(profile?.verified_tier ?? 0) >= 1
+                  ? "Let others see when you've read their messages"
+                  : 'Silver membership required'}
+              </Text>
             </View>
-            <Switch
-              value={profile?.show_read_receipts ?? true}
-              onValueChange={(v) => updatePresence.mutate({ show_read_receipts: v })}
-              disabled={updatePresence.isPending}
-              trackColor={{ false: Brand.tlight, true: Brand.trust }}
-            />
+            {(profile?.verified_tier ?? 0) >= 1 ? (
+              <Switch
+                value={profile?.show_read_receipts ?? true}
+                onValueChange={(v) => updatePresence.mutate({ show_read_receipts: v })}
+                disabled={updatePresence.isPending}
+                trackColor={{ false: Brand.tlight, true: Brand.trust }}
+              />
+            ) : (
+              <Pressable
+                onPress={() => router.push('/get-verified-modal')}
+                style={{ backgroundColor: '#8B5CF620', borderRadius: 10, paddingHorizontal: 10, paddingVertical: 5 }}>
+                <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#8B5CF6' }}>Upgrade</Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </ScrollView>

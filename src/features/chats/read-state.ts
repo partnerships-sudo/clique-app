@@ -36,22 +36,30 @@ function useReadState(type: ThreadType) {
   });
 
   const markRead = useCallback(
-    (threadKey: string) => {
-      const now = new Date().toISOString();
+    (threadKey: string, atTime?: string) => {
+      // Use the caller-supplied timestamp (e.g. the latest message's created_at
+      // from the server) so we never race against server-clock skew. Fall back
+      // to client time only when no message time is available.
+      const ts = atTime ?? new Date().toISOString();
       // Optimistic in-memory update — instant badge clear
-      queryClient.setQueryData(readStateQueryKey(type), { ...readMap, [threadKey]: now });
+      queryClient.setQueryData(readStateQueryKey(type), (prev: Record<string, string> = {}) => {
+        const existing = prev[threadKey];
+        // Never move the read pointer backwards (e.g. if two effects fire)
+        if (existing && existing >= ts) return prev;
+        return { ...prev, [threadKey]: ts };
+      });
       // Persist to Supabase fire-and-forget
       if (user) {
         supabase
           .from('chat_read_state')
           .upsert(
-            { user_id: user.id, thread_key: threadKey, thread_type: type, last_read_at: now },
+            { user_id: user.id, thread_key: threadKey, thread_type: type, last_read_at: ts },
             { onConflict: 'user_id,thread_key,thread_type' },
           )
           .then(() => {});
       }
     },
-    [readMap, queryClient, type, user],
+    [queryClient, type, user],
   );
 
   const isUnread = useCallback(

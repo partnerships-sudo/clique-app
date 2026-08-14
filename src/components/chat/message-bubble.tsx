@@ -3,8 +3,10 @@ import { useMemo, useState } from 'react';
 import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import type { Message } from '@/features/chats/api';
+import { useMarkRecSeen } from '@/features/chats/api';
 import { parseChatImage } from '@/features/chat-media/upload';
 import { parseRec } from '@/features/dms/rec';
 import { parseStoryReply } from '@/features/dms/story-reply';
@@ -37,6 +39,7 @@ export function MessageBubble({
   const addToList = useAddToList();
   const { data: myLists = [] } = useLists();
   const [savedToWatchlist, setSavedToWatchlist] = useState(false);
+  const markRecSeen = useMarkRecSeen();
 
   function handleSaveOptions() {
     if (!rec || savedToWatchlist) return;
@@ -118,7 +121,12 @@ export function MessageBubble({
         </Pressable>
       ) : null}
       <View style={[styles.col, isMine && styles.colMine]}>
-        {!isMine ? <Text style={styles.sender}>{userHandle ?? message.user_name}</Text> : null}
+        {!isMine ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={styles.sender}>{userHandle ?? message.user_name}</Text>
+            {!!message.user_verified_tier && <VerifiedBadge tier={message.user_verified_tier} size={11} />}
+          </View>
+        ) : null}
 
         {blurred ? (
           <Pressable style={styles.spoilerBubble} onPress={() => setRevealed(true)}>
@@ -152,7 +160,11 @@ export function MessageBubble({
           /* ── Rich recommendation card ── */
           <Pressable
             style={styles.recCard}
-            onPress={() =>
+            onPress={() => {
+              // Recipient tapping the card = "seen"
+              if (!isMine && !message.rec_read_at) {
+                markRecSeen.mutate(message.id);
+              }
               router.push({
                 pathname: '/content-detail-modal',
                 params: {
@@ -162,8 +174,8 @@ export function MessageBubble({
                   sub: rec.sub,
                   mediaType: rec.mediaType ?? (rec.sub?.includes('Film') ? 'movie' : rec.sub?.includes('TV') ? 'tv' : undefined),
                 },
-              })
-            }>
+              });
+            }}>
             {/* Header: type pill + label */}
             <View style={styles.recHeader}>
               {(() => {
@@ -330,6 +342,10 @@ export function MessageBubble({
         )}
 
         <Text style={styles.time}>{timeAgo(message.created_at)}</Text>
+        {/* Rec read receipt — only shown to sender when recipient has tapped the card */}
+        {isMine && rec && message.rec_read_at ? (
+          <Text style={styles.recSeenLabel}>Seen</Text>
+        ) : null}
       </View>
     </View>
   );
@@ -369,6 +385,7 @@ function createStyles(Brand: BrandPalette) {
     text: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.ink, lineHeight: 19 },
     textMine: { color: '#fff' },
     time: { fontSize: 10.5, color: Brand.muted, paddingHorizontal: 4 },
+    recSeenLabel: { fontSize: 10.5, color: Brand.trust, paddingHorizontal: 4, fontFamily: BrandFonts.interMedium },
 
     // Spoiler bubble
     spoilerBubble: {
@@ -502,7 +519,7 @@ function createStyles(Brand: BrandPalette) {
       fontFamily: BrandFonts.interRegular,
       fontStyle: 'italic',
       fontSize: 12.5,
-      color: '#555',
+      color: Brand.muted,
       lineHeight: 17,
     },
     recMeta: {
@@ -517,7 +534,7 @@ function createStyles(Brand: BrandPalette) {
       flexWrap: 'wrap',
     },
     recRatingBadge: {
-      backgroundColor: '#FFF8E6',
+      backgroundColor: Brand.tlight,
       borderRadius: 20,
       paddingVertical: 3,
       paddingHorizontal: 8,
@@ -525,7 +542,7 @@ function createStyles(Brand: BrandPalette) {
     recRatingText: {
       fontFamily: BrandFonts.syneBold,
       fontSize: 11,
-      color: '#D4860A',
+      color: Brand.trust,
     },
     recCompatBadge: {
       borderRadius: 20,
@@ -559,7 +576,7 @@ function createStyles(Brand: BrandPalette) {
       paddingHorizontal: 10,
     },
     recWatchlistBtnSaved: {
-      backgroundColor: '#E8F7EE',
+      backgroundColor: Brand.tlight,
     },
     recWatchlistBtnText: {
       fontFamily: BrandFonts.syneBold,
@@ -567,7 +584,7 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.trust,
     },
     recWatchlistBtnTextSaved: {
-      color: '#2E9E5B',
+      color: Brand.trust,
     },
 
     // Watch party invite card

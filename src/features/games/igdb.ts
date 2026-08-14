@@ -165,3 +165,32 @@ export function applyGameCovers<T extends TrendingEntry>(
 ): T[] {
   return entries.map((e) => (e.type === 'play' && covers[e.title] ? { ...e, poster: covers[e.title]! } : e));
 }
+
+// ── Upcoming games (On the Radar) ─────────────────────────────────────────────
+
+export interface UpcomingGame {
+  id: number;
+  title: string;
+  cover: string | null;
+  releaseDate: string;   // ISO date string, e.g. "2026-09-12"
+  genre: string | null;
+  platforms: string[];
+}
+
+async function fetchUpcomingGames(): Promise<UpcomingGame[]> {
+  try {
+    const data = await invokeIgdb<{ results: UpcomingGame[] }>({ action: 'upcoming' });
+    return data?.results ?? [];
+  } catch (e) {
+    console.warn('[igdb/upcoming]', e);
+    return [];
+  }
+}
+
+export function useUpcomingGames() {
+  return useQuery({
+    queryKey: ['games', 'upcoming'],
+    queryFn: fetchUpcomingGames,
+    staleTime: 60 * 60 * 1000,
+  });
+}

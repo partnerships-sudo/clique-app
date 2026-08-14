@@ -509,3 +509,118 @@ export function usePushPlaybackState() {
     },
   });
 }
+
+// ── Trivia & Polls ────────────────────────────────────────────────────────────
+
+export type ScreeningRoomTriviaOption = {
+  label: string;
+  is_correct?: boolean;
+};
+
+export type ScreeningRoomTriviaItem = {
+  id: string;
+  screening_room_id: string;
+  type: 'trivia' | 'poll' | 'message';
+  question: string;
+  options: ScreeningRoomTriviaOption[];
+  trigger_ms: number;
+  fired_at: string | null;
+  created_at: string;
+};
+
+export function useScreeningRoomTriviaItems(roomId: string | null) {
+  return useQuery({
+    queryKey: ['screening-room-trivia', roomId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('screening_room_trivia')
+        .select('*')
+        .eq('screening_room_id', roomId!)
+        .order('trigger_ms', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as ScreeningRoomTriviaItem[];
+    },
+    enabled: !!roomId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAddScreeningRoomTriviaItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (item: Omit<ScreeningRoomTriviaItem, 'id' | 'fired_at' | 'created_at'>) => {
+      const { error } = await supabase.from('screening_room_trivia').insert({
+        screening_room_id: item.screening_room_id,
+        type: item.type,
+        question: item.question,
+        options: item.options,
+        trigger_ms: item.trigger_ms,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['screening-room-trivia', vars.screening_room_id] });
+    },
+  });
+}
+
+export function useDeleteScreeningRoomTriviaItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, roomId }: { id: string; roomId: string }) => {
+      const { error } = await supabase.from('screening_room_trivia').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['screening-room-trivia', vars.roomId] });
+    },
+  });
+}
+
+export function useMarkScreeningRoomTriviaFired() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, roomId }: { id: string; roomId: string }) => {
+      const { error } = await supabase
+        .from('screening_room_trivia')
+        .update({ fired_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['screening-room-trivia', vars.roomId] });
+    },
+  });
+}
+
+export function useSubmitScreeningRoomTriviaResponse() {
+  return useMutation({
+    mutationFn: async ({ triviaId, userId, optionIdx }: { triviaId: string; userId: string; optionIdx: number }) => {
+      const { error } = await supabase.from('screening_room_trivia_responses').upsert(
+        { trivia_id: triviaId, user_id: userId, option_idx: optionIdx },
+        { onConflict: 'trivia_id,user_id' }
+      );
+      if (error) throw error;
+    },
+  });
+}
+
+export function useScreeningRoomTriviaResponseCounts(triviaId: string | null) {
+  return useQuery({
+    queryKey: ['screening-room-trivia-responses', triviaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('screening_room_trivia_responses')
+        .select('option_idx')
+        .eq('trivia_id', triviaId!);
+      if (error) throw error;
+      const counts: Record<number, number> = {};
+      for (const r of data ?? []) {
+        counts[r.option_idx] = (counts[r.option_idx] ?? 0) + 1;
+      }
+      return counts;
+    },
+    enabled: !!triviaId,
+    refetchInterval: 3_000,
+  });
+}

@@ -66,7 +66,9 @@ export default function ChatsScreen() {
   );
 
   function openDm(thread: DmThread) {
-    markDmRead(thread.friendId);
+    // Use the thread's last message timestamp (server clock) so the optimistic
+    // badge clear isn't undone by client/server clock skew.
+    markDmRead(thread.friendId, thread.lastTime);
     router.push({
       pathname: '/chat-modal',
       params: { friendId: thread.friendId, friendName: thread.name, friendAvatar: thread.avatarUrl ?? '' },
@@ -74,7 +76,7 @@ export default function ChatsScreen() {
   }
 
   function openGroup(thread: GroupThread) {
-    markGroupRead(thread.id);
+    markGroupRead(thread.id, thread.lastTime);
     router.push({
       pathname: '/chat-modal',
       params: { groupId: thread.id, groupName: thread.name ?? 'Group Chat' },
@@ -98,7 +100,12 @@ export default function ChatsScreen() {
         </View>
       </View>
       <View style={styles.modeRow}>
-        <View style={styles.modeTabSpacer} />
+        <Pressable style={styles.modeTab} onPress={() => setMode('private')}>
+          <Text style={[styles.modeTabText, mode === 'private' && styles.modeTabTextActive]}>
+            Chats
+          </Text>
+          {mode === 'private' && <View style={styles.modeTabUnderline} />}
+        </Pressable>
         <Pressable style={[styles.modeTab, { marginRight: 0 }]} onPress={() => setMode('requests')}>
           <Text style={[styles.modeTabText, mode === 'requests' && styles.modeTabTextActive]}>
             Requests
@@ -196,7 +203,7 @@ export default function ChatsScreen() {
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: Brand.paper },
-    content: { paddingHorizontal: Spacing.three, paddingTop: Spacing.three, paddingBottom: Spacing.six },
+    content: { paddingHorizontal: Spacing.two, paddingTop: Spacing.three, paddingBottom: Spacing.six },
     titleRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',

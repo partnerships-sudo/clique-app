@@ -28,7 +28,12 @@ import {
   useScreeningRoomMessages,
   useScreeningRoomViewerCount,
   useSendScreeningRoomMessage,
+  useScreeningRoomTriviaItems,
+  useMarkScreeningRoomTriviaFired,
+  useSubmitScreeningRoomTriviaResponse,
+  useScreeningRoomTriviaResponseCounts,
   type ScreeningRoomMessage,
+  type ScreeningRoomTriviaItem,
 } from '@/features/screening-rooms/api';
 import { useDmThreads } from '@/features/dms/api';
 import { useSession } from '@/hooks/use-session';
@@ -96,6 +101,14 @@ export default function ScreeningRoomLive() {
   const isHost = room?.host_user_id === user?.id;
   const isEnded = room?.status === 'ended';
   const isLive = room?.status === 'live';
+
+  // Trivia & polls
+  const { data: triviaItems = [] } = useScreeningRoomTriviaItems(id ?? null);
+  const markTriviaFired = useMarkScreeningRoomTriviaFired();
+  const submitTriviaResponse = useSubmitScreeningRoomTriviaResponse();
+  const [activeTriviaCard, setActiveTriviaCard] = useState<ScreeningRoomTriviaItem | null>(null);
+  const [triviaMyAnswer, setTriviaMyAnswer] = useState<number | null>(null);
+  const { data: triviaResponseCounts = {} } = useScreeningRoomTriviaResponseCounts(activeTriviaCard?.id ?? null);
 
   const videoRef = useRef<VideoPlayerHandle>(null);
   const [videoReady, setVideoReady] = useState(false);
@@ -239,6 +252,54 @@ export default function ScreeningRoomLive() {
     setPositionMs(pos);
     if (isHost) broadcastSync(playing, pos);
   }, [isHost, broadcastSync]);
+
+  // Trivia timer — host fires items; everyone listens
+  useEffect(() => {
+    if (!isHost || !room?.live_started_at || !id) return;
+    const startTime = new Date(room.live_started_at).getTime();
+    const interval = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const next = triviaItems.find((t) => t.trigger_ms <= elapsed && !t.fired_at);
+      if (!next) return;
+      markTriviaFired.mutate({ id: next.id, roomId: id! });
+      if (next.type === 'message') {
+        sendMsg.mutate({ roomId: id!, content: next.question, relativeMs: next.trigger_ms });
+      } else {
+        supabase.channel(`live-trivia-sr-${id}`).send({
+          type: 'broadcast',
+          event: 'trivia_fire',
+          payload: next,
+        });
+        setActiveTriviaCard(next);
+        setTriviaMyAnswer(null);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [isHost, room?.live_started_at, id, triviaItems]);
+
+  useEffect(() => {
+    if (!id) return;
+    const channel = supabase
+      .channel(`live-trivia-sr-${id}`)
+      .on('broadcast', { event: 'trivia_fire' }, ({ payload }) => {
+        if (!isHost) {
+          setActiveTriviaCard(payload as ScreeningRoomTriviaItem);
+          setTriviaMyAnswer(null);
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [id, isHost]);
+
+  async function handleTriviaAnswer(optionIdx: number) {
+    if (!activeTriviaCard || !user?.id || triviaMyAnswer !== null) return;
+    setTriviaMyAnswer(optionIdx);
+    await submitTriviaResponse.mutateAsync({
+      triviaId: activeTriviaCard.id,
+      userId: user.id,
+      optionIdx,
+    });
+  }
 
   function handlePlayPause() {
     if (!isHost) return;
@@ -503,6 +564,14 @@ export default function ScreeningRoomLive() {
         </View>
         <View style={styles.headerRight}>
           {isHost && (
+            <Pressable
+              onPress={() => router.push({ pathname: '/trivia-setup-modal', params: { id, type: 'screening_room', showTitle: room?.title ?? '' } })}
+              hitSlop={12}
+            >
+              <Text style={styles.triviaSetupBtn}>Trivia</Text>
+            </Pressable>
+          )}
+          {isHost && (
             <Pressable onPress={() => setInviteOpen(true)} hitSlop={12}>
               <SymbolView name="person.badge.plus" size={18} tintColor="rgba(255,255,255,0.6)" type="monochrome" />
             </Pressable>
@@ -639,6 +708,57 @@ export default function ScreeningRoomLive() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Trivia / Poll card */}
+      {activeTriviaCard && (
+        <View style={styles.triviaCard}>
+          <View style={styles.triviaCardHeader}>
+            <Text style={styles.triviaCardType}>
+              {activeTriviaCard.type === 'trivia' ? '🧠 TRIVIA' : '📊 POLL'}
+            </Text>
+            <Pressable onPress={() => setActiveTriviaCard(null)} hitSlop={12}>
+              <Text style={styles.triviaCardClose}>✕</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.triviaCardQuestion}>{activeTriviaCard.question}</Text>
+          <View style={styles.triviaOptions}>
+            {activeTriviaCard.options.map((opt, i) => {
+              const totalVotes = Object.values(triviaResponseCounts).reduce((a, b) => a + b, 0);
+              const votes = triviaResponseCounts[i] ?? 0;
+              const pct = totalVotes > 0 ? Math.round((votes / totalVotes) * 100) : 0;
+              const answered = triviaMyAnswer !== null;
+              const isMyPick = triviaMyAnswer === i;
+              const isCorrect = opt.is_correct === true;
+              return (
+                <Pressable
+                  key={i}
+                  style={[
+                    styles.triviaOption,
+                    answered && isMyPick && styles.triviaOptionMine,
+                    answered && activeTriviaCard.type === 'trivia' && isCorrect && styles.triviaOptionCorrect,
+                  ]}
+                  onPress={() => handleTriviaAnswer(i)}
+                  disabled={answered}
+                >
+                  <View style={styles.triviaOptionInner}>
+                    <Text style={styles.triviaOptionLetter}>{['A', 'B', 'C', 'D'][i]})</Text>
+                    <Text style={styles.triviaOptionLabel}>{opt.label}</Text>
+                    {answered && <Text style={styles.triviaOptionPct}>{pct}%</Text>}
+                  </View>
+                  {answered && <View style={[styles.triviaOptionBar, { width: `${pct}%` as any }]} />}
+                </Pressable>
+              );
+            })}
+          </View>
+          {triviaMyAnswer !== null && activeTriviaCard.type === 'trivia' && (
+            <Text style={styles.triviaResult}>
+              {activeTriviaCard.options[triviaMyAnswer]?.is_correct
+                ? '✅ Correct!'
+                : `❌ The answer was: ${activeTriviaCard.options.find((o) => o.is_correct)?.label ?? '?'}`}
+            </Text>
+          )}
+        </View>
+      )}
 
       {/* Message input */}
       <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
@@ -825,4 +945,55 @@ const styles = StyleSheet.create({
   endedSub: { fontFamily: BrandFonts.interRegular, fontSize: 15, color: 'rgba(255,255,255,0.45)', textAlign: 'center' },
   leaveBtn: { marginTop: 16, backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 14, paddingVertical: 13, paddingHorizontal: 28 },
   leaveBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: 'rgba(255,255,255,0.6)' },
+
+  // Trivia setup button
+  triviaSetupBtn: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: 'rgba(255,255,255,0.7)' },
+
+  // Trivia / poll card
+  triviaCard: {
+    backgroundColor: '#1A1A2E',
+    borderRadius: 14,
+    marginHorizontal: 12,
+    marginBottom: 8,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(139,92,246,0.3)',
+  },
+  triviaCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  triviaCardType: { fontFamily: BrandFonts.syneBold, fontSize: 11, color: '#A78BFA', letterSpacing: 0.8 },
+  triviaCardClose: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: 'rgba(255,255,255,0.4)' },
+  triviaCardQuestion: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff', marginBottom: 10, lineHeight: 20 },
+  triviaOptions: { gap: 6 },
+  triviaOption: {
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  triviaOptionMine: { borderWidth: 1, borderColor: 'rgba(167,139,250,0.6)' },
+  triviaOptionCorrect: { borderWidth: 1, borderColor: '#10B981' },
+  triviaOptionInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 9,
+    gap: 8,
+    zIndex: 1,
+  },
+  triviaOptionLetter: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: 'rgba(255,255,255,0.5)', width: 18 },
+  triviaOptionLabel: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 13, color: '#fff' },
+  triviaOptionPct: { fontFamily: BrandFonts.syneBold, fontSize: 12, color: 'rgba(255,255,255,0.5)' },
+  triviaOptionBar: {
+    position: 'absolute',
+    left: 0, top: 0, bottom: 0,
+    backgroundColor: 'rgba(167,139,250,0.15)',
+    borderRadius: 8,
+  },
+  triviaResult: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 13,
+    color: '#fff',
+    marginTop: 10,
+    textAlign: 'center',
+  },
 });

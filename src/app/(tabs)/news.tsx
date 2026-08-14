@@ -18,13 +18,30 @@ import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 
 import type { FeedFilterValue } from '@/features/feed/api';
 import { timeAgo } from '@/features/feed/time-ago';
-import { useBoxOfficeTop10, useNowPlayingMovies, useUpcomingMovies, type NowAndComingMovie } from '@/features/movies/api';
+import { useBoxOfficeTop10, useNowPlayingMovies, useUpcomingMovies, useUpcomingTV, type NowAndComingMovie } from '@/features/movies/api';
+import { useUpcomingGames } from '@/features/games/igdb';
+import { useUpcomingAlbums, useUpcomingBooks } from '@/features/radar/api';
 import { useNewsArticles, type NewsArticle } from '@/features/news/api';
 import { track, Events } from '@/features/analytics/api';
 import { useSession } from '@/hooks/use-session';
 import { useBrand } from '@/hooks/use-brand';
 
-type NewsMode = 'headlines' | 'cinema';
+type NewsMode = 'headlines' | 'cinema' | 'radar';
+type RadarCategory = 'films' | 'tv' | 'games' | 'albums' | 'books';
+
+const RADAR_CATS: { value: RadarCategory; label: string; sf: string }[] = [
+  { value: 'films',  label: 'Films',  sf: 'film.stack' },
+  { value: 'tv',     label: 'TV',     sf: 'tv' },
+  { value: 'games',  label: 'Games',  sf: 'gamecontroller.fill' },
+  { value: 'albums', label: 'Albums', sf: 'headphones' },
+  { value: 'books',  label: 'Books',  sf: 'book.fill' },
+];
+
+function formatRadarDate(dateStr: string): string {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
 
 function formatRevenue(n: number): string {
   if (n >= 1_000_000_000) return `$${(n / 1_000_000_000).toFixed(1)}B`;
@@ -51,6 +68,11 @@ export default function NewsScreen() {
   const { data: nowPlaying, isLoading: loadingNow } = useNowPlayingMovies();
   const { data: upcoming, isLoading: loadingUpcoming } = useUpcomingMovies();
   const { data: boxOffice } = useBoxOfficeTop10();
+  const [radarCat, setRadarCat] = useState<RadarCategory>('films');
+  const { data: upcomingGames, isLoading: loadingGames } = useUpcomingGames();
+  const { data: upcomingTV, isLoading: loadingTV } = useUpcomingTV();
+  const { data: upcomingAlbums, isLoading: loadingAlbums } = useUpcomingAlbums();
+  const { data: upcomingBooks, isLoading: loadingBooks } = useUpcomingBooks();
   const boxOfficeByMovie = new Map((boxOffice ?? []).map((e) => [e.id, e.revenue]));
 
   function openArticle(article: NewsArticle) {
@@ -92,7 +114,9 @@ export default function NewsScreen() {
         <Text style={styles.screenSub}>
           {mode === 'cinema'
             ? 'In cinemas, coming soon\nand topping the box office'
-            : "What’s happening in film,\nTV, books, games and music"}
+            : mode === 'radar'
+            ? 'Films, games, albums & books\narriving soon'
+            : "What's happening in film,\nTV, books, games and music"}
         </Text>
 
         {/* Headlines / Cinema tabs */}
@@ -104,6 +128,10 @@ export default function NewsScreen() {
           <Pressable style={styles.modeTab} onPress={() => setMode('cinema')}>
             <Text style={[styles.modeTabText, mode === 'cinema' && styles.modeTabTextActive]}>Cinema</Text>
             {mode === 'cinema' ? <View style={styles.modeUnderline} /> : null}
+          </Pressable>
+          <Pressable style={styles.modeTab} onPress={() => setMode('radar')}>
+            <Text style={[styles.modeTabText, mode === 'radar' && styles.modeTabTextActive]}>On the Radar</Text>
+            {mode === 'radar' ? <View style={styles.modeUnderline} /> : null}
           </Pressable>
         </View>
 
@@ -131,6 +159,202 @@ export default function NewsScreen() {
           </ScrollView>
         ) : null}
       </View>
+
+      {/* On the Radar mode */}
+      {mode === 'radar' ? (
+        <ScrollView contentContainerStyle={styles.movieContent} showsVerticalScrollIndicator={false}>
+          {/* Category chips — same spec as Headlines */}
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.catScroll}
+            contentContainerStyle={styles.catRow}>
+            {RADAR_CATS.map((cat) => {
+              const active = radarCat === cat.value;
+              return (
+                <Pressable
+                  key={cat.value}
+                  style={styles.catItem}
+                  onPress={() => setRadarCat(cat.value)}>
+                  <View style={[styles.catChip, active && styles.catChipActive]}>
+                    <SymbolView name={cat.sf as any} size={26} tintColor={active ? '#fff' : '#888'} type="monochrome" />
+                  </View>
+                  <Text style={[styles.catChipLabel, active && styles.catChipLabelActive]}>{cat.label}</Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+
+          {/* Films */}
+          {radarCat === 'films' ? (
+            <View>
+              {(upcoming ?? []).length === 0 && !loadingUpcoming ? (
+                <Text style={styles.empty}>No upcoming films found.</Text>
+              ) : (
+                (upcoming ?? []).map((film) => (
+                  <Pressable
+                    key={`radar-film-${film.id}`}
+                    style={styles.radarRow}
+                    onPress={() => openMovie(film)}>
+                    {film.poster ? (
+                      <Image source={{ uri: film.poster }} style={styles.radarPoster} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.radarPoster, styles.radarPosterFallback]} />
+                    )}
+                    <View style={styles.radarBody}>
+                      <Text style={styles.radarTitle} numberOfLines={2}>{film.title}</Text>
+                      <Text style={styles.radarDate}>{formatRadarDate(film.releaseDate)}</Text>
+                      <View style={styles.radarTagRow}>
+                        <View style={styles.radarTag}><Text style={styles.radarTagText}>Film</Text></View>
+                      </View>
+                    </View>
+                    <SymbolView name="chevron.right" size={14} tintColor={Brand.muted} style={{ width: 14, height: 14 }} />
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+
+          {/* Games */}
+          {radarCat === 'games' ? (
+            <View>
+              {(upcomingGames ?? []).length === 0 && !loadingGames ? (
+                <Text style={styles.empty}>No upcoming games found.</Text>
+              ) : (
+                (upcomingGames ?? []).map((game) => (
+                  <Pressable
+                    key={`radar-game-${game.id}`}
+                    style={styles.radarRow}
+                    onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: game.title, type: 'play', poster: game.cover ?? '' } })}>
+                    {game.cover ? (
+                      <Image source={{ uri: game.cover }} style={styles.radarPoster} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.radarPoster, styles.radarPosterFallback]}>
+                        <Text style={{ fontSize: 22 }}>🎮</Text>
+                      </View>
+                    )}
+                    <View style={styles.radarBody}>
+                      <Text style={styles.radarTitle} numberOfLines={2}>{game.title}</Text>
+                      <Text style={styles.radarDate}>{formatRadarDate(game.releaseDate)}</Text>
+                      <View style={styles.radarTagRow}>
+                        {game.genre ? <View style={styles.radarTag}><Text style={styles.radarTagText}>{game.genre}</Text></View> : null}
+                        {game.platforms.slice(0, 2).map((p) => (
+                          <View key={p} style={styles.radarTag}><Text style={styles.radarTagText}>{p}</Text></View>
+                        ))}
+                      </View>
+                    </View>
+                    <SymbolView name="chevron.right" size={14} tintColor={Brand.muted} style={{ width: 14, height: 14 }} />
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+
+          {/* TV */}
+          {radarCat === 'tv' ? (
+            <View>
+              {(upcomingTV ?? []).length === 0 && !loadingTV ? (
+                <Text style={styles.empty}>No upcoming TV shows found.</Text>
+              ) : (
+                (upcomingTV ?? []).map((show) => (
+                  <Pressable
+                    key={`radar-tv-${show.id}`}
+                    style={styles.radarRow}
+                    onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: show.title, type: 'watch', mediaType: 'tv', poster: show.poster ?? '', externalId: String(show.id) } })}>
+                    {show.poster ? (
+                      <Image source={{ uri: show.poster }} style={styles.radarPoster} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.radarPoster, styles.radarPosterFallback]}>
+                        <Text style={{ fontSize: 22 }}>📺</Text>
+                      </View>
+                    )}
+                    <View style={styles.radarBody}>
+                      <Text style={styles.radarTitle} numberOfLines={2}>{show.title}</Text>
+                      <Text style={styles.radarDate}>{formatRadarDate(show.firstAirDate)}</Text>
+                      <View style={styles.radarTagRow}>
+                        <View style={styles.radarTag}><Text style={styles.radarTagText}>TV</Text></View>
+                        {show.network ? <View style={styles.radarTag}><Text style={styles.radarTagText}>{show.network}</Text></View> : null}
+                      </View>
+                    </View>
+                    <SymbolView name="chevron.right" size={14} tintColor={Brand.muted} style={{ width: 14, height: 14 }} />
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+
+          {/* Albums */}
+          {radarCat === 'albums' ? (
+            <View>
+              {(upcomingAlbums ?? []).length === 0 && !loadingAlbums ? (
+                <Text style={styles.empty}>No upcoming albums found.</Text>
+              ) : (
+                (upcomingAlbums ?? []).map((album) => (
+                  <Pressable
+                    key={`radar-album-${album.id}`}
+                    style={styles.radarRow}
+                    onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: album.title, type: 'listen', sub: album.artist, poster: album.cover ?? '' } })}>
+                    {album.cover ? (
+                      <Image source={{ uri: album.cover }} style={[styles.radarPoster, { borderRadius: 6 }]} resizeMode="cover"
+                        onError={() => {}} />
+                    ) : (
+                      <View style={[styles.radarPoster, styles.radarPosterFallback]}>
+                        <Text style={{ fontSize: 22 }}>🎵</Text>
+                      </View>
+                    )}
+                    <View style={styles.radarBody}>
+                      <Text style={styles.radarTitle} numberOfLines={2}>{album.title}</Text>
+                      <Text style={styles.radarDate}>{album.artist}</Text>
+                      <View style={styles.radarTagRow}>
+                        <View style={styles.radarTag}><Text style={styles.radarTagText}>{formatRadarDate(album.releaseDate)}</Text></View>
+                        {album.albumType ? <View style={styles.radarTag}><Text style={styles.radarTagText} style={{ textTransform: 'capitalize' }}>{album.albumType}</Text></View> : null}
+                      </View>
+                    </View>
+                    <SymbolView name="chevron.right" size={14} tintColor={Brand.muted} style={{ width: 14, height: 14 }} />
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+
+          {/* Books */}
+          {radarCat === 'books' ? (
+            <View>
+              {(upcomingBooks ?? []).length === 0 && !loadingBooks ? (
+                <Text style={styles.empty}>No upcoming books found.</Text>
+              ) : (
+                (upcomingBooks ?? []).map((book) => (
+                  <Pressable
+                    key={`radar-book-${book.id}`}
+                    style={styles.radarRow}
+                    onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: book.title, type: 'read', sub: book.author, poster: book.cover ?? '' } })}>
+                    {book.cover ? (
+                      <Image source={{ uri: book.cover }} style={[styles.radarPoster, { borderRadius: 4 }]} resizeMode="cover" />
+                    ) : (
+                      <View style={[styles.radarPoster, styles.radarPosterFallback]}>
+                        <Text style={{ fontSize: 22 }}>📚</Text>
+                      </View>
+                    )}
+                    <View style={styles.radarBody}>
+                      <Text style={styles.radarTitle} numberOfLines={2}>{book.title}</Text>
+                      <Text style={styles.radarDate}>{book.author}</Text>
+                      <View style={styles.radarTagRow}>
+                        <View style={styles.radarTag}><Text style={styles.radarTagText}>{book.publishDate}</Text></View>
+                        {book.subject ? <View style={styles.radarTag}><Text style={styles.radarTagText} numberOfLines={1}>{book.subject}</Text></View> : null}
+                      </View>
+                    </View>
+                    <SymbolView name="chevron.right" size={14} tintColor={Brand.muted} style={{ width: 14, height: 14 }} />
+                  </Pressable>
+                ))
+              )}
+            </View>
+          ) : null}
+
+          {/* Podcasts */}
+
+          <View style={{ height: Spacing.six }} />
+        </ScrollView>
+      ) : null}
 
       {/* Cinema mode */}
       {mode === 'cinema' ? (
@@ -209,8 +433,10 @@ export default function NewsScreen() {
             </View>
           ) : null}
         </ScrollView>
-      ) : (
-        /* Headlines mode */
+      ) : null}
+
+      {/* Headlines mode */}
+      {mode === 'headlines' ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
           refreshControl={
@@ -317,7 +543,7 @@ export default function NewsScreen() {
 
           <View style={{ height: Spacing.six }} />
         </ScrollView>
-      )}
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -561,6 +787,64 @@ function createStyles(Brand: BrandPalette) {
       height: 3,
       borderRadius: 2,
       backgroundColor: Brand.trust,
+    },
+
+    // On the Radar
+    radarRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: Spacing.three,
+      marginBottom: 12,
+      padding: 12,
+      backgroundColor: Brand.card,
+      borderRadius: 16,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: Brand.border,
+      shadowColor: '#000',
+      shadowOpacity: 0.05,
+      shadowRadius: 6,
+      shadowOffset: { width: 0, height: 2 },
+      elevation: 1,
+    },
+    radarPoster: {
+      width: 52,
+      height: 74,
+      borderRadius: 8,
+      backgroundColor: Brand.tlight,
+      flexShrink: 0,
+    },
+    radarPosterFallback: { alignItems: 'center', justifyContent: 'center' },
+    radarBody: { flex: 1, gap: 4 },
+    radarTitle: { fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.ink, lineHeight: 19 },
+    radarDate: { fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted },
+    radarTagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 2 },
+    radarTag: {
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+      borderRadius: 6,
+      backgroundColor: Brand.tlight,
+    },
+    radarTagText: { fontFamily: BrandFonts.syneBold, fontSize: 10, color: Brand.muted },
+    radarComingSoon: {
+      alignItems: 'center',
+      paddingVertical: 60,
+      paddingHorizontal: Spacing.three,
+    },
+    radarComingSoonEmoji: { fontSize: 48, marginBottom: 16 },
+    radarComingSoonTitle: {
+      fontFamily: BrandFonts.syneExtraBold,
+      fontSize: 18,
+      color: Brand.ink,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    radarComingSoonBody: {
+      fontFamily: BrandFonts.interRegular,
+      fontSize: 14,
+      color: Brand.muted,
+      textAlign: 'center',
+      lineHeight: 20,
     },
 
     // Cinema / misc

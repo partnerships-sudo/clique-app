@@ -6,6 +6,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useWatchPartyAnalytics } from '@/features/premieres/api';
+import { UpgradeGate } from '@/components/upgrade-gate';
+import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 
 function fmt(ms: number): string {
@@ -22,6 +24,8 @@ export default function WatchPartyAnalyticsModal() {
   const { premiereId, showTitle } = useLocalSearchParams<{ premiereId: string; showTitle: string }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+  const { data: profile } = useProfile();
+  const tier = profile?.verified_tier ?? 0;
   const { data, isLoading } = useWatchPartyAnalytics(premiereId ?? null);
 
   const barMax = data ? Math.max(...data.messageBuckets.map((b) => b.count), 1) : 1;
@@ -42,7 +46,14 @@ export default function WatchPartyAnalyticsModal() {
         <View style={{ width: 32 }} />
       </View>
 
-      {isLoading ? (
+      {tier < 2 ? (
+        <UpgradeGate
+          requiredTier={2}
+          currentTier={tier}
+          title="Watch Party Analytics"
+          description="See who showed up, how long they stayed, peak moments, and chat activity for every watch party you host. Available with a Gold membership."
+        />
+      ) : isLoading ? (
         <ActivityIndicator style={{ marginTop: 60 }} color={Brand.trust} />
       ) : !data ? (
         <View style={styles.empty}><Text style={styles.emptyText}>No data available.</Text></View>
@@ -136,6 +147,14 @@ export default function WatchPartyAnalyticsModal() {
               icon="star.fill" color="#D4AF37" Brand={Brand} styles={styles}
               sub={data.postEventLogs > 0 ? `${data.postEventLogs} viewers logged it` : 'of viewers logged it'}
             />
+            {data.buyClicks > 0 && (
+              <StatCard
+                label="Buy / Rent Clicks"
+                value={String(data.buyClicks)}
+                icon="cart.fill" color="#10B981" Brand={Brand} styles={styles}
+                sub={data.buyCtr != null ? `${data.buyCtr}% of viewers` : 'total clicks'}
+              />
+            )}
           </View>
 
           {/* ── Chat & Engagement ── */}

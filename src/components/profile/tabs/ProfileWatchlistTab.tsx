@@ -46,6 +46,25 @@ function useRecProfiles(usernames: string[]) {
   return profiles;
 }
 
+type WatchlistFilter = 'all' | 'movie' | 'tv' | 'read' | 'play' | 'listen' | 'podcast';
+type WatchlistSort = 'recent' | 'alpha';
+
+const CAT_DEFS = [
+  { view: 'movie',   sf: 'film',            label: 'Movies'   },
+  { view: 'tv',      sf: 'tv',              label: 'TV'       },
+  { view: 'read',    sf: 'books.vertical',  label: 'Books'    },
+  { view: 'play',    sf: 'gamecontroller',  label: 'Games'    },
+  { view: 'podcast', sf: 'mic',             label: 'Podcasts' },
+  { view: 'listen',  sf: 'music.note',      label: 'Music'    },
+] as const;
+
+function itemMatchesFilter(item: LibraryItem, filter: WatchlistFilter): boolean {
+  if (filter === 'all') return true;
+  if (filter === 'movie') return item.type === 'watch' && item.media_type !== 'tv' && item.media_type !== 'series';
+  if (filter === 'tv') return item.type === 'watch' && (item.media_type === 'tv' || item.media_type === 'series');
+  return item.type === filter;
+}
+
 export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, onOpenRating }: Props) {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
@@ -55,8 +74,21 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
   const addToList = useAddToList();
   const { data: lists = [] } = useLists();
   const { data: friendLists = [] } = useListsByUser(isOwnProfile ? undefined : profileUserId);
+  const [filter, setFilter] = useState<WatchlistFilter>('all');
+  const [sort, setSort] = useState<WatchlistSort>('recent');
 
-  const visibleItems = watchlist;
+  const visibleItems = useMemo(() => {
+    const filtered = watchlist.filter((i) => itemMatchesFilter(i, filter));
+    const sorted = [...filtered];
+    if (sort === 'alpha') sorted.sort((a, b) => a.title.localeCompare(b.title));
+    else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    return sorted;
+  }, [watchlist, filter, sort]);
+
+  const sortedCats = CAT_DEFS.map((c) => ({
+    ...c,
+    count: watchlist.filter((i) => itemMatchesFilter(i, c.view as WatchlistFilter)).length,
+  })).sort((a, b) => b.count - a.count);
 
   const recUsernames = useMemo(() => {
     const names = watchlist
@@ -107,6 +139,41 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
         </View>
       ) : null}
 
+
+      {/* Category filter */}
+      {watchlist.length > 0 && (
+        <>
+          <View style={styles.collCatRow}>
+            <Pressable style={[styles.collCatBtn, filter === 'all' && styles.collCatBtnActive]} onPress={() => setFilter('all')}>
+              <SymbolView name="square.grid.2x2.fill" size={15} tintColor={filter === 'all' ? Brand.paper : Brand.muted} style={{ width: 18, height: 18 }} />
+              <Text style={[styles.collCatLabel, filter === 'all' && styles.collCatLabelActive]}>All</Text>
+              <Text style={[styles.collCatCount, filter === 'all' && styles.collCatCountActive]}>{watchlist.length}</Text>
+            </Pressable>
+            {sortedCats.map(({ view, sf, label, count }) => {
+              const active = filter === view;
+              return (
+                <Pressable key={view} style={[styles.collCatBtn, active && styles.collCatBtnActive]} onPress={() => setFilter(view as WatchlistFilter)}>
+                  <SymbolView name={sf as any} size={15} tintColor={active ? Brand.paper : Brand.muted} style={{ width: 18, height: 18 }} />
+                  <Text style={[styles.collCatLabel, active && styles.collCatLabelActive]}>{label}</Text>
+                  <Text style={[styles.collCatCount, active && styles.collCatCountActive]}>{count}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          <View style={styles.collSortRow}>
+            <Text style={styles.collSortLabel}>Organize</Text>
+            {([{ value: 'recent', label: 'Recent' }, { value: 'alpha', label: 'A–Z' }] as const).map((opt) => {
+              const active = sort === opt.value;
+              return (
+                <Pressable key={opt.value} style={[styles.collSortBtn, active && styles.collSortBtnActive]} onPress={() => setSort(opt.value)}>
+                  <Text style={[styles.collSortBtnText, active && styles.collSortBtnTextActive]}>{opt.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      )}
 
       {visibleItems.length === 0 ? (
         <Text style={styles.emptyText}>
@@ -213,6 +280,27 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
 
 function createLocalStyles(Brand: ReturnType<typeof useBrand>) {
   return StyleSheet.create({
+  catRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    backgroundColor: Brand.card,
+    borderWidth: 1,
+    borderColor: Brand.border,
+    borderRadius: 14,
+    padding: 4,
+    marginBottom: 12,
+  },
+  catChip: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  catChipActive: { backgroundColor: Brand.trust },
+  catChipLabel: { fontFamily: BrandFonts.syneBold, fontSize: 8, color: Brand.muted, marginTop: 2 },
+  catChipLabelActive: { color: Brand.paper },
+  catChipCount: { fontFamily: BrandFonts.interRegular, fontSize: 8, color: Brand.muted, marginTop: 1 },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',

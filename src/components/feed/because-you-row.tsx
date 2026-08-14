@@ -51,6 +51,7 @@ export function BecauseYouRow({
       </Text>
       <FlatList
         horizontal
+        directionalLockEnabled
         showsHorizontalScrollIndicator={false}
         data={entries.filter((e, i, arr) => arr.findIndex((x) => x.type === e.type && x.title.toLowerCase() === e.title.toLowerCase()) === i)}
         keyExtractor={(e) => `${e.type}:${e.title}`}

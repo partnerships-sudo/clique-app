@@ -9,6 +9,7 @@ export interface ListRecord {
   title: string;
   description: string | null;
   is_public: boolean;
+  theme_color: string | null;
   created_at: string;
 }
 
@@ -174,10 +175,10 @@ export function useCreateList() {
   const { user } = useSession();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { title: string; description?: string; is_public?: boolean }) => {
+    mutationFn: async (input: { title: string; description?: string; is_public?: boolean; theme_color?: string | null }) => {
       const { data, error } = await supabase
         .from('lists')
-        .insert({ user_id: user!.id, title: input.title, description: input.description ?? null, is_public: input.is_public ?? true })
+        .insert({ user_id: user!.id, title: input.title, description: input.description ?? null, is_public: input.is_public ?? true, theme_color: input.theme_color ?? null })
         .select()
         .single();
       if (error) throw error;
@@ -191,10 +192,10 @@ export function useUpdateList() {
   const { user } = useSession();
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: { id: string; title: string; description?: string; is_public?: boolean }) => {
+    mutationFn: async (input: { id: string; title: string; description?: string; is_public?: boolean; theme_color?: string | null }) => {
       const { error } = await supabase
         .from('lists')
-        .update({ title: input.title, description: input.description ?? null, is_public: input.is_public ?? true })
+        .update({ title: input.title, description: input.description ?? null, is_public: input.is_public ?? true, theme_color: input.theme_color ?? null })
         .eq('id', input.id)
         .eq('user_id', user!.id);
       if (error) throw error;

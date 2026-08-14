@@ -5,6 +5,115 @@ export interface CompatItem {
   sub: string | null;
 }
 
+export interface CompatDetail {
+  total: number;
+  // Component scores (raw, before base-40 is added)
+  titleScore: number;   // 0–25
+  typeScore: number;    // 0–20
+  ratingScore: number;  // 0–10
+  networkScore: number; // 0–5
+  // Insights
+  sharedTitles: string[];                                          // titles both logged
+  bothLoved: { title: string; myRating: number; theirRating: number }[]; // both ≥ 4 stars
+  theyLove: { title: string; type: string; rating: number }[];    // their best, you haven't logged
+  youLove: { title: string; type: string; rating: number }[];     // your best, they haven't logged
+  sharedTypes: string[];
+  sharedCount: number;
+  topType: string | null; // most-shared media type
+}
+
+export function computeDetailedCompatibility(myPosts: CompatItem[], friendPosts: CompatItem[]): CompatDetail {
+  if (!myPosts.length || !friendPosts.length) {
+    return { total: 40, titleScore: 0, typeScore: 0, ratingScore: 0, networkScore: 0,
+      sharedTitles: [], bothLoved: [], theyLove: [], youLove: [], sharedTypes: [], sharedCount: 0, topType: null };
+  }
+
+  const myTitleMap = new Map<string, CompatItem>();
+  for (const p of myPosts) myTitleMap.set(p.title.toLowerCase(), p);
+
+  const friendTitleMap = new Map<string, CompatItem>();
+  for (const p of friendPosts) friendTitleMap.set(p.title.toLowerCase(), p);
+
+  // ── Shared titles ─────────────────────────────────────────────────────────
+  const sharedTitles: string[] = [];
+  const bothLoved: { title: string; myRating: number; theirRating: number }[] = [];
+  for (const [key, mine] of myTitleMap) {
+    const theirs = friendTitleMap.get(key);
+    if (theirs) {
+      sharedTitles.push(mine.title);
+      if ((mine.rating ?? 0) >= 4 && (theirs.rating ?? 0) >= 4) {
+        bothLoved.push({ title: mine.title, myRating: mine.rating!, theirRating: theirs.rating! });
+      }
+    }
+  }
+  bothLoved.sort((a, b) => Math.abs(a.myRating - a.theirRating) - Math.abs(b.myRating - b.theirRating));
+
+  // ── Titles they love that I haven't logged ────────────────────────────────
+  const theyLove = friendPosts
+    .filter((p) => !myTitleMap.has(p.title.toLowerCase()) && (p.rating ?? 0) >= 3.5)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    .slice(0, 10)
+    .map((p) => ({ title: p.title, type: p.type, rating: p.rating! }));
+
+  // ── Titles I love that they haven't logged ────────────────────────────────
+  const youLove = myPosts
+    .filter((p) => !friendTitleMap.has(p.title.toLowerCase()) && (p.rating ?? 0) >= 3.5)
+    .sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0))
+    .slice(0, 10)
+    .map((p) => ({ title: p.title, type: p.type, rating: p.rating! }));
+
+  // ── Title overlap score ───────────────────────────────────────────────────
+  const smallerLib = Math.min(myTitleMap.size, friendTitleMap.size);
+  const overlapCoeff = smallerLib > 0 ? sharedTitles.length / smallerLib : 0;
+  const titleScore = overlapCoeff * 25;
+
+  // ── Media type score ──────────────────────────────────────────────────────
+  const myTypes = new Set(myPosts.map((p) => p.type));
+  const friendTypes = new Set(friendPosts.map((p) => p.type));
+  const sharedTypesSet = new Set<string>();
+  for (const t of myTypes) { if (friendTypes.has(t)) sharedTypesSet.add(t); }
+  const sharedTypes = [...sharedTypesSet];
+  const maxTypes = Math.max(myTypes.size, friendTypes.size);
+  const typeScore = maxTypes > 0 ? (sharedTypes.length / maxTypes) * 20 : 0;
+
+  // Top shared media type by volume
+  const typeVolume = new Map<string, number>();
+  for (const p of [...myPosts, ...friendPosts]) {
+    if (sharedTypesSet.has(p.type)) typeVolume.set(p.type, (typeVolume.get(p.type) ?? 0) + 1);
+  }
+  const topType = sharedTypes.length
+    ? [...typeVolume.entries()].sort((a, b) => b[1] - a[1])[0][0]
+    : null;
+
+  // ── Rating alignment ──────────────────────────────────────────────────────
+  const myRatings = new Map<string, number>();
+  for (const p of myPosts) { if (p.rating) myRatings.set(p.title.toLowerCase(), p.rating); }
+  let ratingPoints = 0, ratingComparisons = 0;
+  for (const p of friendPosts) {
+    const mine = p.rating ? myRatings.get(p.title.toLowerCase()) : undefined;
+    if (p.rating && mine) {
+      ratingComparisons++;
+      const diff = Math.abs(p.rating - mine);
+      if (diff === 0) ratingPoints += 2;
+      else if (diff <= 1) ratingPoints += 1;
+    }
+  }
+  const ratingScore = ratingComparisons > 0 ? Math.min(10, (ratingPoints / ratingComparisons) * 5) : 0;
+
+  // ── Platform / network score ──────────────────────────────────────────────
+  const myNetworks = new Set(myPosts.map((p) => (p.sub ?? '').split('·')[0].trim().toLowerCase()).filter(Boolean));
+  const friendNetworks = new Set(friendPosts.map((p) => (p.sub ?? '').split('·')[0].trim().toLowerCase()).filter(Boolean));
+  let sharedNetworks = 0;
+  for (const n of myNetworks) { if (friendNetworks.has(n)) sharedNetworks++; }
+  const maxNetworks = Math.max(myNetworks.size, friendNetworks.size);
+  const networkScore = maxNetworks > 0 ? Math.min(5, (sharedNetworks / maxNetworks) * 5) : 0;
+
+  const total = Math.min(99, Math.max(25, Math.round(40 + titleScore + typeScore + ratingScore + networkScore)));
+
+  return { total, titleScore, typeScore, ratingScore, networkScore,
+    sharedTitles, bothLoved, theyLove, youLove, sharedTypes, sharedCount: sharedTitles.length, topType };
+}
+
 export function computeCompatibility(myPosts: CompatItem[], friendPosts: CompatItem[]): number {
   if (!myPosts.length || !friendPosts.length) return 40;
 

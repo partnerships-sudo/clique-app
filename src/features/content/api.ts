@@ -1040,8 +1040,11 @@ export function useContentDetails(
                 ? `${detail.episode_run_time[0]}min/ep`
                 : null;
             const tmdbTrailer2 = pickYouTubeTrailer(detail.videos?.results ?? []);
-            // Only fall back to Dailymotion/Apple when TMDB has no trailer at all
-            const [dailymotionTrailer2, appleTrailer2] = !tmdbTrailer2
+            // Only fall back to Dailymotion/Apple when TMDB has no trailer AND we
+            // don't have a confirmed TMDB ID. When externalId is present the TMDB
+            // lookup is authoritative; a title-based fallback will find the wrong
+            // content (e.g. a different film/show with the same name).
+            const [dailymotionTrailer2, appleTrailer2] = (!tmdbTrailer2 && !externalId)
               ? await Promise.all([
                   fetchDailymotionTrailer(title, endpoint === 'movie' ? 'movie' : 'tv'),
                   fetchAppleTrailer(title, year),

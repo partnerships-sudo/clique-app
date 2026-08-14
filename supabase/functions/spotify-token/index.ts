@@ -22,9 +22,41 @@ async function getToken(): Promise<string> {
   return cachedToken.token;
 }
 
+async function fetchUpcomingAlbums(): Promise<unknown[]> {
+  const token = await getToken();
+  // tag:new returns albums Spotify has flagged as new releases (last 2 weeks + pre-releases)
+  const res = await fetch(
+    'https://api.spotify.com/v1/search?q=tag:new&type=album&market=US&limit=25',
+    { headers: { Authorization: `Bearer ${token}` } },
+  );
+  if (!res.ok) throw new Error(`Spotify search failed: ${res.status}`);
+  const data = await res.json();
+  const today = new Date().toISOString().slice(0, 10);
+  return (data.albums?.items ?? [])
+    .filter((a: any) => a.name && a.artists?.length && a.release_date >= today)
+    .map((a: any) => ({
+      id: a.id,
+      title: a.name,
+      artist: a.artists.map((ar: any) => ar.name).join(', '),
+      cover: a.images?.[0]?.url ?? null,
+      releaseDate: a.release_date,
+      albumType: a.album_type ?? null,
+    }));
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS_HEADERS });
   try {
+    const body = await req.json().catch(() => ({}));
+
+    if (body.action === 'upcoming-albums') {
+      const albums = await fetchUpcomingAlbums();
+      return new Response(JSON.stringify({ albums }), {
+        headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Default: return token (backward compat)
     const token = await getToken();
     return new Response(JSON.stringify({ token }), {
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },

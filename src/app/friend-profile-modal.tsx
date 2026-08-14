@@ -104,7 +104,7 @@ export default function FriendProfileModal() {
               router.push({ pathname: '/profile-stats-modal', params: { userId: params.userId, tab: 'logged', name: profile?.full_name ?? profile?.username ?? 'Friend' } })
             }
             onThisYearPress={() =>
-              router.push({ pathname: '/profile-stats-modal', params: { userId: params.userId, tab: 'logged', year: String(new Date().getFullYear()), name: profile?.full_name ?? profile?.username ?? 'Friend' } })
+              router.push({ pathname: '/yearly-wrapped-modal', params: { userId: params.userId, year: String(new Date().getFullYear()), name: profile?.full_name ?? profile?.username ?? 'Friend' } })
             }
             onFollowersPress={() =>
               router.push({ pathname: '/profile-stats-modal', params: { userId: params.userId, tab: 'followers', name: profile?.full_name ?? profile?.username ?? 'Friend' } })

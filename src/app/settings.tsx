@@ -235,6 +235,18 @@ export default function SettingsScreen() {
             </View>
             <Text style={styles.chevron}>›</Text>
           </Pressable>
+
+          {profile?.username === 'lauranaps' && (
+            <Pressable
+              style={[styles.row, styles.rowDivider]}
+              onPress={() => router.push({ pathname: '/get-verified-modal', params: { devPreview: '1' } })}>
+              <View style={styles.rowBody}>
+                <Text style={styles.rowLabel}>💎 Preview Membership Page</Text>
+                <Text style={styles.rowSub}>Preview the Silver & Gold checkout screen</Text>
+              </View>
+              <Text style={styles.chevron}>›</Text>
+            </Pressable>
+          )}
         </View>
 
         {/* Sign out */}

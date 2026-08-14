@@ -7,9 +7,8 @@ interface Props {
 }
 
 const TIER_COLOR: Record<number, string> = {
-  1: '#5B8DEF',
-  2: '#8B5CF6',
-  3: '#D4AF37',
+  1: '#A8B8C8', // Silver
+  2: '#D4AF37', // Gold
 };
 
 export function VerifiedBadge({ tier, size = 14 }: Props) {

@@ -63,6 +63,8 @@ export interface Premiere {
   air_date: string;
   air_time: string | null;
   tagline: string | null;
+  buy_url: string | null;
+  buy_label: string | null;
   status: PremiereStatus;
   live_started_at: string | null;
   created_at: string;
@@ -95,6 +97,8 @@ export function useCreatePremiere() {
       airDate: string;
       airTime: string | null;
       tagline: string | null;
+      buyUrl: string | null;
+      buyLabel: string | null;
     }) => {
       const hostName = profile?.full_name ?? profile?.username ?? user?.email?.split('@')[0] ?? 'Someone';
       const { data, error } = await supabase
@@ -112,6 +116,8 @@ export function useCreatePremiere() {
           air_date: input.airDate,
           air_time: input.airTime,
           tagline: input.tagline,
+          buy_url: input.buyUrl || null,
+          buy_label: input.buyLabel || null,
           status: 'waiting',
         })
         .select()
@@ -222,15 +228,19 @@ export function useUpdatePremiere() {
       airDate,
       airTime,
       tagline,
+      buyUrl,
+      buyLabel,
     }: {
       id: string;
       airDate: string;
       airTime: string | null;
       tagline: string | null;
+      buyUrl?: string | null;
+      buyLabel?: string | null;
     }) => {
       const { error } = await supabase
         .from('premieres')
-        .update({ air_date: airDate, air_time: airTime, tagline })
+        .update({ air_date: airDate, air_time: airTime, tagline, buy_url: buyUrl ?? null, buy_label: buyLabel ?? null })
         .eq('id', id);
       if (error) throw error;
     },
@@ -294,6 +304,17 @@ export function useJoinPremiere() {
   });
 }
 
+export function useTrackBuyClick() {
+  const { user } = useSession();
+  return useMutation({
+    mutationFn: async (premiereId: string) => {
+      await supabase
+        .from('premiere_buy_clicks')
+        .insert({ premiere_id: premiereId, user_id: user?.id ?? null });
+    },
+  });
+}
+
 export function useTrackPremiereShare() {
   const { user } = useSession();
   return useMutation({
@@ -333,12 +354,13 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
   return useQuery({
     queryKey: ['watch-party-analytics', premiereId],
     queryFn: async () => {
-      const [premiereRes, membersRes, messagesRes, replayRes, sharesRes] = await Promise.all([
+      const [premiereRes, membersRes, messagesRes, replayRes, sharesRes, buyClicksRes] = await Promise.all([
         supabase.from('premieres').select('*, host_user_id').eq('id', premiereId!).single(),
         supabase.from('premiere_members').select('user_id, joined_at, left_at, watch_ms, rsvp_status').eq('premiere_id', premiereId!),
         supabase.from('premiere_messages').select('created_at, content, user_name, user_id').eq('premiere_id', premiereId!).order('created_at', { ascending: true }),
         supabase.from('premiere_replay_views').select('user_id', { count: 'exact', head: true }).eq('premiere_id', premiereId!),
         supabase.from('premiere_shares').select('user_id', { count: 'exact', head: true }).eq('premiere_id', premiereId!),
+        supabase.from('premiere_buy_clicks').select('user_id', { count: 'exact', head: true }).eq('premiere_id', premiereId!),
       ]);
       if (premiereRes.error) throw premiereRes.error;
 
@@ -347,8 +369,9 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
       const messages = (messagesRes.data ?? []) as { created_at: string; content: string; user_name: string; user_id: string }[];
       const replayViews = replayRes.count ?? 0;
       const totalShares = sharesRes.count ?? 0;
-
+      const buyClicks = buyClicksRes.count ?? 0;
       const totalViewers = members.length;
+      const buyCtr = totalViewers > 0 ? Math.round((buyClicks / totalViewers) * 100) : null;
       const totalMessages = messages.length;
       const peakViewerCount = premiere.peak_viewer_count ?? totalViewers;
 
@@ -535,8 +558,10 @@ export function useWatchPartyAnalytics(premiereId: string | null) {
         lurkPct,
         topContributors,
         firstMsgMs,
-        // Shares
+        // Shares & buy CTA
         totalShares,
+        buyClicks,
+        buyCtr,
         // Growth
         followsGained,
         postEventLogs,
@@ -919,5 +944,120 @@ export function usePremiereViewerCount(premiereId: string | null) {
     },
     enabled: !!premiereId,
     refetchInterval: 10_000,
+  });
+}
+
+// ── Trivia & Polls ────────────────────────────────────────────────────────────
+
+export type TriviaOption = {
+  label: string;
+  is_correct?: boolean; // trivia only
+};
+
+export type TriviaItem = {
+  id: string;
+  premiere_id: string;
+  type: 'trivia' | 'poll' | 'message';
+  question: string;
+  options: TriviaOption[];
+  trigger_ms: number;
+  fired_at: string | null;
+  created_at: string;
+};
+
+export function usePremiereTriviaItems(premiereId: string | null) {
+  return useQuery({
+    queryKey: ['premiere-trivia', premiereId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premiere_trivia')
+        .select('*')
+        .eq('premiere_id', premiereId!)
+        .order('trigger_ms', { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as TriviaItem[];
+    },
+    enabled: !!premiereId,
+    refetchInterval: 30_000,
+  });
+}
+
+export function useAddPremiereTriviaItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (item: Omit<TriviaItem, 'id' | 'fired_at' | 'created_at'>) => {
+      const { error } = await supabase.from('premiere_trivia').insert({
+        premiere_id: item.premiere_id,
+        type: item.type,
+        question: item.question,
+        options: item.options,
+        trigger_ms: item.trigger_ms,
+      });
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere-trivia', vars.premiere_id] });
+    },
+  });
+}
+
+export function useDeletePremiereTriviaItem() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, premiereId }: { id: string; premiereId: string }) => {
+      const { error } = await supabase.from('premiere_trivia').delete().eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere-trivia', vars.premiereId] });
+    },
+  });
+}
+
+export function useMarkPremiereTriviaFired() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, premiereId }: { id: string; premiereId: string }) => {
+      const { error } = await supabase
+        .from('premiere_trivia')
+        .update({ fired_at: new Date().toISOString() })
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: (_, vars) => {
+      queryClient.invalidateQueries({ queryKey: ['premiere-trivia', vars.premiereId] });
+    },
+  });
+}
+
+export function useSubmitPremiereTriviaResponse() {
+  return useMutation({
+    mutationFn: async ({ triviaId, userId, optionIdx }: { triviaId: string; userId: string; optionIdx: number }) => {
+      const { error } = await supabase.from('premiere_trivia_responses').upsert(
+        { trivia_id: triviaId, user_id: userId, option_idx: optionIdx },
+        { onConflict: 'trivia_id,user_id' }
+      );
+      if (error) throw error;
+    },
+  });
+}
+
+export function usePremiereTriviaResponseCounts(triviaId: string | null) {
+  return useQuery({
+    queryKey: ['premiere-trivia-responses', triviaId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('premiere_trivia_responses')
+        .select('option_idx')
+        .eq('trivia_id', triviaId!);
+      if (error) throw error;
+      const counts: Record<number, number> = {};
+      for (const r of data ?? []) {
+        counts[r.option_idx] = (counts[r.option_idx] ?? 0) + 1;
+      }
+      return counts; // { 0: 12, 1: 5, 2: 3 }
+    },
+    enabled: !!triviaId,
+    refetchInterval: 3_000, // poll every 3s when a card is active
   });
 }

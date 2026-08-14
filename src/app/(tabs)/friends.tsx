@@ -56,6 +56,7 @@ import {
 import { DrumPicker, WheelColumn, daysInMonth, MONTH_LABELS } from '@/components/drum-picker';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
+import { useProfile } from '@/features/profile/api';
 
 type FollowListTab = 'following' | 'followers' | 'watchparties';
 type WatchPartyTab = 'hosting' | 'attending' | 'screening';
@@ -170,6 +171,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
   const [sendingInvites, setSendingInvites] = useState(false);
   const { data: following = [] } = useFollowing();
   const { user } = useSession();
+  const { data: profile } = useProfile();
+  const isUpperTier = (profile?.verified_tier ?? 0) >= 2;
   const inviteToPremiere = useInviteToPremiere();
 
   function openInvite(p: Premiere) {
@@ -210,6 +213,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
   const [editMinIdx, setEditMinIdx] = useState(0);   // default :00
   const [editPeriodIdx, setEditPeriodIdx] = useState(1); // default PM
   const [editTagline, setEditTagline] = useState('');
+  const [editBuyUrl, setEditBuyUrl] = useState('');
+  const [editBuyLabel, setEditBuyLabel] = useState('');
   const dayScrollRef = useRef<ScrollView>(null);
 
   const editYear = THIS_YEAR + editYearIdx;
@@ -255,6 +260,8 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
     setEditMinIdx(mIdx);
     setEditPeriodIdx(pIdx);
     setEditTagline(p.tagline ?? '');
+    setEditBuyUrl(p.buy_url ?? '');
+    setEditBuyLabel(p.buy_label ?? '');
   }
 
   async function handleSaveEdit() {
@@ -265,7 +272,14 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
     const MINUTES = ['00','15','30','45'];
     const PERIODS = ['AM','PM'];
     const airTime = `${HOURS_PAD[editHourIdx]}:${MINUTES[editMinIdx]} ${PERIODS[editPeriodIdx]}`;
-    await updatePremiere.mutateAsync({ id: editingPremiere.id, airDate: `${editYear}-${month}-${day}`, airTime, tagline: editTagline.trim() || null });
+    await updatePremiere.mutateAsync({
+      id: editingPremiere.id,
+      airDate: `${editYear}-${month}-${day}`,
+      airTime,
+      tagline: editTagline.trim() || null,
+      buyUrl: isUpperTier && editBuyUrl.trim().startsWith('https://') ? editBuyUrl.trim() : null,
+      buyLabel: isUpperTier && editBuyUrl.trim() ? (editBuyLabel.trim() || 'Buy / Rent Now') : null,
+    });
     setEditingPremiere(null);
   }
 
@@ -301,7 +315,14 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
         <View style={styles.wpCreateRow}>
           <Pressable
             style={[styles.wpCreateBtn, wpTab === 'screening' && { backgroundColor: '#F59E0B' }]}
-            onPress={() => wpTab === 'screening' ? router.push('/create-screening-room-modal') : router.push('/premiere-modal')}>
+            onPress={() => {
+              if (wpTab === 'screening') {
+                if (!isUpperTier) { router.push('/get-verified-modal'); return; }
+                router.push('/create-screening-room-modal');
+              } else {
+                router.push('/premiere-modal');
+              }
+            }}>
             <Text style={styles.wpCreateBtnText}>
               {wpTab === 'screening' ? '+ New Screening Room' : '+ Host a Watch Party'}
             </Text>
@@ -566,6 +587,12 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                       </Pressable>
                       {wpTab === 'hosting' && (
                         <View style={styles.wpCardActions}>
+                          {item.status !== 'ended' && (
+                            <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/trivia-setup-modal', params: { id: item.id, type: 'premiere', showTitle: item.show_title } })}>
+                              <Text style={{ fontSize: 12 }}>📋</Text>
+                              <Text style={styles.wpActionBtnText}>Trivia</Text>
+                            </Pressable>
+                          )}
                           <Pressable style={styles.wpActionBtn} onPress={() => router.push({ pathname: '/watch-party-analytics-modal', params: { premiereId: item.id, showTitle: item.show_title } })}>
                             <SymbolView name="chart.bar.fill" size={13} tintColor={Brand.trust} type="monochrome" />
                             <Text style={styles.wpActionBtnText}>Analytics</Text>
@@ -665,6 +692,41 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                 </View>
               </View>
               <TextInput style={[styles.wpFieldInput, { minHeight: 64, textAlignVertical: 'top' }]} value={editTagline} onChangeText={setEditTagline} placeholder='e.g. "girls night 🍷"' placeholderTextColor={Brand.muted} multiline maxLength={40} />
+
+              {/* Buy / Rent link — upper-tier only */}
+              {isUpperTier && (
+                <>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 10, marginTop: 18 }}>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: Brand.tlight, justifyContent: 'center', alignItems: 'center', marginRight: 10 }}>
+                      <SymbolView name="cart.fill" size={18} tintColor={Brand.trust} />
+                    </View>
+                    <View>
+                      <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.ink, letterSpacing: 0.5, textTransform: 'uppercase' }}>Buy / Rent Link</Text>
+                      <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted }}>Optional — shown to all viewers</Text>
+                    </View>
+                  </View>
+                  <TextInput
+                    style={styles.wpFieldInput}
+                    value={editBuyUrl}
+                    onChangeText={setEditBuyUrl}
+                    placeholder="https://tv.apple.com/..."
+                    placeholderTextColor={Brand.muted}
+                    autoCapitalize="none"
+                    keyboardType="url"
+                    autoCorrect={false}
+                  />
+                  {editBuyUrl.trim().length > 0 && (
+                    <TextInput
+                      style={[styles.wpFieldInput, { marginTop: 8 }]}
+                      value={editBuyLabel}
+                      onChangeText={setEditBuyLabel}
+                      placeholder='Button label, e.g. "Buy on Apple TV"'
+                      placeholderTextColor={Brand.muted}
+                      maxLength={40}
+                    />
+                  )}
+                </>
+              )}
             </View>
             <Pressable style={[styles.wpSaveBtn, updatePremiere.isPending && { opacity: 0.5 }]} onPress={handleSaveEdit} disabled={updatePremiere.isPending}>
               {updatePremiere.isPending ? <ActivityIndicator color="#fff" /> : <Text style={styles.wpSaveBtnText}>Save changes</Text>}

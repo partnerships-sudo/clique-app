@@ -41,8 +41,8 @@ export default function CreateScreeningRoomModal() {
   const partyDate = `${partyYear}-${String(monthIdx + 1).padStart(2, '0')}-${String(dayIdx + 1).padStart(2, '0')}`;
   const airTime = `${HOURS_PAD[hourIdx]}:${MINUTES[minIdx]} ${PERIODS[periodIdx]}`;
 
-  // Tier gate — Taste Maker is tier 3
-  const isTasteMaker = (profile?.verified_tier ?? 0) >= 3;
+  // Tier gate — Gold (tier 2) required for Screening Rooms
+  const isTasteMaker = (profile?.verified_tier ?? 0) >= 2;
 
   async function handleCreate() {
     const t = title.trim();
@@ -81,9 +81,9 @@ export default function CreateScreeningRoomModal() {
         </View>
         <View style={styles.gate}>
           <Text style={styles.gateEmoji}>🎬</Text>
-          <Text style={styles.gateTitle}>Taste Maker exclusive</Text>
+          <Text style={styles.gateTitle}>Gold exclusive</Text>
           <Text style={styles.gateSub}>
-            Screening Rooms — live synchronized video with a real-time audience — are available on the Taste Maker plan.
+            Screening Rooms — live synchronized video with a real-time audience — are available on the Gold plan.
           </Text>
           <Pressable style={styles.gateBtn} onPress={() => { router.back(); router.push('/get-verified-modal'); }}>
             <Text style={styles.gateBtnText}>View membership plans</Text>

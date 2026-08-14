@@ -1,19 +1,36 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, TouchableOpacity } from 'react-native';
+
+const THEME_COLORS = [
+  null,         // default (no colour)
+  '#5B8DEF',   // blue
+  '#8B5CF6',   // purple
+  '#D4AF37',   // gold
+  '#E84F4F',   // red
+  '#22C55E',   // green
+  '#F97316',   // orange
+  '#EC4899',   // pink
+  '#14B8A6',   // teal
+  '#1a1a2e',   // dark navy
+];
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useCreateList, useUpdateList } from '@/features/lists/api';
+import { UpgradeGate } from '@/components/upgrade-gate';
 import { useBrand } from '@/hooks/use-brand';
+import { useProfile } from '@/features/profile/api';
 
 export default function CreateListModal() {
   const params = useLocalSearchParams<{ listId?: string; listTitle?: string; listDesc?: string; listPublic?: string }>();
   const isEditing = !!params.listId;
+  const { data: profile } = useProfile();
 
   const [title, setTitle] = useState(params.listTitle ?? '');
   const [description, setDescription] = useState(params.listDesc ?? '');
   const [isPublic, setIsPublic] = useState(params.listPublic !== 'false');
+  const [themeColor, setThemeColor] = useState<string | null>(null);
 
   const createList = useCreateList();
   const updateList = useUpdateList();
@@ -28,12 +45,32 @@ export default function CreateListModal() {
       if (isEditing) {
         await updateList.mutateAsync({ id: params.listId!, title: t, description: description.trim() || undefined, is_public: isPublic });
       } else {
-        await createList.mutateAsync({ title: t, description: description.trim() || undefined, is_public: isPublic });
+        await createList.mutateAsync({ title: t, description: description.trim() || undefined, is_public: isPublic, theme_color: themeColor });
       }
       router.back();
     } catch {
       Alert.alert('Error', 'Could not save list. Please try again.');
     }
+  }
+
+  const tier = profile?.verified_tier ?? 0;
+
+  if (!isEditing && tier < 2) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={12}>
+            <Text style={styles.cancel}>Cancel</Text>
+          </Pressable>
+        </View>
+        <UpgradeGate
+          requiredTier={2}
+          currentTier={tier}
+          title="Custom lists"
+          description="Curate and share themed lists with custom artwork. Available with a Gold membership."
+        />
+      </SafeAreaView>
+    );
   }
 
   return (
@@ -94,6 +131,33 @@ export default function CreateListModal() {
               />
             </View>
           </View>
+
+          {tier >= 2 && (
+            <View style={[styles.card, { marginTop: 14 }]}>
+              <View style={[styles.row, { flexDirection: 'column', alignItems: 'flex-start', gap: 12 }]}>
+                <View>
+                  <Text style={styles.label}>Accent colour</Text>
+                  <Text style={styles.hint}>Gives your list a custom look on your profile.</Text>
+                </View>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                  {THEME_COLORS.map((c, i) => (
+                    <TouchableOpacity
+                      key={i}
+                      onPress={() => setThemeColor(c)}
+                      style={[
+                        styles.colorSwatch,
+                        { backgroundColor: c ?? Brand.border },
+                        themeColor === c && styles.colorSwatchActive,
+                      ]}>
+                      {themeColor === c && (
+                        <Text style={{ color: c ? '#fff' : Brand.ink, fontSize: 12 }}>✓</Text>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </View>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -137,5 +201,13 @@ function createStyles(Brand: BrandPalette) {
     input: { flex: 1, fontFamily: BrandFonts.interRegular, fontSize: 15, color: Brand.ink, padding: 0 },
     descInput: { minHeight: 60, textAlignVertical: 'top', paddingTop: 2 },
     divider: { height: 1, backgroundColor: Brand.border, marginLeft: 14 },
+    colorSwatch: {
+      width: 32, height: 32, borderRadius: 16,
+      alignItems: 'center', justifyContent: 'center',
+      borderWidth: 1.5, borderColor: Brand.border,
+    },
+    colorSwatchActive: {
+      borderWidth: 2.5, borderColor: Brand.ink,
+    },
   });
 }

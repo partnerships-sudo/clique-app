@@ -96,6 +96,7 @@ export function ProfileCard({
   const [ratingItem, setRatingItem] = useState<LibraryItem | null>(null);
   const [ratingValue, setRatingValue] = useState<number | null>(null);
   const [ratingNote, setRatingNote] = useState('');
+  const [avatarZoom, setAvatarZoom] = useState(false);
 
   const logged = library.filter((i) => i.status !== 'watchlist');
   const watchlist = library.filter((i) => i.status === 'watchlist');
@@ -113,7 +114,7 @@ export function ProfileCard({
       <View style={styles.contentPad}>
         {/* Header: avatar left, name/actions right */}
         <View style={styles.headerRow}>
-          <View style={styles.avWrap}>
+          <Pressable style={styles.avWrap} onPress={() => profile?.avatar_url && setAvatarZoom(true)} hitSlop={4}>
             <View style={styles.avRing}>
               {profile?.avatar_url ? (
                 <Image source={{ uri: profile.avatar_url }} style={styles.avImg} />
@@ -124,7 +125,7 @@ export function ProfileCard({
               )}
             </View>
             {isOnline(profile?.last_seen_at) && <View style={styles.onlineDot} />}
-          </View>
+          </Pressable>
 
           <View style={styles.headerInfo}>
             <View style={styles.nameRow}>
@@ -251,6 +252,15 @@ export function ProfileCard({
       </View>
 
       {/* Rate-and-log sheet */}
+      {/* Avatar zoom */}
+      <Modal visible={avatarZoom} transparent animationType="fade" onRequestClose={() => setAvatarZoom(false)}>
+        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setAvatarZoom(false)}>
+          {profile?.avatar_url ? (
+            <Image source={{ uri: profile.avatar_url }} style={{ width: 280, height: 280, borderRadius: 140 }} resizeMode="cover" />
+          ) : null}
+        </Pressable>
+      </Modal>
+
       <Modal visible={!!ratingItem} transparent animationType="slide" onRequestClose={() => setRatingItem(null)}>
         <Pressable style={styles.rateOverlay} onPress={() => setRatingItem(null)} />
         <View style={styles.rateSheet}>

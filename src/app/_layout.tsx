@@ -24,6 +24,10 @@ import { SessionProvider } from '@/providers/session-provider';
 import { ShakespearProvider } from '@/providers/shakespear-provider';
 
 function RootNavigator() {
+  const { scheme } = useAppearance();
+  // Paper background adapts to the current colour scheme so form sheets
+  // don't flash a hardcoded light colour in dark mode.
+  const paper = scheme === 'dark' ? '#0F0E11' : '#F7F6F2';
   return (
     <Stack>
       <Stack.Screen name="index" options={{ headerShown: false }} />
@@ -49,6 +53,7 @@ function RootNavigator() {
       <Stack.Screen name="list-share-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.5], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="list-comments-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="friend-profile-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="taste-detail-modal" options={{ headerShown: false }} />
       <Stack.Screen name="rate-modal" options={{ headerShown: false }} />
       <Stack.Screen name="new-chat-modal" options={{ headerShown: false }} />
       <Stack.Screen name="new-group-modal" options={{ headerShown: false }} />
@@ -75,21 +80,23 @@ function RootNavigator() {
       <Stack.Screen name="premiere-waiting-room" options={{ headerShown: false }} />
       <Stack.Screen name="premiere-live" options={{ headerShown: false }} />
       <Stack.Screen name="profile-stats-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="yearly-wrapped-modal" options={{ headerShown: false }} />
       <Stack.Screen name="rate-watchlist-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="collection-item-detail-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.72], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="export-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.55], sheetGrabberVisible: true, headerShown: false }} />
-      <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.42, 0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
-      <Stack.Screen name="get-verified-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9], sheetGrabberVisible: true, headerShown: false }} />
-      <Stack.Screen name="create-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
+      <Stack.Screen name="import-library-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.42, 0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: paper } }} />
+      <Stack.Screen name="get-verified-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.9, 1.0], sheetGrabberVisible: true, headerShown: false }} />
+      <Stack.Screen name="create-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.6], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: paper } }} />
       <Stack.Screen name="create-discussion-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [1.0], sheetGrabberVisible: true, headerShown: false }} />
       <Stack.Screen name="discussion-detail-modal" options={{ headerShown: false }} />
       <Stack.Screen name="content-room-modal" options={{ headerShown: false }} />
       <Stack.Screen name="pick-for-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.92], sheetGrabberVisible: true, headerShown: false }} />
-      <Stack.Screen name="list-detail-modal" options={{ headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
-      <Stack.Screen name="add-to-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
-      <Stack.Screen name="create-screening-room-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.85], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: '#F7F6F2' } }} />
+      <Stack.Screen name="list-detail-modal" options={{ headerShown: false, contentStyle: { backgroundColor: paper } }} />
+      <Stack.Screen name="add-to-list-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.75], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: paper } }} />
+      <Stack.Screen name="create-screening-room-modal" options={{ presentation: 'formSheet', sheetAllowedDetents: [0.85], sheetGrabberVisible: true, headerShown: false, contentStyle: { backgroundColor: paper } }} />
       <Stack.Screen name="screening-room-analytics-modal" options={{ headerShown: false }} />
       <Stack.Screen name="watch-party-analytics-modal" options={{ headerShown: false }} />
+      <Stack.Screen name="trivia-setup-modal" options={{ headerShown: false }} />
       <Stack.Screen name="screening-room-live" options={{ headerShown: false, gestureEnabled: false }} />
       <Stack.Screen name="premiere-replay" options={{ headerShown: false }} />
       <Stack.Screen name="saved-discussions-modal" options={{ headerShown: false }} />

@@ -164,6 +164,31 @@ async function handleDetails(id: number, token: string) {
   return { game: { ...mapGame(game), developer, cast, trailerUrl, trailerThumbnail } };
 }
 
+// --- action: upcoming ---
+async function handleUpcoming(token: string) {
+  const nowTs = Math.floor(Date.now() / 1000);
+  const futureTs = nowTs + 180 * 24 * 60 * 60; // 6 months out
+  const data = await igdb(token, 'games',
+    `fields name, cover.image_id, genres.name, first_release_date, platforms.id, hypes;
+     where first_release_date >= ${nowTs} & first_release_date <= ${futureTs} & cover != null & hypes != null;
+     sort hypes desc;
+     limit 25;`);
+  return {
+    results: (data ?? []).map((g: any) => ({
+      id: g.id,
+      title: g.name,
+      cover: coverUrl(g.cover?.image_id),
+      releaseDate: g.first_release_date
+        ? new Date(g.first_release_date * 1000).toISOString().slice(0, 10)
+        : '',
+      genre: g.genres?.[0]?.name ?? null,
+      platforms: [...new Set(
+        (g.platforms ?? []).map((p: any) => PLATFORM_BUCKET[p.id]).filter(Boolean)
+      )],
+    })),
+  };
+}
+
 // --- action: similar ---
 async function handleSimilar(id: number, token: string) {
   // Fetch the game's similar_games IDs first, then get full details for each
@@ -192,6 +217,8 @@ Deno.serve(async (req) => {
       result = await handleDetails(body.id, token);
     } else if (body.action === 'similar') {
       result = await handleSimilar(body.id, token);
+    } else if (body.action === 'upcoming') {
+      result = await handleUpcoming(token);
     } else {
       // Default: cover-only batch (backward compat)
       const titles: string[] = Array.isArray(body.titles) ? body.titles.filter((t: any) => typeof t === 'string' && t.trim()) : [];

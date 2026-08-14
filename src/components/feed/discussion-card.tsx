@@ -1,36 +1,56 @@
 import { router } from 'expo-router';
 import { useRef } from 'react';
 import { SymbolView } from 'expo-symbols';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
+import { VerifiedBadge } from '@/components/verified-badge';
 import { BrandFonts } from '@/constants/theme';
 import { type Discussion, timeAgo, useToggleDiscussionVote, useToggleDiscussionDisagree } from '@/features/discussions/api';
 import { track, Events } from '@/features/analytics/api';
 import { useSession } from '@/hooks/use-session';
+import { useBrand } from '@/hooks/use-brand';
 
 const POSTER_W = 90;
 const POSTER_H = 135; // 2:3 — matches post-card exactly
 
-// Format palette — border + bottom bar colour
+// Format palette — separate light/dark values
 const FORMAT_PALETTE = {
-  poll:       { border: '#FDE68A', barBg: '#FEF08A', barText: '#92400E', label: 'POLL' },
-  hot_take:   { border: '#FCA5A5', barBg: '#FCA5A5', barText: '#7F1D1D', label: 'HOT TAKE' },
-  discussion: { border: '#C4B5FD', barBg: '#DDD6FE', barText: '#4C1D95', label: 'DISCUSSION' },
+  poll: {
+    light: { border: '#FDE68A', barBg: '#FEF08A', barText: '#92400E' },
+    dark:  { border: '#854D0E', barBg: '#422006', barText: '#FEF08A' },
+    label: 'POLL',
+  },
+  hot_take: {
+    light: { border: '#FCA5A5', barBg: '#FCA5A5', barText: '#7F1D1D' },
+    dark:  { border: '#991B1B', barBg: '#450A0A', barText: '#FCA5A5' },
+    label: 'HOT TAKE',
+  },
+  discussion: {
+    light: { border: '#C4B5FD', barBg: '#DDD6FE', barText: '#4C1D95' },
+    dark:  { border: '#6D28D9', barBg: '#2E1065', barText: '#DDD6FE' },
+    label: 'DISCUSSION',
+  },
 };
 
-function getPalette(item: Discussion) {
-  if (item.has_poll || item.format === 'poll') return FORMAT_PALETTE.poll;
-  if (item.format === 'hot_take') return FORMAT_PALETTE.hot_take;
-  return FORMAT_PALETTE.discussion;
+function getPaletteKey(item: Discussion): keyof typeof FORMAT_PALETTE {
+  if (item.has_poll || item.format === 'poll') return 'poll';
+  if (item.format === 'hot_take') return 'hot_take';
+  return 'discussion';
 }
 
 export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion; suppressContentRoom?: boolean }) {
   const vote = useToggleDiscussionVote();
   const disagree = useToggleDiscussionDisagree();
   const { user } = useSession();
+  const Brand = useBrand();
+  const scheme = useColorScheme();
+  const isDark = scheme === 'dark';
 
-  const palette = getPalette(item);
+  const paletteKey = getPaletteKey(item);
+  const paletteDef = FORMAT_PALETTE[paletteKey];
+  const palette = { ...paletteDef, ...(isDark ? paletteDef.dark : paletteDef.light) };
+
   const hasLinkedContent = !!(item.content_title && item.content_external_id);
 
   function handleVote() {
@@ -68,9 +88,14 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
 
   const voteCount = item.upvote_count + item.disagree_count;
 
+  // Vote button background — sits on top of the coloured bar
+  const voteBtnBg = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.5)';
+  const voteBtnActiveBg = isDark ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.8)';
+  const disagreeBg = isDark ? '#450A0A' : '#FEE2E2';
+
   return (
     <Pressable
-      style={[styles.card, { borderColor: palette.border }]}
+      style={[styles.card, { borderColor: palette.border, backgroundColor: Brand.card }]}
       onPress={handleOpenDiscussion}>
 
       {/* ── Top row: poster LEFT + body RIGHT — height locked to POSTER_H ── */}
@@ -88,26 +113,26 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
 
         {/* Body column */}
         <View style={styles.body}>
-          {/* Meta row: avatar · @username · time — type label moved to bottom bar */}
+          {/* Meta row: avatar · @username · time */}
           <View style={styles.metaRow}>
             <Avatar avatarUrl={item.author_avatar} name={item.author_name} size={20} />
-            <Text style={styles.authorText} numberOfLines={1}>@{item.author_name}</Text>
-            <Text style={styles.timeText}>{timeAgo(item.created_at)}</Text>
+            <Text style={[styles.authorText, { color: Brand.muted }]} numberOfLines={1}>@{item.author_name}</Text>
+            {!!item.author_verified_tier && <VerifiedBadge tier={item.author_verified_tier} size={12} />}
+            <Text style={[styles.timeText, { color: Brand.muted }]}>{timeAgo(item.created_at)}</Text>
           </View>
 
           {/* Title */}
-          <Text style={styles.title} numberOfLines={3}>{item.title}</Text>
+          <Text style={[styles.title, { color: Brand.ink }]} numberOfLines={3}>{item.title}</Text>
 
           {/* Show name — hidden when already inside that content room */}
           {item.content_title && !suppressContentRoom ? (
-            <Text style={styles.showName} numberOfLines={1}>{item.content_title}</Text>
+            <Text style={[styles.showName, { color: Brand.muted }]} numberOfLines={1}>{item.content_title}</Text>
           ) : null}
 
           {/* Hot take body snippet */}
           {item.body && item.format === 'hot_take' ? (
-            <Text style={styles.bodySnippet} numberOfLines={2}>"{item.body}"</Text>
+            <Text style={[styles.bodySnippet, { color: Brand.muted }]} numberOfLines={2}>"{item.body}"</Text>
           ) : null}
-
 
           <View style={{ flex: 1 }} />
 
@@ -115,13 +140,13 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
           <View style={styles.statsRow}>
             {item.has_poll && voteCount > 0 && (
               <>
-                <Text style={styles.statText}>{voteCount} voted</Text>
-                <Text style={styles.statDot}>·</Text>
+                <Text style={[styles.statText, { color: Brand.muted }]}>{voteCount} voted</Text>
+                <Text style={[styles.statDot, { color: Brand.border }]}>·</Text>
               </>
             )}
             <View style={styles.commentStat}>
-              <SymbolView name="bubble.left" size={11} tintColor="#9CA3AF" type="monochrome" style={{ width: 11, height: 11 }} />
-              <Text style={styles.statText}>{item.comment_count}</Text>
+              <SymbolView name="bubble.left" size={11} tintColor={Brand.muted} type="monochrome" style={{ width: 11, height: 11 }} />
+              <Text style={[styles.statText, { color: Brand.muted }]}>{item.comment_count}</Text>
             </View>
           </View>
         </View>
@@ -133,18 +158,18 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
 
         <View style={styles.voteGroup}>
           <Pressable
-            style={[styles.voteBtn, item.has_voted && styles.voteBtnActive]}
+            style={[styles.voteBtn, { backgroundColor: voteBtnBg }, item.has_voted && { backgroundColor: voteBtnActiveBg }]}
             onPress={(e) => { e.stopPropagation(); handleVote(); }}
             hitSlop={6}>
-            <Text style={[styles.voteBtnText, { color: item.has_voted ? palette.barText : '#6B7280' }]}>
+            <Text style={[styles.voteBtnText, { color: item.has_voted ? palette.barText : Brand.muted }]}>
               👍{item.upvote_count > 0 ? `  ${item.upvote_count}` : ''}
             </Text>
           </Pressable>
           <Pressable
-            style={[styles.voteBtn, item.has_disagreed && styles.voteBtnDisagree]}
+            style={[styles.voteBtn, { backgroundColor: voteBtnBg }, item.has_disagreed && { backgroundColor: disagreeBg }]}
             onPress={(e) => { e.stopPropagation(); handleDisagree(); }}
             hitSlop={6}>
-            <Text style={[styles.voteBtnText, { color: item.has_disagreed ? '#991B1B' : '#6B7280' }]}>
+            <Text style={[styles.voteBtnText, { color: item.has_disagreed ? (isDark ? '#FCA5A5' : '#991B1B') : Brand.muted }]}>
               👎{item.disagree_count > 0 ? `  ${item.disagree_count}` : ''}
             </Text>
           </Pressable>
@@ -159,11 +184,10 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     marginBottom: 12,
     overflow: 'hidden',
-    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
   },
 
-  // Top row — height locked to poster height, same as post-card (135pt)
+  // Top row — height locked to poster height
   topRow: {
     flexDirection: 'row',
     height: POSTER_H,
@@ -197,39 +221,28 @@ const styles = StyleSheet.create({
   authorText: {
     fontFamily: BrandFonts.interMedium,
     fontSize: 12,
-    color: '#374151',
     flex: 1,
   },
   timeText: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 11,
-    color: '#9CA3AF',
     flexShrink: 0,
   },
 
   title: {
     fontFamily: BrandFonts.syneExtraBold,
     fontSize: 16,
-    color: '#111827',
     lineHeight: 21,
   },
   showName: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 12,
-    color: '#6B7280',
   },
   bodySnippet: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 12,
-    color: '#6B7280',
     fontStyle: 'italic',
     lineHeight: 16,
-  },
-  cardImageThumb: {
-    width: '100%',
-    height: 120,
-    borderRadius: 10,
-    marginTop: 6,
   },
 
   statsRow: {
@@ -240,12 +253,10 @@ const styles = StyleSheet.create({
   statText: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 11,
-    color: '#9CA3AF',
   },
   statDot: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 11,
-    color: '#D1D5DB',
   },
   commentStat: {
     flexDirection: 'row',
@@ -253,7 +264,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
 
-  // Bottom bar — full color bg, same paddingVertical: 8 as post-card (keeps total at 171pt)
+  // Bottom bar
   bottomBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -274,13 +285,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     paddingVertical: 3,
     paddingHorizontal: 10,
-    backgroundColor: 'rgba(255,255,255,0.5)',
-  },
-  voteBtnActive: {
-    backgroundColor: 'rgba(255,255,255,0.8)',
-  },
-  voteBtnDisagree: {
-    backgroundColor: '#FEE2E2',
   },
   voteBtnText: {
     fontFamily: BrandFonts.syneBold,

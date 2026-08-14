@@ -16,6 +16,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useFollowersByUser, useFollowingByUser, useFollowing, type Profile } from '@/features/follows/api';
 import { usePostsByUser, type Post } from '@/features/feed/api';
+import { UpgradeGate } from '@/components/upgrade-gate';
+import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -47,6 +49,8 @@ export default function ProfileStatsModal() {
   const isLoading = loggedLoading || followersLoading || followingLoading;
 
   const yearFilter = params.year ? Number(params.year) : null;
+  const { data: myProfile } = useProfile();
+  const myTier = myProfile?.verified_tier ?? 0;
   const filteredLogged = useMemo(() => {
     let list = yearFilter
       ? logged.filter((i) => new Date(i.created_at).getFullYear() === yearFilter)
@@ -149,6 +153,27 @@ export default function ProfileStatsModal() {
       </Pressable>
     );
   }, [myFollowingSet, styles]);
+
+  // Gate yearly wrapped to Silver (tier 1+)
+  if (yearFilter && myTier < 1) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()} hitSlop={16}>
+            <Text style={styles.backBtn}>‹ Back</Text>
+          </Pressable>
+          <Text style={styles.title}>Yearly Wrapped</Text>
+          <View style={{ width: 48 }} />
+        </View>
+        <UpgradeGate
+          requiredTier={1}
+          currentTier={myTier}
+          title={`${yearFilter} Wrapped`}
+          description="Your personal year in review — every title you logged, by month and genre. Available with a Silver membership."
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

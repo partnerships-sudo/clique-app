@@ -36,7 +36,7 @@ const STEPS: StepDef[] = [
   {
     refKey: 'tabs',
     title: 'Your Feed, your way',
-    desc: 'My Feed is people you follow. My Circle is close friends only. Global is the whole community. For You is personalised picks based on your taste.',
+    desc: 'Feed is people you follow. Circles shows what your inner and outer circles are watching, reading, and listening to most. Lounge is the whole community. For You is personalised picks based on your taste.',
     screen: 'feed',
     navActive: 0,
     tooltipPos: 'bottom',
@@ -44,7 +44,7 @@ const STEPS: StepDef[] = [
   {
     refKey: 'post',
     title: "Real takes, no spoilers",
-    desc: "See what the people you follow are actually watching. React with an emoji, hide spoilers with one tap, or jump straight into the content chat for that title.",
+    desc: "See what the people you follow are actually watching. React with an emoji, hide spoilers with one tap, or jump straight into the content chat for that title. Head over to the Lounge to connect with the wider community.",
     screen: 'feed',
     navActive: 0,
     tooltipPos: 'bottom',
@@ -59,8 +59,8 @@ const STEPS: StepDef[] = [
   },
   {
     refKey: 'nav1',
-    title: 'Chats & Watch Parties',
-    desc: "DM friends, start a group chat, or join a content chat for any title. Start a Watch Party to sync up and stream something together in real time.",
+    title: 'Chats & Watch Events',
+    desc: "DM friends, start a group chat, and watch things together. Host a Watch Party to sync up in real time — chat, react, and share the moment live. Lounges let your audience hang out and keep the conversation going between events.",
     screen: 'chats',
     navActive: 1,
     tooltipPos: 'above-nav',
@@ -83,8 +83,8 @@ const STEPS: StepDef[] = [
   },
   {
     refKey: 'nav4',
-    title: 'Your Library',
-    desc: "Your personal collection lives in your Profile — three tabs: Logged keeps everything you've rated, Watchlist is what's next, and Collection is for the physical stuff you own.",
+    title: 'Your Profile',
+    desc: "Your Profile is your taste home base. See your activity feed, Watchlist, Collection, and Stats — plus your follow count and compatibility score with friends.",
     screen: 'library',
     navActive: 4,
     tooltipPos: 'above-nav',
@@ -292,23 +292,28 @@ export function TourScreen({
           </>
         ) : (
           <>
-            <Text style={styles.mockHeaderTitle}>{SCREEN_TITLE[currentStep.screen]}</Text>
-            {currentStep.screen === 'chats' && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                <View style={[styles.chatArchivedBtn, { borderColor: Brand.border }]}>
-                  <Text style={[styles.chatArchivedText, { color: Brand.muted }]}>Archived</Text>
+            {currentStep.screen === 'chats' ? (
+              <>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.mockHeaderTitle}>Chats</Text>
+                  <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12, color: Brand.muted, marginTop: 1 }}>Your conversations</Text>
                 </View>
-                <View style={[styles.chatPlusBtn, { backgroundColor: Brand.trust }]}>
-                  <Text style={styles.chatPlusText}>＋</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <View style={[styles.chatArchivedBtn, { borderColor: Brand.border }]}>
+                    <Text style={[styles.chatArchivedText, { color: Brand.ink }]}>Archived</Text>
+                  </View>
+                  <SymbolView name="square.and.pencil" size={20} tintColor={Brand.ink} type="monochrome" />
                 </View>
-              </View>
+              </>
+            ) : (
+              <Text style={styles.mockHeaderTitle}>{SCREEN_TITLE[currentStep.screen]}</Text>
             )}
             {currentStep.screen === 'friends' && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
                 <View style={[styles.friendInviteBtn, { backgroundColor: Brand.trust }]}>
                   <Text style={styles.friendInviteBtnText}>+ Invite</Text>
                 </View>
-                <Text style={[styles.friendSettingsGlyph, { color: Brand.muted }]}>⚙</Text>
+                <SymbolView name="person.badge.plus" size={22} tintColor={Brand.muted} type="monochrome" />
               </View>
             )}
             {currentStep.screen === 'library' && (
@@ -334,8 +339,8 @@ export function TourScreen({
               style={styles.feedTabsWrap}>
               {[
                 { label: 'Feed', sf: 'house' as const },
-                { label: 'My Circle', sf: 'person.2' as const },
-                { label: 'Global', sf: 'globe' as const },
+                { label: 'Circles', sf: 'person.2' as const },
+                { label: 'Lounge', sf: 'globe' as const },
                 { label: 'For You', sf: 'sparkles' as const },
               ].map((t, i) => (
                 <View key={t.label} style={[styles.feedTab, i === 0 && styles.feedTabActive]}>
@@ -350,7 +355,7 @@ export function TourScreen({
             <View style={[styles.nowBanner, { backgroundColor: Brand.tlight }]}>
               <View style={styles.nowLeft}>
                 <Text style={[styles.nowLabel, { color: Brand.trust }]}>YOU'RE WATCHING</Text>
-                <Text style={[styles.nowTitle, { color: Brand.ink }]}>Spy</Text>
+                <Text style={[styles.nowTitle, { color: Brand.ink }]}>Oppenheimer</Text>
                 <View style={[styles.nowBtn, { backgroundColor: Brand.trust }]}>
                   <Text style={styles.nowBtnText}>+ Log something</Text>
                 </View>
@@ -438,8 +443,8 @@ export function TourScreen({
                     <Text style={styles.postAvatarText}>WP</Text>
                   </View>
                   <Text style={[styles.postHandle, { color: Brand.muted }]}>@winniepooh</Text>
-                  <View style={[styles.postPill, { backgroundColor: '#e8fff0' }]}>
-                    <Text style={[styles.postPillText, { color: '#34C759' }]}>FINISHED</Text>
+                  <View style={[styles.postPill, { backgroundColor: Brand.tlight }]}>
+                    <Text style={[styles.postPillText, { color: Brand.trust }]}>FINISHED</Text>
                   </View>
                   <Text style={[styles.postTime, { color: Brand.muted }]}>5h</Text>
                 </View>
@@ -458,48 +463,39 @@ export function TourScreen({
         {/* CHATS — step 3 */}
         {currentStep.screen === 'chats' && (
           <>
+            {/* Chats / Requests mode tabs */}
             <View style={[styles.chatModeRow, { borderBottomColor: Brand.border }]}>
-              {[{ label: 'Content', count: '4', active: true }, { label: 'Private', count: '3', active: false }].map((t) => (
-                <View key={t.label} style={styles.chatModeTab}>
-                  <View style={styles.chatModeTabInner}>
-                    <Text style={[styles.chatModeTabText, t.active && styles.chatModeTabTextActive]}>{t.label}</Text>
-                    <View style={[styles.chatModeBadge, t.active && styles.chatModeBadgeActive]}>
-                      <Text style={[styles.chatModeBadgeText, t.active && styles.chatModeBadgeTextActive]}>{t.count}</Text>
-                    </View>
-                  </View>
-                  {t.active && <View style={[styles.chatModeTabUnderline, { backgroundColor: Brand.trust }]} />}
-                </View>
-              ))}
-            </View>
-            <View style={[styles.watchPartyBanner, { backgroundColor: Brand.trust }]}>
-              <Text style={styles.watchPartyEmoji}>🎬</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.watchPartyTitle}>Start a Watch Party</Text>
-                <Text style={styles.watchPartySub}>Stream together in real time</Text>
+              <View style={styles.chatModeTab}>
+                <Text style={[styles.chatModeTabText, styles.chatModeTabTextActive]}>Chats</Text>
+                <View style={[styles.chatModeTabUnderline, { backgroundColor: Brand.trust }]} />
               </View>
-              <Text style={styles.watchPartyChevron}>›</Text>
+              <View style={[styles.chatModeTab, { marginRight: 0 }]}>
+                <Text style={styles.chatModeTabText}>Requests</Text>
+              </View>
             </View>
             <View style={[styles.chatSearchRow, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-              <Text style={styles.chatSearchEmoji}>🔍</Text>
-              <Text style={[styles.chatSearchText, { color: Brand.muted }]}>Search content chats…</Text>
+              <SymbolView name="magnifyingglass" size={15} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16, marginRight: 8 }} />
+              <Text style={[styles.chatSearchText, { color: Brand.muted }]}>Search chats…</Text>
             </View>
-            <MockFilterChips Brand={Brand} />
             {[
-              { pk: 'oppenheimer' as const, emoji: '🎬', bg: '#1a1a2e', title: 'Oppenheimer', time: '2h', sender: 'Sherlock Holmes', msg: 'Deduced the ending in 12 minutes. Remarkable.' },
-              { pk: 'succession'  as const, emoji: '📺', bg: '#1e2e1a', title: 'Succession',  time: '5h', sender: 'Winnie the Pooh', msg: 'It is a very long winter in this kingdom.' },
-              { pk: 'nosferatu'   as const, emoji: '🎬', bg: '#2e1a1a', title: 'Nosferatu',   time: '1d', sender: 'Dracula',          msg: 'They got my cheekbones completely wrong.' },
+              { img: require('../../../assets/avatars/sherlock.png'), name: 'Sherlock Holmes', time: '2h', msg: 'The game is afoot. Are you free tonight?', unread: 2 },
+              { img: require('../../../assets/avatars/movienight.png'), name: 'Movie Night 🎬', time: '5h', msg: 'Winnie: Who\'s watching Nosferatu with me?', unread: 0 },
+              { img: require('../../../assets/avatars/donquixote.png'), name: 'Don Quixote', time: '1d', msg: 'Did you see the Dune: Part 3 trailer?', unread: 0 },
             ].map((chat, i) => (
               <View key={i} style={[styles.chatCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-                <MockPoster posterKey={chat.pk} fallbackEmoji={chat.emoji} style={[styles.chatCardIcon, { backgroundColor: chat.bg }]} />
+                <Image source={chat.img} style={[styles.chatCardIcon, { borderRadius: 22 }]} />
                 <View style={styles.chatCardBody}>
                   <View style={styles.chatCardTitleRow}>
-                    <Text style={[styles.chatCardTitle, { color: Brand.ink }]} numberOfLines={1}>{chat.title}</Text>
+                    <Text style={[styles.chatCardTitle, { color: Brand.ink }]} numberOfLines={1}>{chat.name}</Text>
                     <Text style={[styles.chatCardTime, { color: Brand.muted }]}>{chat.time}</Text>
                   </View>
-                  <Text style={[styles.chatCardPreview, { color: Brand.muted }]} numberOfLines={1}>
-                    <Text style={[styles.chatCardPreviewUser, { color: Brand.ink }]}>{chat.sender}: </Text>{chat.msg}
-                  </Text>
+                  <Text style={[styles.chatCardPreview, { color: Brand.muted }]} numberOfLines={1}>{chat.msg}</Text>
                 </View>
+                {chat.unread > 0 && (
+                  <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: Brand.trust, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: '#fff', fontSize: 10, fontFamily: BrandFonts.syneBold }}>{chat.unread}</Text>
+                  </View>
+                )}
               </View>
             ))}
           </>
@@ -508,28 +504,13 @@ export function TourScreen({
         {/* FRIENDS — step 4 */}
         {currentStep.screen === 'friends' && (
           <>
-            <View style={styles.friendFindRow}>
-              {[
-                { icon: 'f', iconBg: '#1877F2', title: 'Connect Facebook', sub: 'Find your friends' },
-                { icon: '👥', iconBg: Brand.trust, title: 'Sync Contacts', sub: 'Find your contacts' },
-              ].map((btn) => (
-                <View key={btn.title} style={[styles.friendFindBtn, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-                  <View style={[styles.friendFindIconWrap, { backgroundColor: btn.iconBg }]}>
-                    <Text style={styles.friendFindIcon}>{btn.icon}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={[styles.friendFindTitle, { color: Brand.ink }]}>{btn.title}</Text>
-                    <Text style={[styles.friendFindSub, { color: Brand.muted }]}>{btn.sub}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-            <View style={[styles.friendListSearch, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-              <Text style={styles.friendListSearchIcon}>🔍</Text>
-              <Text style={[styles.friendListSearchText, { color: Brand.muted }]}>Search for people to follow...</Text>
-            </View>
+            {/* Tab bar: Following | Followers | Watch Parties */}
             <View style={[styles.friendTabRow, { borderBottomColor: Brand.border }]}>
-              {[{ label: 'Following 3', active: true }, { label: 'Followers 3', active: false }].map((t) => (
+              {[
+                { label: 'Following 3', active: true },
+                { label: 'Followers 3', active: false },
+                { label: 'Watch Parties', active: false },
+              ].map((t) => (
                 <View key={t.label} style={styles.friendTabItem}>
                   <Text style={[styles.friendTabLabel, t.active && styles.friendTabLabelActive]}>{t.label}</Text>
                   {t.active && <View style={[styles.friendTabUnderline, { backgroundColor: Brand.trust }]} />}
@@ -541,52 +522,86 @@ export function TourScreen({
               <Text style={[styles.friendListSearchText, { color: Brand.muted }]}>Search…</Text>
             </View>
             {[
-              { initials: 'SH', bg: '#1a1a2e', name: 'Sherlock Holmes', handle: 'sherlockh', compat: 99, color: '#E84F4F', emoji: '🔥', hot: true },
-              { initials: 'DQ', bg: '#5c3317', name: 'Don Quixote', handle: 'donquixote', compat: 52, color: '#94a3b8', emoji: '🤔', hot: false },
-              { initials: 'WP', bg: '#2e2a1a', name: 'Winnie the Pooh', handle: 'winniepooh', compat: 72, color: '#3b82f6', emoji: '👍', hot: false },
+              { img: require('../../../assets/avatars/sherlock.png'), name: 'Sherlock Holmes', handle: 'sherlockh', compat: 99, color: '#E84F4F', label: 'Movie Soulmate', verified: true },
+              { img: require('../../../assets/avatars/winnie.png'), name: 'Winnie the Pooh', handle: 'winniepooh', compat: 78, color: '#5B4FE8', label: 'TV Twin', verified: false },
+              { img: require('../../../assets/avatars/donquixote.png'), name: 'Don Quixote', handle: 'donquixote', compat: 52, color: '#9E9E9E', label: 'Curious Minds', verified: false },
             ].map((f, i) => (
               <View key={i} style={[styles.friendCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
                 <View style={styles.friendIdentity}>
-                  <View style={[styles.friendAvatar, { backgroundColor: f.bg }]}>
-                    <Text style={styles.friendAvatarText}>{f.initials}</Text>
+                  {/* Avatar with colored ring + % badge */}
+                  <View style={{ position: 'relative' }}>
+                    <View style={[styles.friendAvatarRing, { borderColor: f.color }]}>
+                      <Image source={f.img} style={[styles.friendAvatar, { borderRadius: 22 }]} />
+                    </View>
+                    <View style={[styles.friendPctBadge, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+                      <Text style={[styles.friendPctText, { color: f.color }]}>{f.compat}%</Text>
+                    </View>
                   </View>
                   <View style={{ flex: 1, minWidth: 0 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                      <Text style={[styles.friendName, { color: Brand.ink }]}>{f.name}</Text>
-                      {f.hot && (
-                        <View style={[styles.verifiedBadge, { backgroundColor: Brand.trust }]}>
-                          <Text style={styles.verifiedTick}>✓</Text>
-                        </View>
+                      <Text style={[styles.friendName, { color: Brand.ink }]} numberOfLines={1}>{f.name}</Text>
+                      {f.verified && (
+                        <SymbolView name="checkmark.seal.fill" size={14} tintColor={Brand.trust} type="monochrome" style={{ width: 14, height: 14 }} />
                       )}
                     </View>
                     <Text style={[styles.friendHandle, { color: Brand.muted }]}>@{f.handle}</Text>
-                    <View style={styles.friendCompatRow}>
-                      <View style={[styles.friendCompatTrack, { backgroundColor: Brand.tlight }]}>
-                        <View style={[styles.friendCompatFill, { width: `${f.compat}%` as any, backgroundColor: f.color }]} />
-                      </View>
-                      <Text style={[styles.friendCompatScore, { color: f.color }]}>{f.emoji} {f.compat}%</Text>
-                    </View>
+                    <Text style={[styles.friendCompatLabel, { color: f.color }]}>{f.label}</Text>
                   </View>
                 </View>
                 <View style={[styles.friendChatBtn, { backgroundColor: Brand.tlight }]}>
-                  <SymbolView name="message" size={17} tintColor={Brand.trust} type="monochrome" />
+                  <SymbolView name="bubble.left" size={16} tintColor={Brand.trust} type="monochrome" style={{ width: 18, height: 18 }} />
                 </View>
               </View>
             ))}
           </>
         )}
 
-        {/* LIBRARY — step 5 */}
+        {/* PROFILE — step 5 */}
         {currentStep.screen === 'library' && (
           <>
+            {/* Profile header row: avatar + info + gear */}
+            <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12, gap: 14 }}>
+              {/* Avatar with ring + online dot */}
+              <View style={{ position: 'relative' }}>
+                <View style={{ width: 68, height: 68, borderRadius: 34, borderWidth: 2.5, borderColor: Brand.trust, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                  <Image source={require('../../../assets/avatars/sherlock.png')} style={{ width: 63, height: 63, borderRadius: 31 }} />
+                </View>
+                <View style={{ position: 'absolute', bottom: 2, right: 2, width: 12, height: 12, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2, borderColor: Brand.paper }} />
+              </View>
+
+              {/* Name block */}
+              <View style={{ flex: 1, minWidth: 0, paddingTop: 2 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                  <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 14.5, color: Brand.muted }}>@yourhandle</Text>
+                  <SymbolView name="checkmark.seal.fill" size={13} tintColor={Brand.trust} type="monochrome" style={{ width: 13, height: 13 }} />
+                </View>
+                <Text style={{ fontFamily: BrandFonts.syneExtraBold, fontSize: 17, color: Brand.ink, marginTop: 1 }}>Your Name</Text>
+                {/* Follow counts */}
+                <View style={{ flexDirection: 'row', gap: 16, marginTop: 10 }}>
+                  <Text style={{ fontFamily: BrandFonts.syneExtraBold, fontSize: 14, color: Brand.ink }}>
+                    {'10 '}<Text style={{ fontFamily: BrandFonts.interRegular, color: Brand.muted, fontSize: 13 }}>Following</Text>
+                  </Text>
+                  <Text style={{ fontFamily: BrandFonts.syneExtraBold, fontSize: 14, color: Brand.ink }}>
+                    {'10 '}<Text style={{ fontFamily: BrandFonts.interRegular, color: Brand.muted, fontSize: 13 }}>Followers</Text>
+                  </Text>
+                </View>
+              </View>
+
+              {/* Gear icon */}
+              <SymbolView name="gearshape" size={22} tintColor={Brand.muted} type="monochrome" style={{ width: 22, height: 22, marginTop: 4 }} />
+            </View>
+
+            {/* Profile tabs: Feed | Lists | Collection | Stats */}
             <View style={[styles.libTabRow, { borderBottomColor: Brand.border }]}>
-              {['Logged', 'Watchlist', 'Collection'].map((t, i) => (
+              {(['Feed', 'Lists', 'Collection', 'Stats'] as const).map((t, i) => (
                 <View key={t} style={styles.libTab}>
                   <Text style={[styles.libTabText, i === 0 && styles.libTabTextActive]}>{t}</Text>
                   {i === 0 && <View style={[styles.libTabUnderline, { backgroundColor: Brand.trust }]} />}
                 </View>
               ))}
             </View>
+
+            {/* Filter chips + sort */}
             <MockFilterChips Brand={Brand} />
             <View style={styles.libSortRow}>
               <Text style={[styles.libSortLabel, { color: Brand.muted }]}>Sort by</Text>
@@ -597,26 +612,25 @@ export function TourScreen({
                 <Text style={[styles.libSortBtnText, { color: Brand.muted }]}>A–Z</Text>
               </View>
             </View>
+
+            {/* Feed cards */}
             <View style={{ paddingHorizontal: 16, gap: 10 }}>
               {[
-                { pk: 'oppenheimer' as const, emoji: '🎬', bg: '#1a1a2e', title: 'Oppenheimer',              sub: 'Film • 2023',           badge: 'Watching', badgeColor: '#E84F4F', badgeBg: '#FFEDED', date: 'Jul 2026' },
-                { pk: 'succession'  as const, emoji: '📺', bg: '#1e2e1a', title: 'Succession',               sub: 'TV Series • HBO • 2023', badge: 'Watching', badgeColor: '#E84F4F', badgeBg: '#FFEDED', date: 'Jul 2026' },
-                { pk: 'tomorrow'    as const, emoji: '📖', bg: '#1e2a3f', title: 'Tomorrow, and Tomorrow...', sub: 'Gabrielle Zevin',        badge: 'Finished', badgeColor: '#4FE87B', badgeBg: '#EDFFF3', date: 'Jun 2026' },
+                { pk: 'oppenheimer' as const, emoji: '🎬', bg: '#1a1a2e', title: 'Oppenheimer', sub: 'Film • 2023', stars: '★★★★★', review: '"One of the most overwhelming cinematic experiences I\'ve ever had."' },
+                { pk: 'succession'  as const, emoji: '📺', bg: '#1e2e1a', title: 'Succession',  sub: 'TV Series • HBO • 2023', stars: '★★★★★', review: '"The ending absolutely destroyed me. Nothing else comes close."' },
+                { pk: 'tomorrow'    as const, emoji: '📖', bg: '#1e2a3f', title: 'Tomorrow, and Tomorrow...', sub: 'Gabrielle Zevin • Novel', stars: '★★★★', review: '"Quietly devastating. I thought about it for weeks after."' },
+                { pk: 'bear'        as const, emoji: '📺', bg: '#2e1a1a', title: 'The Bear', sub: 'TV Series • FX • 2022', stars: '★★★', review: '"Stressful in the best way possible."' },
               ].map((item, i) => (
-                <View key={i} style={[styles.libCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
-                  <MockPoster posterKey={item.pk} fallbackEmoji={item.emoji} style={[styles.libPoster, { backgroundColor: item.bg }]} />
-                  <View style={styles.libBody}>
-                    <Text style={[styles.libTitle, { color: Brand.ink }]} numberOfLines={1}>{item.title}</Text>
-                    <Text style={[styles.libSub, { color: Brand.muted }]} numberOfLines={1}>{item.sub}</Text>
-                    <View style={styles.libMetaRow}>
-                      <View style={[styles.libBadge, { backgroundColor: item.badgeBg }]}>
-                        <Text style={[styles.libBadgeText, { color: item.badgeColor }]}>{item.badge}</Text>
-                      </View>
-                      <Text style={[styles.libDate, { color: Brand.muted }]}>{item.date}</Text>
-                      <Text style={[styles.libShareIcon, { color: Brand.muted }]}>↗</Text>
-                      <SymbolView name="camera.viewfinder" size={16} tintColor={Brand.muted} type="monochrome" />
+                <View key={i} style={[styles.libCard, { backgroundColor: Brand.card, borderColor: Brand.border, flexDirection: 'column', gap: 8 }]}>
+                  <View style={{ flexDirection: 'row', gap: 12, alignItems: 'flex-start' }}>
+                    <MockPoster posterKey={item.pk} fallbackEmoji={item.emoji} style={[styles.libPoster, { backgroundColor: item.bg }]} />
+                    <View style={styles.libBody}>
+                      <Text style={[styles.libTitle, { color: Brand.ink }]} numberOfLines={1}>{item.title}</Text>
+                      <Text style={[styles.libSub, { color: Brand.muted }]} numberOfLines={1}>{item.sub}</Text>
+                      <Text style={{ color: '#F5A623', fontSize: 13, marginTop: 4 }}>{item.stars}</Text>
                     </View>
                   </View>
+                  <Text style={{ fontFamily: BrandFonts.interRegular, fontSize: 12.5, color: Brand.muted, fontStyle: 'italic', lineHeight: 17 }} numberOfLines={2}>{item.review}</Text>
                 </View>
               ))}
             </View>
@@ -914,35 +928,14 @@ function createStyles(Brand: BrandPalette) {
     // Friends header extras
     friendInviteBtn: { borderRadius: 20, paddingVertical: 6, paddingHorizontal: 14 },
     friendInviteBtnText: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: '#fff' },
-    friendSettingsGlyph: { fontSize: 18 },
 
-    // Friends find row
-    friendFindRow: { flexDirection: 'row', gap: 10, marginHorizontal: 16, marginBottom: 16, marginTop: 4 },
-    friendFindBtn: {
-      flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10,
-      borderWidth: 1, borderRadius: 14, padding: 12,
-    },
-    friendFindIconWrap: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-    friendFindIcon: { fontSize: 16, color: '#fff', fontFamily: BrandFonts.syneExtraBold },
-    friendFindTitle: { fontFamily: BrandFonts.syneBold, fontSize: 12.5 },
-    friendFindSub: { fontFamily: BrandFonts.interRegular, fontSize: 11, marginTop: 1 },
-
-    // Friends search
-    friendListSearch: {
-      flexDirection: 'row', alignItems: 'center', gap: 8,
-      marginHorizontal: 16, marginBottom: 16,
-      borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, paddingVertical: 12,
-    },
-    friendListSearchIcon: { fontSize: 14 },
-    friendListSearchText: { fontFamily: BrandFonts.interRegular, fontSize: 14.5 },
-
-    // Friends tabs
+    // Friends tabs — three tabs so font size is slightly smaller
     friendTabRow: {
       flexDirection: 'row', marginHorizontal: 16,
       borderBottomWidth: 1, marginBottom: 12,
     },
-    friendTabItem: { paddingBottom: 11, paddingTop: 2, marginRight: 24, position: 'relative' },
-    friendTabLabel: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: Brand.muted },
+    friendTabItem: { paddingBottom: 11, paddingTop: 2, marginRight: 14, position: 'relative' },
+    friendTabLabel: { fontFamily: BrandFonts.syneBold, fontSize: 13, color: Brand.muted },
     friendTabLabelActive: { fontFamily: BrandFonts.syneExtraBold, color: Brand.ink },
     friendTabUnderline: { position: 'absolute', bottom: -1, left: 0, right: 0, height: 2 },
 
@@ -952,6 +945,8 @@ function createStyles(Brand: BrandPalette) {
       marginHorizontal: 16, marginBottom: 10,
       borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 9,
     },
+    friendListSearchIcon: { fontSize: 14 },
+    friendListSearchText: { fontFamily: BrandFonts.interRegular, fontSize: 14.5 },
 
     // Friend cards
     friendCard: {
@@ -964,13 +959,13 @@ function createStyles(Brand: BrandPalette) {
       width: 46, height: 46, borderRadius: 23,
       alignItems: 'center', justifyContent: 'center',
     },
+    friendAvatarRing: { width: 56, height: 56, borderRadius: 28, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },
+    friendPctBadge: { position: 'absolute', bottom: -2, right: -4, borderWidth: 1, borderRadius: 8, paddingHorizontal: 4, paddingVertical: 1 },
+    friendPctText: { fontFamily: BrandFonts.syneBold, fontSize: 9 },
     friendAvatarText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
     friendName: { fontFamily: BrandFonts.syneBold, fontSize: 15.5 },
     friendHandle: { fontFamily: BrandFonts.interRegular, fontSize: 12.5, marginTop: 2 },
-    friendCompatRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 },
-    friendCompatTrack: { flex: 1, height: 6, borderRadius: 3, overflow: 'hidden' },
-    friendCompatFill: { height: '100%', borderRadius: 3 },
-    friendCompatScore: { fontFamily: BrandFonts.syneBold, fontSize: 11.5 },
+    friendCompatLabel: { fontFamily: BrandFonts.syneBold, fontSize: 11.5, marginTop: 4 },
     friendChatBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
 
     // Library tabs

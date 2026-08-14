@@ -5,6 +5,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useLibraryItems, type LibraryItem } from '@/features/library/api';
+import { UpgradeGate } from '@/components/upgrade-gate';
+import { useProfile } from '@/features/profile/api';
 import { useBrand } from '@/hooks/use-brand';
 
 type ExportFormat = 'csv' | 'letterboxd' | 'json';
@@ -98,6 +100,21 @@ export default function ExportLibraryModal() {
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { logged, isLoading } = useLibraryItems();
   const [busy, setBusy] = useState<ExportFormat | null>(null);
+  const { data: profile } = useProfile();
+  const tier = profile?.verified_tier ?? 0;
+
+  if (tier < 1) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['bottom']}>
+        <UpgradeGate
+          requiredTier={1}
+          currentTier={tier}
+          title="Export your library"
+          description="Download your full watch history as CSV, Letterboxd-compatible, or JSON. Available with a Silver membership."
+        />
+      </SafeAreaView>
+    );
+  }
 
   async function handleExport(format: ExportFormat) {
     if (busy) return;

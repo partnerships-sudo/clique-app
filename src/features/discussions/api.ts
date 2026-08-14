@@ -22,6 +22,7 @@ export interface Discussion {
   author_name: string;
   author_handle: string;
   author_avatar: string | null;
+  author_verified_tier?: number;
   disagree_count: number;
   // viewer state
   has_voted: boolean;
@@ -42,6 +43,7 @@ export interface DiscussionComment {
   author_name: string;
   author_handle: string;
   author_avatar: string | null;
+  author_verified_tier?: number;
   is_spoiler: boolean;
 }
 
@@ -79,7 +81,7 @@ export function useDiscussions(type?: DiscussionType | 'all') {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, username, avatar_url')
+          .select('id, full_name, username, avatar_url, verified_tier')
           .in('id', userIds);
         for (const p of profiles ?? []) profileMap.set(p.id, p);
       }
@@ -107,6 +109,7 @@ export function useDiscussions(type?: DiscussionType | 'all') {
           author_name: profile?.username || profile?.full_name || 'Someone',
           author_handle: profile?.username ?? '',
           author_avatar: profile?.avatar_url ?? null,
+          author_verified_tier: (profile as any)?.verified_tier ?? 0,
           has_voted: votes.some((v) => v.user_id === user?.id && v.vote_type === "agree"), disagree_count: row.disagree_count ?? 0, has_disagreed: votes.some((v) => v.user_id === user?.id && v.vote_type === "disagree"),
           has_poll: pollSet.has(row.id),
           is_quiz: quizSet.has(row.id),
@@ -189,7 +192,7 @@ export function useDiscussionComments(discussionId: string | undefined) {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, username, avatar_url')
+          .select('id, full_name, username, avatar_url, verified_tier')
           .in('id', userIds);
         for (const p of profiles ?? []) profileMap.set(p.id, p);
       }
@@ -206,6 +209,7 @@ export function useDiscussionComments(discussionId: string | undefined) {
           author_name: profile?.username || profile?.full_name || 'Someone',
           author_handle: profile?.username ?? '',
           author_avatar: profile?.avatar_url ?? null,
+          author_verified_tier: (profile as any)?.verified_tier ?? 0,
           is_spoiler: row.is_spoiler ?? false,
         } as DiscussionComment;
       });
@@ -460,7 +464,7 @@ export function useTrendingDiscussions(limit = 5, type?: DiscussionType | 'all')
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, username, avatar_url')
+          .select('id, full_name, username, avatar_url, verified_tier')
           .in('id', userIds);
         for (const p of profiles ?? []) profileMap.set(p.id, p);
       }
@@ -486,6 +490,7 @@ export function useTrendingDiscussions(limit = 5, type?: DiscussionType | 'all')
           author_name: profile?.username || profile?.full_name || 'Someone',
           author_handle: profile?.username ?? '',
           author_avatar: profile?.avatar_url ?? null,
+          author_verified_tier: (profile as any)?.verified_tier ?? 0,
           has_voted: votes.some((v) => v.user_id === user?.id && v.vote_type === "agree"), disagree_count: row.disagree_count ?? 0, has_disagreed: votes.some((v) => v.user_id === user?.id && v.vote_type === "disagree"),
           has_poll: pollSet.has(row.id), is_quiz: quizSet.has(row.id),
           format: (row.format ?? 'discussion') as Discussion['format'],
@@ -557,7 +562,7 @@ export function usePersonalizedRooms() {
       if (authorIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, username, avatar_url')
+          .select('id, full_name, username, avatar_url, verified_tier')
           .in('id', authorIds);
         for (const p of profiles ?? []) profileMap.set(p.id, p);
       }
@@ -628,7 +633,7 @@ export function useContentRoomDiscussions(externalId: string | undefined, mediaT
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, username, avatar_url')
+          .select('id, full_name, username, avatar_url, verified_tier')
           .in('id', userIds);
         for (const p of profiles ?? []) profileMap.set(p.id, p);
       }
@@ -654,6 +659,7 @@ export function useContentRoomDiscussions(externalId: string | undefined, mediaT
           author_name: profile?.username || profile?.full_name || 'Someone',
           author_handle: profile?.username ?? '',
           author_avatar: profile?.avatar_url ?? null,
+          author_verified_tier: (profile as any)?.verified_tier ?? 0,
           has_voted: votes.some((v) => v.user_id === user?.id && v.vote_type === "agree"), disagree_count: row.disagree_count ?? 0, has_disagreed: votes.some((v) => v.user_id === user?.id && v.vote_type === "disagree"),
           has_poll: pollSet.has(row.id), is_quiz: quizSet.has(row.id),
           format: (row.format ?? 'discussion') as Discussion['format'],
@@ -1050,7 +1056,7 @@ export function useFollowedRoomsFeed() {
       if (userIds.length > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
-          .select('id, full_name, username, avatar_url')
+          .select('id, full_name, username, avatar_url, verified_tier')
           .in('id', userIds);
         for (const p of profiles ?? []) profileMap.set(p.id, p);
       }

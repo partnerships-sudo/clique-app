@@ -252,7 +252,7 @@ function createStyles(Brand: BrandPalette) {
       backgroundColor: Brand.tlight,
     },
     sendBtnSent: {
-      backgroundColor: '#E8F7EE',
+      backgroundColor: Brand.tlight,
     },
     sendBtnText: {
       fontFamily: BrandFonts.syneBold,
@@ -260,7 +260,7 @@ function createStyles(Brand: BrandPalette) {
       color: Brand.trust,
     },
     sendBtnTextSent: {
-      color: '#2E9E5B',
+      color: Brand.trust,
     },
   });
 }

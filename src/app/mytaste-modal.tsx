@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
+import { SymbolView } from 'expo-symbols';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -9,6 +10,10 @@ import { useMyTasteAll, type MyTasteEntry } from '@/features/follows/api';
 import { compatColor, compatEmoji } from '@/features/friends/compatibility';
 import { useBrand } from '@/hooks/use-brand';
 
+const TYPE_LABELS: Record<string, string> = {
+  watch: '🎬 Film & TV', read: '📚 Books', listen: '🎵 Music', play: '🎮 Games',
+};
+
 function TasteRow({ entry, rank, styles, Brand }: { entry: MyTasteEntry; rank: number; styles: ReturnType<typeof createStyles>; Brand: BrandPalette }) {
   const name = entry.full_name || entry.username || 'Someone';
   const color = compatColor(entry.compatibility);
@@ -16,21 +21,27 @@ function TasteRow({ entry, rank, styles, Brand }: { entry: MyTasteEntry; rank: n
   return (
     <Pressable
       style={styles.row}
-      onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: entry.id } })}>
+      onPress={() => router.push({ pathname: '/taste-detail-modal', params: { friendId: entry.id } })}>
       <Text style={styles.rank}>#{rank}</Text>
       <Avatar name={name} size={48} avatarUrl={entry.avatar_url} />
       <View style={styles.info}>
         <Text style={styles.name} numberOfLines={1}>{name}</Text>
         {entry.username ? <Text style={styles.handle}>@{entry.username}</Text> : null}
-        <View style={[styles.pill, { backgroundColor: color + '1A' }]}>
-          <Text style={[styles.pillText, { color }]}>
-            {compatEmoji(entry.compatibility)} {entry.compatibility}% compatible
-          </Text>
+        <View style={styles.metaRow}>
+          <View style={[styles.pill, { backgroundColor: color + '1A' }]}>
+            <Text style={[styles.pillText, { color }]}>
+              {compatEmoji(entry.compatibility)} {entry.compatibility}%
+            </Text>
+          </View>
+          {entry.sharedCount > 0 ? (
+            <Text style={styles.sharedHint}>{entry.sharedCount} in common</Text>
+          ) : null}
+          {entry.topType ? (
+            <Text style={styles.sharedHint}>{TYPE_LABELS[entry.topType] ?? entry.topType}</Text>
+          ) : null}
         </View>
       </View>
-      <View style={[styles.pctBadge, { backgroundColor: color }]}>
-        <Text style={styles.pctText}>{entry.compatibility}%</Text>
-      </View>
+      <SymbolView name="chevron.right" size={14} tintColor={Brand.muted} type="monochrome" />
     </Pressable>
   );
 }
@@ -39,7 +50,6 @@ export default function MyTasteModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { data: entries = [], isLoading } = useMyTasteAll();
-
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.header}>
@@ -108,6 +118,8 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 8,
     },
     pillText: { fontFamily: BrandFonts.syneBold, fontSize: 11 },
+    metaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginTop: 4 },
+    sharedHint: { fontFamily: BrandFonts.interRegular, fontSize: 11, color: Brand.muted },
     pctBadge: {
       borderRadius: 10,
       paddingHorizontal: 8,
