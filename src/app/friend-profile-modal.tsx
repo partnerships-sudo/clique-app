@@ -53,8 +53,13 @@ export default function FriendProfileModal() {
   if (followStatus?.kind === 'none') {
     friendAction = {
       label: profile?.is_private ? 'Request to Follow' : '+ Follow',
-      onPress: () =>
-        follow.mutate({ targetUserId: params.userId, isTargetPrivate: profile?.is_private ?? false }),
+      onPress: () => {
+        if (follow.isPending || unfollow.isPending) return;
+        follow.mutate(
+          { targetUserId: params.userId, isTargetPrivate: profile?.is_private ?? false },
+          { onError: () => Alert.alert('Could not follow', 'Check your connection and try again.') },
+        );
+      },
     };
   } else if (followStatus?.kind === 'pending') {
     friendAction = { label: 'Requested ✓', variant: 'muted' };
@@ -63,12 +68,20 @@ export default function FriendProfileModal() {
       label: 'Following ✓',
       variant: 'muted',
       onPress: () => {
+        if (follow.isPending || unfollow.isPending) return;
         Alert.alert(
           `Unfollow @${profile?.username ?? 'this person'}?`,
           undefined,
           [
             { text: 'Cancel', style: 'cancel' },
-            { text: 'Unfollow', style: 'destructive', onPress: () => unfollow.mutate(params.userId) },
+            {
+              text: 'Unfollow',
+              style: 'destructive',
+              onPress: () =>
+                unfollow.mutate(params.userId, {
+                  onError: () => Alert.alert('Could not unfollow', 'Check your connection and try again.'),
+                }),
+            },
           ],
         );
       },

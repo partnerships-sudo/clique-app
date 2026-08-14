@@ -259,7 +259,9 @@ export default function PremiereLive() {
       markTriviaFired.mutate({ id: next.id, premiereId: params.id! });
       if (next.type === 'message') {
         // Send as a regular chat message — appears naturally in the feed
-        sendMsg.mutate({ premiereId: params.id!, content: next.question, relativeMs: next.trigger_ms });
+        sendMsg.mutate({ premiereId: params.id!, content: next.question, relativeMs: next.trigger_ms }, {
+          onError: () => Alert.alert('Could not send message', 'Check your connection and try again.'),
+        });
       } else {
         supabase.channel(`live-trivia-${params.id}`).send({
           type: 'broadcast',
@@ -707,7 +709,7 @@ export default function PremiereLive() {
                         answered && activeTriviaCard.type === 'trivia' && isCorrect && styles.triviaOptionCorrect,
                       ]}
                       onPress={() => handleTriviaAnswer(i)}
-                      disabled={answered}
+                      disabled={answered || submitTriviaResponse.isPending}
                     >
                       <View style={styles.triviaOptionInner}>
                         <Text style={styles.triviaOptionLetter}>{['A', 'B', 'C', 'D'][i]})</Text>
@@ -759,7 +761,7 @@ export default function PremiereLive() {
               onSubmitEditing={handleSend}
               returnKeyType="send"
             />
-            <Pressable style={styles.sendBtn} onPress={handleSend} disabled={!text.trim()}>
+            <Pressable style={styles.sendBtn} onPress={handleSend} disabled={!text.trim() || sendMsg.isPending}>
               <Text style={styles.sendBtnText}>↑</Text>
             </Pressable>
           </View>

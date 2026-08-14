@@ -164,6 +164,13 @@ export default function NotificationsModal() {
             <NotifRow item={item} styles={styles} Brand={Brand} />
           )}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={
+            <View style={styles.centered}>
+              <SymbolView name="bell" size={40} tintColor={Brand.muted} type="monochrome" />
+              <Text style={styles.emptyTitle}>No activity yet</Text>
+              <Text style={styles.emptySub}>When people follow you or react to your posts, you'll see it here.</Text>
+            </View>
+          }
         />
       )}
     </SafeAreaView>

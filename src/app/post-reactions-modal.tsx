@@ -57,6 +57,12 @@ export default function PostReactionsModal() {
             keyExtractor={(r) => r.user_id}
             contentContainerStyle={styles.list}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
+            ListEmptyComponent={
+              <View style={styles.empty}>
+                <Text style={styles.emptyEmoji}>{emoji}</Text>
+                <Text style={styles.emptyTitle}>No reactions yet</Text>
+              </View>
+            }
             renderItem={({ item }) => (
               <Pressable
                 style={styles.row}
@@ -89,6 +95,13 @@ export default function PostReactionsModal() {
           keyExtractor={(r) => r.id}
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.separator} />}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <SymbolView name="heart" size={40} tintColor={Brand.muted} type="monochrome" style={styles.emptyIcon} />
+              <Text style={styles.emptyTitle}>No one yet</Text>
+              <Text style={styles.emptySub}>When your friends hit "Me too!", they'll show up here.</Text>
+            </View>
+          }
           renderItem={({ item }) => {
             const isCloseFriend = closeFriendIds?.has(item.user_id) ?? false;
             return (

@@ -92,8 +92,8 @@ function QuestionBlock({
 
   return (
     <View style={{ gap: 8 }}>
-      {label && <Text style={pStyles.questionLabel}>{label}</Text>}
-      <Text style={pStyles.questionText}>{question}</Text>
+      {label && <Text style={[pStyles.questionLabel, { color: Brand.muted }]}>{label}</Text>}
+      <Text style={[pStyles.questionText, { color: Brand.ink }]}>{question}</Text>
       {options.map((opt, i) => {
         const count = vote_counts[i] ?? 0;
         const pct = total > 0 ? Math.round((count / total) * 100) : 0;
@@ -150,7 +150,7 @@ function QuestionBlock({
           </Text>
         </View>
       )}
-      {voted && !hasAnswer && <View style={pStyles.votedRow}><Text style={pStyles.votedText}>Voted by you</Text></View>}
+      {voted && !hasAnswer && <View style={pStyles.votedRow}><Text style={[pStyles.votedText, { color: Brand.muted }]}>Voted by you</Text></View>}
     </View>
   );
 }
@@ -288,12 +288,12 @@ const pStyles = StyleSheet.create({
   optLabel: { fontFamily: BrandFonts.syneBold, fontSize: 15, flex: 1, zIndex: 1 },
   checkWrap: { zIndex: 1, marginRight: 8 },
   optPct: { fontFamily: BrandFonts.syneBold, fontSize: 15, zIndex: 1 },
-  meta: { fontFamily: BrandFonts.interRegular, fontSize: 13, color: '#9CA3AF', marginTop: 2 },
+  meta: { fontFamily: BrandFonts.interRegular, fontSize: 13, marginTop: 2 },
   votedRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  votedText: { fontFamily: BrandFonts.interMedium, fontSize: 13, color: '#9CA3AF' },
-  questionLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11, color: '#9CA3AF', letterSpacing: 0.6, textTransform: 'uppercase' },
-  questionText: { fontFamily: BrandFonts.syneBold, fontSize: 15, color: '#1F2937', lineHeight: 20, marginBottom: 4 },
-  questionDivider: { height: 1, backgroundColor: '#F3F4F6', marginVertical: 16 },
+  votedText: { fontFamily: BrandFonts.interMedium, fontSize: 13 },
+  questionLabel: { fontFamily: BrandFonts.interMedium, fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase' },
+  questionText: { fontFamily: BrandFonts.syneBold, fontSize: 15, lineHeight: 20, marginBottom: 4 },
+  questionDivider: { height: 1, marginVertical: 16 },
   qNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, paddingTop: 12, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: '#E5E7EB' },
   qNavBtn: { paddingHorizontal: 4 },
   qNavText: { fontFamily: BrandFonts.syneBold, fontSize: 15 },
@@ -1414,7 +1414,7 @@ function createStyles(Brand: BrandPalette) {
     opBadgeText: { fontFamily: BrandFonts.syneBold, fontSize: 10.5, letterSpacing: 0.3 },
     authorTime: { fontFamily: BrandFonts.interRegular, fontSize: 12 },
     actionBar: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 },
-    actionPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: '#F3F4F6' },
+    actionPill: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 8, backgroundColor: Brand.border },
     actionIconPill: { paddingHorizontal: 12 },
     actionPillText: { fontFamily: BrandFonts.syneBold, fontSize: 14 },
 

@@ -63,6 +63,12 @@ export default function ArchivedChatsModal() {
           data={rows}
           keyExtractor={(r) => r.kind === 'header' ? `hdr-${r.label}` : `${r.kind}-${r.id}`}
           contentContainerStyle={styles.list}
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyTitle}>Nothing archived</Text>
+              <Text style={styles.emptySub}>Swipe left on any chat and tap Archive to move it here.</Text>
+            </View>
+          }
           renderItem={({ item: row }) => {
             if (row.kind === 'header') {
               return <Text style={styles.sectionLabel}>{row.label}</Text>;
