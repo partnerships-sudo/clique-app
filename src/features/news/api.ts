@@ -15,8 +15,6 @@ export interface NewsArticle {
   url: string;
 }
 
-const GUARDIAN_KEY = process.env.EXPO_PUBLIC_GUARDIAN_API_KEY!;
-const NEWSAPI_KEY = process.env.EXPO_PUBLIC_NEWSAPI_KEY!;
 
 const GUARDIAN_SECTIONS: Record<Exclude<EntryType, 'podcast'>, string> = {
   watch: 'film|tv-and-radio',
@@ -40,26 +38,19 @@ function stripHtml(html: string): string {
 
 async function fetchGuardian(filter: FeedFilterValue): Promise<NewsArticle[]> {
   try {
-    const params = new URLSearchParams({
-      'api-key': GUARDIAN_KEY,
-      'show-fields': 'thumbnail,trailText,byline',
-      'page-size': '20',
-      'order-by': 'newest',
-    });
-
+    const body: Record<string, string> = {};
     if (filter === 'podcast') {
-      params.set('tag', 'type/podcast');
+      body.tag = 'type/podcast';
     } else if (filter === 'all') {
-      params.set('section', 'film|tv-and-radio|books|games|music');
+      body.section = 'film|tv-and-radio|books|games|music';
     } else {
-      params.set('section', GUARDIAN_SECTIONS[filter]);
+      body.section = GUARDIAN_SECTIONS[filter];
     }
 
-    const res = await fetch(`https://content.guardianapis.com/search?${params.toString()}`);
-    if (!res.ok) return [];
-    const data = await res.json();
+    const { data, error } = await supabase.functions.invoke('guardian-proxy', { body });
+    if (error || !data) return [];
 
-    return ((data.response?.results ?? []) as any[]).map((r) => ({
+    return ((data.response?.results ?? []) as any[]).map((r: any) => ({
       id: `guardian-${r.id}`,
       title: r.webTitle,
       trailText: stripHtml(r.fields?.trailText ?? ''),
@@ -169,20 +160,13 @@ async function fetchTitleNews(title: string, mediaType?: string): Promise<NewsAr
   }
 
   const [guardianRes, newsapiRes] = await Promise.all([
-    // Guardian: section-filtered + keyword search
+    // Guardian: section-filtered + keyword search (via server-side proxy)
     (async () => {
       try {
-        const params = new URLSearchParams({
-          'api-key': GUARDIAN_KEY,
-          'show-fields': 'thumbnail,trailText,byline',
-          'page-size': '20',
-          'order-by': 'newest',
-          q,
-        });
-        if (guardianSection) params.set('section', guardianSection);
-        const res = await fetch(`https://content.guardianapis.com/search?${params}`);
-        if (!res.ok) return [] as NewsArticle[];
-        const data = await res.json();
+        const body: Record<string, string> = { q };
+        if (guardianSection) body.section = guardianSection;
+        const { data, error } = await supabase.functions.invoke('guardian-proxy', { body });
+        if (error || !data) return [] as NewsArticle[];
         return ((data.response?.results ?? []) as any[]).map((r: any) => ({
           id: `guardian-${r.id}`,
           title: r.webTitle,
