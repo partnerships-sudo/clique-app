@@ -9,7 +9,7 @@ import { useBrand } from '@/hooks/use-brand';
 
 export default function SavedDiscussionsModal() {
   const Brand = useBrand();
-  const { data: saved = [], isLoading } = useSavedDiscussions();
+  const { data: saved = [], isLoading, isError } = useSavedDiscussions();
 
   return (
     <SafeAreaView style={[styles.safe, { backgroundColor: Brand.paper }]} edges={['top']}>
@@ -22,7 +22,12 @@ export default function SavedDiscussionsModal() {
       </View>
 
       <ScrollView contentContainerStyle={styles.list}>
-        {!isLoading && saved.length === 0 && (
+        {isError && (
+          <Text style={[styles.empty, { color: Brand.muted }]}>
+            Could not load. Check your connection.
+          </Text>
+        )}
+        {!isError && !isLoading && saved.length === 0 && (
           <Text style={[styles.empty, { color: Brand.muted }]}>
             Nothing saved yet. Tap the ribbon on any post to save it here.
           </Text>

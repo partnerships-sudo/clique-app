@@ -15,7 +15,7 @@ export default function FriendCollectionModal() {
   const params = useLocalSearchParams<{ userId: string; name?: string }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { items, isLoading } = useCollectionItemsByUser(params.userId);
+  const { items, isLoading, isError } = useCollectionItemsByUser(params.userId);
   const [view, setView] = useState<CollectionView>('read');
 
   // Land on whichever shared category actually has something in it, rather
@@ -44,6 +44,10 @@ export default function FriendCollectionModal() {
 
       {isLoading ? (
         <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
+      ) : isError ? (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: Brand.muted, fontFamily: BrandFonts.interRegular }}>Could not load. Check your connection.</Text>
+        </View>
       ) : (
         <FlatList
           contentContainerStyle={styles.content}

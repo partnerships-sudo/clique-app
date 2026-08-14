@@ -100,24 +100,28 @@ export default function TriviaSetupModal() {
           ...(itemType === 'trivia' ? { is_correct: i === correctIdx } : {}),
         }));
 
-    if (isPremiere) {
-      await addPremiere.mutateAsync({
-        premiere_id: params.id,
-        type: itemType,
-        question: trimmedQuestion,
-        options: builtOptions,
-        trigger_ms: triggerMs,
-      });
-    } else {
-      await addRoom.mutateAsync({
-        screening_room_id: params.id,
-        type: itemType,
-        question: trimmedQuestion,
-        options: builtOptions,
-        trigger_ms: triggerMs,
-      });
+    try {
+      if (isPremiere) {
+        await addPremiere.mutateAsync({
+          premiere_id: params.id,
+          type: itemType,
+          question: trimmedQuestion,
+          options: builtOptions,
+          trigger_ms: triggerMs,
+        });
+      } else {
+        await addRoom.mutateAsync({
+          screening_room_id: params.id,
+          type: itemType,
+          question: trimmedQuestion,
+          options: builtOptions,
+          trigger_ms: triggerMs,
+        });
+      }
+      resetForm();
+    } catch {
+      Alert.alert('Could not save', 'Check your connection and try again.');
     }
-    resetForm();
   }
 
   function handleDelete(id: string) {
@@ -126,8 +130,8 @@ export default function TriviaSetupModal() {
       {
         text: 'Delete', style: 'destructive',
         onPress: () => {
-          if (isPremiere) deletePremiere.mutate({ id, premiereId: params.id });
-          else deleteRoom.mutate({ id, roomId: params.id });
+          if (isPremiere) deletePremiere.mutate({ id, premiereId: params.id }, { onError: () => Alert.alert('Could not delete', 'Check your connection and try again.') });
+          else deleteRoom.mutate({ id, roomId: params.id }, { onError: () => Alert.alert('Could not delete', 'Check your connection and try again.') });
         },
       },
     ]);
@@ -271,7 +275,7 @@ export default function TriviaSetupModal() {
             <Pressable style={styles.cancelBtn} onPress={resetForm}>
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
-            <Pressable style={styles.saveBtn} onPress={handleSave}>
+            <Pressable style={[styles.saveBtn, (addPremiere.isPending || addRoom.isPending) && { opacity: 0.5 }]} disabled={addPremiere.isPending || addRoom.isPending} onPress={handleSave}>
               <Text style={styles.saveBtnText}>Save</Text>
             </Pressable>
           </View>

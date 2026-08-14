@@ -32,7 +32,7 @@ export default function ListDetailModal() {
   const { data: profile } = useProfile();
   const isOwn = !listOwnerId || listOwnerId === user?.id;
   const isGold = (profile?.verified_tier ?? 0) >= 1;
-  const { data: items = [], isLoading } = useListItems(listId);
+  const { data: items = [], isLoading, isError } = useListItems(listId);
   const deleteList = useDeleteList();
   const removeItem = useRemoveFromList();
   const saveList = useSaveList();
@@ -129,7 +129,8 @@ export default function ListDetailModal() {
         <View style={styles.socialBar}>
           <Pressable
             style={styles.socialBtn}
-            onPress={() => likeState && toggleLike.mutate({ listId, liked: likeState.liked })}
+            disabled={toggleLike.isPending}
+            onPress={() => likeState && toggleLike.mutate({ listId, liked: likeState.liked }, { onError: () => Alert.alert('Could not update like', 'Check your connection and try again.') })}
             hitSlop={10}
             accessibilityRole="button"
             accessibilityLabel={likeState?.liked ? 'Unlike list' : 'Like list'}>
@@ -171,7 +172,12 @@ export default function ListDetailModal() {
         </Pressable>
       )}
 
-      <FlatList
+      {isError && (
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: Brand.muted, fontFamily: BrandFonts.interRegular }}>Could not load this list.</Text>
+        </View>
+      )}
+      {!isError && <FlatList
         data={items}
         keyExtractor={(i) => i.id}
         style={styles.scroll}
@@ -212,7 +218,7 @@ export default function ListDetailModal() {
           </Pressable>
         )}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-      />
+      />}
     </SafeAreaView>
   );
 }

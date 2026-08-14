@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useEffect, useMemo } from 'react';
-import { ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -131,7 +131,7 @@ export default function NotificationsModal() {
   const unreadCount = (items ?? []).filter((i) => !i.read).length;
 
   useEffect(() => {
-    if (unreadCount > 0) markAllRead.mutate();
+    if (unreadCount > 0) markAllRead.mutate(undefined, { onError: () => Alert.alert('Could not mark notifications as read', 'Check your connection and try again.') });
   // Only fire once when the screen first has unread items loaded
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [unreadCount > 0]);

@@ -4,6 +4,7 @@ import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -147,20 +148,23 @@ export default function PartyDetailModal() {
             <View style={styles.rsvpRow}>
               <TouchableOpacity
                 activeOpacity={0.7}
-                style={[styles.rsvpBtn, myStatus === 'attending' && { borderColor: Brand.trust, backgroundColor: Brand.tlight }]}
-                onPress={() => updateRsvp.mutate({ premiereId: premiere.id, status: 'attending' })}>
+                disabled={updateRsvp.isPending}
+                style={[styles.rsvpBtn, myStatus === 'attending' && { borderColor: Brand.trust, backgroundColor: Brand.tlight }, updateRsvp.isPending && { opacity: 0.5 }]}
+                onPress={() => updateRsvp.mutate({ premiereId: premiere.id, status: 'attending' }, { onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.') })}>
                 <Text style={[styles.rsvpBtnText, { color: myStatus === 'attending' ? Brand.trust : Brand.muted }]}>✓ Going</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.7}
-                style={[styles.rsvpBtn, myStatus === 'maybe' && { borderColor: Brand.muted, backgroundColor: Brand.card }]}
-                onPress={() => updateRsvp.mutate({ premiereId: premiere.id, status: 'maybe' })}>
+                disabled={updateRsvp.isPending}
+                style={[styles.rsvpBtn, myStatus === 'maybe' && { borderColor: Brand.muted, backgroundColor: Brand.card }, updateRsvp.isPending && { opacity: 0.5 }]}
+                onPress={() => updateRsvp.mutate({ premiereId: premiere.id, status: 'maybe' }, { onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.') })}>
                 <Text style={[styles.rsvpBtnText, { color: myStatus === 'maybe' ? Brand.ink : Brand.muted }]}>? Maybe</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 activeOpacity={0.7}
-                style={[styles.rsvpBtn, myStatus === 'not_attending' && { borderColor: '#E84F4F', backgroundColor: '#FEE2E2' }]}
-                onPress={() => updateRsvp.mutate({ premiereId: premiere.id, status: 'not_attending' })}>
+                disabled={updateRsvp.isPending}
+                style={[styles.rsvpBtn, myStatus === 'not_attending' && { borderColor: '#E84F4F', backgroundColor: '#FEE2E2' }, updateRsvp.isPending && { opacity: 0.5 }]}
+                onPress={() => updateRsvp.mutate({ premiereId: premiere.id, status: 'not_attending' }, { onError: () => Alert.alert('Could not update RSVP', 'Check your connection and try again.') })}>
                 <Text style={[styles.rsvpBtnText, { color: myStatus === 'not_attending' ? '#E84F4F' : Brand.muted }]}>✕ Can't</Text>
               </TouchableOpacity>
             </View>

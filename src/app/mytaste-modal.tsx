@@ -51,7 +51,7 @@ function TasteRow({ entry, rank, styles, Brand }: { entry: MyTasteEntry; rank: n
 export default function MyTasteModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data: entries = [], isLoading } = useMyTasteAll();
+  const { data: entries = [], isLoading, isError } = useMyTasteAll();
   return (
     <SafeAreaView style={styles.safe} edges={['bottom']}>
       <View style={styles.header}>
@@ -61,6 +61,10 @@ export default function MyTasteModal() {
 
       {isLoading ? (
         <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
+      ) : isError ? (
+        <View style={styles.empty}>
+          <Text style={styles.emptySub}>Could not load. Check your connection.</Text>
+        </View>
       ) : entries.length === 0 ? (
         <View style={styles.empty}>
           <Text style={styles.emptyTitle}>No friends yet</Text>

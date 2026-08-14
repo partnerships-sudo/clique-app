@@ -52,7 +52,7 @@ export default function TasteDetailModal() {
   const { friendId } = useLocalSearchParams<{ friendId: string }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data, isLoading } = useTasteDetail(friendId ?? null);
+  const { data, isLoading, isError } = useTasteDetail(friendId ?? null);
 
   if (isLoading) {
     return (
@@ -67,7 +67,7 @@ export default function TasteDetailModal() {
     );
   }
 
-  if (!data) {
+  if (isError || !data) {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.header}>
@@ -75,7 +75,9 @@ export default function TasteDetailModal() {
             <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
           </Pressable>
         </View>
-        <View style={styles.empty}><Text style={styles.emptyText}>No data available.</Text></View>
+        <View style={styles.empty}>
+          <Text style={styles.emptyText}>{isError ? 'Could not load. Check your connection.' : 'No data available.'}</Text>
+        </View>
       </SafeAreaView>
     );
   }

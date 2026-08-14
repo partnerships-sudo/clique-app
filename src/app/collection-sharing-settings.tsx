@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -33,7 +33,8 @@ export default function CollectionSharingSettingsScreen() {
             </View>
             <Switch
               value={profile?.collection_share_books ?? false}
-              onValueChange={(value) => updateSharing.mutate({ shareBooks: value })}
+              onValueChange={(value) => updateSharing.mutate({ shareBooks: value }, { onError: () => Alert.alert('Could not update setting', 'Check your connection and try again.') })}
+              disabled={updateSharing.isPending}
               trackColor={{ false: Brand.border, true: Brand.trust }}
               thumbColor="#fff"
             />
@@ -45,7 +46,8 @@ export default function CollectionSharingSettingsScreen() {
             </View>
             <Switch
               value={profile?.collection_share_movies ?? false}
-              onValueChange={(value) => updateSharing.mutate({ shareMovies: value })}
+              onValueChange={(value) => updateSharing.mutate({ shareMovies: value }, { onError: () => Alert.alert('Could not update setting', 'Check your connection and try again.') })}
+              disabled={updateSharing.isPending}
               trackColor={{ false: Brand.border, true: Brand.trust }}
               thumbColor="#fff"
             />
@@ -57,7 +59,8 @@ export default function CollectionSharingSettingsScreen() {
             </View>
             <Switch
               value={profile?.collection_share_music ?? false}
-              onValueChange={(value) => updateSharing.mutate({ shareMusic: value })}
+              onValueChange={(value) => updateSharing.mutate({ shareMusic: value }, { onError: () => Alert.alert('Could not update setting', 'Check your connection and try again.') })}
+              disabled={updateSharing.isPending}
               trackColor={{ false: Brand.border, true: Brand.trust }}
               thumbColor="#fff"
             />
@@ -69,7 +72,8 @@ export default function CollectionSharingSettingsScreen() {
             </View>
             <Switch
               value={profile?.collection_share_games ?? false}
-              onValueChange={(value) => updateSharing.mutate({ shareGames: value })}
+              onValueChange={(value) => updateSharing.mutate({ shareGames: value }, { onError: () => Alert.alert('Could not update setting', 'Check your connection and try again.') })}
+              disabled={updateSharing.isPending}
               trackColor={{ false: Brand.border, true: Brand.trust }}
               thumbColor="#fff"
             />
@@ -81,7 +85,8 @@ export default function CollectionSharingSettingsScreen() {
             </View>
             <Switch
               value={profile?.collection_share_podcasts ?? false}
-              onValueChange={(value) => updateSharing.mutate({ sharePodcasts: value })}
+              onValueChange={(value) => updateSharing.mutate({ sharePodcasts: value }, { onError: () => Alert.alert('Could not update setting', 'Check your connection and try again.') })}
+              disabled={updateSharing.isPending}
               trackColor={{ false: Brand.border, true: Brand.trust }}
               thumbColor="#fff"
             />

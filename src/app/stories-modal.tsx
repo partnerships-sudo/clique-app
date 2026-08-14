@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Animated,
   Dimensions,
   Image,
@@ -91,12 +92,15 @@ export default function StoriesModal() {
     if (meSaved) {
       const libraryId = savedMap.get(post.id)!;
       setSavedMap((prev) => { const m = new Map(prev); m.delete(post.id); return m; });
-      removeLibraryItem.mutate(libraryId);
+      removeLibraryItem.mutate(libraryId, { onError: () => Alert.alert('Could not remove', 'Check your connection and try again.') });
       showToast('Removed from watchlist');
     } else {
       addLibraryItem.mutate(
         { type: post.type, title: post.title, sub: post.sub ?? undefined, poster: post.poster ?? undefined, intent: 'watchlist' },
-        { onSuccess: (item) => setSavedMap((prev) => new Map(prev).set(post.id, item.id)) },
+        {
+          onSuccess: (item) => setSavedMap((prev) => new Map(prev).set(post.id, item.id)),
+          onError: () => Alert.alert('Could not save', 'Check your connection and try again.'),
+        },
       );
       showToast('Added to watchlist');
     }
@@ -318,10 +322,11 @@ export default function StoriesModal() {
               style={[styles.actionBtn, meReacted && styles.actionBtnActive]}
               accessibilityRole="button"
               accessibilityLabel={meReacted ? 'Unlike story' : 'Like story'}
+              disabled={sendStoryLike.isPending || toggleReaction.isPending}
               onPress={() => {
                 if (meReacted) {
                   setLikedIds((prev) => { const s = new Set(prev); s.delete(post.id); return s; });
-                  toggleReaction.mutate({ postId: post.id, reacted: true });
+                  toggleReaction.mutate({ postId: post.id, reacted: true }, { onError: () => Alert.alert('Could not update reaction', 'Check your connection and try again.') });
                 } else {
                   setLikedIds((prev) => new Set([...prev, post.id]));
                   sendStoryLike.mutate({
@@ -330,7 +335,7 @@ export default function StoriesModal() {
                     postTitle: post.title,
                     postType: post.type,
                     postPoster: post.poster,
-                  });
+                  }, { onError: () => Alert.alert('Could not send like', 'Check your connection and try again.') });
                 }
               }}
               hitSlop={16}>
@@ -365,6 +370,7 @@ export default function StoriesModal() {
           {!isOwnStory && (
             <Pressable
               onPress={(e) => { e.stopPropagation(); handleSave(); }}
+              disabled={addLibraryItem.isPending || removeLibraryItem.isPending}
               hitSlop={12}
               style={styles.actionBtn}
               accessibilityRole="button"
