@@ -734,7 +734,11 @@ export default function DiscussionDetailModal() {
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete', style: 'destructive', onPress: async () => {
-          await deleteComment.mutateAsync({ id: comment.id, discussionId: comment.discussion_id });
+          try {
+            await deleteComment.mutateAsync({ id: comment.id, discussionId: comment.discussion_id });
+          } catch {
+            Alert.alert('Could not delete', 'Check your connection and try again.');
+          }
         },
       },
     ]);

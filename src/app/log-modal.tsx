@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { IntentToggle, type LogIntent } from '@/components/log-modal/intent-toggle';
 import { SearchStep } from '@/components/log-modal/search-step';
@@ -71,8 +71,13 @@ export default function LogModal() {
           track(user?.id, Events.POST_RATED, { type, title: input.title, rating: input.rating });
         }
       }
-    } finally {
       router.back();
+    } catch {
+      Alert.alert(
+        'Could not save',
+        'Something went wrong. Check your connection and try again.',
+        [{ text: 'OK' }],
+      );
     }
   }
 

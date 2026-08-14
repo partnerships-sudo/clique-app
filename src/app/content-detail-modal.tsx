@@ -302,7 +302,7 @@ export default function ContentDetailModal() {
   const resolvedMediaType: string | undefined =
     rawType === 'tv' ? 'tv' : rawType === 'movie' ? 'movie' : params.mediaType;
 
-  const { data: details, isLoading } = useContentDetails(params.title, resolvedType, params.externalId, resolvedMediaType);
+  const { data: details, isLoading, isError } = useContentDetails(params.title, resolvedType, params.externalId, resolvedMediaType);
 
   const isTvShow = resolvedType === 'watch' && (resolvedMediaType === 'tv' || details?.mediaType === 'tv');
   const tvSeasons = details?.seasons ?? [];
@@ -418,6 +418,10 @@ export default function ContentDetailModal() {
               {params.sub ? <Text style={styles.subText} numberOfLines={2}>{params.sub}</Text> : null}
               {isLoading ? (
                 <ActivityIndicator color={Brand.trust} style={styles.headerLoading} />
+              ) : isError ? (
+                <Text style={[styles.subText, { color: Brand.muted, marginTop: 4 }]}>
+                  Could not load details — check your connection.
+                </Text>
               ) : details?.rating || details?.year || details?.genre || details?.runtime || podcastHost ? (
                 <View style={styles.metaRow}>
                   {(() => {

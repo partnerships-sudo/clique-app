@@ -55,7 +55,9 @@ function ReplyThread({
       {
         text: 'Delete',
         style: 'destructive',
-        onPress: () => deleteComment.mutate({ commentId: c.id, postId }),
+        onPress: () => deleteComment.mutate({ commentId: c.id, postId }, {
+          onError: () => Alert.alert('Could not delete', 'Check your connection and try again.'),
+        }),
       },
       { text: 'Cancel', style: 'cancel' },
     ]);
@@ -82,7 +84,9 @@ function ReplyThread({
                 <Pressable
                   hitSlop={8}
                   onPress={() =>
-                    upvote.mutate({ commentId: reply.id, didUpvote: reply.did_upvote, postId, parentId: reply.parent_id })
+                    upvote.mutate({ commentId: reply.id, didUpvote: reply.did_upvote, postId, parentId: reply.parent_id }, {
+                      onError: () => Alert.alert('Could not update', 'Check your connection and try again.'),
+                    })
                   }
                   style={styles.upvoteBtn}>
                   <SymbolView
@@ -171,7 +175,9 @@ function CommentRow({
             <Pressable
               hitSlop={8}
               onPress={() =>
-                upvote.mutate({ commentId: comment.id, didUpvote: comment.did_upvote, postId, parentId: null })
+                upvote.mutate({ commentId: comment.id, didUpvote: comment.did_upvote, postId, parentId: null }, {
+                  onError: () => Alert.alert('Could not update', 'Check your connection and try again.'),
+                })
               }
               style={styles.upvoteBtn}>
               <SymbolView

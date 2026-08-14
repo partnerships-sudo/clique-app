@@ -197,7 +197,9 @@ export default function LibraryScreen() {
         <WatchlistCard
           item={item}
           onLogIt={() => { setRatingItem(item); setRatingValue(null); setRatingNote(''); }}
-          onRemove={() => removeItem.mutate(item.id)}
+          onRemove={() => removeItem.mutate(item.id, {
+            onError: () => Alert.alert('Could not remove', 'Check your connection and try again.'),
+          })}
         />
         {selectMode && watchlistView === 'mine' ? (
           <Pressable
@@ -232,7 +234,9 @@ export default function LibraryScreen() {
           },
         })
       }
-      onRemove={() => removeFromCollection.mutate(item.id)}
+      onRemove={() => removeFromCollection.mutate(item.id, {
+        onError: () => Alert.alert('Could not remove', 'Check your connection and try again.'),
+      })}
     />
   ), [removeFromCollection]);
 
@@ -609,34 +613,38 @@ export default function LibraryScreen() {
                 multiline
               />
               <Pressable
-                style={[styles.rateLogBtn, (ratingValue === null || rateItem.isPending) && styles.rateLogBtnDisabled]}
-                disabled={ratingValue === null || rateItem.isPending}
+                style={[styles.rateLogBtn, (ratingValue === null || rateItem.isPending || createPost.isPending) && styles.rateLogBtnDisabled]}
+                disabled={ratingValue === null || rateItem.isPending || createPost.isPending}
                 onPress={async () => {
                   if (ratingValue === null || !ratingItem) return;
-                  await rateItem.mutateAsync({
-                    id: ratingItem.id,
-                    rating: ratingValue,
-                    title: ratingItem.title,
-                    type: ratingItem.type,
-                    sub: ratingItem.sub ?? null,
-                    poster: ratingItem.poster ?? null,
-                    externalId: ratingItem.external_id ?? null,
-                    mediaType: ratingItem.media_type ?? null,
-                    extRating: ratingItem.ext_rating ?? null,
-                  });
-                  await createPost.mutateAsync({
-                    type: ratingItem.type,
-                    title: ratingItem.title,
-                    sub: ratingItem.sub ?? undefined,
-                    poster: ratingItem.poster ?? undefined,
-                    rating: ratingValue,
-                    note: ratingNote || undefined,
-                    externalId: ratingItem.external_id ?? undefined,
-                    mediaType: ratingItem.media_type ?? undefined,
-                    extRating: ratingItem.ext_rating ?? undefined,
-                    visibility: 'everyone',
-                  });
-                  setRatingItem(null);
+                  try {
+                    await rateItem.mutateAsync({
+                      id: ratingItem.id,
+                      rating: ratingValue,
+                      title: ratingItem.title,
+                      type: ratingItem.type,
+                      sub: ratingItem.sub ?? null,
+                      poster: ratingItem.poster ?? null,
+                      externalId: ratingItem.external_id ?? null,
+                      mediaType: ratingItem.media_type ?? null,
+                      extRating: ratingItem.ext_rating ?? null,
+                    });
+                    await createPost.mutateAsync({
+                      type: ratingItem.type,
+                      title: ratingItem.title,
+                      sub: ratingItem.sub ?? undefined,
+                      poster: ratingItem.poster ?? undefined,
+                      rating: ratingValue,
+                      note: ratingNote || undefined,
+                      externalId: ratingItem.external_id ?? undefined,
+                      mediaType: ratingItem.media_type ?? undefined,
+                      extRating: ratingItem.ext_rating ?? undefined,
+                      visibility: 'everyone',
+                    });
+                    setRatingItem(null);
+                  } catch {
+                    Alert.alert('Could not save', 'Something went wrong. Check your connection and try again.');
+                  }
                 }}>
                 {rateItem.isPending ? (
                   <ActivityIndicator color="#fff" />

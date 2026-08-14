@@ -272,15 +272,19 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
     const MINUTES = ['00','15','30','45'];
     const PERIODS = ['AM','PM'];
     const airTime = `${HOURS_PAD[editHourIdx]}:${MINUTES[editMinIdx]} ${PERIODS[editPeriodIdx]}`;
-    await updatePremiere.mutateAsync({
-      id: editingPremiere.id,
-      airDate: `${editYear}-${month}-${day}`,
-      airTime,
-      tagline: editTagline.trim() || null,
-      buyUrl: isUpperTier && editBuyUrl.trim().startsWith('https://') ? editBuyUrl.trim() : null,
-      buyLabel: isUpperTier && editBuyUrl.trim() ? (editBuyLabel.trim() || 'Buy / Rent Now') : null,
-    });
-    setEditingPremiere(null);
+    try {
+      await updatePremiere.mutateAsync({
+        id: editingPremiere.id,
+        airDate: `${editYear}-${month}-${day}`,
+        airTime,
+        tagline: editTagline.trim() || null,
+        buyUrl: isUpperTier && editBuyUrl.trim().startsWith('https://') ? editBuyUrl.trim() : null,
+        buyLabel: isUpperTier && editBuyUrl.trim() ? (editBuyLabel.trim() || 'Buy / Rent Now') : null,
+      });
+      setEditingPremiere(null);
+    } catch {
+      Alert.alert('Could not save', 'Check your connection and try again.');
+    }
   }
 
   function handleDelete(p: Premiere) {
