@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -883,6 +883,22 @@ export default function FriendsScreen() {
     [suggestions, dismissedIds],
   );
 
+  const renderFriendItem = useCallback(({ item, index }: { item: Profile; index: number }) => {
+    const compat = compatScores.get(item.id) ?? 0;
+    const activePost = activePostByUser.get(item.id) ?? null;
+    const isFollowingBack = tab === 'followers' && followingSet.has(item.id);
+    return (
+      <FriendCard
+        profile={item}
+        compatibility={compat}
+        hasUnread={unreadFriendIds.has(item.id)}
+        currentlyWatching={activePost}
+        isTopMatch={index === 0 && tab === 'following'}
+        onFollowBack={tab === 'followers' && !isFollowingBack ? () => follow.mutate({ targetUserId: item.id, isTargetPrivate: item.is_private ?? false }) : undefined}
+      />
+    );
+  }, [compatScores, activePostByUser, tab, followingSet, unreadFriendIds, follow]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {/* Header row — always visible */}
@@ -977,21 +993,7 @@ export default function FriendsScreen() {
               ) : null}
             </View>
           }
-          renderItem={({ item, index }: { item: Profile; index: number }) => {
-            const compat = compatScores.get(item.id) ?? 0;
-            const activePost = activePostByUser.get(item.id) ?? null;
-            const isFollowingBack = tab === 'followers' && followingSet.has(item.id);
-            return (
-              <FriendCard
-                profile={item}
-                compatibility={compat}
-                hasUnread={unreadFriendIds.has(item.id)}
-                currentlyWatching={activePost}
-                isTopMatch={index === 0 && tab === 'following'}
-                onFollowBack={tab === 'followers' && !isFollowingBack ? () => follow.mutate({ targetUserId: item.id, isTargetPrivate: item.is_private ?? false }) : undefined}
-              />
-            );
-          }}
+          renderItem={renderFriendItem}
           ListEmptyComponent={
             !isLoading ? (
               tab === 'following' ? (

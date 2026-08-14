@@ -77,6 +77,10 @@ export default function NewsScreen() {
     () => new Map((boxOffice ?? []).map((e) => [e.id, e.revenue])),
     [boxOffice],
   );
+  const maxRevenue = useMemo(
+    () => (boxOffice?.[0] ? Math.max(...boxOffice.map((e) => e.revenue)) : 1),
+    [boxOffice],
+  );
 
   function openArticle(article: NewsArticle) {
     track(user?.id, Events.NEWS_CARD_TAPPED, {
@@ -400,9 +404,7 @@ export default function NewsScreen() {
           {boxOffice && boxOffice.length > 0 ? (
             <View style={styles.boxOfficeSection}>
               <Text style={styles.sectionTitle}>Box Office Top 10</Text>
-              {(() => {
-                const maxRevenue = boxOffice[0] ? Math.max(...boxOffice.map((e) => e.revenue)) : 1;
-                return boxOffice.map((entry, i) => (
+              {boxOffice.map((entry, i) => (
                   <Pressable
                     key={entry.id}
                     style={styles.boRow}
@@ -431,8 +433,7 @@ export default function NewsScreen() {
                       </View>
                     </View>
                   </Pressable>
-                ));
-              })()}
+              ))}
             </View>
           ) : null}
         </ScrollView>

@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   FlatList,
@@ -397,6 +397,10 @@ export default function ChatModal() {
   const [threadFilter, setThreadFilter] = useState<ThreadFilter>('All');
 
   const topLevelPosts = useMemo(() => messages.filter((m) => !m.parent_id), [messages]);
+  const uniqueMemberMessages = useMemo(
+    () => Array.from(new Map(messages.map((m) => [m.user_id, m])).values()),
+    [messages],
+  );
   const repliesByParent = useMemo(() => {
     const map = new Map<string, RawMessage[]>();
     for (const m of messages) {
@@ -772,9 +776,7 @@ export default function ChatModal() {
               </Pressable>
             </View>
             <ScrollView contentContainerStyle={styles.membersList}>
-              {Array.from(
-                new Map(messages.map((m) => [m.user_id, m])).values()
-              ).map((m) => (
+              {uniqueMemberMessages.map((m) => (
                 <View key={m.user_id} style={styles.memberRow}>
                   <Avatar
                     name={m.user_handle ?? m.user_name}

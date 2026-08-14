@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -36,7 +36,7 @@ export default function ChatsScreen() {
     groupThreads.reduce((sum, t) => sum + t.unreadCount, 0);
 
   // Merge DMs + groups sorted by most recent activity, excluding archived
-  const privateItems: PrivateItem[] = [
+  const privateItems = useMemo<PrivateItem[]>(() => [
     ...(dmThreads ?? []).filter((t) => !archived.has(`dm:${t.friendId}`)).map((d): PrivateItem => ({ kind: 'dm', data: d })),
     ...(groupThreads ?? []).filter((t) => !archived.has(`group:${t.id}`)).map((g): PrivateItem => ({ kind: 'group', data: g })),
   ]
@@ -57,13 +57,14 @@ export default function ChatsScreen() {
       const ta = a.kind === 'dm' ? a.data.lastTime : a.data.lastTime;
       const tb = b.kind === 'dm' ? b.data.lastTime : b.data.lastTime;
       return tb.localeCompare(ta);
-    });
-  const filteredRequestThreads = requestThreads.filter(
+    }), [dmThreads, groupThreads, archived, trimmedQuery]);
+
+  const filteredRequestThreads = useMemo(() => requestThreads.filter(
     (t) =>
       !trimmedQuery ||
       t.name.toLowerCase().includes(trimmedQuery) ||
       t.lastText.toLowerCase().includes(trimmedQuery),
-  );
+  ), [requestThreads, trimmedQuery]);
 
   function openDm(thread: DmThread) {
     // Use the thread's last message timestamp (server clock) so the optimistic
@@ -137,6 +138,25 @@ export default function ChatsScreen() {
     </View>
   );
 
+  const renderPrivateItem = useCallback(({ item }: { item: PrivateItem }) =>
+    item.kind === 'dm' ? (
+      <SwipeableChatRow
+        onArchive={() => archive(`dm:${item.data.friendId}`)}
+        onDelete={() => softDelete(`dm:${item.data.friendId}`)}>
+        <DmListItem thread={item.data} onPress={() => openDm(item.data)} />
+      </SwipeableChatRow>
+    ) : (
+      <SwipeableChatRow
+        onArchive={() => archive(`group:${item.data.id}`)}
+        onDelete={() => softDelete(`group:${item.data.id}`)}>
+        <GroupListItem thread={item.data} onPress={() => openGroup(item.data)} />
+      </SwipeableChatRow>
+    ), [archive, softDelete, openDm, openGroup]);
+
+  const renderRequestItem = useCallback(({ item }: { item: DmThread }) => (
+    <DmListItem thread={item} onPress={() => openDm(item)} />
+  ), [openDm]);
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       {mode === 'private' ? (
@@ -147,21 +167,7 @@ export default function ChatsScreen() {
             item.kind === 'dm' ? `dm-${item.data.friendId}` : `group-${item.data.id}`
           }
           ListHeaderComponent={headerContent}
-          renderItem={({ item }) =>
-            item.kind === 'dm' ? (
-              <SwipeableChatRow
-                onArchive={() => archive(`dm:${item.data.friendId}`)}
-                onDelete={() => softDelete(`dm:${item.data.friendId}`)}>
-                <DmListItem thread={item.data} onPress={() => openDm(item.data)} />
-              </SwipeableChatRow>
-            ) : (
-              <SwipeableChatRow
-                onArchive={() => archive(`group:${item.data.id}`)}
-                onDelete={() => softDelete(`group:${item.data.id}`)}>
-                <GroupListItem thread={item.data} onPress={() => openGroup(item.data)} />
-              </SwipeableChatRow>
-            )
-          }
+          renderItem={renderPrivateItem}
           ListEmptyComponent={
             <View style={styles.empty}>
               {trimmedQuery
@@ -184,9 +190,7 @@ export default function ChatsScreen() {
           data={filteredRequestThreads}
           keyExtractor={(item) => item.friendId}
           ListHeaderComponent={headerContent}
-          renderItem={({ item }) => (
-            <DmListItem thread={item} onPress={() => openDm(item)} />
-          )}
+          renderItem={renderRequestItem}
           ListEmptyComponent={
             <View style={styles.empty}>
               <Text style={styles.emptyEmoji}>📬</Text>

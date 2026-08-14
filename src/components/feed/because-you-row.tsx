@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -7,6 +7,7 @@ import type { TrendingEntry } from '@/features/feed/trending';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const CARD_W = 90;
+const BecauseYouSeparator = () => <View style={{ width: 10 }} />;
 const CARD_H = Math.round(CARD_W * 1.5);
 
 function openEntry(entry: TrendingEntry) {
@@ -38,6 +39,23 @@ export function BecauseYouRow({
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
+  const renderItem = useCallback(({ item }: { item: TrendingEntry }) => (
+    <Pressable style={styles.card} onPress={() => openEntry(item)}>
+      {item.poster ? (
+        <Image
+          source={{ uri: item.poster }}
+          style={StyleSheet.absoluteFill}
+          resizeMode={item.type === 'listen' || item.type === 'podcast' ? 'contain' : 'cover'}
+        />
+      ) : (
+        <View
+          style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: (TypeColors[item.type] ?? TypeColors.watch).bg }]}>
+          <Text style={{ fontSize: 28 }}>{(TypeColors[item.type] ?? TypeColors.watch).icon}</Text>
+        </View>
+      )}
+    </Pressable>
+  ), [styles, TypeColors]);
+
   if (!entries.length) return null;
 
   return (
@@ -56,23 +74,8 @@ export function BecauseYouRow({
         data={entries.filter((e, i, arr) => arr.findIndex((x) => x.type === e.type && x.title.toLowerCase() === e.title.toLowerCase()) === i)}
         keyExtractor={(e) => `${e.type}:${e.title}`}
         contentContainerStyle={styles.row}
-        ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
-        renderItem={({ item }) => (
-          <Pressable style={styles.card} onPress={() => openEntry(item)}>
-            {item.poster ? (
-              <Image
-                source={{ uri: item.poster }}
-                style={StyleSheet.absoluteFill}
-                resizeMode={item.type === 'listen' || item.type === 'podcast' ? 'contain' : 'cover'}
-              />
-            ) : (
-              <View
-                style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: (TypeColors[item.type] ?? TypeColors.watch).bg }]}>
-                <Text style={{ fontSize: 28 }}>{(TypeColors[item.type] ?? TypeColors.watch).icon}</Text>
-              </View>
-            )}
-          </Pressable>
-        )}
+        ItemSeparatorComponent={BecauseYouSeparator}
+        renderItem={renderItem}
       />
     </View>
   );

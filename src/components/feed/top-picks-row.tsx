@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AvatarSizes, BrandFonts, Spacing, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
@@ -98,10 +98,16 @@ function TopPickCard({
   );
 }
 
+const TopPicksSeparator = () => <View style={{ width: 14 }} />;
+
 export function TopPicksRow({ entries }: { entries: TrendingEntry[] }) {
   const Brand = useBrand();
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
+
+  const renderItem = useCallback(({ item, index }: { item: TrendingEntry; index: number }) => (
+    <TopPickCard entry={item} rank={index + 1} Brand={Brand} TypeColors={TypeColors} />
+  ), [Brand, TypeColors]);
 
   if (!entries.length) return null;
 
@@ -112,10 +118,8 @@ export function TopPicksRow({ entries }: { entries: TrendingEntry[] }) {
       data={entries}
       keyExtractor={(e) => e.title}
       contentContainerStyle={styles.row}
-      ItemSeparatorComponent={() => <View style={{ width: 14 }} />}
-      renderItem={({ item, index }) => (
-        <TopPickCard entry={item} rank={index + 1} Brand={Brand} TypeColors={TypeColors} />
-      )}
+      ItemSeparatorComponent={TopPicksSeparator}
+      renderItem={renderItem}
     />
   );
 }

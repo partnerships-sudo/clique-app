@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -9,6 +9,7 @@ import type { TrendingEntry } from '@/features/feed/trending';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 
 const CARD_W = 112;
+const Top10Separator = () => <View style={{ width: 10 }} />;
 const CARD_H = Math.round(CARD_W * 1.5);
 const AVATAR_SIZE = AvatarSizes.sm;
 const AVATAR_OVERLAP = 9;
@@ -124,6 +125,10 @@ export function TrendingList({
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
+  const renderTop10Item = useCallback(({ item, index }: { item: TrendingEntry; index: number }) => (
+    <Top10Card entry={item} rank={index + 1} Brand={Brand} TypeColors={TypeColors} />
+  ), [Brand, TypeColors]);
+
   if (!entries.length) {
     return (
       <Text style={styles.empty}>
@@ -147,15 +152,8 @@ export function TrendingList({
             data={top10}
             keyExtractor={(e) => e.title}
             contentContainerStyle={styles.bannerRow}
-            ItemSeparatorComponent={() => <View style={{ width: 10 }} />}
-            renderItem={({ item, index }) => (
-              <Top10Card
-                entry={item}
-                rank={index + 1}
-                Brand={Brand}
-                TypeColors={TypeColors}
-              />
-            )}
+            ItemSeparatorComponent={Top10Separator}
+            renderItem={renderTop10Item}
           />
         </View>
       )}
