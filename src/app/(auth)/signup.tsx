@@ -12,7 +12,6 @@ import {
   View,
 } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSigninButton } from '@react-native-google-signin/google-signin';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 import { DrumPicker, daysInMonth, MONTH_LABELS, ITEM_H } from '@/components/drum-picker';
@@ -291,15 +290,14 @@ export default function SignupScreen() {
             }}
           />
 
-          <GoogleSigninButton
+          <Pressable
             style={styles.googleBtn}
-            size={GoogleSigninButton.Size.Wide}
-            color={GoogleSigninButton.Color.Light}
             onPress={async () => {
               const { error } = await signInWithGoogle();
               if (error) Alert.alert('Sign in failed', error);
-            }}
-          />
+            }}>
+            <Text style={styles.googleBtnText}>🇬 Continue with Google</Text>
+          </Pressable>
         </View>
       </View>
     </KeyboardAvoidingWrapper>
@@ -425,6 +423,17 @@ function createStyles(Brand: BrandPalette) {
     width: '100%',
     height: 50,
     marginTop: 10,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: Brand.border,
+    backgroundColor: Brand.card,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  googleBtnText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 15,
+    color: Brand.ink,
   },
   ageGateTitle: {
     fontFamily: BrandFonts.syneExtraBold,
