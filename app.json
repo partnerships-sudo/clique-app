@@ -92,12 +92,7 @@
           "merchantIdentifier": "merchant.com.thecliqueapp"
         }
       ],
-      [
-        "@react-native-google-signin/google-signin",
-        {
-          "iosUrlScheme": "com.googleusercontent.apps.721803355925-iegocavo7h2dcefvr2llgait6g08205f"
-        }
-      ]
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true

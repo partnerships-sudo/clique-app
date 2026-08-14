@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 

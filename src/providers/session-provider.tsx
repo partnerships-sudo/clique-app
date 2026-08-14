@@ -2,11 +2,8 @@ import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { router } from 'expo-router';
 import * as AppleAuthentication from 'expo-apple-authentication';
-import { GoogleSignin } from '@react-native-google-signin/google-signin';
-
-GoogleSignin.configure({
-  iosClientId: '721803355925-iegocavo7h2dcefvr2llgait6g08205f.apps.googleusercontent.com',
-});
+import * as WebBrowser from 'expo-web-browser';
+import { makeRedirectUri } from 'expo-auth-session';
 
 import { getLocales } from 'expo-localization';
 
@@ -228,30 +225,36 @@ export function SessionProvider({ children }: PropsWithChildren) {
 
     async signInWithGoogle() {
       try {
-        await GoogleSignin.hasPlayServices();
-        const response = await GoogleSignin.signIn();
-        const idToken = response.data?.idToken;
-        if (!idToken) return { error: 'Google sign-in failed: no ID token returned.' };
-
-        const { data, error } = await supabase.auth.signInWithIdToken({
+        const redirectTo = makeRedirectUri({ scheme: 'thecliqueapp', path: 'auth/callback' });
+        const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
-          token: idToken,
+          options: { redirectTo, skipBrowserRedirect: true },
         });
-
         if (error) return { error: error.message };
+        if (!data.url) return { error: 'Google sign-in failed: no URL returned.' };
 
-        if (data.user) await upsertProfile(data.user);
+        const result = await WebBrowser.openAuthSessionAsync(data.url, redirectTo);
+        if (result.type !== 'success') return { error: null }; // user cancelled
 
-        if (data.session) {
-          await saveAccountFromSession(data.session);
+        // Extract tokens from the callback URL and set the session
+        const url = new URL(result.url);
+        const params = new URLSearchParams(url.hash.replace('#', ''));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (!accessToken || !refreshToken) return { error: 'Google sign-in failed: missing tokens.' };
+
+        const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (sessionError) return { error: sessionError.message };
+        if (sessionData.user) await upsertProfile(sessionData.user);
+        if (sessionData.session) {
+          await saveAccountFromSession(sessionData.session);
           getSavedAccounts().then(setSavedAccounts).catch(() => {});
         }
-
         return { error: null };
       } catch (e: unknown) {
-        const code = (e as { code?: string }).code;
-        // User cancelled — not a real error
-        if (code === 'SIGN_IN_CANCELLED' || code === '12501') return { error: null };
         return { error: (e as Error).message ?? 'Google sign-in failed.' };
       }
     },

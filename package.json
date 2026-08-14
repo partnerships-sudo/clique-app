@@ -5,7 +5,6 @@
   "dependencies": {
     "@gorhom/bottom-sheet": "^5",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-google-signin/google-signin": "^16.1.4",
     "@stripe/stripe-react-native": "0.50.3",
     "@supabase/supabase-js": "^2.108.2",
     "@tanstack/react-query": "^5.101.2",
@@ -14,6 +13,7 @@
     "expo-apple-authentication": "~8.0.8",
     "expo-asset": "~12.0.13",
     "expo-audio": "~1.1.1",
+    "expo-auth-session": "~7.0.11",
     "expo-blur": "~15.0.8",
     "expo-calendar": "~15.0.8",
     "expo-camera": "~17.0.10",
