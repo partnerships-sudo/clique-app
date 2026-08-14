@@ -21,10 +21,10 @@ ALTER TABLE discussion_votes DROP CONSTRAINT IF EXISTS discussion_votes_user_id_
 ALTER TABLE discussion_votes ADD CONSTRAINT discussion_votes_user_id_fkey
   FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
 
--- group_chats (membership rows)
-ALTER TABLE group_chats DROP CONSTRAINT IF EXISTS group_chats_user_id_fkey;
-ALTER TABLE group_chats ADD CONSTRAINT group_chats_user_id_fkey
-  FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE;
+-- group_chats — created_by references the host user
+ALTER TABLE group_chats DROP CONSTRAINT IF EXISTS group_chats_created_by_fkey;
+ALTER TABLE group_chats ADD CONSTRAINT group_chats_created_by_fkey
+  FOREIGN KEY (created_by) REFERENCES auth.users(id) ON DELETE CASCADE;
 
 -- list_items
 ALTER TABLE list_items DROP CONSTRAINT IF EXISTS list_items_user_id_fkey;
