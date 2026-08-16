@@ -28,6 +28,7 @@ export default function LoginScreen() {
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingReset, setIsSendingReset] = useState(false);
+  const [isSocialLoading, setIsSocialLoading] = useState(false);
   const hasRedirected = useRef(false);
 
   useEffect(() => {
@@ -154,20 +155,29 @@ export default function LoginScreen() {
             buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
             buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
             cornerRadius={12}
-            style={styles.appleBtn}
+            style={[styles.appleBtn, isSocialLoading && { opacity: 0.6 }]}
             onPress={async () => {
+              if (isSocialLoading) return;
+              setIsSocialLoading(true);
               const { error } = await signInWithApple();
+              setIsSocialLoading(false);
               if (error) Alert.alert('Sign in failed', error);
             }}
           />
 
           <Pressable
-            style={styles.googleBtn}
+            style={[styles.googleBtn, isSocialLoading && styles.googleBtnDisabled]}
+            disabled={isSocialLoading}
             onPress={async () => {
+              if (isSocialLoading) return;
+              setIsSocialLoading(true);
               const { error } = await signInWithGoogle();
+              setIsSocialLoading(false);
               if (error) Alert.alert('Sign in failed', error);
             }}>
-            <Text style={styles.googleBtnText}>🇬 Continue with Google</Text>
+            {isSocialLoading
+              ? <ActivityIndicator size="small" color={Brand.muted} />
+              : <Text style={styles.googleBtnText}>🇬 Continue with Google</Text>}
           </Pressable>
         </View>
       </View>
@@ -306,6 +316,9 @@ function createStyles(Brand: BrandPalette) {
     backgroundColor: Brand.card,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  googleBtnDisabled: {
+    opacity: 0.6,
   },
   googleBtnText: {
     fontFamily: BrandFonts.syneBold,
