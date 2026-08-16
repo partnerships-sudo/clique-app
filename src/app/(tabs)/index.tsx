@@ -1,6 +1,5 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useFocusEffect } from 'expo-router';
 import { useQuery } from '@tanstack/react-query';
 import { useCallback, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Image, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
@@ -96,11 +95,8 @@ export default function FeedScreen() {
   const { data: commentCounts } = usePostCommentCounts(posts.map((p) => p.id));
   const { data: globalPosts } = useGlobalPosts();
   const deletePost = useDeletePost();
-  const { logged, refetch: refetchLibrary } = useLibraryItems();
+  const { logged } = useLibraryItems();
 
-  // Re-fetch library whenever the feed tab comes into focus so the banner
-  // reflects the most recently logged item after returning from log-modal
-  useFocusEffect(useCallback(() => { refetchLibrary(); }, [refetchLibrary]));
   const { items: collectionItems } = useCollectionItems();
   // Build a map of external_id → collection item for page tracking
   const collectionByExternalId = useMemo(() => {

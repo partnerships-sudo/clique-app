@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -224,7 +224,7 @@ export default function ListCommentsModal() {
             keyExtractor={(c) => c.id}
             contentContainerStyle={styles.list}
             keyboardDismissMode="on-drag"
-            renderItem={({ item }) => (
+            renderItem={useCallback(({ item }: { item: typeof comments[number] }) => (
               <View>
                 <CommentRow
                   comment={item}
@@ -250,7 +250,7 @@ export default function ListCommentsModal() {
                   </View>
                 ))}
               </View>
-            )}
+            ), [user?.id, listId, styles, Brand, handleReply])}
             ItemSeparatorComponent={() => <View style={styles.separator} />}
           />
         )}

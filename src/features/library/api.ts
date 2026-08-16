@@ -61,8 +61,7 @@ export function useLibraryItems() {
       return data as LibraryItem[];
     },
     enabled: !!user,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000, // mutations always invalidate; this just prevents redundant refetches on tab focus
   });
   const items = query.data ?? [];
   const watchlist = items.filter((i) => i.status === 'watchlist');
@@ -87,8 +86,7 @@ export function useLibraryItemsByUser(userId: string | undefined) {
       return data as LibraryItem[];
     },
     enabled: !!userId,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
   });
   const items = query.data ?? [];
   return {

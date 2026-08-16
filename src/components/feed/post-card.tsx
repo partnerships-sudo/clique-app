@@ -1,7 +1,7 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { Image } from 'expo-image';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -265,7 +265,7 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
   );
 }
 
-export function PostCard({
+export const PostCard = memo(function PostCard({
   post,
   isMine,
   currentUserId,
@@ -580,7 +580,7 @@ export function PostCard({
       </View>
     </SwipeableRow>
   );
-}
+});
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({

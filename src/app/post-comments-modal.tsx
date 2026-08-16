@@ -347,7 +347,7 @@ export default function PostCommentsModal() {
             keyExtractor={(c) => c.id}
             contentContainerStyle={styles.list}
             keyboardDismissMode="on-drag"
-            renderItem={({ item }) => (
+            renderItem={useCallback(({ item }: { item: typeof comments[number] }) => (
               <CommentRow
                 comment={item}
                 currentUserId={user?.id}
@@ -356,7 +356,7 @@ export default function PostCommentsModal() {
                 styles={styles}
                 Brand={Brand}
               />
-            )}
+            ), [user?.id, postId, handleReply, styles, Brand])}
           />
         )}
       </KeyboardAvoidingView>
