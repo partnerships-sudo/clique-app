@@ -111,8 +111,52 @@ export function useToggleEmojiReaction() {
         if (error) throw error;
       }
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['emoji-reactions'] });
+    onMutate: async ({ postId, emoji, reacted }) => {
+      // Cancel in-flight fetches so they don't overwrite the optimistic update.
+      await queryClient.cancelQueries({ queryKey: ['emoji-reactions'] });
+
+      // Snapshot every cached query that contains this post.
+      const snapshots = queryClient.getQueriesData<EmojiReaction[]>({
+        queryKey: ['emoji-reactions'],
+      });
+
+      for (const [key, data] of snapshots) {
+        if (!data || !(key as string[]).includes(postId)) continue;
+        queryClient.setQueryData<EmojiReaction[]>(
+          key,
+          reacted
+            // Removing: drop the matching row
+            ? data.filter(
+                (r) => !(r.post_id === postId && r.user_id === user!.id && r.emoji === emoji),
+              )
+            // Adding: append a temporary optimistic row
+            : [
+                ...data,
+                {
+                  id: `optimistic-${postId}-${emoji}`,
+                  post_id: postId,
+                  user_id: user!.id,
+                  emoji,
+                },
+              ],
+        );
+      }
+
+      return { snapshots };
+    },
+    onError: (_err, _vars, context) => {
+      // Restore every snapshot on failure.
+      for (const [key, data] of context?.snapshots ?? []) {
+        queryClient.setQueryData(key, data);
+      }
+    },
+    onSettled: (_data, _err, { postId }) => {
+      // Sync with the server once the mutation settles (success or error).
+      for (const [key] of queryClient.getQueriesData({ queryKey: ['emoji-reactions'] })) {
+        if ((key as string[]).includes(postId)) {
+          queryClient.invalidateQueries({ queryKey: key as readonly string[] });
+        }
+      }
     },
   });
 }
