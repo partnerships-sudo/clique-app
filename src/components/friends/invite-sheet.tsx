@@ -4,7 +4,7 @@ import { Alert, Linking, Modal, Pressable, Share, StyleSheet, Text, View } from 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 
-// TODO: swap in the real App Store link once Clique is live.
+// UPDATE THIS: replace with the real App Store ID from App Store Connect once the app is live.
 const APP_STORE_URL = 'https://apps.apple.com/app/id0000000000';
 const INVITE_MESSAGE = `Hey, join my clique! Download it here: ${APP_STORE_URL}`;
 

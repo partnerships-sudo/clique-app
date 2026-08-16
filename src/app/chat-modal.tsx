@@ -231,13 +231,10 @@ export default function ChatModal() {
   // Pinned watch party invite — most recent invite in this DM thread
   let pinnedInvite: WatchPartyInvitePayload | null = null;
   if (isDm) {
-    console.log('[pinnedInvite] isDm=true messages.length=', messages.length);
     for (let i = messages.length - 1; i >= 0; i--) {
-      console.log('[pinnedInvite] checking content:', messages[i].content?.slice(0, 50));
       const parsed = parseWatchPartyInvite(messages[i].content);
       if (parsed) { pinnedInvite = parsed; break; }
     }
-    console.log('[pinnedInvite] result:', pinnedInvite?.title ?? 'null');
   }
 
   useEffect(() => {
