@@ -1,4 +1,4 @@
-import { Link, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 
+import { routeAfterAuth } from '@/lib/auth-routing';
 import { supabase } from '@/lib/supabase';
 import { useSession } from '@/hooks/use-session';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -20,7 +21,6 @@ import { useBrand } from '@/hooks/use-brand';
 
 export default function LoginScreen() {
   const { signIn, signInWithApple, signInWithGoogle, session } = useSession();
-  const router = useRouter();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [email, setEmail] = useState('');
@@ -34,7 +34,9 @@ export default function LoginScreen() {
   useEffect(() => {
     if (session && !hasRedirected.current) {
       hasRedirected.current = true;
-      router.replace('/(tabs)');
+      // The Apple/Google buttons below sign up first-time users, so this screen
+      // has to honour the onboarding gate too.
+      routeAfterAuth(session.user.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);

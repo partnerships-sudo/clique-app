@@ -1,5 +1,4 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { Link, useRouter } from 'expo-router';
+import { Link } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -16,6 +15,7 @@ import * as AppleAuthentication from 'expo-apple-authentication';
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 import { DrumPicker, daysInMonth, MONTH_LABELS, ITEM_H } from '@/components/drum-picker';
 
+import { routeAfterAuth } from '@/lib/auth-routing';
 import { useSession } from '@/hooks/use-session';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
@@ -140,7 +140,6 @@ function AgeGate({ onPass }: { onPass: () => void }) {
 
 export default function SignupScreen() {
   const { signUp, signInWithApple, signInWithGoogle, session } = useSession();
-  const router = useRouter();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [ageVerified, setAgeVerified] = useState(false);
@@ -156,9 +155,7 @@ export default function SignupScreen() {
   useEffect(() => {
     if (session && !hasRedirected.current) {
       hasRedirected.current = true;
-      AsyncStorage.getItem(`clique:onboarding:${session.user.id}`).then((done) => {
-        router.replace(done ? '/(tabs)' : '/onboarding');
-      });
+      routeAfterAuth(session.user.id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [session]);

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
+import { endPasswordRecovery } from '@/lib/auth-routing';
 import { supabase } from '@/lib/supabase';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
@@ -40,11 +41,16 @@ export default function ResetPasswordScreen() {
     setIsSubmitting(true);
     setMessage(null);
     const { error } = await supabase.auth.updateUser({ password });
-    setIsSubmitting(false);
     if (error) {
+      setIsSubmitting(false);
       setMessage({ text: error.message, isError: true });
       return;
     }
+    // The recovery link left us holding a session. Drop it so the user signs in
+    // with the new password, which is what the confirmation copy promises.
+    endPasswordRecovery();
+    await supabase.auth.signOut();
+    setIsSubmitting(false);
     setDone(true);
   }
 

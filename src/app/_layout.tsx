@@ -18,6 +18,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // by setting userControlledAutoHideEnabled=true breaks the auto-hide chain.
 
 import { BrandFonts, BrandLight } from '@/constants/theme';
+import { beginPasswordRecovery, endPasswordRecovery } from '@/lib/auth-routing';
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 // import { configureRevenueCat } from '@/features/purchases/api'; // RevenueCat disabled
@@ -214,10 +215,33 @@ function RootLayoutInner() {
     return () => sub.remove();
   }, []);
 
-  function handleDeepLink(url: string) {
-    // Password reset: thecliqueapp://reset-password#access_token=...
+  async function handleDeepLink(url: string) {
+    // Password reset: thecliqueapp://reset-password#access_token=...&refresh_token=...
+    //
+    // The recovery tokens arrive in the URL fragment and must be exchanged for a
+    // session before reset-password can call updateUser — the client is created
+    // with detectSessionInUrl: false, so nothing consumes them automatically.
     if (url.includes('reset-password')) {
-      router.push('/reset-password');
+      const fragment = url.split('#')[1] ?? '';
+      const params = new URLSearchParams(fragment);
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+      if (accessToken && refreshToken) {
+        // Set before setSession: the resulting session would otherwise trip the
+        // auth screens' "logged in, go to tabs" effect and skip this screen.
+        beginPasswordRecovery();
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+        if (error) {
+          endPasswordRecovery();
+          // Expired or already-used link: send them back to request a new one.
+          router.replace('/(auth)');
+          return;
+        }
+      }
+      router.replace('/reset-password');
       return;
     }
     // Matches both:

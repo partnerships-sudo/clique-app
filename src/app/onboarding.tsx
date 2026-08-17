@@ -23,6 +23,7 @@ import { Avatar } from '@/components/avatar';
 import { RATING_ICON_OPTIONS, type RatingIconStyle } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useDiscoverPeople, useFollow, useSearchUsers, type Profile } from '@/features/follows/api';
+import { markOnboardingDone } from '@/lib/auth-routing';
 import { supabase } from '@/lib/supabase';
 import { useUpdateContentTypes, useUpdateRatingIcon, useUploadAvatar } from '@/features/profile/api';
 import { registerForPushNotificationsAsync } from '@/lib/push-notifications';
@@ -152,7 +153,7 @@ export default function OnboardingScreen() {
 
   async function complete() {
     if (user) {
-      await AsyncStorage.setItem(`clique:onboarding:${user.id}`, 'done');
+      await markOnboardingDone(user.id);
     }
     // Normalize onboarding picks to valid EntryType slugs ('tv' → 'watch')
     // and persist to the profile so the feed can seed hidden categories.
