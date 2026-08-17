@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
-import type { EntryType } from '@/constants/theme';
+import { normalizeEntryType, type EntryType } from '@/constants/theme';
 import { useBlockedMutedIds } from '@/features/blocks/api';
 import { useFollowing } from '@/features/follows/api';
 import { useSession } from '@/hooks/use-session';
@@ -92,7 +92,10 @@ export function useFeedPosts(filterType: FeedFilterValue) {
     () => query.data?.pages.flatMap((p) => p.posts) ?? [],
     [query.data],
   );
-  const filtered = filterType === 'all' ? allPosts : allPosts.filter((p) => p.type === filterType);
+  // normalizeEntryType keeps legacy `type: 'tv'` rows visible under "watch".
+  const filtered = filterType === 'all'
+    ? allPosts
+    : allPosts.filter((p) => normalizeEntryType(p.type) === filterType);
   return { ...query, posts: filtered, allPosts };
 }
 
@@ -255,7 +258,7 @@ export function useCreatePost() {
       // Notify each tagged friend (in-app notification + push)
       if (input.watchedWith && input.watchedWith.length > 0) {
         const myName = user?.user_metadata?.username ?? user?.email?.split('@')[0] ?? 'Someone';
-        const typeLabel = input.type === 'watch' || input.type === 'tv' ? 'watched' : input.type === 'read' ? 'read' : input.type === 'listen' || input.type === 'podcast' ? 'listened to' : 'played';
+        const typeLabel = normalizeEntryType(input.type) === 'watch' ? 'watched' : input.type === 'read' ? 'read' : input.type === 'listen' || input.type === 'podcast' ? 'listened to' : 'played';
         await supabase.from('notifications').insert(
           input.watchedWith.map((friendId) => ({
             user_id: friendId,

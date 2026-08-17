@@ -106,6 +106,22 @@ export type TypeColorPalette = Record<
 
 export type EntryType = keyof typeof TypeColorsLight;
 
+/**
+ * Normalises a raw `type` value coming from the database.
+ *
+ * Watch-party posts and library items used to be written with `type: 'tv'`,
+ * which was never a valid EntryType. Those rows rendered with the fallback
+ * grey "📝 tv" badge instead of "📺 Watched", and were dropped by category
+ * filters that compare `type` directly.
+ *
+ * The write path now stores `type: 'watch'` + `media_type: 'tv'`, but existing
+ * rows still carry the old value, so read paths must normalise. Remove this
+ * once the legacy rows have been migrated.
+ */
+export function normalizeEntryType(type: string): EntryType {
+  return (type === 'tv' ? 'watch' : type) as EntryType;
+}
+
 export const BrandFonts = {
   syneSemiBold: 'Satoshi-Bold',
   syneBold: 'Satoshi-Bold',

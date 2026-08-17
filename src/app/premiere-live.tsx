@@ -146,7 +146,12 @@ export default function PremiereLive() {
       ? `S${premiere.season_number}E${premiere.episode_number}${premiere.episode_name ? ` · ${premiere.episode_name}` : ''}`
       : premiere.episode_name ?? undefined;
     createPost.mutate({
-      type: 'tv',
+      // TV is watched content: the entry type is 'watch' and mediaType carries
+      // the distinction. Writing type:'tv' here produced posts that fell
+      // through TypeColors (grey "📝 tv" badge) and were excluded by the
+      // feed's `p.type === filterType` category filter.
+      type: 'watch',
+      mediaType: 'tv',
       title: premiere.show_title,
       sub: episodeSub,
       poster: premiere.show_poster ?? undefined,
@@ -376,7 +381,8 @@ export default function PremiereLive() {
       // by the auto-post effect above with the watch party note.
       addLibraryItem.mutate({
         intent: 'log',
-        type: 'tv',
+        type: 'watch',
+        mediaType: 'tv',
         title: premiere.show_title,
         sub: episodeSub,
         poster: premiere.show_poster ?? undefined,

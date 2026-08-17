@@ -67,6 +67,8 @@ export interface Premiere {
   buy_label: string | null;
   status: PremiereStatus;
   live_started_at: string | null;
+  /** Set when the party is ended (see the status:'ended' update below). */
+  ended_at: string | null;
   created_at: string;
 }
 

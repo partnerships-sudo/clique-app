@@ -3,7 +3,7 @@ import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
+import { BrandFonts, normalizeEntryType, type BrandPalette, type EntryType } from '@/constants/theme';
 import { usePostsByUser, type Post } from '@/features/feed/api';
 import { useSession } from '@/hooks/use-session';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
@@ -27,7 +27,7 @@ export function ProfileFeedTab({ userId }: Props) {
   const feedItems = useMemo(() => {
     const items = catFilter === 'all'
       ? posts
-      : posts.filter((p) => p.type === catFilter || (catFilter === 'watch' && p.type === 'tv'));
+      : posts.filter((p) => normalizeEntryType(p.type) === catFilter);
     const sorted = [...items];
     if (feedSort === 'alpha') sorted.sort((a, b) => a.title.localeCompare(b.title));
     else sorted.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -103,8 +103,7 @@ export function ProfileFeedTab({ userId }: Props) {
 
 function FeedCard({ item, Brand }: { item: Post; Brand: BrandPalette }) {
   const TypeColors = useTypeColors();
-  const typeKey = item.type === 'tv' ? 'watch' : item.type;
-  const type = (TypeColors as any)[typeKey] ?? TypeColors.watch;
+  const type = TypeColors[normalizeEntryType(item.type)] ?? TypeColors.watch;
   const stars = item.rating ? Math.round(item.rating) : 0;
   const s = StyleSheet.create({
     card: { backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border, borderRadius: 16, paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', gap: 12, alignItems: 'center', marginBottom: 5 },

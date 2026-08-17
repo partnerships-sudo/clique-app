@@ -10,7 +10,7 @@ import { fetchBookPageCount } from '@/features/search/api';
 import { VerifiedBadge } from '@/components/verified-badge';
 import { RatingIcons, type RatingIconStyle } from '@/components/rating-icons';
 import { SwipeableRow } from '@/components/swipeable-row';
-import { AvatarSizes, BrandFonts, CloseFriendsColors, type BrandPalette } from '@/constants/theme';
+import { AvatarSizes, BrandFonts, CloseFriendsColors, normalizeEntryType, type BrandPalette } from '@/constants/theme';
 import type { Post } from '@/features/feed/api';
 import { EMOJI_OPTIONS, useToggleEmojiReaction, type EmojiReactionSummary } from '@/features/feed/emoji-reactions';
 import type { Reaction } from '@/features/feed/reactions';
@@ -301,7 +301,9 @@ export const PostCard = memo(function PostCard({
   const TypeColors = useTypeColors();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const ratingIcon = (post.user_rating_icon as RatingIconStyle) ?? 'stars';
-  const type = TypeColors[post.type as keyof typeof TypeColors] ?? { color: '#888', bg: '#EEE', icon: '📝', label: post.type };
+  // normalizeEntryType maps legacy `type: 'tv'` rows onto 'watch' so they show
+  // the "📺 Watched" badge rather than falling through to the grey fallback.
+  const type = TypeColors[normalizeEntryType(post.type)] ?? { color: '#888', bg: '#EEE', icon: '📝', label: post.type };
 
   // Resolve watched_with user IDs → avatars.
   // Profiles are batch-fetched by the feed parent; we just look them up here.

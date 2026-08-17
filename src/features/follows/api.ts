@@ -656,11 +656,16 @@ export function useTasteDetail(friendId: string | null) {
   });
 }
 
+/** Top 4 most compatible people. Only computes `compatibility` — it does not
+ *  populate the `sharedCount`/`topType` fields of MyTasteEntry, so the return
+ *  type is narrowed accordingly rather than claiming a full MyTasteEntry. */
+export type TasteTop4Entry = Profile & { compatibility: number };
+
 export function useMyTasteTop4() {
   const { user } = useSession();
   return useQuery({
     queryKey: ['mytaste-top4', user?.id],
-    queryFn: async (): Promise<MyTasteEntry[]> => {
+    queryFn: async (): Promise<TasteTop4Entry[]> => {
       const { data: followingRows, error: e1 } = await supabase
         .from('follows')
         .select('followed_id')
