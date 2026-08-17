@@ -235,7 +235,9 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
                   <Pressable
                     style={local.addToMyListBtn}
                     onPress={() => addLibraryItem.mutate({ type: item.type, title: item.title, sub: item.sub ?? undefined, poster: item.poster ?? undefined, intent: 'watchlist' })}
-                    hitSlop={8}>
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Add ${item.title} to watchlist`}>
                     <SymbolView name="plus" size={11} tintColor={Brand.trust} style={{ width: 12, height: 12 }} />
                   </Pressable>
                 )}

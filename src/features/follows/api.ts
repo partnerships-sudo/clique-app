@@ -62,8 +62,7 @@ export function useFollowersByUser(userId: string | undefined) {
       return (profiles ?? []) as Profile[];
     },
     enabled: !!userId,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
   });
 }
 
@@ -85,8 +84,7 @@ export function useFollowingByUser(userId: string | undefined) {
       return (profiles ?? []) as Profile[];
     },
     enabled: !!userId,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
   });
 }
 
@@ -109,6 +107,7 @@ export function useFollowing() {
       return (profiles ?? []) as Profile[];
     },
     enabled: !!user,
+    staleTime: 60_000,
   });
 }
 
@@ -131,6 +130,7 @@ export function useFollowers() {
       return (profiles ?? []) as Profile[];
     },
     enabled: !!user,
+    staleTime: 60_000,
   });
 }
 
@@ -183,8 +183,7 @@ export function useFollowingCount(userId: string | undefined) {
       return count ?? 0;
     },
     enabled: !!userId,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 60_000,
   });
 }
 
@@ -201,8 +200,7 @@ export function useFollowersCount(userId: string | undefined) {
       return count ?? 0;
     },
     enabled: !!userId,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 60_000,
   });
 }
 
@@ -329,8 +327,7 @@ export function useSuggestedFollows(limit = 10) {
       }) as SuggestedFollow[];
     },
     enabled: !!user,
-    staleTime: 0,
-    refetchOnMount: 'always' as const,
+    staleTime: 5 * 60_000, // suggested follows don't change frequently
   });
 }
 

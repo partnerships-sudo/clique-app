@@ -46,6 +46,7 @@ export function useProfile() {
       return data as Profile | null;
     },
     enabled: !!user,
+    staleTime: 30_000,
   });
 }
 
@@ -62,8 +63,7 @@ export function useProfileById(userId: string | undefined) {
       return data as Profile | null;
     },
     enabled: !!userId,
-    staleTime: 0,
-    refetchOnMount: 'always',
+    staleTime: 30_000,
   });
 }
 

@@ -111,6 +111,7 @@ export default function DiscoverPeopleModal() {
           <FlatList
             data={list}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <DiscoverUserCard

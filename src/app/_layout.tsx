@@ -1,5 +1,6 @@
 import 'react-native-url-polyfill/auto';
 
+import * as Sentry from '@sentry/react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { StripeProvider } from '@stripe/stripe-react-native';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
@@ -20,6 +21,24 @@ import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 // import { configureRevenueCat } from '@/features/purchases/api'; // RevenueCat disabled
 import { AppearanceProvider, useAppearance } from '@/providers/appearance-provider';
+
+// Initialise Sentry as early as possible so it captures startup crashes.
+// Add your DSN to .env as EXPO_PUBLIC_SENTRY_DSN — get it from:
+// sentry.io → your project → Settings → Client Keys (DSN)
+if (process.env.EXPO_PUBLIC_SENTRY_DSN) {
+  Sentry.init({
+    dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
+    // Capture 20% of traces in production; 100% is fine for early launch
+    // while you're still finding issues.
+    tracesSampleRate: __DEV__ ? 1.0 : 0.2,
+    // Attach user context (set after login — see SessionProvider)
+    sendDefaultPii: false,
+    // Release health — automatic session tracking
+    enableAutoSessionTracking: true,
+    // Don't spam Sentry while you're developing locally
+    enabled: !__DEV__,
+  });
+}
 import { SessionProvider } from '@/providers/session-provider';
 import { ShakespearProvider } from '@/providers/shakespear-provider';
 
@@ -240,10 +259,12 @@ function RootLayoutInner() {
   );
 }
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <AppearanceProvider>
       <RootLayoutInner />
     </AppearanceProvider>
   );
 }
+
+export default Sentry.wrap(RootLayout);

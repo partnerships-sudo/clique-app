@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -65,6 +67,7 @@ export default function CollectionAddModal() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.backBtn}>‹ Cancel</Text>
@@ -203,6 +206,7 @@ export default function CollectionAddModal() {
           </Pressable>
         ) : null}
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

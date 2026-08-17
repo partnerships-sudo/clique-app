@@ -3,6 +3,8 @@ import { useState } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -139,6 +141,7 @@ export default function TriviaSetupModal() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* Header */}
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={16}>
@@ -321,6 +324,7 @@ export default function TriviaSetupModal() {
           )}
         />
       )}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

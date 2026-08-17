@@ -1,6 +1,6 @@
 import * as Haptics from 'expo-haptics';
 import { SymbolView } from 'expo-symbols';
-import { useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
@@ -16,7 +16,7 @@ const FILTERS: { value: FeedFilterValue; label: string; symbol: string }[] = [
   { value: 'listen', label: 'Music', symbol: 'headphones' },
 ];
 
-export function FilterChips({
+export const FilterChips = memo(function FilterChips({
   value,
   onChange,
   hiddenTypes,
@@ -163,7 +163,7 @@ export function FilterChips({
       )}
     </>
   );
-}
+});
 
 function RestoreSheet({
   visible,

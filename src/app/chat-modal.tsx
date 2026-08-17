@@ -250,8 +250,11 @@ export default function ChatModal() {
     } else if (params.title) {
       markChatRead(params.title);
     }
+  // Run on mount (messages.length === 0 initial → populated) AND whenever
+  // new messages arrive. This ensures the badge clears even when no new
+  // messages have arrived since the last session.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length]);
+  }, [messages.length, dmMessages.data, groupMessages.data]);
 
   // Split messages at the checkpoint timestamp.
   // Messages posted before the checkpoint was set = safe zone.
@@ -511,7 +514,7 @@ export default function ChatModal() {
 
         {isContentChat && (
           <View style={[cb.topBar, { position: 'relative', paddingHorizontal: 14, paddingTop: 10, paddingBottom: 6, backgroundColor: Brand.paper }]}>
-            <Pressable onPress={() => router.back()} hitSlop={16} style={[cb.iconBtn, { backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border }]}>
+            <Pressable onPress={() => router.back()} hitSlop={16} style={[cb.iconBtn, { backgroundColor: Brand.card, borderWidth: 1, borderColor: Brand.border }]} accessibilityRole="button" accessibilityLabel="Go back">
               <SymbolView name="chevron.left" size={16} tintColor={Brand.ink} type="monochrome" style={{ width: 16, height: 16 }} />
             </Pressable>
           </View>
@@ -892,7 +895,7 @@ function ContentBanner({
     <View>
       {/* Compact card-style header */}
       <View style={[cb.header, { backgroundColor: Brand.card, borderBottomColor: Brand.border }]}>
-        <Pressable onPress={onBack} hitSlop={16} style={cb.backBtn}>
+        <Pressable onPress={onBack} hitSlop={16} style={cb.backBtn} accessibilityRole="button" accessibilityLabel="Go back">
           <SymbolView name="chevron.left" size={18} tintColor={Brand.ink} type="monochrome" style={{ width: 18, height: 18 }} />
         </Pressable>
 
@@ -922,10 +925,10 @@ function ContentBanner({
 
         {/* Actions */}
         <View style={cb.actions}>
-          <Pressable onPress={onMembers} hitSlop={10} style={cb.actionBtn}>
+          <Pressable onPress={onMembers} hitSlop={10} style={cb.actionBtn} accessibilityRole="button" accessibilityLabel="View members">
             <SymbolView name="person.2" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 20, height: 16 }} />
           </Pressable>
-          <Pressable onPress={onSearch} hitSlop={10} style={cb.actionBtn}>
+          <Pressable onPress={onSearch} hitSlop={10} style={cb.actionBtn} accessibilityRole="button" accessibilityLabel="Search messages">
             <SymbolView name="magnifyingglass" size={16} tintColor={Brand.muted} type="monochrome" style={{ width: 16, height: 16 }} />
           </Pressable>
         </View>
@@ -1091,7 +1094,7 @@ function ContentPost({
               multiline={false}
             />
             {replyText.trim().length > 0 && (
-              <Pressable onPress={submitReply} style={[cp.replySubmit, { backgroundColor: Brand.trust }]}>
+              <Pressable onPress={submitReply} style={[cp.replySubmit, { backgroundColor: Brand.trust }]} accessibilityRole="button" accessibilityLabel="Post reply">
                 <SymbolView name="arrow.up" size={12} tintColor="#fff" type="monochrome" style={{ width: 12, height: 12 }} />
               </Pressable>
             )}

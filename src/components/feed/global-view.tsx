@@ -316,7 +316,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
               clearButtonMode="while-editing"
             />
           </View>
-          <Pressable onPress={showSortSheet} style={[styles.filterIconBtn, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
+          <Pressable onPress={showSortSheet} style={[styles.filterIconBtn, { backgroundColor: Brand.card, borderColor: Brand.border }]} accessibilityRole="button" accessibilityLabel="Sort and filter">
             <SymbolView name="slider.horizontal.3" size={18} tintColor={Brand.muted} type="monochrome" style={{ width: 18, height: 18 }} />
           </Pressable>
         </View>

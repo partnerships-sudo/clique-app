@@ -4,7 +4,9 @@ import { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   Alert,
   FlatList,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   Share,
   StyleSheet,
@@ -771,21 +773,23 @@ export default function ScreeningRoomLive() {
       )}
 
       {/* Message input */}
-      <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
-        <TextInput
-          style={styles.input}
-          placeholder={isLive ? 'Say something…' : 'Chat while you wait…'}
-          placeholderTextColor="rgba(255,255,255,0.3)"
-          value={text}
-          onChangeText={setText}
-          onSubmitEditing={handleSend}
-          returnKeyType="send"
-          editable={!!id}
-        />
-        <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
-          <SymbolView name="arrow.up" size={16} tintColor="#fff" type="monochrome" />
-        </Pressable>
-      </View>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+        <View style={[styles.inputRow, { paddingBottom: insets.bottom + 8 }]}>
+          <TextInput
+            style={styles.input}
+            placeholder={isLive ? 'Say something…' : 'Chat while you wait…'}
+            placeholderTextColor="rgba(255,255,255,0.3)"
+            value={text}
+            onChangeText={setText}
+            onSubmitEditing={handleSend}
+            returnKeyType="send"
+            editable={!!id}
+          />
+          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
+            <SymbolView name="arrow.up" size={16} tintColor="#fff" type="monochrome" />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

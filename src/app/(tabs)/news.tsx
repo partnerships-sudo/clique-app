@@ -34,7 +34,7 @@ const RADAR_CATS: { value: RadarCategory; label: string; sf: string }[] = [
   { value: 'films',  label: 'Films',  sf: 'film.stack' },
   { value: 'tv',     label: 'TV',     sf: 'tv' },
   { value: 'games',  label: 'Games',  sf: 'gamecontroller.fill' },
-  { value: 'albums', label: 'Albums', sf: 'headphones' },
+  { value: 'albums', label: 'New Music', sf: 'headphones' },
   { value: 'books',  label: 'Books',  sf: 'book.fill' },
 ];
 
@@ -125,7 +125,7 @@ export default function NewsScreen() {
           {mode === 'cinema'
             ? 'In cinemas, coming soon\nand topping the box office'
             : mode === 'radar'
-            ? 'Films, games, albums & books\narriving soon'
+            ? 'Films, games, new music & books\narriving soon'
             : "What's happening in film,\nTV, books, games and music"}
         </Text>
 

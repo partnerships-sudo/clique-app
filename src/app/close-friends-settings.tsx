@@ -46,6 +46,7 @@ export default function CloseFriendsSettingsScreen() {
           <FlatList
             data={candidates}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => (
               <CloseFriendRow

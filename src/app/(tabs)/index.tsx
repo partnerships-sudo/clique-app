@@ -87,7 +87,7 @@ export default function FeedScreen() {
   const [filter, setFilter] = useState<FeedFilterValue>('all');
   const [adDismissed, setAdDismissed] = useState(false);
   const { hidden: hiddenCategories, hideCategory, showCategory } = useHiddenCategories(profile?.content_types);
-  const { posts: rawPosts, allPosts, isLoading, isFetching, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeedPosts(filter);
+  const { posts: rawPosts, allPosts, isLoading, isFetching, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } = useFeedPosts(filter);
   const { data: circleActivity = [] } = useCircleLogActivity();
   // Long-press-removed categories (see filter-chips.tsx) drop out of the feed
   // entirely, not just the chip row — same treatment as the active filter.
@@ -429,13 +429,15 @@ export default function FeedScreen() {
         </View>
       </View>
       <FeedViewSwitcher value={feedView} onChange={setFeedView} />
-      <FilterChips
-        value={filter}
-        onChange={setFilter}
-        hiddenTypes={feedView === 'global' ? undefined : hiddenCategories}
-        onHide={feedView === 'global' ? undefined : hideCategory}
-        onShow={feedView === 'global' ? undefined : showCategory}
-      />
+      {feedView !== 'foryou' && (
+        <FilterChips
+          value={filter}
+          onChange={setFilter}
+          hiddenTypes={feedView === 'global' ? undefined : hiddenCategories}
+          onHide={feedView === 'global' ? undefined : hideCategory}
+          onShow={feedView === 'global' ? undefined : showCategory}
+        />
+      )}
       {feedView === 'feed' && (
         <NowBanner
           label={nowLabel}
@@ -604,6 +606,15 @@ export default function FeedScreen() {
           <CircleRankedSection followingIds={[...(user?.id ? [user.id] : []), ...followingProfiles.map((p) => p.id)]} title="Inner Circle" />
           <MostReviewedSection title="Outer Circle" />
         </ScrollView>
+      ) : isError ? (
+        <View style={styles.errorState}>
+          <Text style={styles.errorEmoji}>📡</Text>
+          <Text style={styles.errorTitle}>Couldn't load your feed</Text>
+          <Text style={styles.errorBody}>Check your connection and pull down to try again.</Text>
+          <Pressable style={styles.errorRetryBtn} onPress={() => refetch()}>
+            <Text style={styles.errorRetryText}>Retry</Text>
+          </Pressable>
+        </View>
       ) : (
         <FlatList
           contentContainerStyle={styles.content}
@@ -744,6 +755,12 @@ function createStyles(Brand: BrandPalette) {
       borderRadius: 2.5,
       backgroundColor: Brand.trust,
     },
+    errorState: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 28 },
+    errorEmoji: { fontSize: 40, marginBottom: 14 },
+    errorTitle: { fontFamily: BrandFonts.syneBold, fontSize: 17, color: Brand.ink, marginBottom: 8, textAlign: 'center' },
+    errorBody: { fontFamily: BrandFonts.interRegular, fontSize: 14, color: Brand.muted, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+    errorRetryBtn: { backgroundColor: Brand.trust, borderRadius: 14, paddingVertical: 12, paddingHorizontal: 28 },
+    errorRetryText: { fontFamily: BrandFonts.syneBold, fontSize: 14, color: '#fff' },
     empty: { alignItems: 'center', paddingVertical: 40, paddingHorizontal: 20 },
     emptyEmoji: { fontSize: 40, marginBottom: 12 },
     emptyTitle: { fontFamily: BrandFonts.syneBold, fontSize: 16, color: Brand.ink, marginBottom: 8 },

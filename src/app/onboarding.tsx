@@ -191,7 +191,7 @@ export default function OnboardingScreen() {
       {/* Header: back button + progress bar in one row */}
       {step > 0 && step < TOTAL_STEPS && (
         <View style={styles.onboardingHeader}>
-          <Pressable style={styles.backBtn} onPress={back} hitSlop={12}>
+          <Pressable style={styles.backBtn} onPress={back} hitSlop={12} accessibilityRole="button" accessibilityLabel="Go back">
             <SymbolView name="chevron.left" size={18} tintColor={Brand.muted} type="monochrome" />
           </Pressable>
           <View style={styles.progressTrack}>

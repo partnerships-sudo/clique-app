@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { SymbolView } from 'expo-symbols';
 import { Alert, Image, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
@@ -39,7 +39,7 @@ function getPaletteKey(item: Discussion): keyof typeof FORMAT_PALETTE {
   return 'discussion';
 }
 
-export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion; suppressContentRoom?: boolean }) {
+export const DiscussionCard = memo(function DiscussionCard({ item, suppressContentRoom }: { item: Discussion; suppressContentRoom?: boolean }) {
   const vote = useToggleDiscussionVote();
   const disagree = useToggleDiscussionDisagree();
   const { user } = useSession();
@@ -190,7 +190,7 @@ export function DiscussionCard({ item, suppressContentRoom }: { item: Discussion
       </View>
     </Pressable>
   );
-}
+});
 
 const styles = StyleSheet.create({
   card: {

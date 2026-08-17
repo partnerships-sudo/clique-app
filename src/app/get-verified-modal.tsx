@@ -112,7 +112,7 @@ export default function GetVerifiedModal() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Close">
           <SymbolView name="xmark" size={18} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
       </View>

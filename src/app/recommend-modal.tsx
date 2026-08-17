@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -85,7 +87,7 @@ export default function RecommendModal() {
   }
 
   return (
-    <View style={styles.root}>
+    <KeyboardAvoidingView style={styles.root} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       {/* Header */}
       <View style={styles.header} collapsable={false}>
         <View style={styles.headerTopRow}>
@@ -160,7 +162,7 @@ export default function RecommendModal() {
           );
         })}
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

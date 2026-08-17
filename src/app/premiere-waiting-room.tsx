@@ -3,6 +3,7 @@ import * as Haptics from 'expo-haptics';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, useMemo } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   FlatList,
   Modal,
@@ -50,7 +51,7 @@ export default function PremiereWaitingRoom() {
   const params = useLocalSearchParams<{ id: string }>();
 
   const queryClient = useQueryClient();
-  const { data: premiere } = usePremiere(params.id ?? null);
+  const { data: premiere, isLoading: premiereLoading } = usePremiere(params.id ?? null);
   const joinPremiere = useJoinPremiere();
   const sendMsg = useSendPremiereMessage();
   const resendInvite = useResendPremiereInvite();
@@ -304,6 +305,14 @@ export default function PremiereWaitingRoom() {
     if (d > 0) return `${d}d ${h}h ${m}m`;
     if (h > 0) return `${h}h ${m}m ${s}s`;
     return `${m}m ${s}s`;
+  }
+
+  if (premiereLoading && !premiere) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <ActivityIndicator style={{ flex: 1 }} color="#fff" />
+      </SafeAreaView>
+    );
   }
 
   return (

@@ -202,7 +202,7 @@ function PollBlock({
     const voted = q.my_vote !== null;
     return (
       <View style={pStyles.outer}>
-        <View style={pStyles.card}>
+        <View style={[pStyles.card, { backgroundColor: Brand.card }]}>
           <QuestionBlock
             question={q.question}
             options={q.options}
@@ -345,8 +345,8 @@ function CommentRow({
             </View>
           )}
           {comment.is_spoiler && (
-            <View style={[cStyles.spoilerBadge]}>
-              <Text style={{ fontFamily: BrandFonts.interMedium, fontSize: 9, color: '#92400E' }}>🔒 SPOILER</Text>
+            <View style={[cStyles.spoilerBadge, { backgroundColor: Brand.tlight, borderColor: Brand.border, borderWidth: 1 }]}>
+              <Text style={{ fontFamily: BrandFonts.interMedium, fontSize: 9, color: '#D97706' }}>🔒 SPOILER</Text>
             </View>
           )}
           <Text style={[cStyles.time, { color: Brand.muted }]}>{timeAgo(comment.created_at)}</Text>
@@ -1370,7 +1370,7 @@ function createStyles(Brand: BrandPalette) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      backgroundColor: '#2C2C2E',
+      backgroundColor: Brand.card,
       borderRadius: 50,
       paddingHorizontal: 16,
       paddingVertical: 10,

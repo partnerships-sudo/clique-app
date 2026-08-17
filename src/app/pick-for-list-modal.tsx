@@ -121,7 +121,7 @@ export default function PickForListModal() {
           autoFocus
         />
         {query.length > 0 && (
-          <Pressable onPress={() => { setQuery(''); setDebouncedQuery(''); }} hitSlop={8}>
+          <Pressable onPress={() => { setQuery(''); setDebouncedQuery(''); }} hitSlop={8} accessibilityRole="button" accessibilityLabel="Clear search">
             <SymbolView name="xmark.circle.fill" size={15} tintColor={Brand.muted} style={{ width: 16, height: 16 }} />
           </Pressable>
         )}

@@ -45,6 +45,7 @@ function useInfiniteFeedPosts() {
 
   return useInfiniteQuery({
     queryKey: ['posts-feed', user?.id, followingIds.slice().sort().join(',')],
+    staleTime: 60_000, // don't refetch on every tab navigation — mutations invalidate when needed
     queryFn: async ({ pageParam }: { pageParam: string | undefined }) => {
       let postsQuery = supabase
         .from('posts')
@@ -251,7 +252,7 @@ export function useCreatePost() {
       if (error) throw error;
       const post = data as Post;
 
-      // Notify each tagged friend
+      // Notify each tagged friend (in-app notification + push)
       if (input.watchedWith && input.watchedWith.length > 0) {
         const myName = user?.user_metadata?.username ?? user?.email?.split('@')[0] ?? 'Someone';
         const typeLabel = input.type === 'watch' || input.type === 'tv' ? 'watched' : input.type === 'read' ? 'read' : input.type === 'listen' || input.type === 'podcast' ? 'listened to' : 'played';
@@ -269,6 +270,15 @@ export function useCreatePost() {
             read: false,
           })),
         );
+        // Fire push notifications — fire-and-forget, never block the post
+        supabase.functions.invoke('notify-watched-with', {
+          body: {
+            friendIds: input.watchedWith,
+            fromName: myName,
+            title: input.title,
+            postType: input.type,
+          },
+        }).catch(() => {});
       }
 
       return post;

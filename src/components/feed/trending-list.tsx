@@ -1,6 +1,6 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
-import { useCallback, useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
@@ -112,7 +112,7 @@ function Top10Card({
   );
 }
 
-export function TrendingList({
+export const TrendingList = memo(function TrendingList({
   entries,
   showTop10Banner,
   bannerTitle = 'Top 10 right now',
@@ -213,7 +213,7 @@ export function TrendingList({
       )}
     </View>
   );
-}
+});
 
 function createStyles(Brand: BrandPalette) {
   return StyleSheet.create({

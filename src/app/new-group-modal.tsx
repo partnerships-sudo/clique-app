@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -41,6 +41,7 @@ export default function NewGroupModal() {
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <View style={styles.header}>
         <Pressable onPress={() => router.back()} hitSlop={16}>
           <Text style={styles.back}>‹ Back</Text>
@@ -108,6 +109,7 @@ export default function NewGroupModal() {
           );
         })}
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

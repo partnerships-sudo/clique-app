@@ -46,7 +46,7 @@ async function fetchUpcoming(): Promise<NowAndComingMovie[]> {
       poster: `https://image.tmdb.org/t/p/w185${m.poster_path}`,
       releaseDate: m.release_date,
     }))
-    .sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
+    ;
 }
 
 export interface CinemaDetails {
@@ -225,7 +225,7 @@ async function fetchUpcomingTV(): Promise<UpcomingTV[]> {
       genre: null,
       network: s.origin_country?.[0] ?? null,
     }))
-    .sort((a, b) => a.firstAirDate.localeCompare(b.firstAirDate));
+    ;
 }
 
 export function useUpcomingTV() {

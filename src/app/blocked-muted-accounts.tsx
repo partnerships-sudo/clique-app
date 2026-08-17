@@ -50,6 +50,7 @@ export default function BlockedMutedAccountsScreen() {
           <FlatList
             data={users}
             keyExtractor={(item) => item.id}
+            keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.listContent}
             renderItem={({ item }) => <BlockMuteUserRow profile={item} onPress={() => setSelected(item)} />}
             ListEmptyComponent={

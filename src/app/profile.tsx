@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { type Chip } from '@/components/profile/chip-row';
@@ -20,7 +20,7 @@ export default function ProfileScreen() {
   const [view, setView] = useState<ProfileView>('card');
   const [shareVisible, setShareVisible] = useState(false);
   const [interests, setInterests] = useState<Chip[]>(DEFAULT_INTERESTS);
-  const { data: profile } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const { logged } = useLibraryItems();
   const { data: followersCount } = useFollowersCount(profile?.id);
   const { data: followingCount } = useFollowingCount(profile?.id);
@@ -33,6 +33,14 @@ export default function ProfileScreen() {
   const featuredBadges = featuredBadgeKeys
     .map((key) => badges.find((b) => b.key === key))
     .filter((b): b is (typeof badges)[number] => !!b);
+
+  if (profileLoading && !profile) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ActivityIndicator style={{ flex: 1 }} color={Brand.trust} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>

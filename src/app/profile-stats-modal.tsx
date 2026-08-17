@@ -207,6 +207,7 @@ export default function ProfileStatsModal() {
         <FlatList
           data={filteredLogged}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           renderItem={renderLoggedItem}
@@ -220,6 +221,7 @@ export default function ProfileStatsModal() {
         <FlatList
           data={filteredFollowers}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           renderItem={renderProfileItem}
@@ -233,6 +235,7 @@ export default function ProfileStatsModal() {
         <FlatList
           data={filteredFollowing}
           keyExtractor={(item) => item.id}
+          keyboardShouldPersistTaps="handled"
           contentContainerStyle={styles.list}
           ItemSeparatorComponent={() => <View style={styles.sep} />}
           renderItem={renderProfileItem}

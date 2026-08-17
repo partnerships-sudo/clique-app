@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { memo, useRef, useState } from 'react';
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useCloseFriendIds } from '@/features/close-friends/api';
@@ -6,7 +6,7 @@ import type { StoryPost } from '@/features/close-friends/posts';
 import { useSeenStoryIds } from '@/features/stories/views';
 import { useSession } from '@/hooks/use-session';
 
-export function CloseFriendsButton({
+export const CloseFriendsButton = memo(function CloseFriendsButton({
   posts,
   onPress,
 }: {
@@ -57,7 +57,7 @@ export function CloseFriendsButton({
       )}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: { alignItems: 'flex-start' },

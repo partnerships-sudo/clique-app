@@ -1,12 +1,12 @@
 import { LinearGradient } from 'expo-linear-gradient';
-import { useMemo } from 'react';
+import { memo, useMemo } from 'react';
 import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 
-export function NowBanner({
+export const NowBanner = memo(function NowBanner({
   label,
   title,
   poster,
@@ -48,7 +48,7 @@ export function NowBanner({
       )}
     </View>
   );
-}
+});
 
 const BANNER_HEIGHT = 140;
 const POSTER_WIDTH = Math.round(BANNER_HEIGHT / 1.5); // exact 2:3 ratio — matches post card tiles

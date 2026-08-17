@@ -2,6 +2,8 @@ import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -78,6 +80,7 @@ export default function ChangePasswordScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
       <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
         <Pressable onPress={() => router.back()} hitSlop={16} style={styles.backRow}>
           <Text style={styles.backBtn}>‹ Back</Text>
@@ -137,6 +140,7 @@ export default function ChangePasswordScreen() {
           </Pressable>
         </View>
       </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

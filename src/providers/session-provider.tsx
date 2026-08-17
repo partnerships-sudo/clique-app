@@ -1,6 +1,7 @@
 import type { Session, User } from '@supabase/supabase-js';
 import { createContext, useContext, useEffect, useState, type PropsWithChildren } from 'react';
 import { router } from 'expo-router';
+import * as Sentry from '@sentry/react-native';
 import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
 import { makeRedirectUri } from 'expo-auth-session';
@@ -104,6 +105,13 @@ export function SessionProvider({ children }: PropsWithChildren) {
     const { data: subscription } = supabase.auth.onAuthStateChange((_event, newSession) => {
       setSession(newSession);
       setIsLoading(false);
+
+      // Keep Sentry's user context in sync so crash reports show who was affected
+      if (newSession?.user) {
+        Sentry.setUser({ id: newSession.user.id, email: newSession.user.email });
+      } else {
+        Sentry.setUser(null);
+      }
 
       if (newSession) {
         // Keep saved tokens fresh on every auth state change

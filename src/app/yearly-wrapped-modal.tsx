@@ -331,7 +331,7 @@ export default function YearlyWrappedModal() {
       case 'stars':  return <CardFiveStars stats={stats} year={year} width={screenWidth} height={screenHeight} />;
       case 'share':
         return (
-          <View style={[styles.card, cardSize, { alignItems: 'center', justifyContent: 'center', backgroundColor: '#0a0a0a' }]}>
+          <View style={[styles.card, cardSize, { alignItems: 'center', justifyContent: 'center', backgroundColor: Brand.ink }]}>
             <Text style={[styles.cardEyebrow, { marginBottom: 20 }]}>SHARE YOUR WRAPPED</Text>
             <ViewShot ref={shareRef} options={{ format: 'png', quality: 1.0 }} style={styles.shareCardWrap}>
               <ShareCard stats={stats} year={year} name={displayName} />
