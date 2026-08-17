@@ -6,6 +6,7 @@ import type { StoreLink } from '@/features/where-to-find/links';
 import { igdbSearch, igdbDetails } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
 import { supabase } from '@/lib/supabase';
+import { tmdbFetch } from '@/lib/tmdb';
 
 function decodeHtmlEntities(str: string): string {
   return str
@@ -17,7 +18,6 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&apos;/g, "'");
 }
 
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 const BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
 
@@ -267,10 +267,7 @@ async function fetchAppleTrailer(title: string, year: string | null): Promise<{ 
 }
 
 async function fetchWatchProviders(id: number, mediaType: 'movie' | 'tv', title: string): Promise<StoreLink[]> {
-  const res = await fetch(`https://api.themoviedb.org/3/${mediaType}/${id}/watch/providers`, {
-    headers: { Authorization: `Bearer ${TMDB_KEY}` },
-  });
-  const data = await res.json();
+  const data = await tmdbFetch<any>(`${mediaType}/${id}/watch/providers`);
   const region = data.results?.[getWatchProvidersRegion()] ?? data.results?.US;
   if (!region) return [];
   const justWatchUrl: string | undefined = region.link;
@@ -305,23 +302,24 @@ async function fetchWatchProviders(id: number, mediaType: 'movie' | 'tv', title:
 
 async function fetchWatchDetails(title: string): Promise<ContentDetails> {
   // Multi-search picks up both movies and TV shows
-  const searchRes = await fetch(
-    `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}&language=en-US&page=1`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-  );
-  if (!searchRes.ok) return EMPTY_DETAILS;
-  const searchData = await searchRes.json();
+  // A failed lookup degrades to the empty detail card rather than erroring.
+  let searchData: any;
+  try {
+    searchData = await tmdbFetch(
+      `search/multi?query=${encodeURIComponent(title)}&language=en-US&page=1`,
+    );
+  } catch {
+    return EMPTY_DETAILS;
+  }
   const hit = (searchData.results ?? []).find(
     (r: any) => r.media_type === 'movie' || r.media_type === 'tv',
   );
   if (!hit) return EMPTY_DETAILS;
 
   const endpoint = hit.media_type === 'movie' ? 'movie' : 'tv';
-  const detailRes = await fetch(
-    `https://api.themoviedb.org/3/${endpoint}/${hit.id}?append_to_response=credits,videos&language=en-US`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+  const detail = await tmdbFetch<any>(
+    `${endpoint}/${hit.id}?append_to_response=credits,videos&language=en-US`,
   );
-  const detail = await detailRes.json();
 
   const year = (detail.release_date || detail.first_air_date || '').slice(0, 4) || null;
   const genre = ((detail.genres ?? []) as any[]).map((g) => g.name).slice(0, 2).join(', ') || null;
@@ -683,21 +681,15 @@ export function useTVSeasons(tmdbId: string | null | undefined) {
     queryKey: ['tv-seasons', tmdbId],
     queryFn: async (): Promise<TVSeason[]> => {
       if (!tmdbId) return [];
-      const res = await fetch(
-        `https://api.themoviedb.org/3/tv/${tmdbId}?language=en-US`,
-        { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-      );
-      const detail = await res.json();
+      const detail = await tmdbFetch<any>(`tv/${tmdbId}?language=en-US`);
       const seasons: TVSeason[] = await Promise.all(
         ((detail.seasons ?? []) as any[])
           .filter((s) => s.season_number > 0)
           .sort((a, b) => a.season_number - b.season_number)
           .map(async (s) => {
-            const epRes = await fetch(
-              `https://api.themoviedb.org/3/tv/${tmdbId}/season/${s.season_number}?language=en-US`,
-              { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+            const epData = await tmdbFetch<any>(
+              `tv/${tmdbId}/season/${s.season_number}?language=en-US`,
             );
-            const epData = await epRes.json();
             return {
               seasonNumber: s.season_number as number,
               episodeCount: s.episode_count as number,
@@ -1027,11 +1019,9 @@ export function useContentDetails(
         case 'watch':
           if (externalId) {
             const endpoint = mediaType === 'movie' ? 'movie' : 'tv';
-            const detailRes = await fetch(
-              `https://api.themoviedb.org/3/${endpoint}/${externalId}?append_to_response=credits,videos&language=en-US`,
-              { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+            const detail = await tmdbFetch<any>(
+              `${endpoint}/${externalId}?append_to_response=credits,videos&language=en-US`,
             );
-            const detail = await detailRes.json();
             const year = (detail.release_date || detail.first_air_date || '').slice(0, 4) || null;
             const genre = ((detail.genres ?? []) as any[]).map((g: any) => g.name).slice(0, 2).join(', ') || null;
             const runtime = detail.runtime

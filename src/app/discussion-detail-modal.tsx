@@ -37,6 +37,7 @@ import {
 } from '@/features/discussions/api';
 import { track, Events } from '@/features/analytics/api';
 import { supabase } from '@/lib/supabase';
+import { tmdbFetch } from '@/lib/tmdb';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -397,7 +398,6 @@ const cStyles = StyleSheet.create({
 // ── Main screen ───────────────────────────────────────────────────────────────
 
 const HERO_HEIGHT = 360;
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 
 function useTmdbBackdrop(externalId: string | null | undefined, mediaType: string | null | undefined) {
   return useQuery({
@@ -405,11 +405,7 @@ function useTmdbBackdrop(externalId: string | null | undefined, mediaType: strin
     queryFn: async () => {
       const type = mediaType === 'movie' ? 'movie' : mediaType === 'tv' ? 'tv' : null;
       if (!type || !externalId) return null;
-      const res = await fetch(
-        `https://api.themoviedb.org/3/${type}/${externalId}?language=en-US`,
-        { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-      );
-      const data = await res.json();
+      const data = await tmdbFetch<any>(`${type}/${externalId}?language=en-US`);
       return data.backdrop_path
         ? `https://image.tmdb.org/t/p/w780${data.backdrop_path}`
         : null;

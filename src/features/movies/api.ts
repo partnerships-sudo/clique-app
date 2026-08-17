@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
+import { tmdbFetch } from '@/lib/tmdb';
 
 export interface NowAndComingMovie {
   id: number;
@@ -10,11 +10,7 @@ export interface NowAndComingMovie {
 }
 
 async function fetchNowPlaying(): Promise<NowAndComingMovie[]> {
-  const res = await fetch('https://api.themoviedb.org/3/movie/now_playing?language=en-US&page=1', {
-    headers: { Authorization: `Bearer ${TMDB_KEY}` },
-  });
-  if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
-  const data = await res.json();
+  const data = await tmdbFetch('movie/now_playing?language=en-US&page=1');
 
   return ((data.results ?? []) as any[])
     .filter((m) => m.release_date && m.poster_path)
@@ -31,12 +27,9 @@ async function fetchUpcoming(): Promise<NowAndComingMovie[]> {
 
   // Fetch by popularity so only big/anticipated films appear, then sort
   // client-side by release date so the soonest ones show first in the row.
-  const res = await fetch(
-    `https://api.themoviedb.org/3/discover/movie?include_adult=false&language=en-US&primary_release_date.gte=${today}&with_original_language=en&sort_by=popularity.desc&page=1`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+  const data = await tmdbFetch(
+    `discover/movie?include_adult=false&language=en-US&primary_release_date.gte=${today}&with_original_language=en&sort_by=popularity.desc&page=1`,
   );
-  if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
-  const data = await res.json();
 
   return ((data.results ?? []) as any[])
     .filter((m) => m.release_date && m.poster_path)
@@ -60,12 +53,7 @@ export function useCinemaDetails(tmdbId: string | undefined) {
   return useQuery({
     queryKey: ['cinema-details', tmdbId],
     queryFn: async () => {
-      const res = await fetch(
-        `https://api.themoviedb.org/3/movie/${tmdbId}?append_to_response=credits,videos`,
-        { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-      );
-      if (!res.ok) throw new Error(`TMDB error: ${res.status}`);
-      const data = await res.json();
+      const data = await tmdbFetch(`movie/${tmdbId}?append_to_response=credits,videos`);
       const trailer = ((data.videos?.results ?? []) as any[]).find(
         (v) => v.site === 'YouTube' && v.type === 'Trailer' && v.official,
       ) ?? ((data.videos?.results ?? []) as any[]).find((v) => v.site === 'YouTube');
@@ -107,11 +95,13 @@ export function useMovieTrailers(movies: { id: number; title: string; poster: st
     queryFn: async () => {
       const results = await Promise.all(
         movies.map(async (m) => {
-          const res = await fetch(`https://api.themoviedb.org/3/movie/${m.id}/videos?language=en-US`, {
-            headers: { Authorization: `Bearer ${TMDB_KEY}` },
-          });
-          if (!res.ok) return null;
-          const data = await res.json();
+          // One missing trailer shouldn't fail the whole row.
+          let data: any;
+          try {
+            data = await tmdbFetch(`movie/${m.id}/videos?language=en-US`);
+          } catch {
+            return null;
+          }
           const trailer = ((data.results ?? []) as any[]).find(
             (v) => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser') && v.official,
           ) ?? ((data.results ?? []) as any[]).find((v) => v.site === 'YouTube');
@@ -139,9 +129,9 @@ export function useBoxOfficeTop10() {
       // now_playing covers the established box office; discover covers brand-new
       // releases that may not have propagated to now_playing yet.
       const [np1, np2, recent] = await Promise.all([
-        fetch('https://api.themoviedb.org/3/movie/now_playing?language=en-US&page=1', { headers: { Authorization: `Bearer ${TMDB_KEY}` } }).then((r) => r.json()),
-        fetch('https://api.themoviedb.org/3/movie/now_playing?language=en-US&page=2', { headers: { Authorization: `Bearer ${TMDB_KEY}` } }).then((r) => r.json()),
-        fetch(`https://api.themoviedb.org/3/discover/movie?primary_release_date.gte=${sevenDaysAgo}&primary_release_date.lte=${todayStr}&sort_by=popularity.desc&language=en-US&page=1`, { headers: { Authorization: `Bearer ${TMDB_KEY}` } }).then((r) => r.json()),
+        tmdbFetch<any>('movie/now_playing?language=en-US&page=1'),
+        tmdbFetch<any>('movie/now_playing?language=en-US&page=2'),
+        tmdbFetch<any>(`discover/movie?primary_release_date.gte=${sevenDaysAgo}&primary_release_date.lte=${todayStr}&sort_by=popularity.desc&language=en-US&page=1`),
       ]);
 
       const seen = new Set<number>();
@@ -153,7 +143,7 @@ export function useBoxOfficeTop10() {
       // Fetch individual details to get the revenue field
       const details = await Promise.all(
         movies.map((m) =>
-          fetch(`https://api.themoviedb.org/3/movie/${m.id}`, { headers: { Authorization: `Bearer ${TMDB_KEY}` } }).then((r) => r.json()),
+          tmdbFetch<any>(`movie/${m.id}`),
         ),
       );
 
@@ -209,12 +199,9 @@ export interface UpcomingTV {
 async function fetchUpcomingTV(): Promise<UpcomingTV[]> {
   const today = new Date().toISOString().slice(0, 10);
   const future = new Date(Date.now() + 120 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  const res = await fetch(
-    `https://api.themoviedb.org/3/discover/tv?include_adult=false&language=en-US&first_air_date.gte=${today}&first_air_date.lte=${future}&with_original_language=en&sort_by=popularity.desc&page=1`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+  const data = await tmdbFetch(
+    `discover/tv?include_adult=false&language=en-US&first_air_date.gte=${today}&first_air_date.lte=${future}&with_original_language=en&sort_by=popularity.desc&page=1`,
   );
-  if (!res.ok) throw new Error(`TMDB TV error: ${res.status}`);
-  const data = await res.json();
   return ((data.results ?? []) as any[])
     .filter((s) => s.first_air_date && s.poster_path)
     .map((s) => ({

@@ -20,8 +20,7 @@ import { useCollectionItems } from '@/features/collection/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 import { supabase } from '@/lib/supabase';
-
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
+import { tmdbFetch } from '@/lib/tmdb';
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
 
 const TMDB_MOVIE_GENRES: Record<number, string> = {
@@ -223,11 +222,9 @@ function tmdbTitleMatches(input: string, result: any): boolean {
 async function lookupTMDB(title: string, year: string): Promise<{ externalId: string; poster: string | null; sub: string; mediaType: string } | null> {
   try {
     const yearParam = year ? `&year=${year}` : '';
-    const res = await fetch(
-      `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}${yearParam}&include_adult=false`,
-      { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+    const data = await tmdbFetch<any>(
+      `search/multi?query=${encodeURIComponent(title)}${yearParam}&include_adult=false`,
     );
-    const data = await res.json();
     const hit = (data.results ?? []).find(
       (r: any) => (r.media_type === 'movie' || r.media_type === 'tv') && tmdbTitleMatches(title, r),
     );

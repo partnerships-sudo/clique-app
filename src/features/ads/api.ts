@@ -1,9 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Linking } from 'react-native';
 import { supabase } from '@/lib/supabase';
+import { tmdbFetch } from '@/lib/tmdb';
 import { useSession } from '@/hooks/use-session';
-
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 
 export function useAdPoster(
   tmdbId: string | null | undefined,
@@ -17,18 +16,12 @@ export function useAdPoster(
 
       if (tmdbId) {
         const endpoint = mediaType === 'tv' ? 'tv' : 'movie';
-        const res = await fetch(
-          `https://api.themoviedb.org/3/${endpoint}/${tmdbId}?language=en-US`,
-          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-        );
-        const data = await res.json();
+        const data = await tmdbFetch<any>(`${endpoint}/${tmdbId}?language=en-US`);
         posterPath = data.poster_path ?? null;
       } else if (contentTitle) {
-        const res = await fetch(
-          `https://api.themoviedb.org/3/search/movie?query=${encodeURIComponent(contentTitle)}&language=en-US&page=1`,
-          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+        const data = await tmdbFetch<any>(
+          `search/movie?query=${encodeURIComponent(contentTitle)}&language=en-US&page=1`,
         );
-        const data = await res.json();
         posterPath = data.results?.[0]?.poster_path ?? null;
       }
 
@@ -117,11 +110,9 @@ export function useStudioFilms(
       let resolvedId: number | null = companyId ? Number(companyId) : null;
 
       if (!resolvedId && brandName) {
-        const searchRes = await fetch(
-          `https://api.themoviedb.org/3/search/company?query=${encodeURIComponent(brandName)}`,
-          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
+        const searchData = await tmdbFetch<any>(
+          `search/company?query=${encodeURIComponent(brandName)}`,
         );
-        const searchData = await searchRes.json();
         resolvedId = searchData.results?.[0]?.id ?? null;
       }
 
@@ -129,14 +120,8 @@ export function useStudioFilms(
 
       // Fetch 2 pages so we have enough titles to fill the row
       const [p1, p2] = await Promise.all([
-        fetch(
-          `https://api.themoviedb.org/3/discover/movie?with_companies=${resolvedId}&sort_by=popularity.desc&page=1`,
-          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-        ).then((r) => r.json()),
-        fetch(
-          `https://api.themoviedb.org/3/discover/movie?with_companies=${resolvedId}&sort_by=popularity.desc&page=2`,
-          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-        ).then((r) => r.json()),
+        tmdbFetch<any>(`discover/movie?with_companies=${resolvedId}&sort_by=popularity.desc&page=1`),
+        tmdbFetch<any>(`discover/movie?with_companies=${resolvedId}&sort_by=popularity.desc&page=2`),
       ]);
 
       const all = [...(p1.results ?? []), ...(p2.results ?? [])] as any[];

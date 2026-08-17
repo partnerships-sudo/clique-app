@@ -4,8 +4,7 @@ import type { EntryType } from '@/constants/theme';
 import type { CollectionFormat } from '@/features/collection/api';
 import { igdbSearch } from '@/features/games/igdb';
 import { supabase } from '@/lib/supabase';
-
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
+import { tmdbFetch } from '@/lib/tmdb';
 
 const TMDB_MOVIE_GENRES: Record<number, string> = {
   28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
@@ -31,11 +30,9 @@ export interface SearchResult {
 }
 
 async function searchTMDB(query: string): Promise<SearchResult[]> {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}&include_adult=false`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}`, 'Content-Type': 'application/json' } },
+  const data = await tmdbFetch(
+    `search/multi?query=${encodeURIComponent(query)}&include_adult=false`,
   );
-  const data = await res.json();
   // /search/multi also returns actors/crew matching by name — keep only
   // actual movies and shows, filtered before the slice so a person result
   // ranked highly by TMDB doesn't crowd out real title matches.
@@ -69,10 +66,7 @@ async function searchTMDB(query: string): Promise<SearchResult[]> {
   await Promise.all(
     needsNetwork.map(async (r) => {
       try {
-        const detail = await fetch(
-          `https://api.themoviedb.org/3/tv/${r.tmdbId}?append_to_response=networks`,
-          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-        ).then((res) => res.json());
+        const detail = await tmdbFetch<any>(`tv/${r.tmdbId}?append_to_response=networks`);
         const network = detail.networks?.[0]?.name;
         if (network) {
           r.sub = r.sub.replace('TV Series', `TV Series · ${network}`);
@@ -236,11 +230,9 @@ async function searchSpotifyPodcasts(query: string): Promise<SearchResult[]> {
 }
 
 async function searchTMDBTV(query: string): Promise<SearchResult[]> {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/search/tv?query=${encodeURIComponent(query)}&include_adult=false`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}`, 'Content-Type': 'application/json' } },
+  const data = await tmdbFetch(
+    `search/tv?query=${encodeURIComponent(query)}&include_adult=false`,
   );
-  const data = await res.json();
   const raw = ((data.results ?? []) as any[]).slice(0, 8);
   return raw
     .filter((r: any) => r.name)
@@ -306,10 +298,7 @@ export function useContentSearch(query: string) {
     queryFn: async (): Promise<ContentSearchResult[]> => {
       const [tmdbRes, booksRes, albumsRes, podcastsRes] = await Promise.allSettled([
         // TMDB — movies & TV
-        fetch(
-          `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(trimmed)}&include_adult=false`,
-          { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-        ).then((r) => r.json()),
+        tmdbFetch<any>(`search/multi?query=${encodeURIComponent(trimmed)}&include_adult=false`),
         // Hardcover — books
         searchBooks(trimmed),
         // Spotify — albums / music
@@ -416,10 +405,7 @@ export function useTVSeasons(tmdbId: string | null) {
   return useQuery({
     queryKey: ['tv-seasons', tmdbId],
     queryFn: async () => {
-      const res = await fetch(`https://api.themoviedb.org/3/tv/${tmdbId}`, {
-        headers: { Authorization: `Bearer ${TMDB_KEY}` },
-      });
-      const data = await res.json();
+      const data = await tmdbFetch<any>(`tv/${tmdbId}`);
       return (data.seasons as any[])
         .filter((s) => s.season_number > 0)
         .map((s) => ({
@@ -438,11 +424,7 @@ export function useTVEpisodes(tmdbId: string | null, seasonNumber: number | null
   return useQuery({
     queryKey: ['tv-episodes', tmdbId, seasonNumber],
     queryFn: async () => {
-      const res = await fetch(
-        `https://api.themoviedb.org/3/tv/${tmdbId}/season/${seasonNumber}`,
-        { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-      );
-      const data = await res.json();
+      const data = await tmdbFetch<any>(`tv/${tmdbId}/season/${seasonNumber}`);
       return (data.episodes as any[]).map((e) => ({
         episodeNumber: e.episode_number,
         seasonNumber: e.season_number,

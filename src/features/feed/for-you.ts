@@ -15,10 +15,10 @@ async function hardcoverQuery(query: string): Promise<any> {
 }
 import { igdbSearch, igdbSimilar } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
+import { tmdbFetch } from '@/lib/tmdb';
 
 import type { TrendingEntry } from './trending';
 
-const TMDB_KEY = process.env.EXPO_PUBLIC_TMDB_KEY!;
 const GOOGLE_BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 
 export interface ForYouSeed {
@@ -31,12 +31,16 @@ export interface ForYouSeed {
 // ---------- ID resolution ----------
 
 async function resolveTMDBId(title: string): Promise<{ id: string; mediaType: 'movie' | 'tv' } | null> {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(title)}&include_adult=false&page=1`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-  );
-  if (!res.ok) return null;
-  const data = await res.json();
+  // Unresolvable titles are expected here, so a failure means "no match" rather
+  // than an error worth propagating.
+  let data: any;
+  try {
+    data = await tmdbFetch(
+      `search/multi?query=${encodeURIComponent(title)}&include_adult=false&page=1`,
+    );
+  } catch {
+    return null;
+  }
   const first = (data.results ?? []).find(
     (r: any) => r.media_type === 'movie' || r.media_type === 'tv',
   );
@@ -62,12 +66,12 @@ async function fetchIgdbRecs(seedId: number): Promise<TrendingEntry[]> {
 // ---------- Seeded recommendation fetchers ----------
 
 async function fetchTMDBRecs(id: string, mediaType: 'movie' | 'tv'): Promise<TrendingEntry[]> {
-  const res = await fetch(
-    `https://api.themoviedb.org/3/${mediaType}/${id}/recommendations?page=1`,
-    { headers: { Authorization: `Bearer ${TMDB_KEY}` } },
-  );
-  if (!res.ok) return [];
-  const data = await res.json();
+  let data: any;
+  try {
+    data = await tmdbFetch(`${mediaType}/${id}/recommendations?page=1`);
+  } catch {
+    return [];
+  }
   return ((data.results ?? []) as any[]).slice(0, 15).flatMap((r: any) => {
     const title: string = r.title || r.name;
     if (!title) return [];
