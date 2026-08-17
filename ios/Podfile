@@ -102,6 +102,32 @@ target 'Clique' do
           ].join(' ')
         end
       end
+
+      # ---------------------------------------------------------------------
+      # Do NOT define REACT_NATIVE_PRODUCTION here. Ever.
+      #
+      # REACT_NATIVE_DEBUG vs REACT_NATIVE_PRODUCTION is not a logging switch —
+      # it changes the *memory layout* of core React classes:
+      #   * DebugStringConvertible has virtual methods in debug, so every class
+      #     deriving from it (notably Props) gains a vtable pointer.
+      #   * Sealable carries a `mutable std::atomic<bool> sealed_` in debug.
+      #
+      # Expo's prebuilt React.framework is compiled in DEBUG mode. Verified by
+      # symbol inspection — it exports Sealable::Sealable/seal/ensureUnsealed and
+      # DebugStringConvertible::getDebug*, which exist only in debug builds:
+      #
+      #   nm -gU React.framework/React | c++filt | grep 'react::Sealable::'
+      #
+      # Local code also compiles in debug mode by default, so the two already
+      # agree. Forcing REACT_NATIVE_PRODUCTION=1 on any target breaks that
+      # agreement and produces a SIGSEGV on a bad address inside Props::Props()
+      # or accessors like yoga::Style::display().
+      #
+      # An earlier version of this file applied the define to 8 pods
+      # (ReactCodegen, RNSVG, RNScreens, ExpoModulesCore, stripe-react-native,
+      # react-native-webview, react-native-safe-area-context, RNGestureHandler).
+      # That was the cause of the startup crash, not a fix for it.
+      # ---------------------------------------------------------------------
     end
   end
 end

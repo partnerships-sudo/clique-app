@@ -236,9 +236,13 @@ function NoteBlock({ note, isSpoiler, revealed, onReveal, styles, Brand }: {
           &ldquo;{note}&rdquo;
         </Text>
         {note.length > NOTE_TRUNCATE_CHARS && (
-          <Pressable onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }} hitSlop={8}>
+          <Pressable
+            onPress={(e) => { e.stopPropagation(); setSheetOpen(true); }}
+            hitSlop={8}
+            accessibilityLabel="See the full review"
+            accessibilityRole="button">
             <Text style={{ fontFamily: BrandFonts.syneBold, fontSize: 11, color: Brand.trust }}>
-              {' …view more'}
+              {'  See more'}
             </Text>
           </Pressable>
         )}
@@ -389,24 +393,6 @@ export const PostCard = memo(function PostCard({
               <Text style={styles.time}>{timeAgo(post.created_at)}</Text>
             </View>
 
-            {watchedWithProfiles.length > 0 && (
-              <View style={styles.watchedWithInlinePill}>
-                {watchedWithProfiles.map((p, i) => (
-                  <Pressable
-                    key={p.id}
-                    style={styles.watchedWithInlinePerson}
-                    onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: p.id } })}
-                    hitSlop={4}
-                    accessibilityLabel={`View @${p.username}'s profile`}
-                    accessibilityRole="button">
-                    {i > 0 && <Text style={styles.watchedWithInlineAmp}> & </Text>}
-                    <Avatar name={p.username} avatarUrl={p.avatar_url} size={14} />
-                    <Text style={styles.watchedWithInlineLabel}> @{p.username}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
-
             {isMine && onEdit ? (
               <Pressable onPress={onEdit} accessibilityLabel="Edit rating and review" accessibilityRole="button">
                 <Text style={styles.title} numberOfLines={post.note ? 1 : 2}>{post.title}</Text>
@@ -479,8 +465,25 @@ export const PostCard = memo(function PostCard({
             </View>
           )}
 
-          {/* Left: emoji reactions + me too */}
+          {/* Left: watched-with + emoji reactions + me too */}
           <View style={styles.reactCol}>
+            {watchedWithProfiles.length > 0 && (
+              <View style={styles.watchedWithInlinePill}>
+                {watchedWithProfiles.map((p, i) => (
+                  <Pressable
+                    key={p.id}
+                    style={styles.watchedWithInlinePerson}
+                    onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: p.id } })}
+                    hitSlop={4}
+                    accessibilityLabel={`View @${p.username}'s profile`}
+                    accessibilityRole="button">
+                    {i > 0 && <Text style={styles.watchedWithInlineAmp}> & </Text>}
+                    <Avatar name={p.username} avatarUrl={p.avatar_url} size={14} />
+                    <Text style={styles.watchedWithInlineLabel} numberOfLines={1}> @{p.username}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
             {topEmojis.map(([emoji, count]) => (
               <Pressable
                 key={emoji}
@@ -980,21 +983,25 @@ function createStyles(Brand: BrandPalette) {
       borderWidth: 1.5,
       borderColor: Brand.card,
     },
+    // Lives in the bottom bar, ahead of the reactions. Shrinks before the
+    // share/comment icons do, so a long username never pushes them off-card.
     watchedWithInlinePill: {
       flexDirection: 'row',
       alignItems: 'center',
-      alignSelf: 'flex-start',
       backgroundColor: Brand.tlight,
       borderRadius: 6,
       paddingHorizontal: 7,
       paddingVertical: 2,
-      marginBottom: 3,
       gap: 4,
+      flexShrink: 1,
+      minWidth: 0,
     },
     watchedWithInlinePerson: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 3,
+      flexShrink: 1,
+      minWidth: 0,
     },
     watchedWithInlineAmp: {
       fontFamily: BrandFonts.interMedium,
