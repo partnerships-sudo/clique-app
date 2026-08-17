@@ -2,19 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { SymbolView } from 'expo-symbols';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
@@ -121,7 +110,7 @@ function ContentSearchStep({
                   onPick({ externalId: r.externalId, mediaType: r.mediaType, title: r.title, poster: r.img });
                 }}>
                 {r.img ? (
-                  <Image source={{ uri: r.img }} style={searchStyles.thumb} resizeMode="cover" />
+                  <Image source={{ uri: r.img }} style={searchStyles.thumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={r.img} />
                 ) : (
                   <View style={[searchStyles.thumb, { backgroundColor: colors.bg }]} />
                 )}
@@ -464,7 +453,7 @@ export default function CreateDiscussionModal() {
             {linked ? (
               <View style={[styles.linkedCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
                 {linked.poster ? (
-                  <Image source={{ uri: linked.poster }} style={styles.linkedPoster} resizeMode="cover" />
+                  <Image source={{ uri: linked.poster }} style={styles.linkedPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={linked.poster} />
                 ) : (
                   <View style={[styles.linkedPoster, { backgroundColor: typeColors?.bg ?? Brand.tlight }]} />
                 )}
@@ -530,7 +519,7 @@ export default function CreateDiscussionModal() {
             {/* Photo attachment */}
             {imageUri ? (
               <View style={styles.imagePreviewWrap}>
-                <Image source={{ uri: imageUri }} style={styles.imagePreview} resizeMode="cover" />
+                <Image source={{ uri: imageUri }} style={styles.imagePreview} contentFit="cover" cachePolicy="memory-disk" recyclingKey={imageUri} />
                 <Pressable
                   style={styles.imageRemoveBtn}
                   hitSlop={8}

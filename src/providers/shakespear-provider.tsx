@@ -1,14 +1,6 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Animated,
-  Image,
-  Modal,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandFonts, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
@@ -47,7 +39,7 @@ function ShakespearCard({
   return (
     <View style={[styles.card, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
       {reco.poster ? (
-        <Image source={{ uri: reco.poster }} style={styles.poster} resizeMode="cover" />
+        <Image source={{ uri: reco.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={reco.poster} />
       ) : (
         <View style={[styles.poster, styles.posterPlaceholder, { backgroundColor: typeInfo.bg }]}>
           <Text style={styles.posterEmoji}>{typeInfo.icon}</Text>

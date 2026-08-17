@@ -1,16 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState, useCallback } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -107,7 +99,7 @@ export default function ProfileStatsModal() {
     return (
       <View style={styles.row}>
         {item.poster ? (
-          <Image source={{ uri: item.poster }} style={styles.thumb} resizeMode="cover" />
+          <Image source={{ uri: item.poster }} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
         ) : (
           <View style={[styles.thumb, styles.thumbFallback]} />
         )}
@@ -127,7 +119,7 @@ export default function ProfileStatsModal() {
     return (
       <Pressable style={styles.row} onPress={() => openProfile(item.id)} accessibilityRole="button" accessibilityLabel={`View ${item.full_name || item.username || 'profile'}`}>
         {item.avatar_url ? (
-          <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+          <Image source={{ uri: item.avatar_url }} style={styles.avatar} cachePolicy="memory-disk" recyclingKey={item.avatar_url} />
         ) : (
           <View style={[styles.avatar, styles.avatarFallback]}>
             <Text style={styles.avatarFallbackText}>

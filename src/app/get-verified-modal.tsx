@@ -2,7 +2,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
 import * as WebBrowser from 'expo-web-browser';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -159,7 +160,7 @@ export default function GetVerifiedModal() {
         <View style={styles.badgePreview}>
           <View style={styles.badgeAvatarRow}>
             {profile?.avatar_url ? (
-              <Image source={{ uri: profile.avatar_url }} style={styles.previewAvatar} />
+              <Image source={{ uri: profile.avatar_url }} style={styles.previewAvatar} cachePolicy="memory-disk" recyclingKey={profile.avatar_url} />
             ) : (
               <View style={[styles.previewAvatarFallback, { borderColor: tier.color }]}>
                 <Text style={[styles.previewAvatarInitial, { color: tier.color }]}>

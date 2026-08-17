@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
-import { Alert, ActivityIndicator, FlatList, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { useState, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -90,7 +91,7 @@ export default function ContentRoomModal() {
       <View style={styles.heroRow}>
         {poster ? (
           <Pressable onPress={handlePosterPress} hitSlop={4} accessibilityRole="button" accessibilityLabel="View content details">
-            <Image source={{ uri: poster }} style={styles.poster} resizeMode="cover" />
+            <Image source={{ uri: poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={poster} />
           </Pressable>
         ) : (
           <Pressable onPress={handlePosterPress} hitSlop={4} style={[styles.posterPlaceholder, { backgroundColor: typeColors.bg }]} accessibilityRole="button" accessibilityLabel="View content details">

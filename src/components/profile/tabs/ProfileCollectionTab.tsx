@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, Text, View } from 'react-native';
 
 import { usePostsByUser, type Post } from '@/features/feed/api';
 import { useBrand } from '@/hooks/use-brand';
@@ -121,7 +122,7 @@ export function ProfileCollectionTab({ isOwnProfile, profileId }: Props) {
                   },
                 })}>
                 {item.poster ? (
-                  <Image source={{ uri: item.poster }} style={styles.collGridImg} resizeMode="cover" />
+                  <Image source={{ uri: item.poster }} style={styles.collGridImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
                 ) : (
                   <View style={[styles.collGridImg, styles.collGridImgPlaceholder]}>
                     <Text style={styles.collGridImgPlaceholderText} numberOfLines={2}>{item.title}</Text>

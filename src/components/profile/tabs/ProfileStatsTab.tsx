@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { Image, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { TIER_COLORS } from '@/features/badges/catalog';
 import { useMyPostCounts, usePostsByUser } from '@/features/feed/api';
 import { useMyTasteTop4 } from '@/features/follows/api';
@@ -315,7 +316,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
               <Pressable key={friend.id} style={styles.top4Item} onPress={() => router.push({ pathname: '/friend-profile-modal', params: { userId: friend.id } })}>
                 <View style={styles.top4ImgWrap}>
                   {friend.avatar_url ? (
-                    <Image source={{ uri: friend.avatar_url }} style={styles.top4Img} />
+                    <Image source={{ uri: friend.avatar_url }} style={styles.top4Img} cachePolicy="memory-disk" recyclingKey={friend.avatar_url} />
                   ) : (
                     <View style={[styles.top4Img, styles.top4ImgFallback]}>
                       <Text style={styles.top4ImgFallbackText}>{(friend.full_name || friend.username || '?')[0].toUpperCase()}</Text>
@@ -422,7 +423,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
                         key={p.id}
                         style={[ratingSheetStyles.row, { borderBottomColor: Brand.border }]}
                         onPress={() => { setAvgSheet(false); router.push({ pathname: '/content-detail-modal', params: { title: p.title, type: p.type, poster: p.poster ?? undefined, sub: p.sub ?? undefined, externalId: p.external_id ?? undefined, mediaType: p.media_type ?? undefined } }); }}>
-                        {p.poster ? <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" /> : <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}><Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text></View>}
+                        {p.poster ? <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.poster} /> : <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}><Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text></View>}
                         <View style={ratingSheetStyles.meta}>
                           <Text style={[ratingSheetStyles.itemTitle, { color: Brand.ink }]} numberOfLines={2}>{p.title}</Text>
                           {p.sub ? <Text style={[ratingSheetStyles.itemSub, { color: Brand.muted }]} numberOfLines={1}>{p.sub}</Text> : null}
@@ -447,7 +448,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
                         key={p.id}
                         style={[ratingSheetStyles.row, { borderBottomColor: Brand.border }]}
                         onPress={() => { setAvgSheet(false); router.push({ pathname: '/content-detail-modal', params: { title: p.title, type: p.type, poster: p.poster ?? undefined, sub: p.sub ?? undefined, externalId: p.external_id ?? undefined, mediaType: p.media_type ?? undefined } }); }}>
-                        {p.poster ? <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" /> : <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}><Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text></View>}
+                        {p.poster ? <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.poster} /> : <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}><Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text></View>}
                         <View style={ratingSheetStyles.meta}>
                           <Text style={[ratingSheetStyles.itemTitle, { color: Brand.ink }]} numberOfLines={2}>{p.title}</Text>
                           {p.sub ? <Text style={[ratingSheetStyles.itemSub, { color: Brand.muted }]} numberOfLines={1}>{p.sub}</Text> : null}
@@ -508,7 +509,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
                     });
                   }}>
                   {p.poster ? (
-                    <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" />
+                    <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.poster} />
                   ) : (
                     <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}>
                       <Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text>
@@ -569,7 +570,7 @@ export function ProfileStatsTab({ logged, followersCount, followingCount, userId
                     });
                   }}>
                   {p.poster ? (
-                    <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} resizeMode="cover" />
+                    <Image source={{ uri: p.poster }} style={ratingSheetStyles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.poster} />
                   ) : (
                     <View style={[ratingSheetStyles.poster, ratingSheetStyles.posterFallback, { backgroundColor: Brand.border }]}>
                       <Text style={[ratingSheetStyles.posterFallbackText, { color: Brand.muted }]} numberOfLines={2}>{p.title}</Text>

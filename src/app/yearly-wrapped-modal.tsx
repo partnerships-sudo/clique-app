@@ -3,10 +3,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import * as Sharing from 'expo-sharing';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator, Dimensions, FlatList, Image,
-  Pressable, StyleSheet, Text, View, useWindowDimensions,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Dimensions, FlatList, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 
@@ -205,7 +203,7 @@ function CardFiveStars({ stats, year, width, height }: { stats: WrappedStats; ye
         <View style={styles.posterGrid}>
           {picks.slice(0, 6).map((p) =>
             p.poster ? (
-              <Image key={p.id} source={{ uri: p.poster }} style={styles.gridPoster} resizeMode="cover" />
+              <Image key={p.id} source={{ uri: p.poster }} style={styles.gridPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.poster} />
             ) : (
               <View key={p.id} style={[styles.gridPoster, { backgroundColor: '#333', alignItems: 'center', justifyContent: 'center' }]}>
                 <Text style={{ fontSize: 28 }}>{TYPE_META[p.type]?.emoji ?? '📌'}</Text>
@@ -263,7 +261,7 @@ function ShareCard({ stats, year, name }: { stats: WrappedStats; year: number; n
         <View style={styles.sharePosterRow}>
           {stats.fiveStars.slice(0, 4).map((p) =>
             p.poster ? (
-              <Image key={p.id} source={{ uri: p.poster }} style={styles.sharePoster} resizeMode="cover" />
+              <Image key={p.id} source={{ uri: p.poster }} style={styles.sharePoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p.poster} />
             ) : null
           )}
         </View>

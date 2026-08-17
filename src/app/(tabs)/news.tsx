@@ -1,17 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import React, { useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  FlatList,
-  Image,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, FlatList, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { MovieCircle } from '@/components/more/movie-circle';
@@ -211,7 +202,7 @@ export default function NewsScreen() {
                     style={styles.radarRow}
                     onPress={() => openMovie(film)}>
                     {film.poster ? (
-                      <Image source={{ uri: film.poster }} style={styles.radarPoster} resizeMode="cover" />
+                      <Image source={{ uri: film.poster }} style={styles.radarPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={film.poster} />
                     ) : (
                       <View style={[styles.radarPoster, styles.radarPosterFallback]} />
                     )}
@@ -241,7 +232,7 @@ export default function NewsScreen() {
                     style={styles.radarRow}
                     onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: game.title, type: 'play', poster: game.cover ?? '' } })}>
                     {game.cover ? (
-                      <Image source={{ uri: game.cover }} style={styles.radarPoster} resizeMode="cover" />
+                      <Image source={{ uri: game.cover }} style={styles.radarPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={game.cover} />
                     ) : (
                       <View style={[styles.radarPoster, styles.radarPosterFallback]}>
                         <Text style={{ fontSize: 22 }}>🎮</Text>
@@ -276,7 +267,7 @@ export default function NewsScreen() {
                     style={styles.radarRow}
                     onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: show.title, type: 'watch', mediaType: 'tv', poster: show.poster ?? '', externalId: String(show.id) } })}>
                     {show.poster ? (
-                      <Image source={{ uri: show.poster }} style={styles.radarPoster} resizeMode="cover" />
+                      <Image source={{ uri: show.poster }} style={styles.radarPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={show.poster} />
                     ) : (
                       <View style={[styles.radarPoster, styles.radarPosterFallback]}>
                         <Text style={{ fontSize: 22 }}>📺</Text>
@@ -309,7 +300,7 @@ export default function NewsScreen() {
                     style={styles.radarRow}
                     onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: album.title, type: 'listen', sub: album.artist, poster: album.cover ?? '' } })}>
                     {album.cover ? (
-                      <Image source={{ uri: album.cover }} style={[styles.radarPoster, { borderRadius: 6 }]} resizeMode="cover"
+                      <Image source={{ uri: album.cover }} style={[styles.radarPoster, { borderRadius: 6 }]} contentFit="cover"
                         onError={() => {}} />
                     ) : (
                       <View style={[styles.radarPoster, styles.radarPosterFallback]}>
@@ -343,7 +334,7 @@ export default function NewsScreen() {
                     style={styles.radarRow}
                     onPress={() => router.push({ pathname: '/content-detail-modal', params: { title: book.title, type: 'read', sub: book.author, poster: book.cover ?? '' } })}>
                     {book.cover ? (
-                      <Image source={{ uri: book.cover }} style={[styles.radarPoster, { borderRadius: 4 }]} resizeMode="cover" />
+                      <Image source={{ uri: book.cover }} style={[styles.radarPoster, { borderRadius: 4 }]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={book.cover} />
                     ) : (
                       <View style={[styles.radarPoster, styles.radarPosterFallback]}>
                         <Text style={{ fontSize: 22 }}>📚</Text>
@@ -421,7 +412,7 @@ export default function NewsScreen() {
                     onPress={() => openMovie({ id: entry.id, title: entry.title, poster: entry.poster, releaseDate: entry.releaseDate })}>
                     <Text style={styles.boRank}>{String(i + 1).padStart(2, '0')}</Text>
                     {entry.poster ? (
-                      <Image source={{ uri: entry.poster }} style={styles.boPoster} resizeMode="cover" />
+                      <Image source={{ uri: entry.poster }} style={styles.boPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={entry.poster} />
                     ) : (
                       <View style={[styles.boPoster, styles.boPosterFallback]} />
                     )}
@@ -478,7 +469,7 @@ export default function NewsScreen() {
                     {/* Image with rank badge overlaid */}
                     <View style={styles.trendingImgWrap}>
                       {article.thumbnail ? (
-                        <Image source={{ uri: article.thumbnail }} style={styles.trendingImg} resizeMode="cover" />
+                        <Image source={{ uri: article.thumbnail }} style={styles.trendingImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={article.thumbnail} />
                       ) : (
                         <View style={[styles.trendingImg, styles.trendingImgFallback]}>
                           <Text style={styles.trendingImgFallbackEmoji}>📰</Text>
@@ -509,7 +500,7 @@ export default function NewsScreen() {
                     rows.push(
                       <Pressable key={a.id} style={styles.featureCard} onPress={() => openArticle(a)}>
                         {a.thumbnail ? (
-                          <Image source={{ uri: a.thumbnail }} style={styles.featureImg} resizeMode="cover" />
+                          <Image source={{ uri: a.thumbnail }} style={styles.featureImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={a.thumbnail} />
                         ) : (
                           <View style={[styles.featureImg, styles.featureImgFallback]} />
                         )}
@@ -533,7 +524,7 @@ export default function NewsScreen() {
                           <Pressable key={a.id} style={styles.gridCard} onPress={() => openArticle(a)}>
                             <View style={styles.gridImgWrap}>
                               {a.thumbnail ? (
-                                <Image source={{ uri: a.thumbnail }} style={styles.gridImg} resizeMode="cover" />
+                                <Image source={{ uri: a.thumbnail }} style={styles.gridImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={a.thumbnail} />
                               ) : (
                                 <View style={[styles.gridImg, styles.gridImgFallback]} />
                               )}

@@ -1,6 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { usePremiere, usePremiereMessages, usePremiereMembers, useTrackReplayView } from '@/features/premieres/api';
@@ -95,7 +96,7 @@ export default function PremiereReplay() {
           </Text>
         </View>
         {premiere?.show_poster ? (
-          <Image source={{ uri: premiere.show_poster }} style={styles.headerPoster} />
+          <Image source={{ uri: premiere.show_poster }} style={styles.headerPoster} cachePolicy="memory-disk" recyclingKey={premiere.show_poster} />
         ) : <View style={styles.headerPoster} />}
       </View>
 
@@ -153,7 +154,7 @@ export default function PremiereReplay() {
             <View style={styles.row}>
               <View style={styles.avatarWrap}>
                 {item.user_avatar_url ? (
-                  <Image source={{ uri: item.user_avatar_url }} style={styles.avatar} />
+                  <Image source={{ uri: item.user_avatar_url }} style={styles.avatar} cachePolicy="memory-disk" recyclingKey={item.user_avatar_url} />
                 ) : (
                   <View style={[styles.avatar, styles.avatarFallback]}>
                     <Text style={styles.avatarFallbackText}>{(item.user_name?.[0] ?? '?').toUpperCase()}</Text>

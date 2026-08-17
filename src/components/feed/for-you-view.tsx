@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { BecauseYouRow } from '@/components/feed/because-you-row';
@@ -70,7 +71,7 @@ function TopMatchHero({
       {/* Body */}
       <View style={styles.body}>
         {post.poster ? (
-          <Image source={{ uri: post.poster }} style={styles.poster} resizeMode="cover" />
+          <Image source={{ uri: post.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={post.poster} />
         ) : (
           <View style={[styles.poster, styles.posterFallback]} />
         )}
@@ -133,7 +134,7 @@ function StillOnYourList({ Brand }: { Brand: BrandPalette }) {
             style={[styles.card, { borderColor: Brand.border }]}
             onPress={() => openContent(item)}>
             {item.poster ? (
-              <Image source={{ uri: item.poster }} style={styles.poster} resizeMode="cover" />
+              <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
             ) : (
               <View style={[styles.poster, { backgroundColor: Brand.tlight }]} />
             )}
@@ -202,7 +203,7 @@ function MoreFromMatches({
             <Pressable key={`${friend.id}:${item.title}`} style={[styles.card, { borderColor: Brand.border }]} onPress={() => openContent(item)}>
               <Avatar name={name} size={28} avatarUrl={friend.avatar_url} />
               {item.poster ? (
-                <Image source={{ uri: item.poster }} style={styles.poster} resizeMode="cover" />
+                <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
               ) : (
                 <View style={[styles.poster, { backgroundColor: Brand.tlight }]} />
               )}

@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { QueryErrorState } from '@/components/query-error-state';
@@ -623,7 +624,7 @@ export default function LibraryScreen() {
             <>
               <View style={styles.rateItemRow}>
                 {ratingItem.poster ? (
-                  <Image source={{ uri: ratingItem.poster }} style={styles.ratePoster} resizeMode="cover" />
+                  <Image source={{ uri: ratingItem.poster }} style={styles.ratePoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={ratingItem.poster} />
                 ) : null}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.rateTitle} numberOfLines={2}>{ratingItem.title}</Text>

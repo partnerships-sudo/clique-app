@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts } from '@/constants/theme';
@@ -40,7 +41,7 @@ export default function FollowedLoungesModal() {
               },
             })}>
             {room.contentPoster ? (
-              <Image source={{ uri: room.contentPoster }} style={styles.poster} resizeMode="cover" />
+              <Image source={{ uri: room.contentPoster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={room.contentPoster} />
             ) : (
               <View style={[styles.poster, { backgroundColor: Brand.tlight }]} />
             )}

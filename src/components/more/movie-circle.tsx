@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { useBrand } from '@/hooks/use-brand';
@@ -36,7 +37,7 @@ export function MovieCircle({
   return (
     <Pressable style={styles.wrap} onPress={onPress}>
       {poster ? (
-        <Image source={{ uri: poster }} style={styles.circle} />
+        <Image source={{ uri: poster }} style={styles.circle} cachePolicy="memory-disk" recyclingKey={poster} />
       ) : (
         <View style={[styles.circle, styles.fallback]}>
           <Text style={styles.fallbackEmoji}>🎬</Text>

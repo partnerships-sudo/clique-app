@@ -1,17 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState, useEffect } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
@@ -153,8 +144,7 @@ export default function PickForListModal() {
                 <Image
                   source={{ uri: result.img }}
                   style={[styles.poster, result.square && styles.posterSquare]}
-                  resizeMode="cover"
-                />
+                  contentFit="cover" cachePolicy="memory-disk" recyclingKey={result.img} />
               ) : (
                 <View style={[styles.poster, styles.posterPlaceholder, { backgroundColor: typeConfig.bg }]}>
                   <Text style={{ fontSize: 18 }}>{typeConfig.icon}</Text>

@@ -1,14 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Dimensions,
-  Image,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-  type ViewStyle,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { Dimensions, Pressable, StyleSheet, Text, View, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
@@ -141,7 +134,7 @@ function MockPoster({
         <Image
           source={{ uri: POSTERS[posterKey] }}
           style={StyleSheet.absoluteFill}
-          resizeMode="cover"
+          contentFit="cover"
           onError={() => setFailed(true)}
         />
       ) : (

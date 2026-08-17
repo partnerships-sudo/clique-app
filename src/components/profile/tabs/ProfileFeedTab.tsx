@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, normalizeEntryType, type BrandPalette, type EntryType } from '@/constants/theme';
 import { usePostsByUser, type Post } from '@/features/feed/api';
@@ -121,7 +122,7 @@ function FeedCard({ item, Brand }: { item: Post; Brand: BrandPalette }) {
   return (
     <View style={s.card}>
       {item.poster ? (
-        <Image source={{ uri: item.poster }} style={s.poster} resizeMode="cover" />
+        <Image source={{ uri: item.poster }} style={s.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
       ) : (
         <View style={[s.fallback, { backgroundColor: type.bg }]}>
           <Text style={{ fontSize: 19 }}>{type.icon}</Text>

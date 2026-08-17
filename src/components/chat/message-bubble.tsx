@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -145,7 +146,7 @@ export function MessageBubble({
           <View style={styles.storyReplyCard}>
             <View style={styles.storyReplyPreview}>
               {storyReply.poster ? (
-                <Image source={{ uri: storyReply.poster }} style={styles.storyReplyPoster} resizeMode="cover" />
+                <Image source={{ uri: storyReply.poster }} style={styles.storyReplyPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={storyReply.poster} />
               ) : null}
               <View style={styles.storyReplyInfo}>
                 <Text style={styles.storyReplyLabel}>Replied to your story</Text>
@@ -192,7 +193,7 @@ export function MessageBubble({
             {/* Body: poster + title/sub */}
             <View style={styles.recBody}>
               {rec.poster ? (
-                <Image source={{ uri: rec.poster }} style={styles.recPoster} />
+                <Image source={{ uri: rec.poster }} style={styles.recPoster} cachePolicy="memory-disk" recyclingKey={rec.poster} />
               ) : (
                 <View
                   style={[
@@ -268,11 +269,11 @@ export function MessageBubble({
                 ? { aspectRatio: chatImage.width / chatImage.height }
                 : undefined,
             ]}
-            resizeMode="cover"
+            contentFit="cover"
           />
         ) : gifUrl ? (
           /* ── GIF bubble ── */
-          <Image source={{ uri: gifUrl }} style={styles.gifImage} resizeMode="cover" />
+          <Image source={{ uri: gifUrl }} style={styles.gifImage} contentFit="cover" cachePolicy="memory-disk" recyclingKey={gifUrl} />
         ) : watchPartyInvite ? (
           /* ── Rich watch party invite card ── */
           <Pressable
@@ -282,7 +283,7 @@ export function MessageBubble({
             }>
             <View style={styles.wpInviteTop}>
               {watchPartyInvite.poster ? (
-                <Image source={{ uri: watchPartyInvite.poster }} style={styles.wpInvitePoster} resizeMode="cover" />
+                <Image source={{ uri: watchPartyInvite.poster }} style={styles.wpInvitePoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={watchPartyInvite.poster} />
               ) : (
                 <View style={[styles.wpInvitePoster, styles.wpInvitePosterFallback]}>
                   <Text style={{ fontSize: 28 }}>🎬</Text>

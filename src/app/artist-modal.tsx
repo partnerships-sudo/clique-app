@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { formatFollowers, useArtistPanel } from '@/features/artist/api';
@@ -48,7 +49,7 @@ export default function ArtistModal() {
           <View style={styles.body}>
             <View style={styles.hero}>
               {data.artist.image ? (
-                <Image source={{ uri: data.artist.image }} style={styles.heroImg} />
+                <Image source={{ uri: data.artist.image }} style={styles.heroImg} cachePolicy="memory-disk" recyclingKey={data.artist.image} />
               ) : (
                 <View style={[styles.heroImg, styles.heroImgFallback]}>
                   <Text style={styles.heroImgEmoji}>🎤</Text>
@@ -86,7 +87,7 @@ export default function ArtistModal() {
                   onPress={() => openUrl(track.spotifyUrl)}>
                   <Text style={styles.trackNum}>{i + 1}</Text>
                   {track.image ? (
-                    <Image source={{ uri: track.image }} style={styles.trackImg} />
+                    <Image source={{ uri: track.image }} style={styles.trackImg} cachePolicy="memory-disk" recyclingKey={track.image} />
                   ) : (
                     <View style={styles.trackImg} />
                   )}

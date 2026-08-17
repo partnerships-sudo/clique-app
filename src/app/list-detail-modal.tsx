@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
-import { ActionSheetIOS, Alert, FlatList, Image, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActionSheetIOS, Alert, FlatList, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -204,7 +205,7 @@ export default function ListDetailModal() {
           <Pressable style={styles.item} onLongPress={() => handleItemOptions(item)}>
             <Text style={styles.itemNum}>{index + 1}</Text>
             {item.poster ? (
-              <Image source={{ uri: item.poster }} style={styles.poster} resizeMode="cover" />
+              <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
             ) : (
               <View style={[styles.poster, styles.posterPlaceholder]} />
             )}

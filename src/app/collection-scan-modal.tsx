@@ -1,7 +1,8 @@
 import { CameraView, useCameraPermissions, type BarcodeScanningResult } from 'expo-camera';
 import { router } from 'expo-router';
 import { useMemo, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RatingPicker } from '@/components/rating-icons';
@@ -169,7 +170,7 @@ export default function CollectionScanModal() {
           <View style={styles.resultCard}>
             <View style={styles.matchRow}>
               {state.result.img ? (
-                <Image source={{ uri: state.result.img }} style={styles.matchImg} />
+                <Image source={{ uri: state.result.img }} style={styles.matchImg} cachePolicy="memory-disk" recyclingKey={state.result.img} />
               ) : (
                 <View style={[styles.matchImg, styles.matchImgFallback]} />
               )}

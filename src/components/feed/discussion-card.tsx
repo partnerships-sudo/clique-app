@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { memo, useRef } from 'react';
 import { SymbolView } from 'expo-symbols';
-import { Alert, Image, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Pressable, StyleSheet, Text, useColorScheme, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -114,7 +115,7 @@ export const DiscussionCard = memo(function DiscussionCard({ item, suppressConte
           <Pressable
             onPress={(e) => { e.stopPropagation(); handleOpenContentRoom(); }}
             disabled={!hasLinkedContent}>
-            <Image source={{ uri: item.content_poster }} style={styles.poster} resizeMode="cover" />
+            <Image source={{ uri: item.content_poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.content_poster} />
           </Pressable>
         ) : (
           <View style={[styles.poster, styles.posterPlaceholder, { backgroundColor: palette.border }]} />

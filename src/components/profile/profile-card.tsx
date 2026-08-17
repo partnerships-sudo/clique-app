@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo, useRef, useState } from 'react';
-import { ActionSheetIOS, ActivityIndicator, Alert, Image, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActionSheetIOS, ActivityIndicator, Alert, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
 
 import { RatingPicker, type RatingIconStyle } from '@/components/rating-icons';
 import { VerifiedBadge } from '@/components/verified-badge';
@@ -117,7 +118,7 @@ export function ProfileCard({
           <Pressable style={styles.avWrap} onPress={() => profile?.avatar_url && setAvatarZoom(true)} hitSlop={4} accessibilityRole="button" accessibilityLabel="View profile photo">
             <View style={styles.avRing}>
               {profile?.avatar_url ? (
-                <Image source={{ uri: profile.avatar_url }} style={styles.avImg} />
+                <Image source={{ uri: profile.avatar_url }} style={styles.avImg} cachePolicy="memory-disk" recyclingKey={profile.avatar_url} />
               ) : (
                 <View style={styles.avFallback}>
                   <Text style={styles.avFallbackText}>{name[0]?.toUpperCase() ?? '?'}</Text>
@@ -262,7 +263,7 @@ export function ProfileCard({
       <Modal visible={avatarZoom} transparent animationType="fade" onRequestClose={() => setAvatarZoom(false)}>
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setAvatarZoom(false)}>
           {profile?.avatar_url ? (
-            <Image source={{ uri: profile.avatar_url }} style={{ width: 280, height: 280, borderRadius: 140 }} resizeMode="cover" />
+            <Image source={{ uri: profile.avatar_url }} style={{ width: 280, height: 280, borderRadius: 140 }} contentFit="cover" cachePolicy="memory-disk" recyclingKey={profile.avatar_url} />
           ) : null}
         </Pressable>
       </Modal>
@@ -274,7 +275,7 @@ export function ProfileCard({
             <>
               <View style={styles.rateItemRow}>
                 {ratingItem.poster ? (
-                  <Image source={{ uri: ratingItem.poster }} style={styles.ratePoster} resizeMode="cover" />
+                  <Image source={{ uri: ratingItem.poster }} style={styles.ratePoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={ratingItem.poster} />
                 ) : null}
                 <View style={{ flex: 1, minWidth: 0 }}>
                   <Text style={styles.rateTitle} numberOfLines={2}>{ratingItem.title}</Text>

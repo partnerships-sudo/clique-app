@@ -1,18 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -443,7 +433,7 @@ export default function ChatModal() {
               {isDm ? (
                 <Avatar name={params.friendName ?? 'Friend'} size={34} avatarUrl={params.friendAvatar} />
               ) : groupInfo?.photo_url ? (
-                <Image source={{ uri: groupInfo.photo_url }} style={styles.headerGroupPhoto} />
+                <Image source={{ uri: groupInfo.photo_url }} style={styles.headerGroupPhoto} cachePolicy="memory-disk" recyclingKey={groupInfo.photo_url} />
               ) : (
                 <View style={[styles.headerIconBox, { backgroundColor: Brand.tlight }]}>
                   <Text style={styles.headerIcon}>👥</Text>
@@ -622,7 +612,7 @@ export default function ChatModal() {
                 style={styles.pinnedInvite}
                 onPress={() => router.push({ pathname: '/premiere-waiting-room', params: { id: pinnedInvite.id } })}>
                 {pinnedInvite.poster ? (
-                  <Image source={{ uri: pinnedInvite.poster }} style={styles.pinnedInvitePoster} resizeMode="cover" />
+                  <Image source={{ uri: pinnedInvite.poster }} style={styles.pinnedInvitePoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={pinnedInvite.poster} />
                 ) : (
                   <View style={[styles.pinnedInvitePoster, { alignItems: 'center', justifyContent: 'center' }]}>
                     <Text style={{ fontSize: 16 }}>🎬</Text>
@@ -855,7 +845,7 @@ export default function ChatModal() {
                 columnWrapperStyle={{ gap: 4 }}
                 renderItem={({ item }) => (
                   <Pressable onPress={() => sendGif(item)} style={styles.gifCell}>
-                    <Image source={{ uri: item.preview }} style={styles.gifThumb} resizeMode="cover" />
+                    <Image source={{ uri: item.preview }} style={styles.gifThumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.preview} />
                   </Pressable>
                 )}
                 ItemSeparatorComponent={() => <View style={{ height: 4 }} />}
@@ -902,7 +892,7 @@ function ContentBanner({
         {/* Poster thumbnail */}
         <View style={[cb.thumb, { borderColor: Brand.border }]}>
           {poster ? (
-            <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+            <Image source={{ uri: poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={poster} />
           ) : (
             <View style={[StyleSheet.absoluteFill, { backgroundColor: type.bg, alignItems: 'center', justifyContent: 'center' }]}>
               <Text style={{ fontSize: 22 }}>{type.icon}</Text>
@@ -1009,7 +999,7 @@ function ReplyRow({ reply, isMine, Brand }: { reply: RawMessage; isMine: boolean
         {displayContent ? (
           <Text style={[cp.content, { color: Brand.ink, fontSize: 13 }]}>{displayContent}</Text>
         ) : mediaUrl ? (
-          <Image source={{ uri: mediaUrl }} style={[cp.mediaImg, { marginTop: 4 }]} resizeMode="cover" />
+          <Image source={{ uri: mediaUrl }} style={[cp.mediaImg, { marginTop: 4 }]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={mediaUrl} />
         ) : null}
       </View>
     </View>
@@ -1061,7 +1051,7 @@ function ContentPost({
         {displayContent ? (
           <Text style={[cp.content, { color: Brand.ink }]}>{displayContent}</Text>
         ) : mediaUrl ? (
-          <Image source={{ uri: mediaUrl }} style={cp.mediaImg} resizeMode="cover" />
+          <Image source={{ uri: mediaUrl }} style={cp.mediaImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={mediaUrl} />
         ) : null}
         <View style={[cp.actions, { borderTopColor: Brand.border }]}>
           <Pressable

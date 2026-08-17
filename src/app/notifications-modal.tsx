@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 import { useEffect, useMemo } from 'react';
-import { Alert, ActivityIndicator, FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -107,7 +108,7 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
         <Text style={styles.time}>{timeAgo(item.createdAt)}</Text>
       </View>
       {item.postPoster ? (
-        <Image source={{ uri: item.postPoster }} style={styles.postThumb} resizeMode="cover" />
+        <Image source={{ uri: item.postPoster }} style={styles.postThumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.postPoster} />
       ) : item.postTitle && !item.postPoster ? (
         <View style={[styles.postThumb, styles.postThumbFallback]}>
           <Text style={styles.postThumbEmoji}>🎬</Text>

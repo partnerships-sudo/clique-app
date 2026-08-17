@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { avgRating, type TrendingEntry } from '@/features/feed/trending';
@@ -54,7 +55,7 @@ export function TrendingNowList({
 
             <View style={styles.thumb}>
               {entry.poster ? (
-                <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={entry.poster} />
               ) : (
                 <View style={[StyleSheet.absoluteFill, styles.thumbFallback, { backgroundColor: type.bg }]}>
                   <Text style={{ fontSize: 20 }}>{type.icon}</Text>

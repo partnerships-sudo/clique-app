@@ -1,16 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { RatingPicker } from '@/components/rating-icons';
@@ -100,7 +91,7 @@ export default function CollectionAddModal() {
         {selected ? (
           <View style={styles.selectedCard}>
             {selected.img ? (
-              <Image source={{ uri: selected.img }} style={styles.selectedImg} />
+              <Image source={{ uri: selected.img }} style={styles.selectedImg} cachePolicy="memory-disk" recyclingKey={selected.img} />
             ) : (
               <View style={[styles.selectedImg, styles.selectedImgFallback]} />
             )}
@@ -152,7 +143,7 @@ export default function CollectionAddModal() {
                 {results.map((result, i) => (
                   <Pressable key={i} style={styles.resultRow} onPress={() => setSelected(result)}>
                     {result.img ? (
-                      <Image source={{ uri: result.img }} style={styles.resultImg} />
+                      <Image source={{ uri: result.img }} style={styles.resultImg} cachePolicy="memory-disk" recyclingKey={result.img} />
                     ) : (
                       <View style={[styles.resultImg, styles.resultImgFallback]} />
                     )}

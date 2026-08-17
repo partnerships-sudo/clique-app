@@ -1,6 +1,7 @@
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { type SearchResult, useTitleSearch, useUniversalSearch } from '@/features/search/api';
@@ -97,7 +98,7 @@ export function TypePickerStep({
                 style={styles.resultRow}
                 onPress={() => { setQuery(''); onUniversalPick(entryType, result); }}>
                 {result.img ? (
-                  <Image source={{ uri: result.img }} style={[styles.resultImg, result.square && styles.resultImgSquare]} resizeMode="cover" />
+                  <Image source={{ uri: result.img }} style={[styles.resultImg, result.square && styles.resultImgSquare]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={result.img} />
                 ) : (
                   <View style={[styles.resultImg, result.square && styles.resultImgSquare, styles.resultImgFallback]}>
                     {typeConfig ? <SymbolView name={typeConfig.symbol as any} size={18} tintColor={Brand.muted} type="monochrome" /> : null}

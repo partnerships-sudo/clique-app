@@ -1,7 +1,8 @@
 import React, { useEffect, useRef } from 'react';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { useAudioPlayer } from 'expo-audio';
@@ -74,7 +75,7 @@ function PodcastEpisodeRow({ cast, styles, isSearchActive }: { cast: ContentDeta
         <Pressable key={`${i}-${ep.name}`} style={styles.episodeRow} onPress={() => handlePress(i)}>
           <View style={styles.episodeThumbWrap}>
             {ep.profilePath ? (
-              <Image source={{ uri: ep.profilePath }} style={styles.episodeThumb} />
+              <Image source={{ uri: ep.profilePath }} style={styles.episodeThumb} cachePolicy="memory-disk" recyclingKey={ep.profilePath} />
             ) : (
               <View style={[styles.episodeThumb, styles.actorFallback]}>
                 <Text style={styles.actorFallbackEmoji}>🎙️</Text>
@@ -133,7 +134,7 @@ function MusicTrackRow({ cast, styles }: { cast: ContentDetails['cast']; styles:
         <Pressable key={`${i}-${track.name}`} style={styles.actorItemFit} onPress={() => handlePress(i)}>
           <View style={styles.trackThumbWrap}>
             {track.profilePath ? (
-              <Image source={{ uri: track.profilePath }} style={[styles.actorCircle, styles.actorSquare]} />
+              <Image source={{ uri: track.profilePath }} style={[styles.actorCircle, styles.actorSquare]} cachePolicy="memory-disk" recyclingKey={track.profilePath} />
             ) : (
               <View style={[styles.actorCircle, styles.actorSquare, styles.actorFallback]}>
                 <Text style={styles.actorFallbackEmoji}>🎵</Text>
@@ -191,7 +192,7 @@ function CastRow({ cast, square, fit }: { cast: ContentDetails['cast']; square?:
           {cast.map((actor) => (
             <View key={actor.name} style={styles.actorItem}>
               {actor.profilePath ? (
-                <Image source={{ uri: actor.profilePath }} style={[styles.actorCircle, square && styles.actorSquare]} />
+                <Image source={{ uri: actor.profilePath }} style={[styles.actorCircle, square && styles.actorSquare]} cachePolicy="memory-disk" recyclingKey={actor.profilePath} />
               ) : (
                 <View style={[styles.actorCircle, square && styles.actorSquare, styles.actorFallback]}>
                   <Text style={styles.actorFallbackEmoji}>{square ? '🎵' : '👤'}</Text>
@@ -255,7 +256,7 @@ function TrailerPlayer({ trailerUrl, thumbnail, site }: { trailerUrl: string; th
             style={trailerStyles.thumbPress}
             accessibilityRole="button"
             accessibilityLabel="Play trailer">
-            <Image source={{ uri: thumbnail }} style={trailerStyles.thumb} resizeMode="cover" />
+            <Image source={{ uri: thumbnail }} style={trailerStyles.thumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={thumbnail} />
             <View style={trailerStyles.playBtn}>
               <SymbolView name="play.fill" size={20} tintColor="#fff" type="monochrome" />
             </View>
@@ -408,7 +409,7 @@ export default function ContentDetailModal() {
           <View style={styles.headerRow}>
             <View style={[styles.posterBox, isSquareCover && styles.posterBoxSquare]}>
               {params.poster ? (
-                <Image source={{ uri: params.poster }} style={styles.posterImg} resizeMode="cover" />
+                <Image source={{ uri: params.poster }} style={styles.posterImg} contentFit="cover" cachePolicy="memory-disk" recyclingKey={params.poster} />
               ) : (
                 <View style={[styles.posterImg, styles.posterFallback, { backgroundColor: typeConfig.bg }]}>
                   <Text style={styles.posterFallbackEmoji}>{typeConfig.icon}</Text>
@@ -557,7 +558,7 @@ export default function ContentDetailModal() {
                 {details.hosts.map((host) => (
                   <View key={host.name} style={styles.actorItem}>
                     {host.photoUrl ? (
-                      <Image source={{ uri: host.photoUrl }} style={styles.actorCircle} />
+                      <Image source={{ uri: host.photoUrl }} style={styles.actorCircle} cachePolicy="memory-disk" recyclingKey={host.photoUrl} />
                     ) : (
                       <View style={[styles.actorCircle, styles.actorFallback]}>
                         <Text style={styles.actorFallbackEmoji}>🎙</Text>
@@ -576,7 +577,7 @@ export default function ContentDetailModal() {
               <Text style={styles.sectionLabel}>{(details.coAuthors?.length ?? 0) > 0 ? 'Authors' : 'Author'}</Text>
               <View style={styles.authorRow}>
                 {details.author.photoUrl ? (
-                  <Image source={{ uri: details.author.photoUrl }} style={styles.authorPhoto} />
+                  <Image source={{ uri: details.author.photoUrl }} style={styles.authorPhoto} cachePolicy="memory-disk" recyclingKey={details.author.photoUrl} />
                 ) : (
                   <View style={[styles.authorPhoto, styles.actorFallback]}>
                     <Text style={styles.actorFallbackEmoji}>✍️</Text>
@@ -619,7 +620,7 @@ export default function ContentDetailModal() {
               <Text style={styles.sectionLabel}>Developer</Text>
               <View style={styles.authorRow}>
                 {details.developer.logoUrl ? (
-                  <Image source={{ uri: details.developer.logoUrl }} style={styles.developerLogo} resizeMode="contain" />
+                  <Image source={{ uri: details.developer.logoUrl }} style={styles.developerLogo} contentFit="contain" cachePolicy="memory-disk" recyclingKey={details.developer.logoUrl} />
                 ) : (
                   <View style={[styles.developerLogo, styles.actorFallback]}>
                     <Text style={styles.actorFallbackEmoji}>🎮</Text>
@@ -680,7 +681,7 @@ export default function ContentDetailModal() {
                 style={[styles.storeRow, i > 0 && styles.storeRowSpacing]}
                 onPress={() => Linking.openURL(store.url).catch(() => {})}>
                 {store.logoUrl ? (
-                  <Image source={{ uri: store.logoUrl }} style={styles.storeLogoImg} />
+                  <Image source={{ uri: store.logoUrl }} style={styles.storeLogoImg} cachePolicy="memory-disk" recyclingKey={store.logoUrl} />
                 ) : (
                   <Text style={styles.storeLogo}>{store.logo}</Text>
                 )}
@@ -705,7 +706,7 @@ export default function ContentDetailModal() {
                   {friendsWhoLogged.slice(0, 5).map((f, i) => (
                     <View key={f.userId} style={[styles.avatarWrap, { zIndex: 5 - i, marginLeft: i === 0 ? 0 : -10 }]}>
                       {f.avatarUrl ? (
-                        <Image source={{ uri: f.avatarUrl }} style={styles.friendAvatar} />
+                        <Image source={{ uri: f.avatarUrl }} style={styles.friendAvatar} cachePolicy="memory-disk" recyclingKey={f.avatarUrl} />
                       ) : (
                         <View style={[styles.friendAvatar, styles.friendAvatarFallback]}>
                           <Text style={styles.friendAvatarInitial}>

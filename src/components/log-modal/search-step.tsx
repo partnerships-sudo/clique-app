@@ -1,14 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import {
-  ActivityIndicator,
-  Image,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { router } from 'expo-router';
 import { supabase } from '@/lib/supabase';
@@ -181,8 +173,7 @@ export function SearchStep({
             {selected.poster ? (
               <Image
                 source={{ uri: selected.poster }}
-                style={[styles.selectedImg, selected.square && styles.selectedImgSquare]}
-              />
+                style={[styles.selectedImg, selected.square && styles.selectedImgSquare]} cachePolicy="memory-disk" recyclingKey={selected.poster} />
             ) : (
               <View style={[styles.selectedImg, selected.square && styles.selectedImgSquare, styles.selectedImgFallback]}>
                 <Text style={styles.selectedImgIcon}>{(TypeColors[type] ?? TypeColors.watch).icon}</Text>
@@ -246,8 +237,7 @@ export function SearchStep({
                   {result.img ? (
                     <Image
                       source={{ uri: result.img }}
-                      style={[styles.resultImg, result.square && styles.resultImgSquare]}
-                    />
+                      style={[styles.resultImg, result.square && styles.resultImgSquare]} cachePolicy="memory-disk" recyclingKey={result.img} />
                   ) : (
                     <View style={[styles.resultImg, result.square && styles.resultImgSquare, styles.resultImgFallback]}>
                       <Text style={styles.resultImgIcon}>{(TypeColors[type] ?? TypeColors.watch).icon}</Text>

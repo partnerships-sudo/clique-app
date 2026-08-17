@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import * as WebBrowser from 'expo-web-browser';
@@ -72,7 +73,7 @@ export default function WhereToFindModal() {
             style={StyleSheet.absoluteFillObject}
           />
           {params.poster ? (
-            <Image source={{ uri: params.poster }} style={styles.heroPoster} />
+            <Image source={{ uri: params.poster }} style={styles.heroPoster} cachePolicy="memory-disk" recyclingKey={params.poster} />
           ) : (
             <View style={styles.heroPoster}>
               <Text style={styles.heroPosterEmoji}>{config.emoji}</Text>
@@ -101,7 +102,7 @@ export default function WhereToFindModal() {
               {podcastDetails.hosts.map((host) => (
                 <View key={host.name} style={styles.actorItem}>
                   {host.photoUrl ? (
-                    <Image source={{ uri: host.photoUrl }} style={styles.actorCircle} />
+                    <Image source={{ uri: host.photoUrl }} style={styles.actorCircle} cachePolicy="memory-disk" recyclingKey={host.photoUrl} />
                   ) : (
                     <View style={[styles.actorCircle, styles.actorFallback]}>
                       <Text style={styles.actorFallbackText}>🎙</Text>
@@ -139,7 +140,7 @@ export default function WhereToFindModal() {
                   {cinemaDetails.cast.map((actor) => (
                     <View key={actor.name} style={styles.actorItem}>
                       {actor.profilePath ? (
-                        <Image source={{ uri: actor.profilePath }} style={styles.actorCircle} />
+                        <Image source={{ uri: actor.profilePath }} style={styles.actorCircle} cachePolicy="memory-disk" recyclingKey={actor.profilePath} />
                       ) : (
                         <View style={[styles.actorCircle, styles.actorFallback]}>
                           <Text style={styles.actorFallbackText}>👤</Text>
@@ -168,7 +169,7 @@ export default function WhereToFindModal() {
             accessibilityRole="button"
             accessibilityLabel="Play trailer"
             onPress={() => WebBrowser.openBrowserAsync(cinemaDetails.trailerUrl!)}>
-            <Image source={{ uri: cinemaDetails.trailerThumbnail! }} style={styles.trailerThumb} resizeMode="cover" />
+            <Image source={{ uri: cinemaDetails.trailerThumbnail! }} style={styles.trailerThumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={cinemaDetails.trailerThumbnail!} />
             <View style={styles.trailerOverlay} />
             <View style={styles.trailerPlayBtn}>
               <Text style={styles.trailerPlayIcon}>▶</Text>

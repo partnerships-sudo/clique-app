@@ -1,20 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  RefreshControl,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { QueryErrorState } from '@/components/query-error-state';
@@ -402,7 +390,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   accessibilityRole="button"
                   accessibilityLabel={`View ${item.show_title} watch party`}>
                   {item.show_poster ? (
-                    <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
+                    <Image source={{ uri: item.show_poster }} style={styles.wpPoster} cachePolicy="memory-disk" recyclingKey={item.show_poster} />
                   ) : (
                     <View style={[styles.wpPoster, styles.wpPosterFallback]}>
                       <Text style={styles.wpPosterEmoji}>🎬</Text>
@@ -537,7 +525,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                   accessibilityRole="button"
                   accessibilityLabel={`View ${item.show_title} watch party`}>
                   {item.show_poster ? (
-                    <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
+                    <Image source={{ uri: item.show_poster }} style={styles.wpPoster} cachePolicy="memory-disk" recyclingKey={item.show_poster} />
                   ) : (
                     <View style={[styles.wpPoster, styles.wpPosterFallback]}>
                       <Text style={styles.wpPosterEmoji}>🎬</Text>
@@ -594,7 +582,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                     <View style={styles.wpCard}>
                       <Pressable style={styles.wpCardMain} onPress={() => router.push({ pathname: '/premiere-replay', params: { id: item.id } })} accessibilityRole="button" accessibilityLabel={`View ${item.show_title} replay`}>
                         {item.show_poster ? (
-                          <Image source={{ uri: item.show_poster }} style={styles.wpPoster} />
+                          <Image source={{ uri: item.show_poster }} style={styles.wpPoster} cachePolicy="memory-disk" recyclingKey={item.show_poster} />
                         ) : (
                           <View style={[styles.wpPoster, styles.wpPosterFallback]}>
                             <Text style={styles.wpPosterEmoji}>🎬</Text>
@@ -794,7 +782,7 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
                       accessibilityLabel={selected ? `${f.full_name || f.username}, selected` : `Select ${f.full_name || f.username}`}>
                       <View style={styles.wpInviteAvatar}>
                         {f.avatar_url ? (
-                          <Image source={{ uri: f.avatar_url }} style={styles.wpInviteAvatarImg} />
+                          <Image source={{ uri: f.avatar_url }} style={styles.wpInviteAvatarImg} cachePolicy="memory-disk" recyclingKey={f.avatar_url} />
                         ) : (
                           <Text style={styles.wpInviteAvatarFallback}>
                             {(f.full_name ?? f.username ?? '?')[0].toUpperCase()}

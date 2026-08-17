@@ -1,19 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, FlatList, Modal, Pressable, ScrollView, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import * as Haptics from 'expo-haptics';
 import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
@@ -572,8 +561,7 @@ export default function PremiereLive() {
             {premiere.show_poster ? (
               <Image
                 source={{ uri: premiere.show_poster }}
-                style={styles.nowWatchingPoster}
-              />
+                style={styles.nowWatchingPoster} cachePolicy="memory-disk" recyclingKey={premiere.show_poster} />
             ) : (
               <View style={[styles.nowWatchingPoster, styles.nowWatchingPosterFallback]}>
                 <Text style={{ fontSize: 16 }}>📺</Text>

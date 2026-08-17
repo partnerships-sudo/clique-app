@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useMostReviewed, useMostReviewedInCircle, type MostReviewedEntry, type MostReviewedPeriod } from '@/features/feed/api';
@@ -78,7 +79,7 @@ export function MostReviewedSection({ typeFilter, title = 'Most Reviewed' }: { t
 
                 <View style={styles.thumb}>
                   {entry.poster ? (
-                    <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={entry.poster} />
                   ) : (
                     <View style={[StyleSheet.absoluteFill, styles.thumbFallback, { backgroundColor: type.bg }]}>
                       <Text style={{ fontSize: 20 }}>{type.icon}</Text>
@@ -158,7 +159,7 @@ export function CircleRankedSection({ followingIds, title = 'Inner Circle' }: { 
                 <Text style={styles.rank}>{i + 1}</Text>
                 <View style={styles.thumb}>
                   {entry.poster ? (
-                    <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+                    <Image source={{ uri: entry.poster }} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={entry.poster} />
                   ) : (
                     <View style={[StyleSheet.absoluteFill, styles.thumbFallback, { backgroundColor: type.bg }]}>
                       <Text style={{ fontSize: 20 }}>{type.icon}</Text>

@@ -1,7 +1,8 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -70,7 +71,7 @@ export default function PostReactionsModal() {
                 hitSlop={4}>
                 <View style={styles.avatarWrap}>
                   {item.avatar_url ? (
-                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} cachePolicy="memory-disk" recyclingKey={item.avatar_url} />
                   ) : (
                     <Avatar name={item.user_name} size={44} />
                   )}
@@ -111,7 +112,7 @@ export default function PostReactionsModal() {
                 hitSlop={4}>
                 <View style={styles.avatarWrap}>
                   {item.avatar_url ? (
-                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} />
+                    <Image source={{ uri: item.avatar_url }} style={styles.avatar} cachePolicy="memory-disk" recyclingKey={item.avatar_url} />
                   ) : (
                     <Avatar name={item.user_name} size={44} />
                   )}

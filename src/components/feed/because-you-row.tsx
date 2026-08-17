@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import type { TrendingEntry } from '@/features/feed/trending';
@@ -45,8 +46,7 @@ export function BecauseYouRow({
         <Image
           source={{ uri: item.poster }}
           style={StyleSheet.absoluteFill}
-          resizeMode={item.type === 'listen' || item.type === 'podcast' ? 'contain' : 'cover'}
-        />
+          contentFit={item.type === 'listen' || item.type === 'podcast' ? 'contain' : 'cover'} cachePolicy="memory-disk" recyclingKey={item.poster} />
       ) : (
         <View
           style={[StyleSheet.absoluteFill, styles.fallback, { backgroundColor: (TypeColors[item.type] ?? TypeColors.watch).bg }]}>

@@ -1,19 +1,8 @@
 import { SymbolView } from 'expo-symbols';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -276,13 +265,13 @@ export default function PostCommentsModal() {
           <Text style={styles.headerLabel}>Comments</Text>
           <View style={styles.postCard}>
             {postPoster ? (
-              <Image source={{ uri: postPoster }} style={styles.postPoster} resizeMode="cover" />
+              <Image source={{ uri: postPoster }} style={styles.postPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={postPoster} />
             ) : null}
             <View style={styles.postInfo}>
               {postUserName ? (
                 <View style={styles.postAuthorRow}>
                   {postUserAvatar ? (
-                    <Image source={{ uri: postUserAvatar }} style={styles.postAvatar} />
+                    <Image source={{ uri: postUserAvatar }} style={styles.postAvatar} cachePolicy="memory-disk" recyclingKey={postUserAvatar} />
                   ) : null}
                   <Text style={styles.postAuthor}>@{postUserName}</Text>
                 </View>

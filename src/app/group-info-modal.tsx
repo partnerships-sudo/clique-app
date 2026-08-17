@@ -1,7 +1,8 @@
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -76,7 +77,7 @@ export default function GroupInfoModal() {
         <View style={styles.hero}>
           <Pressable onPress={isAdmin ? pickPhoto : undefined} style={styles.photoWrap}>
             {(localPhoto ?? groupInfo?.photo_url) ? (
-              <Image source={{ uri: (localPhoto ?? groupInfo?.photo_url)! }} style={styles.heroPhoto} />
+              <Image source={{ uri: (localPhoto ?? groupInfo?.photo_url)! }} style={styles.heroPhoto} cachePolicy="memory-disk" recyclingKey={(localPhoto ?? groupInfo?.photo_url)!} />
             ) : (
               <View style={styles.heroIcon}>
                 <Text style={styles.heroIconText}>👥</Text>

@@ -1,18 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState, useMemo } from 'react';
-import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ViewShot from 'react-native-view-shot';
 import { SymbolView } from 'expo-symbols';
@@ -235,7 +224,7 @@ export default function PremiereModal() {
           renderItem={({ item }) => (
             <Pressable style={styles.resultRow} onPress={() => handleSelectShow(item)} accessibilityRole="button" accessibilityLabel={item.title}>
               {item.img ? (
-                <Image source={{ uri: item.img }} style={styles.resultPoster} />
+                <Image source={{ uri: item.img }} style={styles.resultPoster} cachePolicy="memory-disk" recyclingKey={item.img} />
               ) : (
                 <View style={[styles.resultPoster, styles.resultPosterFallback]}>
                   <Text style={{ fontSize: 22 }}>🎬</Text>
@@ -285,7 +274,7 @@ export default function PremiereModal() {
             renderItem={({ item: season }) => (
               <Pressable style={styles.resultRow} onPress={() => handleSelectSeason(season)} accessibilityRole="button" accessibilityLabel={`Season ${season.seasonNumber}`}>
                 {season.poster ? (
-                  <Image source={{ uri: season.poster }} style={styles.resultPoster} />
+                  <Image source={{ uri: season.poster }} style={styles.resultPoster} cachePolicy="memory-disk" recyclingKey={season.poster} />
                 ) : (
                   <View style={[styles.resultPoster, styles.resultPosterFallback]}>
                     <Text style={{ fontSize: 22 }}>📺</Text>
@@ -329,7 +318,7 @@ export default function PremiereModal() {
             renderItem={({ item: ep }) => (
               <Pressable style={styles.resultRow} onPress={() => handleSelectEpisode(ep)} accessibilityRole="button" accessibilityLabel={`Episode ${ep.episodeNumber}, ${ep.name}`}>
                 {ep.stillPath ? (
-                  <Image source={{ uri: ep.stillPath }} style={styles.resultStill} />
+                  <Image source={{ uri: ep.stillPath }} style={styles.resultStill} cachePolicy="memory-disk" recyclingKey={ep.stillPath} />
                 ) : (
                   <View style={[styles.resultStill, styles.resultPosterFallback]}>
                     <Text style={{ fontSize: 18 }}>🎬</Text>
@@ -369,7 +358,7 @@ export default function PremiereModal() {
         {/* Show info */}
         <View style={styles.showRow}>
           {showPoster ? (
-            <Image source={{ uri: showPoster }} style={styles.showPoster} />
+            <Image source={{ uri: showPoster }} style={styles.showPoster} cachePolicy="memory-disk" recyclingKey={showPoster} />
           ) : (
             <View style={[styles.showPoster, styles.showPosterFallback]}>
               <Text style={{ fontSize: 28 }}>🎬</Text>
@@ -588,7 +577,7 @@ function InviteCard({
         <View style={card.badge}><Text style={card.badgeText}>PREMIERE</Text></View>
         <View style={card.mainRow}>
           {showPoster ? (
-            <Image source={{ uri: showPoster }} style={card.poster} />
+            <Image source={{ uri: showPoster }} style={card.poster} cachePolicy="memory-disk" recyclingKey={showPoster} />
           ) : (
             <View style={[card.poster, card.posterFallback]}><Text style={{ fontSize: 36 }}>🎬</Text></View>
           )}
@@ -605,7 +594,7 @@ function InviteCard({
         <Text style={card.airDate}>{airDateFormatted}{airTime ? ` · ${airTime}` : ''}</Text>
         <View style={card.hostRow}>
           {hostAvatar ? (
-            <Image source={{ uri: hostAvatar }} style={card.hostAvatar} />
+            <Image source={{ uri: hostAvatar }} style={card.hostAvatar} cachePolicy="memory-disk" recyclingKey={hostAvatar} />
           ) : (
             <View style={[card.hostAvatar, card.hostAvatarFallback]}>
               <Text style={card.hostInitial}>{hostName.charAt(0).toUpperCase()}</Text>

@@ -1,21 +1,7 @@
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import {
-  Alert,
-  Animated,
-  Dimensions,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Animated, Dimensions, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -284,7 +270,7 @@ export default function StoriesModal() {
                   {(activity?.viewers ?? []).slice(0, 3).map((v, i) => (
                     <View key={v.viewer_id} style={[styles.activityAvatar, i > 0 && styles.activityAvatarOverlap]}>
                       {v.viewer_avatar_url ? (
-                        <Image source={{ uri: v.viewer_avatar_url }} style={styles.activityAvatarImg} />
+                        <Image source={{ uri: v.viewer_avatar_url }} style={styles.activityAvatarImg} cachePolicy="memory-disk" recyclingKey={v.viewer_avatar_url} />
                       ) : (
                         <View style={[styles.activityAvatarImg, styles.activityAvatarFallback]}>
                           <Text style={styles.activityAvatarInitial}>{v.viewer_name[0]?.toUpperCase()}</Text>
@@ -427,7 +413,7 @@ export default function StoriesModal() {
                     return (
                       <View key={v.viewer_id} style={styles.sheetRow}>
                         {v.viewer_avatar_url ? (
-                          <Image source={{ uri: v.viewer_avatar_url }} style={styles.sheetAvatar} />
+                          <Image source={{ uri: v.viewer_avatar_url }} style={styles.sheetAvatar} cachePolicy="memory-disk" recyclingKey={v.viewer_avatar_url} />
                         ) : (
                           <View style={[styles.sheetAvatar, styles.sheetAvatarFallback]}>
                             <Text style={styles.sheetAvatarInitial}>{v.viewer_name[0]?.toUpperCase()}</Text>

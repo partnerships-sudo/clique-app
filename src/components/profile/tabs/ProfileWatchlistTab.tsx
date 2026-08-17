@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { ListCard } from '@/components/library/list-card';
@@ -201,7 +202,7 @@ export function ProfileWatchlistTab({ watchlist, isOwnProfile, profileUserId, on
                   onLongPress={() => isOwnProfile && showItemOptions(item)}
                   delayLongPress={400}>
                   {item.poster ? (
-                    <Image source={{ uri: item.poster }} style={styles.wlPoster} resizeMode="cover" />
+                    <Image source={{ uri: item.poster }} style={styles.wlPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
                   ) : (
                     <View style={[styles.wlPoster, styles.wlPosterFallback]}>
                       <Text style={styles.wlPosterFallbackText} numberOfLines={2}>{item.title}</Text>

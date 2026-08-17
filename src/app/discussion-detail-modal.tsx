@@ -7,22 +7,8 @@ import { SymbolView } from 'expo-symbols';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Circle, Svg } from 'react-native-svg';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import {
-  ActionSheetIOS,
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
+import { Image } from 'expo-image';
+import { ActionSheetIOS, ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Platform, Pressable, Share, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Avatar } from '@/components/avatar';
@@ -766,8 +752,7 @@ export default function DiscussionDetailModal() {
             <Image
               source={{ uri: (localImageUrl || discussion.image_url || backdropUrl || discussion.content_poster)! }}
               style={[styles_.heroImage, { marginTop: top }]}
-              resizeMode="cover"
-            />
+              contentFit="cover" cachePolicy="memory-disk" recyclingKey={(localImageUrl || discussion.image_url || backdropUrl || discussion.content_poster)!} />
           ) : (
             <View style={[styles_.heroImage, { marginTop: top, backgroundColor: '#1A1028' }]} />
           )}
@@ -1041,8 +1026,7 @@ export default function DiscussionDetailModal() {
             <Image
               source={{ uri: (localImageUrl || discussion.image_url)! }}
               style={styles_.attachedImage}
-              resizeMode="cover"
-            />
+              contentFit="cover" cachePolicy="memory-disk" recyclingKey={(localImageUrl || discussion.image_url)!} />
           ) : null}
 
           {/* Photo edit row — shown while editing */}
@@ -1051,7 +1035,7 @@ export default function DiscussionDetailModal() {
               {/* Show new local preview OR existing image (unless removed) */}
               {editImageUri ? (
                 <View style={{ position: 'relative', marginTop: 8 }}>
-                  <Image source={{ uri: editImageUri }} style={styles_.attachedImage} resizeMode="cover" />
+                  <Image source={{ uri: editImageUri }} style={styles_.attachedImage} contentFit="cover" cachePolicy="memory-disk" recyclingKey={editImageUri} />
                   <Pressable
                     style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 4 }}
                     accessibilityRole="button"
@@ -1062,7 +1046,7 @@ export default function DiscussionDetailModal() {
                 </View>
               ) : (discussion.image_url && editImageUrl !== null) ? (
                 <View style={{ position: 'relative', marginTop: 8 }}>
-                  <Image source={{ uri: discussion.image_url }} style={styles_.attachedImage} resizeMode="cover" />
+                  <Image source={{ uri: discussion.image_url }} style={styles_.attachedImage} contentFit="cover" cachePolicy="memory-disk" recyclingKey={discussion.image_url} />
                   <Pressable
                     style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 14, padding: 4 }}
                     accessibilityRole="button"

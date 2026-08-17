@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import { Image } from 'expo-image';
 import { ActionSheetIOS } from 'react-native';
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { DiscussionCard } from '@/components/feed/discussion-card';
 import { MostReviewedSection } from '@/components/feed/most-reviewed-section';
@@ -132,7 +133,7 @@ function SearchResults({ query, Brand }: { query: string; Brand: BrandPalette })
                 params: { externalId: row.externalId, mediaType: row.mediaType, title: row.title, poster: row.poster ?? '' },
               })}>
               {row.poster ? (
-                <Image source={{ uri: row.poster }} style={styles.srPoster} resizeMode="cover" />
+                <Image source={{ uri: row.poster }} style={styles.srPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={row.poster} />
               ) : (
                 <View style={[styles.srThumb, { backgroundColor: typeColors.bg, justifyContent: 'center', alignItems: 'center' }]}>
                   <SymbolView name="film" size={16} tintColor={typeColors.color} type="monochrome" style={{ width: 16, height: 16 }} />
@@ -215,7 +216,7 @@ function PersonalizedRoomRow({ room, Brand }: { room: PersonalizedRoom; Brand: R
         })}>
         <View style={styles.roomHeaderLeft}>
           {room.contentPoster ? (
-            <Image source={{ uri: room.contentPoster }} style={styles.roomPoster} resizeMode="cover" />
+            <Image source={{ uri: room.contentPoster }} style={styles.roomPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={room.contentPoster} />
           ) : (
             <View style={[styles.roomPoster, { backgroundColor: typeColors.bg }]} />
           )}
@@ -377,7 +378,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
                         params: { externalId: room.externalId, mediaType: room.mediaType, title: room.contentTitle, poster: room.contentPoster ?? '' },
                       })}>
                       {room.contentPoster ? (
-                        <Image source={{ uri: room.contentPoster }} style={styles.followedPoster} resizeMode="cover" />
+                        <Image source={{ uri: room.contentPoster }} style={styles.followedPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={room.contentPoster} />
                       ) : (
                         <View style={[styles.followedPoster, { backgroundColor: Brand.tlight }]} />
                       )}
@@ -409,7 +410,7 @@ export function GlobalView({ filter }: { filter: FeedFilterValue }) {
                       style={[styles.savedTile, { backgroundColor: Brand.card, borderColor: Brand.border }]}
                       onPress={() => router.push({ pathname: '/discussion-detail-modal', params: { id: d.id } })}>
                       {d.content_poster ? (
-                        <Image source={{ uri: d.content_poster }} style={styles.savedPoster} resizeMode="cover" />
+                        <Image source={{ uri: d.content_poster }} style={styles.savedPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={d.content_poster} />
                       ) : (
                         <View style={[styles.savedPoster, { backgroundColor: Brand.tlight, alignItems: 'center', justifyContent: 'center' }]}>
                           <Text style={{ fontSize: 18 }}>💬</Text>
