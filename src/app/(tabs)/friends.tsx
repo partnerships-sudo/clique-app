@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
 import { FriendCard } from '@/components/friends/friend-card';
 import { FriendRequestCard } from '@/components/friends/friend-request-card';
 import { InviteSheet } from '@/components/friends/invite-sheet';
@@ -842,12 +843,14 @@ export default function FriendsScreen() {
   const {
     data: following,
     isLoading: followingLoading,
+    isError: followingError,
     isFetching: followingFetching,
     refetch: refetchFollowing,
   } = useFollowing();
   const {
     data: followers,
     isLoading: followersLoading,
+    isError: followersError,
     isFetching: followersFetching,
     refetch: refetchFollowers,
   } = useFollowers();
@@ -867,6 +870,7 @@ export default function FriendsScreen() {
 
   const rawList = tab === 'following' ? following : tab === 'followers' ? followers : undefined;
   const isLoading = tab === 'following' ? followingLoading : followersLoading;
+  const isError = tab === 'following' ? followingError : followersError;
   const isFetching = tab === 'following' ? followingFetching : followersFetching;
   const refetch = tab === 'following' ? refetchFollowing : refetchFollowers;
 
@@ -1030,7 +1034,12 @@ export default function FriendsScreen() {
           }
           renderItem={renderFriendItem}
           ListEmptyComponent={
-            !isLoading ? (
+            isError ? (
+              <QueryErrorState
+                title={`Couldn't load your ${tab}`}
+                onRetry={() => refetch()}
+              />
+            ) : !isLoading ? (
               tab === 'following' ? (
                 <View style={styles.emptyWrap}>
                   <Text style={styles.emptyEmoji}>👥</Text>

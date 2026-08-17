@@ -3,6 +3,7 @@ import { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
 import { type Chip } from '@/components/profile/chip-row';
 import { DEFAULT_INTERESTS, EditProfile, type EditProfileHandle } from '@/components/profile/edit-profile';
 import { ProfileCard } from '@/components/profile/profile-card';
@@ -29,7 +30,7 @@ export default function ProfileTab() {
   }, [initialTab]));
   const [shareVisible, setShareVisible] = useState(false);
   const [interests, setInterests] = useState<Chip[]>(DEFAULT_INTERESTS);
-  const { data: profile } = useProfile();
+  const { data: profile, isLoading: profileLoading, isError: profileError, refetch: refetchProfile } = useProfile();
   const { data: allLibrary } = useLibraryItems();
   const { data: followersCount } = useFollowersCount(profile?.id);
   const { data: followingCount } = useFollowingCount(profile?.id);
@@ -42,6 +43,24 @@ export default function ProfileTab() {
   const featuredBadges = featuredBadgeKeys
     .map((key) => badges.find((b) => b.key === key))
     .filter((b): b is (typeof badges)[number] => !!b);
+
+  // Without these the screen rendered a profile card full of blanks whether
+  // the fetch was still running or had failed outright.
+  if (profileLoading && !profile) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <ActivityIndicator style={{ flex: 1 }} color={Brand.trust} />
+      </SafeAreaView>
+    );
+  }
+
+  if (profileError && !profile) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <QueryErrorState title="Couldn't load your profile" onRetry={() => refetchProfile()} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
