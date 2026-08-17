@@ -8,15 +8,16 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as Linking from 'expo-linking';
 import * as Notifications from 'expo-notifications';
-import { router, Stack } from 'expo-router';
+import { router, Stack, type ErrorBoundaryProps } from 'expo-router';
 import { useEffect, useRef } from 'react';
-import { Platform } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Do NOT call SplashScreen.preventAutoHideAsync() here.
 // Expo Router calls _internal_preventAutoHideAsync on startup and
 // _internal_maybeHideAsync when navigation is ready — interfering with that
 // by setting userControlledAutoHideEnabled=true breaks the auto-hide chain.
 
+import { BrandFonts, BrandLight } from '@/constants/theme';
 import { queryClient } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 // import { configureRevenueCat } from '@/features/purchases/api'; // RevenueCat disabled
@@ -266,5 +267,81 @@ function RootLayout() {
     </AppearanceProvider>
   );
 }
+
+/**
+ * App-wide crash screen. Expo Router renders this instead of unmounting the
+ * whole tree when a render throws, so a bug in one screen no longer takes the
+ * app down to a blank screen with no way back.
+ *
+ * `retry()` remounts the failed segment, which recovers from transient errors
+ * (a malformed API response, a missing field) without an app restart.
+ */
+export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
+
+  return (
+    <View style={errorStyles.container}>
+      <Text style={errorStyles.emoji}>🫠</Text>
+      <Text style={errorStyles.title}>This screen hit a snag</Text>
+      <Text style={errorStyles.body}>
+        Something went wrong rendering this page. It's been reported — try again below.
+      </Text>
+      {__DEV__ ? <Text style={errorStyles.detail}>{error.message}</Text> : null}
+      <Pressable
+        style={errorStyles.retryBtn}
+        onPress={retry}
+        accessibilityRole="button"
+        accessibilityLabel="Try loading this screen again">
+        <Text style={errorStyles.retryText}>Try again</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const errorStyles = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    gap: 10,
+    backgroundColor: BrandLight.paper,
+  },
+  emoji: { fontSize: 44 },
+  title: {
+    fontFamily: BrandFonts.syneExtraBold,
+    fontSize: 20,
+    color: BrandLight.ink,
+    textAlign: 'center',
+  },
+  body: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 14,
+    lineHeight: 20,
+    color: BrandLight.muted,
+    textAlign: 'center',
+  },
+  detail: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 11,
+    color: BrandLight.muted,
+    textAlign: 'center',
+    marginTop: 4,
+  },
+  retryBtn: {
+    marginTop: 14,
+    backgroundColor: BrandLight.trust,
+    borderRadius: 14,
+    paddingVertical: 13,
+    paddingHorizontal: 28,
+  },
+  retryText: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 15,
+    color: '#fff',
+  },
+});
 
 export default Sentry.wrap(RootLayout);
