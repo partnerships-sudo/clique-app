@@ -586,8 +586,19 @@ export default function PremiereWaitingRoom() {
                     style={styles.inviteRow}
                     onPress={async () => {
                       if (sent || !params.id) return;
-                      await inviteCoHost.mutateAsync({ premiereId: params.id, friendId: item.friendId });
+                      // Mark as sent before awaiting: this used to be set only
+                      // after the request resolved, so a second tap during that
+                      // window still saw sent === false and sent a duplicate.
                       setCoHostedIds((prev) => new Set([...prev, item.friendId]));
+                      try {
+                        await inviteCoHost.mutateAsync({ premiereId: params.id, friendId: item.friendId });
+                      } catch {
+                        setCoHostedIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(item.friendId);
+                          return next;
+                        });
+                      }
                     }}>
                     <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
                     <Text style={styles.inviteName}>{item.name}</Text>
@@ -619,8 +630,18 @@ export default function PremiereWaitingRoom() {
                     style={styles.inviteRow}
                     onPress={async () => {
                       if (sent || !params.id || !premiere) return;
-                      await inviteToPremiere.mutateAsync({ premiereId: params.id, friendId: item.friendId, showTitle: premiere.show_title });
+                      // Set before awaiting — otherwise a second tap during the
+                      // request sent a duplicate invite.
                       setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                      try {
+                        await inviteToPremiere.mutateAsync({ premiereId: params.id, friendId: item.friendId, showTitle: premiere.show_title });
+                      } catch {
+                        setInvitedIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(item.friendId);
+                          return next;
+                        });
+                      }
                     }}>
                     <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
                     <Text style={styles.inviteName}>{item.name}</Text>

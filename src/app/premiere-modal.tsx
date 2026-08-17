@@ -525,8 +525,18 @@ export default function PremiereModal() {
                     accessibilityLabel={sentToIds.has(thread.friendId) ? `${thread.name}, invited` : `Invite ${thread.name}`}
                     onPress={async () => {
                       if (sent || !createdPremiereId) return;
-                      await inviteToPremiere.mutateAsync({ premiereId: createdPremiereId, friendId: thread.friendId, showTitle });
+                      // Set before awaiting — see premiere-waiting-room: doing
+                      // this after the await left a window for a duplicate tap.
                       setSentToIds((prev) => new Set([...prev, thread.friendId]));
+                      try {
+                        await inviteToPremiere.mutateAsync({ premiereId: createdPremiereId, friendId: thread.friendId, showTitle });
+                      } catch {
+                        setSentToIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(thread.friendId);
+                          return next;
+                        });
+                      }
                     }}>
                     <Avatar name={thread.name} size={36} avatarUrl={thread.avatarUrl} />
                     <Text style={styles.sharePickerName}>{thread.name}</Text>

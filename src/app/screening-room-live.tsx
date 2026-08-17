@@ -513,8 +513,18 @@ export default function ScreeningRoomLive() {
                       style={styles.inviteRow}
                       onPress={async () => {
                         if (sent || !id || !room) return;
-                        await inviteToRoom.mutateAsync({ roomId: id, friendId: item.friendId, title: room.title });
+                        // Set before awaiting — otherwise a second tap during
+                        // the request sent a duplicate invite.
                         setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                        try {
+                          await inviteToRoom.mutateAsync({ roomId: id, friendId: item.friendId, title: room.title });
+                        } catch {
+                          setInvitedIds((prev) => {
+                            const next = new Set(prev);
+                            next.delete(item.friendId);
+                            return next;
+                          });
+                        }
                       }}>
                       <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
                       <Text style={styles.inviteName}>{item.name}</Text>
@@ -702,8 +712,18 @@ export default function ScreeningRoomLive() {
                     accessibilityLabel={invitedIds.has(item.friendId) ? `${item.name}, invited` : `Invite ${item.name}`}
                     onPress={async () => {
                       if (sent || !id || !room) return;
-                      await inviteToRoom.mutateAsync({ roomId: id, friendId: item.friendId, title: room.title });
+                      // Set before awaiting — otherwise a second tap during the
+                      // request sent a duplicate invite.
                       setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                      try {
+                        await inviteToRoom.mutateAsync({ roomId: id, friendId: item.friendId, title: room.title });
+                      } catch {
+                        setInvitedIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(item.friendId);
+                          return next;
+                        });
+                      }
                     }}>
                     <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
                     <Text style={styles.inviteName}>{item.name}</Text>

@@ -803,8 +803,18 @@ export default function PremiereLive() {
                     style={styles.inviteRow}
                     onPress={async () => {
                       if (sent || !params.id || !premiere) return;
-                      await inviteToPremiere.mutateAsync({ premiereId: params.id, friendId: item.friendId, showTitle: premiere.show_title });
+                      // Set before awaiting — otherwise a second tap during the
+                      // request sent a duplicate invite.
                       setInvitedIds((prev) => new Set([...prev, item.friendId]));
+                      try {
+                        await inviteToPremiere.mutateAsync({ premiereId: params.id, friendId: item.friendId, showTitle: premiere.show_title });
+                      } catch {
+                        setInvitedIds((prev) => {
+                          const next = new Set(prev);
+                          next.delete(item.friendId);
+                          return next;
+                        });
+                      }
                     }}>
                     <Avatar name={item.name} size={36} avatarUrl={item.avatarUrl} />
                     <Text style={styles.inviteName}>{item.name}</Text>
