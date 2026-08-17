@@ -11,6 +11,7 @@ import {
   View,
 } from 'react-native';
 
+import { KeyboardAvoidingWrapper } from '@/components/keyboard-avoiding-wrapper';
 import { BrandFonts } from '@/constants/theme';
 import { useContentDetails } from '@/features/content/api';
 import { useUpdateBookProgress } from '@/features/library/api';
@@ -61,16 +62,25 @@ export default function BookProgressModal() {
   }
 
   async function handleSave() {
+    if (updateProgress.isPending) return;
     Keyboard.dismiss();
-    await updateProgress.mutateAsync({ id: params.itemId, page });
-    router.back();
+    try {
+      await updateProgress.mutateAsync({ id: params.itemId, page });
+      router.back();
+    } catch {
+      // The global mutation handler surfaces the message; keep the sheet open
+      // so the entry isn't lost.
+    }
   }
 
   const percent = totalPages ? Math.round((page / totalPages) * 100) : null;
   const styles = createStyles(Brand);
 
   return (
-    <View style={styles.sheet}>
+    // 0.5-detent sheet with the page field partway down and no ScrollView —
+    // without this the keyboard covers the input and there is no way to scroll
+    // it back into view.
+    <KeyboardAvoidingWrapper style={styles.sheet}>
       <View style={styles.header}>
         {params.poster ? (
           <Image source={{ uri: params.poster }} style={styles.poster} resizeMode="cover" />
@@ -125,7 +135,7 @@ export default function BookProgressModal() {
           <Text style={styles.saveBtnText}>Save progress</Text>
         )}
       </Pressable>
-    </View>
+    </KeyboardAvoidingWrapper>
   );
 }
 
