@@ -356,7 +356,7 @@ export const PostCard = memo(function PostCard({
             accessibilityRole="button"
             style={[styles.posterPress, isSquareType && styles.posterPressSquare]}>
             {post.poster ? (
-              <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} contentFit="cover" cachePolicy="memory-disk" />
+              <Image source={{ uri: post.poster }} style={[styles.poster, isSquareType && styles.posterSquare]} contentFit="cover" cachePolicy="memory-disk" recyclingKey={post.poster} />
             ) : (
               <View style={[styles.poster, isSquareType && styles.posterSquare, styles.posterFallback, { backgroundColor: type.bg }]}>
                 <Text style={styles.posterFallbackEmoji}>{type.icon}</Text>

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import type { ChatThread } from '@/features/chats/api';
@@ -15,7 +16,7 @@ export function ChatListItem({ thread, onPress }: { thread: ChatThread; onPress:
   return (
     <Pressable style={styles.card} onPress={onPress}>
       {thread.poster ? (
-        <Image source={{ uri: thread.poster }} style={styles.icon} />
+        <Image source={{ uri: thread.poster }} style={styles.icon} cachePolicy="memory-disk" recyclingKey={thread.poster} />
       ) : (
         <View style={[styles.icon, { backgroundColor: type.bg }]}>
           <Text style={styles.iconText}>{type.icon}</Text>

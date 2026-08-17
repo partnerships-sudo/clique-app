@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { memo, useCallback, useMemo } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { AvatarSizes, BrandFonts, Spacing, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
@@ -52,8 +53,7 @@ function Top10Card({
         <Image
           source={{ uri: entry.poster }}
           style={StyleSheet.absoluteFill}
-          resizeMode={needsContainFit ? 'contain' : 'cover'}
-        />
+          contentFit={needsContainFit ? 'contain' : 'cover'} cachePolicy="memory-disk" recyclingKey={entry.poster} />
       ) : (
         <View
           style={[
@@ -177,8 +177,7 @@ export const TrendingList = memo(function TrendingList({
                   <Image
                     source={{ uri: entry.poster }}
                     style={styles.typeIcon}
-                    resizeMode="cover"
-                  />
+                    contentFit="cover" cachePolicy="memory-disk" recyclingKey={entry.poster} />
                 ) : (
                   <View style={[styles.typeIcon, { backgroundColor: type.bg }]}>
                     <Text style={styles.typeIconText}>{type.icon}</Text>

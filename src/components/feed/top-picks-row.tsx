@@ -1,7 +1,8 @@
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useCallback, useMemo } from 'react';
-import { FlatList, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AvatarSizes, BrandFonts, Spacing, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
 import type { TrendingEntry } from '@/features/feed/trending';
@@ -55,8 +56,7 @@ function TopPickCard({
         <Image
           source={{ uri: entry.poster }}
           style={StyleSheet.absoluteFill}
-          resizeMode={needsContainFit ? 'contain' : 'cover'}
-        />
+          contentFit={needsContainFit ? 'contain' : 'cover'} cachePolicy="memory-disk" recyclingKey={entry.poster} />
       ) : (
         <View
           style={[StyleSheet.absoluteFill, styles.posterFallback, { backgroundColor: (TypeColors[entry.type] ?? TypeColors.watch).bg }]}>

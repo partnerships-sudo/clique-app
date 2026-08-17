@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { useMemo } from 'react';
-import { Alert, Dimensions, Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Alert, Dimensions, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Spacing, type BrandPalette, type TypeColorPalette } from '@/constants/theme';
 import type { CollectionItem } from '@/features/collection/api';
@@ -50,7 +51,7 @@ export function CollectionItemCard({
       onLongPress={onRemove ? handleLongPress : undefined}
       delayLongPress={350}>
       {item.poster ? (
-        <Image source={{ uri: item.poster }} style={styles.poster} resizeMode="cover" />
+        <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
       ) : (
         <View style={[styles.poster, styles.posterFallback, { backgroundColor: type.bg }]}>
           <Text style={styles.posterIcon}>{type.icon}</Text>

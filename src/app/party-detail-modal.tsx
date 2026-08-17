@@ -106,7 +106,7 @@ export default function PartyDetailModal() {
         <View style={styles.card}>
           <View style={styles.cardTop}>
             {premiere.show_poster ? (
-              <Image source={{ uri: premiere.show_poster }} style={styles.poster} contentFit="cover" />
+              <Image source={{ uri: premiere.show_poster }} style={styles.poster} contentFit="cover" recyclingKey={premiere.show_poster} />
             ) : (
               <View style={[styles.poster, styles.posterFallback]}>
                 <Text style={styles.posterEmoji}>🎬</Text>

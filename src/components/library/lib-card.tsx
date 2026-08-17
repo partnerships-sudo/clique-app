@@ -47,7 +47,7 @@ export function LibCard({ item }: { item: LibraryItem }) {
     <View style={styles.card}>
       <Pressable onPress={openRateModal} hitSlop={4}>
         {item.poster ? (
-          <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" />
+          <Image source={{ uri: item.poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.poster} />
         ) : (
           <View style={[styles.typeIcon, { backgroundColor: type.bg }]}>
             <Text style={styles.typeIconText}>{type.icon}</Text>

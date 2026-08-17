@@ -1,4 +1,5 @@
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import type { ListSummary } from '@/features/lists/api';
@@ -20,27 +21,27 @@ export function ListCard({ list, Brand, onPress, onLongPress }: Props) {
       <View style={styles.mosaic}>
         {posters.length === 0 && <View style={[styles.mosaicFill, styles.emptyMosaic]} />}
         {posters.length === 1 && (
-          <Image source={{ uri: posters[0]! }} style={styles.mosaicFill} resizeMode="cover" />
+          <Image source={{ uri: posters[0]! }} style={styles.mosaicFill} contentFit="cover" cachePolicy="memory-disk" recyclingKey={posters[0]!} />
         )}
         {posters.length === 2 && (
           <View style={styles.mosaicRow}>
-            <Image source={{ uri: posters[0]! }} style={styles.mosaicHalf} resizeMode="cover" />
-            <Image source={{ uri: posters[1]! }} style={styles.mosaicHalf} resizeMode="cover" />
+            <Image source={{ uri: posters[0]! }} style={styles.mosaicHalf} contentFit="cover" cachePolicy="memory-disk" recyclingKey={posters[0]!} />
+            <Image source={{ uri: posters[1]! }} style={styles.mosaicHalf} contentFit="cover" cachePolicy="memory-disk" recyclingKey={posters[1]!} />
           </View>
         )}
         {posters.length === 3 && (
           <View style={styles.mosaicRow}>
-            <Image source={{ uri: posters[0]! }} style={styles.mosaicHalf} resizeMode="cover" />
+            <Image source={{ uri: posters[0]! }} style={styles.mosaicHalf} contentFit="cover" cachePolicy="memory-disk" recyclingKey={posters[0]!} />
             <View style={styles.mosaicCol}>
-              <Image source={{ uri: posters[1]! }} style={styles.mosaicQuarter} resizeMode="cover" />
-              <Image source={{ uri: posters[2]! }} style={styles.mosaicQuarter} resizeMode="cover" />
+              <Image source={{ uri: posters[1]! }} style={styles.mosaicQuarter} contentFit="cover" cachePolicy="memory-disk" recyclingKey={posters[1]!} />
+              <Image source={{ uri: posters[2]! }} style={styles.mosaicQuarter} contentFit="cover" cachePolicy="memory-disk" recyclingKey={posters[2]!} />
             </View>
           </View>
         )}
         {posters.length >= 4 && (
           <View style={styles.mosaicGrid}>
             {posters.map((p, i) => (
-              <Image key={i} source={{ uri: p! }} style={styles.mosaicQuarterGrid} resizeMode="cover" />
+              <Image key={i} source={{ uri: p! }} style={styles.mosaicQuarterGrid} contentFit="cover" cachePolicy="memory-disk" recyclingKey={p!} />
             ))}
           </View>
         )}

@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import type { GroupThread } from '@/features/groups/api';
@@ -13,7 +14,7 @@ export function GroupListItem({ thread, onPress }: { thread: GroupThread; onPres
   return (
     <Pressable style={styles.card} onPress={onPress}>
       {thread.photoUrl ? (
-        <Image source={{ uri: thread.photoUrl }} style={styles.photo} />
+        <Image source={{ uri: thread.photoUrl }} style={styles.photo} cachePolicy="memory-disk" recyclingKey={thread.photoUrl} />
       ) : (
         <View style={styles.icon}>
           <Text style={styles.iconText}>👥</Text>

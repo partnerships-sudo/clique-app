@@ -1,7 +1,8 @@
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
@@ -99,7 +100,7 @@ export function FriendCard({
               }</Text>
               <View style={styles.watchingRow}>
                 {currentlyWatching.poster ? (
-                  <Image source={{ uri: currentlyWatching.poster }} style={styles.watchingPoster} resizeMode="cover" />
+                  <Image source={{ uri: currentlyWatching.poster }} style={styles.watchingPoster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={currentlyWatching.poster} />
                 ) : null}
                 <Text style={styles.watchingTitle} numberOfLines={3}>{currentlyWatching.title}</Text>
               </View>

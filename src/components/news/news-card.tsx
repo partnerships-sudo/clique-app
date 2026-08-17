@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image } from 'expo-image';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import { timeAgo } from '@/features/feed/time-ago';
@@ -12,7 +13,7 @@ export function NewsCard({ article, onPress }: { article: NewsArticle; onPress: 
   return (
     <Pressable style={styles.card} onPress={onPress}>
       {article.thumbnail ? (
-        <Image source={{ uri: article.thumbnail }} style={styles.thumbnail} />
+        <Image source={{ uri: article.thumbnail }} style={styles.thumbnail} cachePolicy="memory-disk" recyclingKey={article.thumbnail} />
       ) : (
         <View style={[styles.thumbnail, styles.thumbnailFallback]}>
           <Text style={styles.thumbnailEmoji}>📰</Text>

@@ -52,8 +52,7 @@ export function Avatar({
       source={{ uri: avatarUrl }}
       style={{ width: size, height: size, borderRadius: size / 2 }}
       contentFit="cover"
-      cachePolicy="memory-disk"
-    />
+      cachePolicy="memory-disk" recyclingKey={avatarUrl} />
   ) : (
     <View
       style={[
