@@ -499,7 +499,8 @@ export const PostCard = memo(function PostCard({
                 }
                 hitSlop={4}
                 accessibilityLabel={emojiSummary.mine.has(emoji) ? `Remove ${emoji} reaction, ${count} total` : `React with ${emoji}, ${count} total`}
-                accessibilityRole="button">
+                accessibilityRole="button"
+                accessibilityState={{ selected: emojiSummary.mine.has(emoji) }}>
                 <Text style={styles.emojiPillText}>{emoji} {count}</Text>
               </Pressable>
             ))}
@@ -513,6 +514,7 @@ export const PostCard = memo(function PostCard({
                 onPress={onToggleReaction}
                 accessibilityLabel={meReacted ? `Remove Me too` : `Me too`}
                 accessibilityRole="button"
+                accessibilityState={{ selected: meReacted }}
                 style={[styles.reactBtn, meReacted && styles.reactBtnActive]}>
                 <Text style={[styles.reactText, meReacted && styles.reactTextActive]}>✦ Me too!</Text>
               </Pressable>

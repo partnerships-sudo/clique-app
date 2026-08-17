@@ -157,6 +157,7 @@ export default function SettingsScreen() {
                 return (
                   <Pressable
                     key={opt.value}
+                    accessibilityState={{ selected: active }}
                     style={[styles.pickerTile, active && styles.pickerTileActive]}
                     accessibilityRole="button"
                     accessibilityLabel={opt.label}

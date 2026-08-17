@@ -61,6 +61,7 @@ export const FilterChips = memo(function FilterChips({
               onPress={() => onChange(filter.value)}
               accessibilityRole="button"
               accessibilityLabel={filter.label}
+              accessibilityState={{ selected: active }}
               style={[styles.labelPill, active && styles.labelPillActive]}>
               <Text style={[styles.labelPillText, active && styles.labelPillTextActive]}>{filter.label}</Text>
             </Pressable>
@@ -106,6 +107,7 @@ export const FilterChips = memo(function FilterChips({
                 onPress={() => onChange(filter.value)}
                 accessibilityRole="button"
                 accessibilityLabel={filter.label}
+                accessibilityState={{ selected: active }}
                 style={[styles.pill, active && styles.pillActive]}>
                 <SymbolView
                   name={filter.symbol as any}

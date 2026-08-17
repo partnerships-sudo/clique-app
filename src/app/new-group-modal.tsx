@@ -86,6 +86,7 @@ export default function NewGroupModal() {
           return (
             <Pressable
               key={friend.id}
+              accessibilityState={{ selected: isSelected }}
               style={[styles.friendRow, isSelected && styles.friendRowSelected]}
               onPress={() => toggleFriend(friend.id)}>
               <Avatar
