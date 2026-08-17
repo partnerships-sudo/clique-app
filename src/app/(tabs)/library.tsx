@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Image, Modal, Pressable, RefreshControl, StyleSheet, Text, TextInput, Vibration, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
 import { FilterChips } from '@/components/feed/filter-chips';
 import { CollectionItemCard } from '@/components/library/collection-item-card';
 import { LibCard } from '@/components/library/lib-card';
@@ -70,7 +71,7 @@ export default function LibraryScreen() {
   const [sort, setSort] = useState<LibrarySort>('recent');
 
   const { data: profile } = useProfile();
-  const { logged, watchlist, friendRecItems, isLoading, isFetching, refetch } = useLibraryItems();
+  const { logged, watchlist, friendRecItems, isLoading, isError, isFetching, refetch } = useLibraryItems();
   const moveToLibrary = useMoveToLibrary();
   const removeItem = useRemoveLibraryItem();
   const rateItem = useRateLibraryItem();
@@ -274,6 +275,16 @@ export default function LibraryScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ActivityIndicator style={{ flex: 1 }} color={Brand.trust} />
+      </SafeAreaView>
+    );
+  }
+
+  // Without this, a failed fetch renders the empty state — which reads as
+  // "your library is empty" rather than "we couldn't load it".
+  if (isError && logged.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <QueryErrorState title="Couldn't load your library" onRetry={() => refetch()} />
       </SafeAreaView>
     );
   }

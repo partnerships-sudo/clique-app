@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { SymbolView } from 'expo-symbols';
 
+import { QueryErrorState } from '@/components/query-error-state';
 import { DmListItem } from '@/components/chat/dm-list-item';
 import { GroupListItem } from '@/components/chat/group-list-item';
 import { SwipeableChatRow } from '@/components/chat/swipeable-chat-row';
@@ -25,9 +26,10 @@ export default function ChatsScreen() {
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [mode, setMode] = useState<ChatsMode>('private');
   const [query, setQuery] = useState('');
-  const { threads: dmThreads, requestThreads, markRead: markDmRead, isLoading: dmLoading } = useDmThreads();
-  const { threads: groupThreads, markRead: markGroupRead, isLoading: groupLoading } = useGroupThreads();
+  const { threads: dmThreads, requestThreads, markRead: markDmRead, isLoading: dmLoading, isError: dmError, refetch: refetchDms } = useDmThreads();
+  const { threads: groupThreads, markRead: markGroupRead, isLoading: groupLoading, isError: groupError, refetch: refetchGroups } = useGroupThreads();
   const isLoading = dmLoading && groupLoading;
+  const isError = dmError && groupError;
   const { archived, archive, softDelete } = useArchivedChats();
   const trimmedQuery = query.trim().toLowerCase();
   const isRequests = mode === 'requests';
@@ -162,6 +164,19 @@ export default function ChatsScreen() {
     return (
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ActivityIndicator style={{ flex: 1 }} color={Brand.trust} />
+      </SafeAreaView>
+    );
+  }
+
+  // A failed fetch would otherwise render the empty state, which reads as
+  // "you have no messages" rather than "we couldn't load them".
+  if (isError && privateItems.length === 0) {
+    return (
+      <SafeAreaView style={styles.safeArea} edges={['top']}>
+        <QueryErrorState
+          title="Couldn't load your chats"
+          onRetry={() => { refetchDms(); refetchGroups(); }}
+        />
       </SafeAreaView>
     );
   }
