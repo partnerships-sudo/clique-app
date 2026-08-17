@@ -10,7 +10,7 @@
     "ios": {
       "icon": "./assets/images/icon.png",
       "bundleIdentifier": "com.lanapolitano.thecliqueapp",
-      "buildNumber": "10",
+      "buildNumber": "50",
       "entitlements": {
         "com.apple.developer.applesignin": [
           "Default"
