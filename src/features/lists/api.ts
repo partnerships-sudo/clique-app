@@ -431,6 +431,10 @@ export function useToggleCommentLike() {
     onError: (_e, { listId }, ctx) => {
       if (ctx?.prev) qc.setQueryData(listCommentsKey(listId), ctx.prev);
     },
+    // Without this the optimistic count is never reconciled with the server,
+    // so a concurrent like from someone else leaves this client permanently
+    // out of step. useToggleListLike above already settles this way.
+    onSettled: (_d, _e, { listId }) => qc.invalidateQueries({ queryKey: listCommentsKey(listId) }),
   });
 }
 
