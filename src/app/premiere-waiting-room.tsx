@@ -478,7 +478,7 @@ export default function PremiereWaitingRoom() {
               onSubmitEditing={sendMessage}
               returnKeyType="send"
             />
-            <Pressable style={styles.sendBtn} onPress={sendMessage} disabled={!text.trim()}>
+            <Pressable style={styles.sendBtn} onPress={sendMessage} disabled={!text.trim()} hitSlop={8}>
               <Text style={styles.sendBtnText}>↑</Text>
             </Pressable>
           </View>

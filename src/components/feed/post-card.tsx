@@ -457,6 +457,7 @@ export const PostCard = memo(function PostCard({
                 <Pressable
                   key={e}
                   style={[styles.emojiPickerBtn, emojiSummary.mine.has(e) && styles.emojiPickerBtnActive]}
+                  hitSlop={8}
                   onPress={() => {
                     toggleEmoji.mutate({ postId: post.id, emoji: e, reacted: emojiSummary.mine.has(e) });
                     setShowEmojiPicker(false);

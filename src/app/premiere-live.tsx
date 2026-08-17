@@ -666,6 +666,7 @@ export default function PremiereLive() {
                 <Pressable
                   key={emoji}
                   style={styles.emojiBarBtn}
+                  hitSlop={8}
                   onPress={() => setText((t) => t + emoji)}
                 >
                   <Text style={styles.emojiBarEmoji}>{emoji}</Text>
@@ -743,7 +744,7 @@ export default function PremiereLive() {
           )}
 
           <View style={styles.inputRow}>
-            <Pressable style={styles.emojiToggleBtn} onPress={() => setShowEmojiBar((v) => !v)}>
+            <Pressable style={styles.emojiToggleBtn} hitSlop={8} onPress={() => setShowEmojiBar((v) => !v)}>
               <Text style={styles.emojiToggleText}>{showEmojiBar ? '⌨️' : '😊'}</Text>
             </Pressable>
             <TextInput
@@ -755,7 +756,7 @@ export default function PremiereLive() {
               onSubmitEditing={handleSend}
               returnKeyType="send"
             />
-            <Pressable style={styles.sendBtn} onPress={handleSend} disabled={!text.trim() || sendMsg.isPending}>
+            <Pressable style={styles.sendBtn} onPress={handleSend} disabled={!text.trim() || sendMsg.isPending} hitSlop={8}>
               <Text style={styles.sendBtnText}>↑</Text>
             </Pressable>
           </View>

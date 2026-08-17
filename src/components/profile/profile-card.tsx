@@ -261,7 +261,7 @@ export function ProfileCard({
       {/* Rate-and-log sheet */}
       {/* Avatar zoom */}
       <Modal visible={avatarZoom} transparent animationType="fade" onRequestClose={() => setAvatarZoom(false)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setAvatarZoom(false)}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close photo" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.88)', alignItems: 'center', justifyContent: 'center' }} onPress={() => setAvatarZoom(false)}>
           {profile?.avatar_url ? (
             <Image source={{ uri: profile.avatar_url }} style={{ width: 280, height: 280, borderRadius: 140 }} contentFit="cover" cachePolicy="memory-disk" recyclingKey={profile.avatar_url} />
           ) : null}

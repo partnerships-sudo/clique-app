@@ -552,7 +552,7 @@ export default function ScreeningRoomLive() {
             returnKeyType="send"
             editable={!!id}
           />
-          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
+          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message" hitSlop={8}>
             <SymbolView name="arrow.up" size={16} tintColor="#fff" type="monochrome" />
           </Pressable>
         </View>
@@ -805,7 +805,7 @@ export default function ScreeningRoomLive() {
             returnKeyType="send"
             editable={!!id}
           />
-          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message">
+          <Pressable style={[styles.sendBtn, !text.trim() && styles.sendBtnDisabled]} onPress={handleSend} disabled={!text.trim()} accessibilityRole="button" accessibilityLabel="Send message" hitSlop={8}>
             <SymbolView name="arrow.up" size={16} tintColor="#fff" type="monochrome" />
           </Pressable>
         </View>

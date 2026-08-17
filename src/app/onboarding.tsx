@@ -222,7 +222,7 @@ export default function OnboardingScreen() {
         <View style={styles.stepWrap}>
           <Text style={styles.stepTitle}>Add a photo</Text>
           <Text style={styles.stepSub}>Help your friends find you.</Text>
-          <Pressable style={styles.avatarPicker} onPress={pickPhoto} disabled={uploadAvatar.isPending}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Choose a profile photo" style={styles.avatarPicker} onPress={pickPhoto} disabled={uploadAvatar.isPending}>
             {uploadAvatar.isPending ? (
               <ActivityIndicator color={Brand.trust} />
             ) : (

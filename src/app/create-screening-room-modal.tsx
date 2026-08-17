@@ -75,7 +75,7 @@ export default function CreateScreeningRoomModal() {
     return (
       <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.gateHeader}>
-          <Pressable onPress={() => router.back()} hitSlop={12}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} hitSlop={12}>
             <SymbolView name="xmark" size={18} tintColor={Brand.ink} type="monochrome" />
           </Pressable>
         </View>

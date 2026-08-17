@@ -36,7 +36,7 @@ export default function WatchPartyAnalyticsModal() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} hitSlop={12}>
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
         <View style={styles.headerCenter}>

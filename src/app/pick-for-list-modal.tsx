@@ -68,7 +68,7 @@ export default function PickForListModal() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" onPress={() => router.back()} hitSlop={12}>
           <SymbolView name="xmark" size={18} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>Add to "{listTitle}"</Text>

@@ -91,7 +91,7 @@ export default function TasteDetailModal() {
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} hitSlop={12}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Go back" onPress={() => router.back()} hitSlop={12}>
           <SymbolView name="chevron.left" size={20} tintColor={Brand.ink} type="monochrome" />
         </Pressable>
         <Text style={styles.headerTitle}>Taste Match</Text>

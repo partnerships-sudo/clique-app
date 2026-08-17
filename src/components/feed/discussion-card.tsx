@@ -113,6 +113,8 @@ export const DiscussionCard = memo(function DiscussionCard({ item, suppressConte
         {/* Poster — flush to card edge */}
         {item.content_poster ? (
           <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open ${item.content_title ?? 'this title'}`}
             onPress={(e) => { e.stopPropagation(); handleOpenContentRoom(); }}
             disabled={!hasLinkedContent}>
             <Image source={{ uri: item.content_poster }} style={styles.poster} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.content_poster} />

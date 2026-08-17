@@ -204,6 +204,7 @@ export default function TriviaSetupModal() {
                   styles.optionLetter,
                   itemType === 'trivia' && correctIdx === i && styles.optionLetterCorrect,
                 ]}
+                hitSlop={8}
                 onPress={() => itemType === 'trivia' && setCorrectIdx(i)}
               >
                 <Text style={[

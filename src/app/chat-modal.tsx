@@ -460,7 +460,10 @@ export default function ChatModal() {
                   ))}
                 </Pressable>
               ) : null}
-              <Pressable onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={searchVisible ? 'Close search' : 'Search messages'}
+                onPress={toggleSearch} hitSlop={10} style={styles.searchToggleBtn}>
                 <SymbolView
                   name={searchVisible ? 'xmark' : 'magnifyingglass'}
                   size={16}
@@ -844,7 +847,7 @@ export default function ChatModal() {
                 contentContainerStyle={styles.gifGrid}
                 columnWrapperStyle={{ gap: 4 }}
                 renderItem={({ item }) => (
-                  <Pressable onPress={() => sendGif(item)} style={styles.gifCell}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Send this GIF" onPress={() => sendGif(item)} style={styles.gifCell}>
                     <Image source={{ uri: item.preview }} style={styles.gifThumb} contentFit="cover" cachePolicy="memory-disk" recyclingKey={item.preview} />
                   </Pressable>
                 )}
