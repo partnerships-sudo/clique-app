@@ -1,6 +1,8 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router } from 'expo-router';
 
+import { supabase } from './supabase';
+
 /**
  * Where a user goes once a session exists.
  *
@@ -14,8 +16,35 @@ export async function routeAfterAuth(userId: string) {
   // their way to reset-password and must not be bounced into the app.
   if (isRecoveringPassword()) return;
 
-  const done = await AsyncStorage.getItem(onboardingKey(userId));
-  router.replace(done ? '/(tabs)' : '/onboarding');
+  router.replace((await hasOnboarded(userId)) ? '/(tabs)' : '/onboarding');
+}
+
+/**
+ * Completion lives on the profile so it survives a reinstall or a second
+ * device. AsyncStorage is kept as a local cache so the common case doesn't wait
+ * on a network round trip, and so a failed request doesn't re-onboard someone.
+ */
+async function hasOnboarded(userId: string): Promise<boolean> {
+  const cached = await AsyncStorage.getItem(onboardingKey(userId)).catch(() => null);
+  if (cached) return true;
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('onboarded_at')
+    .eq('id', userId)
+    .maybeSingle();
+
+  // On error — network failure, or the onboarded_at migration not yet applied —
+  // fall back to the previous local-flag-only behaviour. Returning true here
+  // would silently skip onboarding for every new signup if the column is
+  // missing, which is exactly the bug this change exists to fix.
+  if (error) return false;
+
+  if (data?.onboarded_at) {
+    await AsyncStorage.setItem(onboardingKey(userId), 'done').catch(() => {});
+    return true;
+  }
+  return false;
 }
 
 export function onboardingKey(userId: string) {
@@ -23,7 +52,11 @@ export function onboardingKey(userId: string) {
 }
 
 export async function markOnboardingDone(userId: string) {
-  await AsyncStorage.setItem(onboardingKey(userId), 'done');
+  await AsyncStorage.setItem(onboardingKey(userId), 'done').catch(() => {});
+  await supabase
+    .from('profiles')
+    .update({ onboarded_at: new Date().toISOString() })
+    .eq('id', userId);
 }
 
 // ── Password recovery ────────────────────────────────────────────────────────
