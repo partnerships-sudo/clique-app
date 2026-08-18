@@ -1,4 +1,4 @@
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
@@ -29,7 +29,20 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSendingReset, setIsSendingReset] = useState(false);
   const [isSocialLoading, setIsSocialLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
   const hasRedirected = useRef(false);
+
+  // Set when a password-recovery link fails to produce a session (expired, or
+  // already opened). Without this the user is bounced here with no explanation.
+  const { resetError } = useLocalSearchParams<{ resetError?: string }>();
+  useEffect(() => {
+    if (resetError) {
+      setMessage({
+        text: `That reset link didn't work: ${resetError}. Request a new one below.`,
+        isError: true,
+      });
+    }
+  }, [resetError]);
 
   useEffect(() => {
     if (session && !hasRedirected.current) {
@@ -52,10 +65,13 @@ export default function LoginScreen() {
       redirectTo: 'thecliqueapp://reset-password',
     });
     setIsSendingReset(false);
-    setMessage({
-      text: error ? error.message : 'Check your email for a password reset link.',
-      isError: !!error,
-    });
+    if (error) {
+      setMessage({ text: error.message, isError: true });
+      return;
+    }
+    setResetSent(true);
+    setPassword('');
+    setMessage(null);
   }
 
   async function handleSubmit() {
@@ -115,31 +131,52 @@ export default function LoginScreen() {
             autoComplete="email"
             keyboardType="email-address"
           />
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor={Brand.muted}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          {resetSent ? (
+            /* A reset is in flight — a password box and a Log in button here just
+               invite the user to try the credentials they've already forgotten. */
+            <View style={styles.resetSentBlock}>
+              <Text style={styles.resetSentTitle}>Check your email</Text>
+              <Text style={styles.resetSentBody}>
+                We sent a reset link to {email.trim()}. Open it on this device to choose a
+                new password.
+              </Text>
+              <Pressable
+                onPress={() => { setResetSent(false); setMessage(null); }}
+                hitSlop={16}
+                style={styles.forgotBtn}
+                accessibilityRole="button">
+                <Text style={styles.forgotText}>← Back to log in</Text>
+              </Pressable>
+            </View>
+          ) : (
+            <>
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                placeholderTextColor={Brand.muted}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
 
-          <Pressable
-            style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
-            onPress={handleSubmit}
-            disabled={isSubmitting}>
-            {isSubmitting ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.submitText}>Log in →</Text>
-            )}
-          </Pressable>
+              <Pressable
+                style={[styles.submitBtn, isSubmitting && styles.submitBtnDisabled]}
+                onPress={handleSubmit}
+                disabled={isSubmitting}>
+                {isSubmitting ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <Text style={styles.submitText}>Log in →</Text>
+                )}
+              </Pressable>
 
-          <Pressable onPress={handleForgotPassword} disabled={isSendingReset} hitSlop={16} style={styles.forgotBtn}>
-            <Text style={styles.forgotText}>
-              {isSendingReset ? 'Sending…' : 'Forgot password?'}
-            </Text>
-          </Pressable>
+              <Pressable onPress={handleForgotPassword} disabled={isSendingReset} hitSlop={16} style={styles.forgotBtn}>
+                <Text style={styles.forgotText}>
+                  {isSendingReset ? 'Sending…' : 'Forgot password?'}
+                </Text>
+              </Pressable>
+            </>
+          )}
 
           {message ? (
             <Text style={[styles.message, { color: message.isError ? '#E84F4F' : '#4FE87B' }]}>
@@ -276,6 +313,24 @@ function createStyles(Brand: BrandPalette) {
     color: '#fff',
   },
   forgotBtn: { alignItems: 'center', marginTop: 12 },
+  resetSentBlock: {
+    backgroundColor: Brand.tlight,
+    borderRadius: 12,
+    padding: Spacing.three,
+    marginTop: 4,
+  },
+  resetSentTitle: {
+    fontFamily: BrandFonts.syneBold,
+    fontSize: 15,
+    color: Brand.ink,
+    marginBottom: 6,
+  },
+  resetSentBody: {
+    fontFamily: BrandFonts.interRegular,
+    fontSize: 13,
+    lineHeight: 19,
+    color: Brand.muted,
+  },
   forgotText: {
     fontFamily: BrandFonts.interRegular,
     fontSize: 13,

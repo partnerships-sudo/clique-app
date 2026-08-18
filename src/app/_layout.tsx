@@ -236,8 +236,9 @@ function RootLayoutInner() {
         });
         if (error) {
           endPasswordRecovery();
-          // Expired or already-used link: send them back to request a new one.
-          router.replace('/(auth)');
+          // Expired or already-used link. Send them back with the reason —
+          // bouncing to login silently looks like the app simply ignored them.
+          router.replace({ pathname: '/(auth)', params: { resetError: error.message } });
           return;
         }
       }

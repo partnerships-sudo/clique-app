@@ -1,5 +1,5 @@
 import { useRouter } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -24,6 +24,14 @@ export default function ResetPasswordScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<{ text: string; isError: boolean } | null>(null);
   const [done, setDone] = useState(false);
+  const [hasRecoverySession, setHasRecoverySession] = useState<boolean | null>(null);
+
+  // This screen is reachable from a bare `thecliqueapp://reset-password` link,
+  // with no recovery session behind it. Without this check the form accepts two
+  // passwords and then fails on submit with "Auth session missing".
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => setHasRecoverySession(!!data.session));
+  }, []);
 
   async function handleReset() {
     if (!password || !confirm) {
@@ -52,6 +60,25 @@ export default function ResetPasswordScreen() {
     await supabase.auth.signOut();
     setIsSubmitting(false);
     setDone(true);
+  }
+
+  if (hasRecoverySession === false) {
+    return (
+      <KeyboardAvoidingWrapper>
+        <View style={styles.container}>
+          <View style={styles.card}>
+            <Text style={styles.title}>This link has expired</Text>
+            <Text style={styles.sub}>
+              Password reset links can only be opened once. Request a new one and open it
+              on this device.
+            </Text>
+            <Pressable style={styles.btn} onPress={() => router.replace('/(auth)')}>
+              <Text style={styles.btnText}>Back to login →</Text>
+            </Pressable>
+          </View>
+        </View>
+      </KeyboardAvoidingWrapper>
+    );
   }
 
   if (done) {
