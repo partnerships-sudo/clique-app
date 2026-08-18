@@ -59,6 +59,7 @@
     "babel-preset-expo": "~54.0.11",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~10.0.0",
+    "expo-atlas": "^0.4.0",
     "patch-package": "^8.0.1",
     "typescript": "~5.9.2"
   },
