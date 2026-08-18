@@ -30,9 +30,9 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env
-.env*.local
+# local env files — covers .env plus any .env.bak/.env.old/.env.local copy.
+# If a committed .env.example is ever added, force it with `git add -f`.
+.env*
 
 # typescript
 *.tsbuildinfo
