@@ -2,15 +2,15 @@
  * On the Radar — upcoming releases for Albums, Books, and Podcasts.
  *
  * Albums:  Spotify (client credentials flow, no user login needed)
- * Books:   Google Books API (with EXPO_PUBLIC_GOOGLE_BOOKS_KEY)
+ * Books:   Hardcover, via the hardcover-proxy edge function
  * Podcasts: Podcast Index API
  */
 
 import { useQuery } from '@tanstack/react-query';
 
+import { hardcoverQuery } from '@/lib/hardcover';
 import { supabase } from '@/lib/supabase';
 
-const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN ?? '';
 
 
 // ── Albums ────────────────────────────────────────────────────────────────────
@@ -87,17 +87,8 @@ async function fetchUpcomingBooks(): Promise<UpcomingBook[]> {
         contributions { author { name } }
       }
     }`;
-    const res = await fetch('https://api.hardcover.app/v1/graphql', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${HARDCOVER_TOKEN}`,
-      },
-      body: JSON.stringify({ query }),
-    });
-    if (!res.ok) return [];
-    const json = await res.json() as { data?: { books?: any[] } };
-    return (json.data?.books ?? [])
+    const data = await hardcoverQuery(query) as { books?: any[] } | null;
+    return (data?.books ?? [])
       .filter((b) => b.title && b.image?.url)
       .map((b): UpcomingBook => ({
         id: String(b.id),

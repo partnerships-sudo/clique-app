@@ -5,6 +5,7 @@ import type { EntryType } from '@/constants/theme';
 import type { StoreLink } from '@/features/where-to-find/links';
 import { igdbSearch, igdbDetails } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
+import { hardcoverQuery } from '@/lib/hardcover';
 import { supabase } from '@/lib/supabase';
 import { tmdbFetch } from '@/lib/tmdb';
 
@@ -18,17 +19,6 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&apos;/g, "'");
 }
 
-const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
-
-async function hardcoverQuery(query: string): Promise<any> {
-  const res = await fetch('https://api.hardcover.app/v1/graphql', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HARDCOVER_TOKEN}` },
-    body: JSON.stringify({ query }),
-  });
-  const json = await res.json();
-  return json.data;
-}
 
 async function podcastIndexSearch(query: string): Promise<any> {
   const { data } = await supabase.functions.invoke('podcast-index', { body: { action: 'search', query } });

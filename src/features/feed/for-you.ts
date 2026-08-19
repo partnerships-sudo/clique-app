@@ -1,20 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 
 import type { EntryType } from '@/constants/theme';
-const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN ?? '';
-
-async function hardcoverQuery(query: string): Promise<any> {
-  const res = await fetch('https://api.hardcover.app/v1/graphql', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HARDCOVER_TOKEN}` },
-    body: JSON.stringify({ query }),
-  });
-  const json = await res.json();
-  if (json.errors) console.warn('[Hardcover for-you]', json.errors[0]?.message, '\nQuery:', query.slice(0, 120));
-  return json.data ?? null;
-}
 import { igdbSearch, igdbSimilar } from '@/features/games/igdb';
 import { getSpotifyToken } from '@/features/search/api';
+import { hardcoverQuery } from '@/lib/hardcover';
 import { tmdbFetch } from '@/lib/tmdb';
 
 import type { TrendingEntry } from './trending';

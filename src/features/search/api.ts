@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import type { EntryType } from '@/constants/theme';
 import type { CollectionFormat } from '@/features/collection/api';
 import { igdbSearch } from '@/features/games/igdb';
+import { hardcoverQuery } from '@/lib/hardcover';
 import { supabase } from '@/lib/supabase';
 import { tmdbFetch } from '@/lib/tmdb';
 
@@ -84,20 +85,6 @@ async function searchTMDB(query: string): Promise<SearchResult[]> {
   }));
 }
 
-const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
-
-async function hardcoverQuery(query: string, variables: Record<string, unknown>): Promise<any> {
-  const res = await fetch('https://api.hardcover.app/v1/graphql', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${HARDCOVER_TOKEN}`,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  const json = await res.json();
-  return json.data;
-}
 
 async function searchBooks(query: string): Promise<SearchResult[]> {
   const data = await hardcoverQuery(

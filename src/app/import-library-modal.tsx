@@ -19,9 +19,9 @@ import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useCollectionItems } from '@/features/collection/api';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
+import { hardcoverQuery } from '@/lib/hardcover';
 import { supabase } from '@/lib/supabase';
 import { tmdbFetch } from '@/lib/tmdb';
-const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
 
 const TMDB_MOVIE_GENRES: Record<number, string> = {
   28: 'Action', 12: 'Adventure', 16: 'Animation', 35: 'Comedy', 80: 'Crime',
@@ -249,16 +249,11 @@ async function lookupTMDB(title: string, year: string): Promise<{ externalId: st
 async function lookupHardcover(title: string, author: string): Promise<{ externalId: string; poster: string | null; sub: string; mediaType: string } | null> {
   try {
     const query = author ? `${title} ${author}` : title;
-    const res = await fetch('https://api.hardcover.app/v1/graphql', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${HARDCOVER_TOKEN}` },
-      body: JSON.stringify({
-        query: `query Search($q: String!) { search(query: $q, query_type: "Book", per_page: 1, page: 1) { results } }`,
-        variables: { q: query },
-      }),
-    });
-    const json = await res.json();
-    const hit = json.data?.search?.results?.hits?.[0]?.document;
+    const data = await hardcoverQuery(
+      `query Search($q: String!) { search(query: $q, query_type: "Book", per_page: 1, page: 1) { results } }`,
+      { q: query },
+    );
+    const hit = data?.search?.results?.hits?.[0]?.document;
     if (!hit) return null;
     const hitAuthor = hit.author_names?.[0] ?? '';
     const hitYear = hit.release_year ? ` · ${hit.release_year}` : '';
