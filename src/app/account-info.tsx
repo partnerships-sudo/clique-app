@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -14,7 +14,7 @@ export default function AccountInfoScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { user, signOut } = useSession();
-  const { data: profile } = useProfile();
+  const { data: profile, isLoading: profileLoading } = useProfile();
   const queryClient = useQueryClient();
 
   const [email, setEmail] = useState(user?.email ?? '');
@@ -126,6 +126,17 @@ export default function AccountInfoScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  // The only data screen without one: the username and email fields were
+  // seeded from `profile`, so before it arrived they rendered blank — reading
+  // as "you have no email set" rather than "still loading".
+  if (profileLoading && !profile) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { justifyContent: 'center', alignItems: 'center' }]} edges={['top']}>
+        <ActivityIndicator color={Brand.trust} />
+      </SafeAreaView>
+    );
   }
 
   return (
