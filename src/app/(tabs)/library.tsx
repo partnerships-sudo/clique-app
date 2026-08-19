@@ -338,6 +338,10 @@ export default function LibraryScreen() {
           key="logged"
           contentContainerStyle={styles.content}
           data={loggedFiltered}
+          removeClippedSubviews
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl
@@ -373,6 +377,10 @@ export default function LibraryScreen() {
           key="watchlist"
           contentContainerStyle={styles.content}
           data={watchlistView === 'mine' ? watchlist : watchlistView === 'friends' ? friendRecItems : friendWatchlistItems}
+          removeClippedSubviews
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
           keyExtractor={(item: LibraryItem) => item.id}
           refreshControl={
             <RefreshControl
@@ -454,6 +462,10 @@ export default function LibraryScreen() {
           key="collection"
           contentContainerStyle={styles.content}
           data={collectionFiltered}
+          removeClippedSubviews
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
           keyExtractor={(item: CollectionItem) => item.id}
           numColumns={4}
           columnWrapperStyle={styles.collectionGridRow}
@@ -551,6 +563,10 @@ export default function LibraryScreen() {
           key="lists"
           contentContainerStyle={styles.content}
           data={listsData}
+          removeClippedSubviews
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
           keyExtractor={(l: ListSummary) => l.id}
           refreshControl={
             <RefreshControl

@@ -187,6 +187,10 @@ export default function ChatsScreen() {
         <FlatList
           contentContainerStyle={styles.content}
           data={privateItems}
+          removeClippedSubviews
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
           keyExtractor={(item) =>
             item.kind === 'dm' ? `dm-${item.data.friendId}` : `group-${item.data.id}`
           }

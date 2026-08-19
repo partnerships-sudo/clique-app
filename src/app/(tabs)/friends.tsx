@@ -769,6 +769,10 @@ function WatchPartiesContent({ Brand, styles }: { Brand: BrandPalette; styles: a
             ) : (
               <FlatList
                 data={following}
+                removeClippedSubviews
+                maxToRenderPerBatch={5}
+                windowSize={7}
+                initialNumToRender={5}
                 keyExtractor={(f) => f.id}
                 style={{ maxHeight: 340 }}
                 contentContainerStyle={{ gap: 2, paddingVertical: 8 }}
@@ -970,6 +974,10 @@ export default function FriendsScreen() {
           ref={listRef}
           contentContainerStyle={styles.content}
           data={list ?? []}
+          removeClippedSubviews
+          maxToRenderPerBatch={5}
+          windowSize={7}
+          initialNumToRender={5}
           keyExtractor={(item) => item.id}
           refreshControl={
             <RefreshControl refreshing={isFetching && !isLoading} onRefresh={refetch} tintColor={Brand.trust} />
