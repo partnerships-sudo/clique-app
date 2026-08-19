@@ -241,8 +241,24 @@ Nothing here blocks submission, in rough value order:
    `~/Desktop/clique-stale-xcode-projects-2026-08-18` on 18 Aug. They were
    untracked, so they are not recoverable from git; delete that folder once you
    are confident nothing is needed from it.
-2. **Build number** is 50; 49 is already uploaded. Anything at or below 49 is
-   rejected.
+2. **Build number.** `ios/Clique/Info.plist` hardcoded `CFBundleVersion = 10`,
+   which beat both app.json and CURRENT_PROJECT_VERSION — the 18 Aug build came
+   out as build 10 and would have been rejected, since 49 is uploaded. Fixed in
+   `2e22cb7` to use `$(CURRENT_PROJECT_VERSION)`. **Verify on your next build**:
+
+   ```bash
+   plutil -extract CFBundleVersion raw <built>/Clique.app/Info.plist   # expect 50
+   ```
+
+3. **Verify the entitlements on the archive, not the simulator.** Simulator
+   builds are ad-hoc signed with empty entitlements, so `APS_ENVIRONMENT`
+   cannot be checked there. On the archived app:
+
+   ```bash
+   codesign -d --entitlements :- <archive>/Products/Applications/Clique.app
+   ```
+
+   Expect `aps-environment` = `production`.
 3. **Test account deletion** on a real build before submitting — Apple checks
    it. The function went live 17 Aug and has never been exercised. Cascades are
    verified clean (100+ foreign keys, all `ON DELETE CASCADE`), so it should
