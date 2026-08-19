@@ -93,6 +93,78 @@ succeeds, so RevenueCat has to work first.
 
 ---
 
+## 2b. Capabilities, entitlements and auth providers
+
+`ios/Clique/Clique.entitlements` currently declares Sign in with Apple, push,
+associated domains and Apple Pay. Three of those need attention.
+
+### Sign in with Apple — code side done, config side unverified
+
+The entitlement is present in both `app.json` and `Clique.entitlements`, and
+`expo-apple-authentication` is wired into both auth screens. **Apple requires
+Sign in with Apple because the app also offers Google login**, so this is not
+optional.
+
+Still to confirm outside the repo:
+1. "Sign In with Apple" capability enabled on the App ID in the Apple Developer
+   portal (the entitlement fails to sign without it).
+2. Supabase → Authentication → Providers → Apple configured with Services ID,
+   Team ID, Key ID and the `.p8` private key.
+3. One real sign-in on a device build — the simulator is unreliable for this.
+
+### Google sign-in
+
+No native plugin: `f8cd3c3` moved this to an `expo-auth-session` web flow, so
+there is nothing to configure in Xcode. Confirm instead:
+1. Supabase → Authentication → Providers → Google enabled, with the OAuth
+   client ID and secret from Google Cloud.
+2. Redirect URI matches what `signInWithGoogle` builds:
+   `thecliqueapp://auth/callback`.
+3. The OAuth consent screen is published, not left in testing mode — in testing
+   mode only allow-listed accounts can sign in.
+
+### `aps-environment` is set to `development`
+
+```xml
+<key>aps-environment</key>
+<string>development</string>
+```
+
+An App Store build carrying the development value registers against the APNs
+sandbox, so **push notifications silently fail for real users**. Verify the
+Release configuration ships `production`, and send yourself a push from a
+TestFlight build before submitting — that is the only way to catch it.
+
+### Apple Pay entitlement may be unnecessary
+
+```xml
+<key>com.apple.developer.in-app-payments</key>
+<array><string>merchant.com.thecliqueapp</string></array>
+```
+
+Nothing in `src/` uses Apple Pay — Stripe is only used for Identity. This
+merchant ID must exist in the Developer portal or signing fails; if you are not
+taking Apple Pay, remove the entitlement rather than creating the merchant ID.
+
+### Universal links are broken
+
+`applinks:vaultedmediagroup.com` is declared, but:
+
+```
+GET https://vaultedmediagroup.com/.well-known/apple-app-site-association
+→ HTTP 404
+```
+
+Without that file iOS never associates the domain, so the
+`https://vaultedmediagroup.com/premiere/{id}` links that `handleDeepLink`
+expects open in Safari instead of the app. Shared premiere links do not work.
+
+Either host the association file at that path (served as
+`application/json`, no redirects), or drop the associated domain and rely on
+the `thecliqueapp://` scheme alone.
+
+---
+
 ## 3. Hosted web pages
 
 Apple requires real URLs; in-app screens are not enough.
