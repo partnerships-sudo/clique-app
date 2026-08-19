@@ -1,5 +1,6 @@
-import NetInfo from '@react-native-community/netinfo';
 import { useEffect, useState } from 'react';
+
+import { addNetworkListener } from '@/lib/netinfo';
 
 /**
  * Whether the device currently has no usable connection.
@@ -13,7 +14,7 @@ export function useIsOffline(): boolean {
   const [offline, setOffline] = useState(false);
 
   useEffect(() => {
-    return NetInfo.addEventListener((state) => {
+    return addNetworkListener((state) => {
       const reachable = state.isInternetReachable ?? true;
       setOffline(!state.isConnected || !reachable);
     });

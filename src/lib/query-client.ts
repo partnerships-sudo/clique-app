@@ -1,7 +1,8 @@
-import NetInfo from '@react-native-community/netinfo';
 import * as Sentry from '@sentry/react-native';
 import { MutationCache, QueryClient, onlineManager } from '@tanstack/react-query';
 import { Alert } from 'react-native';
+
+import { addNetworkListener } from './netinfo';
 
 /**
  * Teach React Query what "online" means on a device.
@@ -13,8 +14,8 @@ import { Alert } from 'react-native';
  * than "your train went into a tunnel".
  */
 onlineManager.setEventListener((setOnline) =>
-  NetInfo.addEventListener((state) => {
-    setOnline(!!state.isConnected && (state.isInternetReachable ?? true));
+  addNetworkListener((state) => {
+    setOnline(state.isConnected && (state.isInternetReachable ?? true));
   }),
 );
 
