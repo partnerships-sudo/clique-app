@@ -236,8 +236,11 @@ Nothing here blocks submission, in rough value order:
 
 ## 6. Build and release
 
-1. **Archive from Xcode**, not EAS. Use `ios/Clique.xcodeproj` — *not*
-   `ios/TheCliqueApp 2.xcodeproj`.
+1. **Archive from Xcode**, not EAS. `ios/Clique.xcodeproj` is now the only
+   project — two stale ones left over from a July rename were moved out to
+   `~/Desktop/clique-stale-xcode-projects-2026-08-18` on 18 Aug. They were
+   untracked, so they are not recoverable from git; delete that folder once you
+   are confident nothing is needed from it.
 2. **Build number** is 50; 49 is already uploaded. Anything at or below 49 is
    rejected.
 3. **Test account deletion** on a real build before submitting — Apple checks
