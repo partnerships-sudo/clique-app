@@ -16,5 +16,16 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    // Deno, not React Native: jsr:/npm: specifiers and the Deno global are not
+    // resolvable by this config, and the errors drowned out real ones in src/.
+    // Typecheck these with `deno check supabase/functions/**/*.ts`.
+    "supabase/functions",
+    // Next.js app with its own tsconfig and @web/* path aliases.
+    // Typecheck with `cd web && npx tsc --noEmit`.
+    "web"
   ]
 }
