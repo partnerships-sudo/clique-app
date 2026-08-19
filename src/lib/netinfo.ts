@@ -1,45 +1,51 @@
-import type { NetInfoState } from '@react-native-community/netinfo';
+import { TurboModuleRegistry } from 'react-native';
 
 /**
- * NetInfo, but safe to import into a binary that was built before the native
- * module was added.
+ * NetInfo, but safe to load into a binary built before the native module
+ * existed.
  *
- * `@react-native-community/netinfo` throws at import time when
- * `NativeModule.RNCNetInfo` is null, which is exactly what happens when Metro
- * pushes new JS to an older native build — the whole app red-screens on a
- * feature that is only meant to be an enhancement.
+ * `@react-native-community/netinfo` throws at module scope when its native
+ * module is absent. Wrapping the `require` in try/catch is NOT enough: Metro's
+ * `guardedLoadModule` reports a module-load failure as a fatal error before the
+ * exception reaches the catch, so the app still red-screens.
  *
- * When the native side is missing we report "online" and never emit again.
- * That is the pre-existing behaviour: React Query assumed permanent
- * connectivity before this module existed, so nothing regresses.
+ * So the native module is probed first, and the package is only required when
+ * it is actually there. `TurboModuleRegistry.get` returns null rather than
+ * throwing when a module is missing (unlike `getEnforcing`), and works under
+ * both bridgeless and the old bridge.
+ *
+ * With no native module we report "online" once and stay quiet — the behaviour
+ * that existed before NetInfo was added, so nothing regresses on an old build.
  */
 
 type Listener = (state: { isConnected: boolean; isInternetReachable: boolean | null }) => void;
 
-let netInfo: typeof import('@react-native-community/netinfo').default | null = null;
-
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  netInfo = require('@react-native-community/netinfo').default;
-} catch {
-  netInfo = null;
+function loadNetInfo() {
+  // Probing costs nothing and cannot throw.
+  if (TurboModuleRegistry.get('RNCNetInfo') == null) return null;
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    return require('@react-native-community/netinfo').default;
+  } catch {
+    return null;
+  }
 }
+
+const netInfo = loadNetInfo();
 
 export const isNetInfoAvailable = netInfo != null;
 
 /**
  * Subscribe to connectivity changes. Returns an unsubscribe function, matching
- * NetInfo's own contract so callers do not need to care which path they got.
+ * NetInfo's own contract so callers need not know which path they got.
  */
 export function addNetworkListener(listener: Listener): () => void {
   if (!netInfo) {
-    // Report online once so anything gated on this does not sit in a
-    // permanent "offline" state, then stay quiet.
     listener({ isConnected: true, isInternetReachable: true });
     return () => {};
   }
 
-  return netInfo.addEventListener((state: NetInfoState) => {
+  return netInfo.addEventListener((state: any) => {
     listener({
       isConnected: !!state.isConnected,
       isInternetReachable: state.isInternetReachable,
