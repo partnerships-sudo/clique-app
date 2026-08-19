@@ -19,7 +19,6 @@ import { tmdbFetch } from '@/lib/tmdb';
 
 import type { TrendingEntry } from './trending';
 
-const GOOGLE_BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 
 export interface ForYouSeed {
   title: string;

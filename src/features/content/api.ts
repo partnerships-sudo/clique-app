@@ -18,7 +18,6 @@ function decodeHtmlEntities(str: string): string {
     .replace(/&apos;/g, "'");
 }
 
-const BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY!;
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN!;
 
 async function hardcoverQuery(query: string): Promise<any> {
@@ -644,11 +643,11 @@ async function fetchBookDetails(title: string, externalId?: string): Promise<Con
     }
   } catch { /* fall through to Google Books */ }
 
-  // Google Books fallback
-  const res = await fetch(
-    `https://www.googleapis.com/books/v1/volumes?q=${encodeURIComponent(title)}&maxResults=1&key=${BOOKS_KEY}`,
-  );
-  const data = await res.json();
+  // Google Books fallback, via books-proxy so the key stays server-side
+  const { data, error: booksError } = await supabase.functions.invoke<any>('books-proxy', {
+    body: { title },
+  });
+  if (booksError || !data) return { ...EMPTY_DETAILS, awards };
   const info = data.items?.[0]?.volumeInfo;
   if (!info) return { ...EMPTY_DETAILS, awards };
   return {

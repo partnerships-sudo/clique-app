@@ -10,7 +10,6 @@ import { useQuery } from '@tanstack/react-query';
 
 import { supabase } from '@/lib/supabase';
 
-const GOOGLE_BOOKS_KEY = process.env.EXPO_PUBLIC_GOOGLE_BOOKS_KEY ?? '';
 const HARDCOVER_TOKEN = process.env.EXPO_PUBLIC_HARDCOVER_TOKEN ?? '';
 
 
