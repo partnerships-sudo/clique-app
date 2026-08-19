@@ -14,6 +14,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, type BrandPalette } from '@/constants/theme';
 import {
@@ -51,7 +53,7 @@ export default function PartyDetailModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { user } = useSession();
-  const { data: premiere, isLoading } = usePremiere(id ?? null);
+  const { data: premiere, isLoading, isError, refetch } = usePremiere(id ?? null);
   const { data: members = [] } = usePremiereMembers(id ?? null);
   const updateRsvp = useUpdateRsvp();
 
@@ -79,6 +81,16 @@ export default function PartyDetailModal() {
   function tabLabel(tab: { id: GuestTab; label: string }) {
     const count = grouped[tab.id].length;
     return count > 0 ? `${tab.label} (${count})` : tab.label;
+  }
+
+  // A failed fetch leaves `premiere` undefined, which used to sit on the
+  // spinner indefinitely rather than telling the user anything.
+  if (isError || (!isLoading && !premiere)) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <QueryErrorState title="Couldn't load this premiere" onRetry={refetch} />
+      </SafeAreaView>
+    );
   }
 
   if (isLoading || !premiere) {

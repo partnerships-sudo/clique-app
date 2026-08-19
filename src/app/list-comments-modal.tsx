@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import {
@@ -111,7 +113,7 @@ export default function ListCommentsModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
-  const { data: comments = [], isLoading } = useListComments(listId);
+  const { data: comments = [], isLoading, isError, refetch } = useListComments(listId);
   const { data: likeState } = useListLikeState(listId);
   const addComment = useAddListComment();
   const toggleLike = useToggleListLike();
@@ -212,6 +214,8 @@ export default function ListCommentsModal() {
         {/* Comments list */}
         {isLoading ? (
           <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
+        ) : isError ? (
+          <QueryErrorState title="Couldn't load comments" onRetry={refetch} />
         ) : comments.length === 0 ? (
           <View style={styles.empty}>
             <SymbolView name="bubble.left" size={36} tintColor={Brand.border} type="monochrome" />

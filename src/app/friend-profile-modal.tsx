@@ -4,6 +4,8 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { ProfileCard, type ProfileCardFriendAction } from '@/components/profile/profile-card';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBadgesForUser } from '@/features/badges/api';
@@ -24,7 +26,7 @@ export default function FriendProfileModal() {
     if (isSelf) router.replace('/profile');
   }, [isSelf]);
 
-  const { data: profile, isLoading, refetch: refetchProfile } = useProfileById(params.userId);
+  const { data: profile, isLoading, isError: profileError, refetch: refetchProfile } = useProfileById(params.userId);
   const { logged, watchlist: friendWatchlist, isLoading: libraryLoading, refetch: refetchLibrary } = useLibraryItemsByUser(params.userId);
   const { data: followersCount, refetch: refetchFollowersCount } = useFollowersCount(params.userId);
   const { data: followingCount, refetch: refetchFollowingCount } = useFollowingCount(params.userId);
@@ -107,6 +109,10 @@ export default function FriendProfileModal() {
 
         {isLoading || libraryLoading ? (
           <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
+        ) : profileError || !profile ? (
+          // Without this the card renders with an undefined profile, showing a
+          // blank name and zeroed counts as if the account were empty.
+          <QueryErrorState title="Couldn't load this profile" onRetry={refetchProfile} />
         ) : (
           <ProfileCard
             profile={profile}

@@ -5,6 +5,8 @@ import { Image } from 'expo-image';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useGroupInfo, useGroupMembers, useUpdateGroup } from '@/features/groups/api';
@@ -16,7 +18,7 @@ export default function GroupInfoModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const { user } = useSession();
-  const { data: members, isLoading } = useGroupMembers(groupId ?? null);
+  const { data: members, isLoading, isError, refetch } = useGroupMembers(groupId ?? null);
   const { data: groupInfo } = useGroupInfo(groupId ?? null);
   const updateGroup = useUpdateGroup(groupId ?? null, (err) => Alert.alert('Error', err.message));
 
@@ -131,6 +133,9 @@ export default function GroupInfoModal() {
         <Text style={styles.sectionLabel}>Members</Text>
 
         {isLoading && <Text style={styles.loading}>Loading members…</Text>}
+        {isError && !isLoading ? (
+          <QueryErrorState title="Couldn't load members" onRetry={refetch} />
+        ) : null}
 
         {sorted.map((member) => (
           <View key={member.userId} style={styles.memberRow}>
