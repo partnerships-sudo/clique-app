@@ -18,8 +18,6 @@ async function invokeIgdb<T>(body: Record<string, unknown>): Promise<T> {
 // database with a generous free tier and no server-side proxy required.
 // Note: RAWG and IGDB use different numeric IDs — fallback IDs are RAWG IDs.
 
-const RAWG_BASE = 'https://api.rawg.io/api';
-const RAWG_KEY = process.env.EXPO_PUBLIC_RAWG_KEY ?? '';
 
 const RAWG_PLATFORM_MAP: Record<string, string> = {
   pc: 'pc', macos: 'pc', linux: 'pc',
@@ -54,26 +52,27 @@ function rawgToIgdb(g: Record<string, any>): IgdbGame {
 }
 
 async function rawgSearch(query: string): Promise<IgdbGame[]> {
-  if (!RAWG_KEY || !query.trim()) return [];
+  if (!query.trim()) return [];
   try {
-    const res = await fetch(
-      `${RAWG_BASE}/games?key=${RAWG_KEY}&search=${encodeURIComponent(query)}&page_size=6`,
+    const { data, error } = await supabase.functions.invoke<{ results?: Record<string, any>[] }>(
+      'rawg-proxy',
+      { body: { action: 'search', query: query.trim() } },
     );
-    if (!res.ok) return [];
-    const json = await res.json() as { results?: Record<string, any>[] };
-    return (json.results ?? []).map(rawgToIgdb);
+    if (error || !data) return [];
+    return (data.results ?? []).map(rawgToIgdb);
   } catch {
     return [];
   }
 }
 
 async function rawgDetails(id: number): Promise<IgdbGame | null> {
-  if (!RAWG_KEY) return null;
   try {
-    const res = await fetch(`${RAWG_BASE}/games/${id}?key=${RAWG_KEY}`);
-    if (!res.ok) return null;
-    const g = await res.json() as Record<string, any>;
-    return rawgToIgdb(g);
+    const { data, error } = await supabase.functions.invoke<Record<string, any>>(
+      'rawg-proxy',
+      { body: { action: 'details', id } },
+    );
+    if (error || !data) return null;
+    return rawgToIgdb(data);
   } catch {
     return null;
   }

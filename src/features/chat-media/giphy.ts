@@ -1,5 +1,4 @@
-const GIPHY_KEY = process.env.EXPO_PUBLIC_GIPHY_KEY ?? '';
-const BASE = 'https://api.giphy.com/v1/gifs';
+import { supabase } from '@/lib/supabase';
 
 export interface GiphyResult {
   id: string;
@@ -21,11 +20,21 @@ function mapGif(g: any): GiphyResult {
   };
 }
 
+/**
+ * Goes through the `giphy-proxy` edge function so the API key stays
+ * server-side. An empty query returns trending, which is what the picker shows
+ * before the user types.
+ */
 export async function searchGifs(query: string, limit = 24): Promise<GiphyResult[]> {
-  const endpoint = query.trim()
-    ? `${BASE}/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(query)}&limit=${limit}&rating=pg-13`
-    : `${BASE}/trending?api_key=${GIPHY_KEY}&limit=${limit}&rating=pg-13`;
-  const res = await fetch(endpoint);
-  const json = await res.json();
-  return (json.data ?? []).map(mapGif);
+  const trimmed = query.trim();
+  const { data, error } = await supabase.functions.invoke<{ data?: any[] }>('giphy-proxy', {
+    body: trimmed
+      ? { action: 'search', query: trimmed, limit }
+      : { action: 'trending', limit },
+  });
+
+  // The picker is a nice-to-have inside the composer: a failure here should
+  // show an empty shelf, not break sending a message.
+  if (error || !data) return [];
+  return (data.data ?? []).map(mapGif);
 }
