@@ -123,17 +123,20 @@ there is nothing to configure in Xcode. Confirm instead:
 3. The OAuth consent screen is published, not left in testing mode — in testing
    mode only allow-listed accounts can sign in.
 
-### `aps-environment` is set to `development`
+### `aps-environment` — fixed in code, still needs a live test
 
-```xml
-<key>aps-environment</key>
-<string>development</string>
-```
+Both build configurations pointed at the same entitlements file declaring
+`development`, so App Store builds would have registered against the APNs
+sandbox and push would have silently failed for every real user.
 
-An App Store build carrying the development value registers against the APNs
-sandbox, so **push notifications silently fail for real users**. Verify the
-Release configuration ships `production`, and send yourself a push from a
-TestFlight build before submitting — that is the only way to catch it.
+Fixed in `8e87de8`: `ios/Clique/CliqueRelease.entitlements` carries
+`production` and the Release configuration points at it, while Debug keeps the
+sandbox.
+
+**Still to do:** send yourself a push from a TestFlight build. That is the only
+way to confirm delivery, and it cannot be tested in the simulator.
+
+**Caveat:** `expo prebuild --clean` regenerates `ios/` and would drop this.
 
 ### Apple Pay entitlement may be unnecessary
 
