@@ -32,8 +32,8 @@ export function useCloseFriendIds() {
  * with whether they're already a close friend — backs the Close Friends
  * search page. */
 export function useCloseFriendCandidates(query: string) {
-  const { data: mutuals, isLoading: mutualsLoading } = useMutualFollows();
-  const { data: closeFriendIds, isLoading: closeFriendsLoading } = useCloseFriendIds();
+  const { data: mutuals, isLoading: mutualsLoading, isError: mutualsError, refetch: refetchMutuals } = useMutualFollows();
+  const { data: closeFriendIds, isLoading: closeFriendsLoading, isError: closeFriendsError } = useCloseFriendIds();
   const trimmed = query.trim().toLowerCase();
 
   const candidates = useMemo((): CloseFriendCandidate[] => {
@@ -49,7 +49,12 @@ export function useCloseFriendCandidates(query: string) {
       .sort((a, b) => Number(b.isCloseFriend) - Number(a.isCloseFriend));
   }, [mutuals, closeFriendIds, trimmed]);
 
-  return { data: candidates, isLoading: mutualsLoading || closeFriendsLoading };
+  return {
+    data: candidates,
+    isLoading: mutualsLoading || closeFriendsLoading,
+    isError: mutualsError || closeFriendsError,
+    refetch: refetchMutuals,
+  };
 }
 
 export function useToggleCloseFriend() {

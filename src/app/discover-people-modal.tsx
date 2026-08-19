@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { DiscoverUserCard } from '@/components/friends/discover-user-card';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useDiscoverPeople, useFollow, useSearchUsers, type DiscoverSortBy } from '@/features/follows/api';
@@ -28,7 +30,7 @@ export default function DiscoverPeopleModal() {
     return () => clearTimeout(timer);
   }, [locationInput]);
 
-  const { data: pool, isLoading: poolLoading } = useDiscoverPeople(sortBy, location);
+  const { data: pool, isLoading: poolLoading, isError: poolError, refetch: refetchPool } = useDiscoverPeople(sortBy, location);
   const { data: keywordResults, isFetching: keywordFetching } = useSearchUsers(keyword);
   const follow = useFollow();
 
@@ -38,6 +40,9 @@ export default function DiscoverPeopleModal() {
   const isSearching = keyword.trim().length >= 2;
   const list = isSearching ? (keywordResults ?? []) : (pool ?? []);
   const isLoading = isSearching ? keywordFetching : poolLoading;
+  // Only the pool query has an error state worth surfacing; a failed keyword
+  // search falls back to the pool.
+  const isError = !isSearching && poolError;
 
   return (
     <>
@@ -107,6 +112,10 @@ export default function DiscoverPeopleModal() {
 
         {isLoading ? (
           <ActivityIndicator color={Brand.trust} style={styles.spinner} />
+        ) : isError ? (
+          // A failed fetch would otherwise fall through to the empty state,
+          // which reads as "there is nobody here".
+          <QueryErrorState title="Couldn't load people" onRetry={refetchPool} />
         ) : (
           <FlatList
             data={list}

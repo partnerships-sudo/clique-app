@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { BlockMuteSheet } from '@/components/settings/block-mute-sheet';
 import { BlockMuteUserRow } from '@/components/settings/block-mute-user-row';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -14,7 +16,7 @@ export default function BlockedMutedAccountsScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [query, setQuery] = useState('');
-  const { data: users, isLoading } = useBlockableUsers(query);
+  const { data: users, isLoading, isError, refetch } = useBlockableUsers(query);
   const [selected, setSelected] = useState<BlockableUser | undefined>(undefined);
 
   // Keep the sheet's toggle values in sync with the live query result
@@ -46,6 +48,10 @@ export default function BlockedMutedAccountsScreen() {
 
         {isLoading ? (
           <ActivityIndicator color={Brand.trust} style={styles.spinner} />
+        ) : isError ? (
+          // A failed fetch would otherwise fall through to the empty state,
+          // which reads as "there is nobody here".
+          <QueryErrorState title="Couldn't load accounts" onRetry={refetch} />
         ) : (
           <FlatList
             data={users}

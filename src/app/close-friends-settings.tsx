@@ -4,6 +4,8 @@ import { useMemo, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { CloseFriendRow } from '@/components/settings/close-friend-row';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useCloseFriendCandidates, useToggleCloseFriend } from '@/features/close-friends/api';
@@ -13,7 +15,7 @@ export default function CloseFriendsSettingsScreen() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
   const [query, setQuery] = useState('');
-  const { data: candidates, isLoading } = useCloseFriendCandidates(query);
+  const { data: candidates, isLoading, isError, refetch } = useCloseFriendCandidates(query);
   const toggle = useToggleCloseFriend();
 
   return (
@@ -42,6 +44,10 @@ export default function CloseFriendsSettingsScreen() {
 
         {isLoading ? (
           <ActivityIndicator color={Brand.trust} style={styles.spinner} />
+        ) : isError ? (
+          // A failed fetch would otherwise fall through to the empty state,
+          // which reads as "there is nobody here".
+          <QueryErrorState title="Couldn't load your friends" onRetry={refetch} />
         ) : (
           <FlatList
             data={candidates}

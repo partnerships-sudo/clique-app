@@ -73,8 +73,8 @@ export function useBlockableUsers(query: string) {
     },
     enabled: !!user,
   });
-  const { data: mutuals, isLoading: mutualsLoading } = useMutualFollows();
-  const { data: myBlocks, isLoading: blocksLoading } = useMyBlocks();
+  const { data: mutuals, isLoading: mutualsLoading, isError: mutualsError } = useMutualFollows();
+  const { data: myBlocks, isLoading: blocksLoading, isError: blocksError } = useMyBlocks();
 
   const users = useMemo((): BlockableUser[] => {
     const mutualIds = new Set((mutuals ?? []).map((m) => m.id));
@@ -92,7 +92,12 @@ export function useBlockableUsers(query: string) {
       .sort((a, b) => Number(b.isFriend) - Number(a.isFriend));
   }, [pool.data, mutuals, myBlocks]);
 
-  return { data: users, isLoading: pool.isLoading || mutualsLoading || blocksLoading };
+  return {
+    data: users,
+    isLoading: pool.isLoading || mutualsLoading || blocksLoading,
+    isError: pool.isError || mutualsError || blocksError,
+    refetch: pool.refetch,
+  };
 }
 
 /** Sets the full block/mute pair for a target user in one write — the row

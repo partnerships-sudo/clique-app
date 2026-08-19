@@ -5,6 +5,8 @@ import { Image } from 'expo-image';
 import { Alert, ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { type ActivityItem, useInbox, useMarkAllRead } from '@/features/notifications/inbox';
@@ -126,7 +128,7 @@ function NotifRow({ item, styles, Brand }: { item: ActivityItem; styles: ReturnT
 export default function NotificationsModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data: items, isLoading } = useInbox();
+  const { data: items, isLoading, isError, refetch } = useInbox();
   const markAllRead = useMarkAllRead();
 
   const unreadCount = (items ?? []).filter((i) => !i.read).length;
@@ -150,6 +152,10 @@ export default function NotificationsModal() {
         <View style={styles.centered}>
           <ActivityIndicator color={Brand.trust} />
         </View>
+      ) : isError ? (
+        // Without this a failed fetch falls through to "No activity yet",
+        // which reads as "nobody has interacted with you".
+        <QueryErrorState title="Couldn't load your activity" onRetry={refetch} />
       ) : !items?.length ? (
         <View style={styles.centered}>
           <SymbolView name="bell" size={40} tintColor={Brand.muted} type="monochrome" />
