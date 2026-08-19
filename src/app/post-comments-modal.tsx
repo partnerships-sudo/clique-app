@@ -16,6 +16,7 @@ import {
   type PostComment,
 } from '@/features/comments/api';
 import { timeAgo } from '@/features/feed/time-ago';
+import { QueryErrorState } from '@/components/query-error-state';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -228,7 +229,7 @@ export default function PostCommentsModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
 
-  const { data: comments = [], isLoading } = usePostComments(postId);
+  const { data: comments = [], isLoading, isError, refetch } = usePostComments(postId);
   const addComment = useAddComment();
 
   const [text, setText] = useState('');
@@ -325,6 +326,8 @@ export default function PostCommentsModal() {
         {/* Comments list */}
         {isLoading ? (
           <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
+        ) : isError ? (
+          <QueryErrorState title="Couldn't load comments" onRetry={refetch} />
         ) : comments.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyTitle}>No comments yet</Text>

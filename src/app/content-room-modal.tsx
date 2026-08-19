@@ -7,6 +7,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { DiscussionCard } from '@/components/feed/discussion-card';
 import { NewsCard } from '@/components/news/news-card';
+import { QueryErrorState } from '@/components/query-error-state';
 import { BrandFonts } from '@/constants/theme';
 import { useContentRoomDiscussions, useRoomFollowState, useToggleRoomFollow, useMuteRoomFollow } from '@/features/discussions/api';
 import { useContentRoomNews } from '@/features/news/api';
@@ -38,7 +39,7 @@ export default function ContentRoomModal() {
   const [tab, setTab] = useState<Tab>('discussions');
   const [sort, setSort] = useState<'popular' | 'newest'>('popular');
 
-  const { data: discussions = [], isLoading: discussionsLoading } = useContentRoomDiscussions(externalId, mediaType);
+  const { data: discussions = [], isLoading: discussionsLoading, isError: discussionsError, refetch: refetchDiscussions } = useContentRoomDiscussions(externalId, mediaType);
   const { data: newsArticles = [], isLoading: newsLoading } = useContentRoomNews(title, mediaType);
 
   const sortedDiscussions = useMemo(() => {
@@ -205,6 +206,8 @@ export default function ContentRoomModal() {
           ListEmptyComponent={
             discussionsLoading ? (
               <ActivityIndicator style={{ marginTop: 40 }} color={Brand.trust} />
+            ) : discussionsError ? (
+              <QueryErrorState title="Couldn't load discussions" onRetry={refetchDiscussions} />
             ) : (
               <View style={[styles.emptyCard, { backgroundColor: Brand.card, borderColor: Brand.border }]}>
                 <Text style={[styles.emptyTitle, { color: Brand.ink }]}>No discussions yet</Text>

@@ -6,6 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useAddToList, useListMembership, useLists } from '@/features/lists/api';
+import { QueryErrorState } from '@/components/query-error-state';
 import { useBrand } from '@/hooks/use-brand';
 
 export default function AddToListModal() {
@@ -17,7 +18,7 @@ export default function AddToListModal() {
     type?: string;
   }>();
 
-  const { data: lists = [], isLoading: listsLoading } = useLists();
+  const { data: lists = [], isLoading: listsLoading, isError: listsError, refetch: refetchLists } = useLists();
   const { data: membership, isLoading: membershipLoading } = useListMembership(libraryItemId);
   const addToList = useAddToList();
   const Brand = useBrand();
@@ -58,6 +59,10 @@ export default function AddToListModal() {
 
       {loading ? (
         <ActivityIndicator style={{ marginTop: 40 }} color={Brand.trust} />
+      ) : listsError ? (
+        // Otherwise a failed fetch looks like "you have no lists", and the
+        // user makes a duplicate of one they already own.
+        <QueryErrorState title="Couldn't load your lists" onRetry={refetchLists} />
       ) : (
         <FlatList
           data={lists}

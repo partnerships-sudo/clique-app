@@ -10,6 +10,7 @@ import { useFollowersByUser, useFollowingByUser, useFollowing, type Profile } fr
 import { usePostsByUser, type Post } from '@/features/feed/api';
 import { UpgradeGate } from '@/components/upgrade-gate';
 import { useProfile } from '@/features/profile/api';
+import { QueryErrorState } from '@/components/query-error-state';
 import { useBrand } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
 
@@ -28,9 +29,9 @@ export default function ProfileStatsModal() {
 
   const isOwnProfile = userId === user?.id;
 
-  const { data: logged = [], isLoading: loggedLoading } = usePostsByUser(tab === 'logged' ? userId : undefined);
-  const { data: followers, isLoading: followersLoading } = useFollowersByUser(tab === 'followers' ? userId : undefined);
-  const { data: following, isLoading: followingLoading } = useFollowingByUser(tab === 'following' ? userId : undefined);
+  const { data: logged = [], isLoading: loggedLoading, isError: loggedError, refetch: refetchLogged } = usePostsByUser(tab === 'logged' ? userId : undefined);
+  const { data: followers, isLoading: followersLoading, isError: followersError, refetch: refetchFollowers } = useFollowersByUser(tab === 'followers' ? userId : undefined);
+  const { data: following, isLoading: followingLoading, isError: followingError, refetch: refetchFollowing } = useFollowingByUser(tab === 'following' ? userId : undefined);
   // Only fetch on other people's profiles — used to float mutuals to the top.
   const { data: myFollowing } = useFollowing();
   const myFollowingSet = useMemo(
@@ -39,6 +40,9 @@ export default function ProfileStatsModal() {
   );
 
   const isLoading = loggedLoading || followersLoading || followingLoading;
+  // Only the tab currently on screen is enabled, so only its error matters.
+  const isError = loggedError || followersError || followingError;
+  const retry = () => { refetchLogged(); refetchFollowers(); refetchFollowing(); };
 
   const yearFilter = params.year ? Number(params.year) : null;
   const { data: myProfile } = useProfile();
