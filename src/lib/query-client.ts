@@ -1,6 +1,22 @@
+import NetInfo from '@react-native-community/netinfo';
 import * as Sentry from '@sentry/react-native';
-import { MutationCache, QueryClient } from '@tanstack/react-query';
+import { MutationCache, QueryClient, onlineManager } from '@tanstack/react-query';
 import { Alert } from 'react-native';
+
+/**
+ * Teach React Query what "online" means on a device.
+ *
+ * Without this it assumes the browser default — permanently online — so every
+ * query fired while offline runs, fails, burns its retries and lands in an
+ * error state. With it, queries pause while offline and resume on reconnect,
+ * which also means the error states we show are genuine server errors rather
+ * than "your train went into a tunnel".
+ */
+onlineManager.setEventListener((setOnline) =>
+  NetInfo.addEventListener((state) => {
+    setOnline(!!state.isConnected && (state.isInternetReachable ?? true));
+  }),
+);
 
 /**
  * Turns a thrown value into something worth showing a person.
