@@ -12,6 +12,7 @@ import { track, Events } from '@/features/analytics/api';
 import { type SearchResult, useUniversalSearch } from '@/features/search/api';
 import * as FileSystem from 'expo-file-system/legacy';
 import { decode } from 'base64-arraybuffer';
+import { QueryErrorState } from '@/components/query-error-state';
 import { supabase } from '@/lib/supabase';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
 import { useSession } from '@/hooks/use-session';
@@ -68,7 +69,7 @@ function ContentSearchStep({
 }) {
   const [query, setQuery] = useState('');
   const TypeColors = useTypeColors();
-  const { data: results = [], isLoading } = useUniversalSearch(query);
+  const { data: results = [], isLoading, isError, refetch } = useUniversalSearch(query);
 
   return (
     <View style={{ flex: 1 }}>
@@ -125,7 +126,13 @@ function ContentSearchStep({
         </ScrollView>
       )}
 
-      {query.trim().length >= 2 && !isLoading && results.length === 0 && (
+      {query.trim().length >= 2 && !isLoading && isError && (
+        // "No results" would suggest the title does not exist, rather than
+        // that the search itself failed.
+        <QueryErrorState title="Search didn't load" onRetry={refetch} />
+      )}
+
+      {query.trim().length >= 2 && !isLoading && !isError && results.length === 0 && (
         <Text style={[searchStyles.noResults, { color: Brand.muted }]}>No results for "{query}"</Text>
       )}
 

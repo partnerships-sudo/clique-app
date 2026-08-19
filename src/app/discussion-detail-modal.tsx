@@ -36,6 +36,7 @@ import {
   useVoteOnPoll,
 } from '@/features/discussions/api';
 import { track, Events } from '@/features/analytics/api';
+import { QueryErrorState } from '@/components/query-error-state';
 import { supabase } from '@/lib/supabase';
 import { tmdbFetch } from '@/lib/tmdb';
 import { useBrand, useTypeColors } from '@/hooks/use-brand';
@@ -423,7 +424,7 @@ export default function DiscussionDetailModal() {
   const { user } = useSession();
   const { top, bottom } = useSafeAreaInsets();
 
-  const { data: discussion, isLoading: dLoading, refetch: refetchDiscussion } = useDiscussion(id);
+  const { data: discussion, isLoading: dLoading, isError: dError, refetch: refetchDiscussion } = useDiscussion(id);
   const { data: comments = [], isLoading: cLoading } = useDiscussionComments(id);
   const { data: poll } = useDiscussionPoll(id);
   const vote = useToggleDiscussionVote();
@@ -1139,6 +1140,10 @@ export default function DiscussionDetailModal() {
       <View style={{ flex: 1 }}>
         {dLoading ? (
           <ActivityIndicator style={{ marginTop: 80 }} color={Brand.trust} />
+        ) : dError || !discussion ? (
+          // The list header renders the discussion itself, so without this a
+          // failed fetch draws a headerless, empty thread as if it had no posts.
+          <QueryErrorState title="Couldn't load this discussion" onRetry={refetchDiscussion} />
         ) : (
           <FlatList
             data={isPollDiscussion && !showComments ? [] : flatItems}

@@ -12,6 +12,7 @@ import { MessageBubble } from '@/components/chat/message-bubble';
 import { BrandFonts, Spacing, type BrandPalette, type EntryType } from '@/constants/theme';
 import { useSendMessage, useThreadMessages } from '@/features/chats/api';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { QueryErrorState } from '@/components/query-error-state';
 import { supabase } from '@/lib/supabase';
 import { useChatReadState, useDmReadState, useGroupReadState } from '@/features/chats/read-state';
 import { isAhead, useEpisodeCheckpoint, type EpisodeCheckpoint } from '@/features/chats/spoiler-guard';
@@ -77,6 +78,8 @@ export default function ChatModal() {
   const { data: groupInfo } = useGroupInfo(isGroup ? params.groupId! : null);
   const { data: groupMembers = [] } = useGroupMembers(isGroup ? params.groupId! : null);
   const isLoading = isGroup ? groupMessages.isLoading : isDm ? dmMessages.isLoading : threadMessages.isLoading;
+  const isError = isGroup ? groupMessages.isError : isDm ? dmMessages.isError : threadMessages.isError;
+  const refetchMessages = isGroup ? groupMessages.refetch : isDm ? dmMessages.refetch : threadMessages.refetch;
   const { data: dmThreadState } = useDmThreadState(isDm ? params.friendId : undefined);
   const isDmLocked = isDm && dmThreadState?.locked === true;
   const acceptDmRequest = useAcceptDmRequest();
@@ -703,7 +706,11 @@ export default function ChatModal() {
             ItemSeparatorComponent={isContentChat ? null : () => <View style={{ height: 14 }} />}
             onContentSizeChange={() => { if (!searchActive) listRef.current?.scrollToEnd({ animated: false }); }}
             ListEmptyComponent={
-              !isLoading ? (
+              isError ? (
+                // Otherwise a failed fetch invites the user to start a
+                // conversation that may already have messages in it.
+                <QueryErrorState title="Couldn't load messages" onRetry={refetchMessages} />
+              ) : !isLoading ? (
                 <Text style={[styles.empty, isContentChat && { marginTop: 40 }]}>
                   Say something to kick off the chat.
                 </Text>
