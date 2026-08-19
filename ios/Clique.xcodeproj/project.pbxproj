@@ -374,6 +374,7 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 25A5CC24DAFCB37F15D0F5B8 /* Pods-Clique.debug.xcconfig */;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Clique/Clique.entitlements;
@@ -412,9 +413,10 @@
 			isa = XCBuildConfiguration;
 			baseConfigurationReference = 8C3FEBEB70BB7B30326AA478 /* Pods-Clique.release.xcconfig */;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = Clique/CliqueRelease.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Clique/Clique.entitlements;
 				CURRENT_PROJECT_VERSION = 50;
 				DEVELOPMENT_TEAM = M943AW25Y8;
 				GCC_PREPROCESSOR_DEFINITIONS = "$(inherited)";
