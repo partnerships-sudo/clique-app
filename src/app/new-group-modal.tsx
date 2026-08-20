@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useExtendedNetworkProfiles } from '@/features/follows/api';
@@ -12,7 +14,7 @@ import { useBrand } from '@/hooks/use-brand';
 export default function NewGroupModal() {
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data: friends } = useExtendedNetworkProfiles();
+  const { data: friends, isError: friendsError, refetch: refetchFriends } = useExtendedNetworkProfiles();
   const createGroup = useCreateGroup();
   const [groupName, setGroupName] = useState('');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -77,9 +79,13 @@ export default function NewGroupModal() {
           <Text style={styles.selectedCount}>{selected.size} selected</Text>
         )}
 
-        {(friends ?? []).length === 0 && (
+        {friendsError ? (
+          // "You need friends to create a group!" on a failed fetch is both
+          // wrong and a bit pointed.
+          <QueryErrorState title="Couldn't load your friends" onRetry={refetchFriends} />
+        ) : (friends ?? []).length === 0 ? (
           <Text style={styles.empty}>You need friends to create a group!</Text>
-        )}
+        ) : null}
 
         {(friends ?? []).map((friend) => {
           const isSelected = selected.has(friend.id);

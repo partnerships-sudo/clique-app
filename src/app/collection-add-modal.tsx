@@ -4,6 +4,8 @@ import { Image } from 'expo-image';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { RatingPicker } from '@/components/rating-icons';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useAddToCollection, type CollectionType } from '@/features/collection/api';
@@ -28,7 +30,7 @@ export default function CollectionAddModal() {
     return () => clearTimeout(timer);
   }, [query]);
 
-  const { data: results, isFetching } = useTitleSearch(collectionType, debouncedQuery);
+  const { data: results, isFetching, isError: searchError, refetch: refetchSearch } = useTitleSearch(collectionType, debouncedQuery);
 
   function switchType(next: CollectionType) {
     setCollectionType(next);
@@ -135,7 +137,12 @@ export default function CollectionAddModal() {
               autoFocus
             />
             {isFetching ? <ActivityIndicator color={Brand.trust} style={styles.spinner} /> : null}
-            {!isFetching && debouncedQuery.length >= 2 && results?.length === 0 ? (
+            {!isFetching && debouncedQuery.length >= 2 && searchError ? (
+              // "Try a different spelling" sends the user to re-type a query
+              // that was already correct — the search itself failed.
+              <QueryErrorState title="Search didn't load" onRetry={refetchSearch} />
+            ) : null}
+            {!isFetching && !searchError && debouncedQuery.length >= 2 && results?.length === 0 ? (
               <Text style={styles.emptyText}>No results found. Try a different spelling.</Text>
             ) : null}
             {results?.length ? (
