@@ -14,6 +14,11 @@ import { useIsOffline } from '@/hooks/use-network-status';
  *
  * Mirrors the feed's existing error state so every tab fails the same way.
  *
+ * The default body deliberately does NOT blame the connection. Most failures
+ * here are server-side — a broken query, a policy change — and telling someone
+ * with four bars to check their signal sends them chasing the wrong thing. When
+ * the device really is offline the copy below says so explicitly.
+ *
  * When the device is offline the copy is replaced wholesale: "Couldn't load
  * your chats" invites the user to suspect the app or their account, when the
  * real answer is that they have no signal. Doing it here means every screen
@@ -21,7 +26,7 @@ import { useIsOffline } from '@/hooks/use-network-status';
  */
 export function QueryErrorState({
   title,
-  body = 'Check your connection and try again.',
+  body = 'Something went wrong at our end. Try again in a moment.',
   emoji = '📡',
   onRetry,
 }: {

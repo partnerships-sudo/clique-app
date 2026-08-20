@@ -23,10 +23,23 @@ async function enrichComments(
 ): Promise<PostComment[]> {
   if (rows.length === 0) return [];
   const ids = rows.map((r) => r.id);
-  const [upvoteRows, replyRows] = await Promise.all([
+  // post_comments.user_id references auth.users, not profiles, so PostgREST
+  // cannot embed the author — the previous
+  // `profiles!post_comments_user_id_fkey(...)` hint failed with PGRST200 and
+  // took the whole query down with it. Look the authors up separately, the way
+  // the rest of the app does.
+  const authorIds = [...new Set(rows.map((r) => r.user_id).filter(Boolean))];
+  const [upvoteRows, replyRows, authorRows] = await Promise.all([
     supabase.from('post_comment_upvotes').select('comment_id').in('comment_id', ids),
     supabase.from('post_comments').select('parent_id').in('parent_id', ids),
+    authorIds.length
+      ? supabase.from('profiles').select('id, username, avatar_url').in('id', authorIds)
+      : Promise.resolve({ data: [] as any[] }),
   ]);
+  const authors = new Map<string, { username: string | null; avatar_url: string | null }>();
+  for (const a of (authorRows.data ?? []) as any[]) {
+    authors.set(a.id, { username: a.username, avatar_url: a.avatar_url });
+  }
   const upvoteCounts = new Map<string, number>();
   for (const u of upvoteRows.data ?? []) {
     const id = (u as any).comment_id as string;
@@ -41,8 +54,8 @@ async function enrichComments(
     id: c.id,
     post_id: c.post_id,
     user_id: c.user_id,
-    user_name: c.profiles?.username ?? 'user',
-    user_avatar_url: c.profiles?.avatar_url ?? null,
+    user_name: authors.get(c.user_id)?.username ?? 'user',
+    user_avatar_url: authors.get(c.user_id)?.avatar_url ?? null,
     content: c.content,
     parent_id: c.parent_id ?? null,
     created_at: c.created_at,
@@ -60,7 +73,7 @@ export function usePostComments(postId: string) {
       const [commentsRes, upvotesRes] = await Promise.all([
         supabase
           .from('post_comments')
-          .select('*, profiles!post_comments_user_id_fkey(username, avatar_url)')
+          .select('*')
           .eq('post_id', postId)
           .is('parent_id', null)
           .order('created_at', { ascending: false }),
@@ -85,7 +98,7 @@ export function useCommentReplies(commentId: string, enabled: boolean) {
       const [repliesRes, upvotesRes] = await Promise.all([
         supabase
           .from('post_comments')
-          .select('*, profiles!post_comments_user_id_fkey(username, avatar_url)')
+          .select('*')
           .eq('parent_id', commentId)
           .order('created_at', { ascending: true }),
         user
