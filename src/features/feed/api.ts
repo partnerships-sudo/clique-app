@@ -106,20 +106,38 @@ export function useGlobalPosts() {
     queryKey: ['posts', 'global'],
     staleTime: 60_000,
     queryFn: async () => {
+      // posts.user_id references auth.users, not profiles, so PostgREST cannot
+      // embed the author — the previous `profiles!posts_user_id_fkey(...)` hint
+      // failed with PGRST200 and took the whole query down. Authors are looked
+      // up separately, as elsewhere in the app.
       const { data, error } = await supabase
         .from('posts')
-        .select('*, profiles!posts_user_id_fkey(username, full_name, avatar_url, verified_tier)')
+        .select('*')
         .eq('visibility', 'everyone')
         .order('created_at', { ascending: false })
         .limit(200);
       if (error) throw error;
-      return ((data ?? []) as any[]).map((p) => ({
-        ...p,
-        user_name: p.profiles?.username ?? p.profiles?.full_name ?? p.user_name,
-        user_avatar_url: p.profiles?.avatar_url ?? null,
-        user_verified_tier: p.profiles?.verified_tier ?? 0,
-        profiles: undefined,
-      })) as Post[];
+
+      const rows = (data ?? []) as any[];
+      const authorIds = [...new Set(rows.map((p) => p.user_id).filter(Boolean))];
+      const { data: authorRows } = authorIds.length
+        ? await supabase
+            .from('profiles')
+            .select('id, username, full_name, avatar_url, verified_tier')
+            .in('id', authorIds)
+        : { data: [] as any[] };
+      const authors = new Map<string, any>();
+      for (const a of (authorRows ?? []) as any[]) authors.set(a.id, a);
+
+      return rows.map((p) => {
+        const a = authors.get(p.user_id);
+        return {
+          ...p,
+          user_name: a?.username ?? a?.full_name ?? p.user_name,
+          user_avatar_url: a?.avatar_url ?? null,
+          user_verified_tier: a?.verified_tier ?? 0,
+        };
+      }) as Post[];
     },
   });
   const data = useMemo(
