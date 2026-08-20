@@ -60,9 +60,9 @@ function useMyReactionsTotal() {
  * Completionist badge. */
 export function useBadges() {
   const { user } = useSession();
-  const { logged, isLoading: libraryLoading } = useLibraryItems();
+  const { logged, isLoading: libraryLoading, isError: libraryError } = useLibraryItems();
   const { data: reactionsTotal = 0 } = useMyReactionsTotal();
-  const { data: earnedRows, isLoading: earnedLoading } = useEarnedBadges(user?.id);
+  const { data: earnedRows, isLoading: earnedLoading, isError: earnedError, refetch: refetchEarned } = useEarnedBadges(user?.id);
   const queryClient = useQueryClient();
 
   const earnedKeys = useMemo(() => new Set((earnedRows ?? []).map((r) => r.badge_key)), [earnedRows]);
@@ -106,6 +106,8 @@ export function useBadges() {
   return {
     badges: evaluated,
     isLoading: libraryLoading || earnedLoading,
+    isError: libraryError || earnedError,
+    refetch: refetchEarned,
     newlyEarned,
     syncNewlyEarned: () => {
       if (newlyEarned.length) syncMutation.mutate(newlyEarned);
@@ -116,7 +118,7 @@ export function useBadges() {
 /** Read-only badge view for someone else's profile — no sync/write, just
  * evaluates their earned rows against the shared catalog for display. */
 export function useBadgesForUser(userId: string | undefined) {
-  const { data: earnedRows, isLoading } = useEarnedBadges(userId);
+  const { data: earnedRows, isLoading, isError, refetch } = useEarnedBadges(userId);
   const earnedKeys = useMemo(() => new Set((earnedRows ?? []).map((r) => r.badge_key)), [earnedRows]);
   const evaluated: EvaluatedBadge[] = useMemo(() => {
     const base = BADGE_CATALOG.map((badge) => ({
@@ -131,7 +133,7 @@ export function useBadgesForUser(userId: string | undefined) {
     };
     return [...base, completionist];
   }, [earnedKeys]);
-  return { badges: evaluated, isLoading };
+  return { badges: evaluated, isLoading, isError, refetch };
 }
 
 export function useUpdateFeaturedBadges() {

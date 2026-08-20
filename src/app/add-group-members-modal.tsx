@@ -3,6 +3,8 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { Alert } from 'react-native';
 import { Avatar } from '@/components/avatar';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
@@ -14,7 +16,7 @@ export default function AddGroupMembersModal() {
   const { groupId, groupName } = useLocalSearchParams<{ groupId: string; groupName?: string }>();
   const Brand = useBrand();
   const styles = useMemo(() => createStyles(Brand), [Brand]);
-  const { data: friends } = useExtendedNetworkProfiles();
+  const { data: friends, isError: friendsError, refetch: refetchFriends } = useExtendedNetworkProfiles();
   const { data: currentMembers } = useGroupMembers(groupId ?? null);
   const addMembers = useAddGroupMembers(groupId ?? null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -68,12 +70,16 @@ export default function AddGroupMembersModal() {
           <Text style={styles.selectedCount}>{selected.size} selected</Text>
         )}
 
-        {eligible.length === 0 && (
+        {friendsError ? (
+          // Without this a failed fetch claims "All friends are already in this
+          // group" — confidently wrong rather than merely empty.
+          <QueryErrorState title="Couldn't load your friends" onRetry={refetchFriends} />
+        ) : eligible.length === 0 ? (
           <View style={styles.empty}>
             <Text style={styles.emptyEmoji}>👥</Text>
             <Text style={styles.emptyTitle}>All friends are already in this group</Text>
           </View>
-        )}
+        ) : null}
 
         {eligible.map((friend) => {
           const isSelected = selected.has(friend.id);

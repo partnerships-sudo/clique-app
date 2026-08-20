@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+import { QueryErrorState } from '@/components/query-error-state';
+
 import { BadgeTile } from '@/components/badges/badge-tile';
 import { BrandFonts, Spacing, type BrandPalette } from '@/constants/theme';
 import { useBadges, useBadgesForUser, useFeaturedBadges, useUpdateFeaturedBadges, type EvaluatedBadge } from '@/features/badges/api';
@@ -19,7 +21,7 @@ export default function AchievementsModal() {
 
   const own = useBadges();
   const friend = useBadgesForUser(params.userId);
-  const { badges, isLoading } = isOwnProfile ? own : friend;
+  const { badges, isLoading, isError, refetch } = isOwnProfile ? own : friend;
   const featuredKeys = useFeaturedBadges();
   const updateFeatured = useUpdateFeaturedBadges();
 
@@ -64,6 +66,10 @@ export default function AchievementsModal() {
 
       {isLoading ? (
         <ActivityIndicator color={Brand.trust} style={{ marginTop: 40 }} />
+      ) : isError ? (
+        // Otherwise every category renders empty and the header reads "0 / 0
+        // earned", as though no badges exist at all.
+        <QueryErrorState title="Couldn't load achievements" onRetry={refetch} />
       ) : (
           <ScrollView style={{ flex: 1 }} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
             {BADGE_CATEGORIES.map((category) => {
